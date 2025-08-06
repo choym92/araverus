@@ -1,0 +1,12 @@
+{
+  // "model": "claude-opus-4-1-20250805",
+  
+  // Alternative models - uncomment to switch:
+  // "model": "claude-opus-4-20250522",        // Claude Opus 4 (May 2025)
+  "model": "claude-sonnet-4-20250514",      // Claude Sonnet 4 (Current default)
+  // "model": "claude-3-5-haiku-20241022",     // Claude Haiku 3.5 (Fastest/cheapest)
+  
+  // Optional additional settings:
+  // "max_tokens": 4096,
+  // "temperature": 0.1
+}
