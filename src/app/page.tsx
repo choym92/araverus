@@ -2,10 +2,10 @@
 'use client';
 
 import Link from 'next/link';
-import { useEffect } from 'react';
+import { useEffect, Suspense } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 
-export default function Home() {
+function AuthCodeHandler() {
   const searchParams = useSearchParams();
   const router = useRouter();
 
@@ -17,8 +17,16 @@ export default function Home() {
       return;
     }
   }, [searchParams, router]);
+
+  return null;
+}
+
+export default function Home() {
   return (
     <main className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100">
+      <Suspense fallback={null}>
+        <AuthCodeHandler />
+      </Suspense>
       <section className="mx-auto max-w-4xl px-6 py-24">
         {/* Hero Section */}
         <div className="text-center mb-16">
