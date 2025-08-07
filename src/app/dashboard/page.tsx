@@ -49,7 +49,7 @@ export default function DashboardPage() {
           <div className="flex justify-between h-16">
             <div className="flex items-center">
               <h1 className="text-xl font-semibold text-gray-900">
-                Araverus Dashboard
+                Paul Cho - Admin Dashboard
               </h1>
             </div>
             <div className="flex items-center space-x-4">
@@ -80,16 +80,16 @@ export default function DashboardPage() {
           <div className="bg-white overflow-hidden shadow rounded-lg">
             <div className="px-4 py-5 sm:p-6">
               <h2 className="text-lg font-medium text-gray-900 mb-4">
-                SEC Filing Screener Dashboard
+                Website Management
               </h2>
               
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 <div className="bg-blue-50 p-6 rounded-lg">
                   <h3 className="text-lg font-semibold text-blue-900 mb-2">
-                    Stock Screener
+                    Content Management
                   </h3>
                   <p className="text-blue-700 text-sm">
-                    Filter and analyze stocks based on SEC filings and financial metrics
+                    Manage blog posts, projects, and website content
                   </p>
                   <button className="mt-4 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-md text-sm">
                     Coming Soon
@@ -98,10 +98,10 @@ export default function DashboardPage() {
                 
                 <div className="bg-green-50 p-6 rounded-lg">
                   <h3 className="text-lg font-semibold text-green-900 mb-2">
-                    AI Analysis
+                    Analytics
                   </h3>
                   <p className="text-green-700 text-sm">
-                    Get AI-powered summaries and insights from SEC documents
+                    View website traffic, popular content, and visitor insights
                   </p>
                   <button className="mt-4 bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-md text-sm">
                     Coming Soon
@@ -110,10 +110,10 @@ export default function DashboardPage() {
                 
                 <div className="bg-purple-50 p-6 rounded-lg">
                   <h3 className="text-lg font-semibold text-purple-900 mb-2">
-                    Watchlists
+                    Contact Forms
                   </h3>
                   <p className="text-purple-700 text-sm">
-                    Track your favorite stocks and get notifications on new filings
+                    Manage contact form submissions and inquiries
                   </p>
                   <button className="mt-4 bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-md text-sm">
                     Coming Soon
