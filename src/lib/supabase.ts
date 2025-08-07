@@ -1,11 +1,12 @@
 // src/lib/supabase.ts
 import { createBrowserClient } from "@supabase/ssr";
+import { supabaseUrl, supabaseAnonKey } from "./config";
 
 /**
- * `supabase` – a ready-to-use client that works in
- * both Client Components and simple API routes.
+ * Creates a Supabase client for use in Client Components.
+ * Uses validated environment variables from config.
+ * Each component should create its own instance to avoid session bleeding.
  */
-export const supabase = createBrowserClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-);
+export function createClient() {
+  return createBrowserClient(supabaseUrl, supabaseAnonKey);
+}
