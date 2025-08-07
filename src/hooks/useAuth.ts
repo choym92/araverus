@@ -28,14 +28,17 @@ export function useAuth() {
     let isMounted = true; // Prevent state updates after unmount
 
     const getUserAndProfile = async () => {
-      // Add timeout to prevent infinite loading
+      // Add timeout to prevent infinite loading  
       const timeoutId = setTimeout(() => {
         if (isMounted) {
           console.warn('Auth check timed out');
           setLoading(false);
-          setError('Authentication check timed out');
+          // Don't set this as an error if we have a user - just continue without profile
+          if (!user) {
+            setError('Authentication check timed out');
+          }
         }
-      }, 5000); // 5 second timeout
+      }, 3000); // Reduced to 3 second timeout
 
       try {
         const { data: { user }, error: authError } = await supabase.auth.getUser();
@@ -147,25 +150,49 @@ export function useAuth() {
 
   // Function to manually refresh profile data
   const refreshProfile = useCallback(async () => {
-    if (!user) return;
+    if (!user) {
+      console.warn('No user available for profile refresh');
+      return;
+    }
+    
+    console.log('Refreshing profile for user:', user.id);
     
     try {
-      const { data: profileData, error: profileError } = await supabase
+      // Add a timeout to the profile query
+      const profilePromise = supabase
         .from('user_profiles')
         .select('*')
         .eq('id', user.id)
         .single();
       
+      const timeoutPromise = new Promise((_, reject) =>
+        setTimeout(() => reject(new Error('Profile query timeout')), 3000)
+      );
+      
+      const { data: profileData, error: profileError } = await Promise.race([
+        profilePromise,
+        timeoutPromise
+      ]) as any;
+      
       if (!profileError && profileData) {
+        console.log('Profile refreshed successfully:', profileData);
         setProfile(profileData);
         setError(null);
       } else if (profileError) {
         console.error('Profile refresh error:', profileError);
-        setError('Failed to refresh profile');
+        if (profileError.code === 'PGRST116') {
+          setError('Profile not found - please contact admin');
+        } else {
+          setError(`Database error: ${profileError.message}`);
+        }
       }
-    } catch (err) {
+    } catch (err: any) {
       console.error('Profile refresh error:', err);
-      setError('Failed to refresh profile');
+      if (err.message === 'Profile query timeout') {
+        setError('Profile query timed out - database may be slow');
+      } else {
+        setError(`Profile refresh failed: ${err.message}`);
+      }
     }
   }, [user, supabase]);
 
