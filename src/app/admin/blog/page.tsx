@@ -4,7 +4,7 @@ import { AdminGuard } from '@/components/AdminGuard';
 import { AdminLayout } from '@/components/AdminLayout';
 import { useAuth } from '@/hooks/useAuth';
 import Link from 'next/link';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { format } from 'date-fns';
 
 interface BlogPost {
@@ -25,11 +25,7 @@ export default function BlogManagement() {
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<'all' | 'published' | 'draft' | 'archived'>('all');
 
-  useEffect(() => {
-    fetchPosts();
-  }, [filter, supabase]);
-
-  const fetchPosts = async () => {
+  const fetchPosts = useCallback(async () => {
     try {
       let query = supabase
         .from('blog_posts')
@@ -52,7 +48,11 @@ export default function BlogManagement() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [filter, supabase]);
+
+  useEffect(() => {
+    fetchPosts();
+  }, [fetchPosts]);
 
   const handleDelete = async (id: string, title: string) => {
     if (!confirm(`Are you sure you want to delete "${title}"? This action cannot be undone.`)) {
@@ -79,7 +79,7 @@ export default function BlogManagement() {
 
   const handleStatusChange = async (id: string, newStatus: BlogPost['status']) => {
     try {
-      const updateData: any = { status: newStatus };
+      const updateData: { status: BlogPost['status']; published_at?: string } = { status: newStatus };
       if (newStatus === 'published') {
         updateData.published_at = new Date().toISOString();
       }
@@ -132,7 +132,7 @@ export default function BlogManagement() {
                 ].map((tab) => (
                   <button
                     key={tab.key}
-                    onClick={() => setFilter(tab.key as any)}
+                    onClick={() => setFilter(tab.key as 'all' | 'published' | 'draft' | 'archived')}
                     className={`${
                       filter === tab.key
                         ? 'border-blue-500 text-blue-600'

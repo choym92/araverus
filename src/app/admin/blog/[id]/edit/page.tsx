@@ -9,7 +9,7 @@ import { useRouter } from 'next/navigation';
 import { useState, FormEvent, useEffect } from 'react';
 import slugify from 'slugify';
 
-interface FormData {
+interface BlogFormData {
   title: string;
   slug: string;
   content: string;
@@ -21,22 +21,30 @@ interface FormData {
   status: 'draft' | 'published' | 'archived';
 }
 
-interface BlogPost extends FormData {
+interface BlogPost {
   id: string;
+  title: string;
+  slug: string;
+  content: string;
+  excerpt: string;
+  featured_image?: string;
+  tags: string[];
+  meta_title?: string;
+  meta_description?: string;
+  status: 'draft' | 'published' | 'archived';
   author_id: string;
   created_at: string;
   updated_at: string;
   published_at?: string;
   view_count: number;
-  tags: string[];
 }
 
-export default function EditBlogPost({ params }: { params: { id: string } }) {
+export default function EditBlogPost({ params }: { params: Promise<{ id: string }> }) {
   const { user, supabase } = useAuth();
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [initialLoading, setInitialLoading] = useState(true);
-  const [formData, setFormData] = useState<FormData>({
+  const [formData, setFormData] = useState<BlogFormData>({
     title: '',
     slug: '',
     content: '',
@@ -52,10 +60,11 @@ export default function EditBlogPost({ params }: { params: { id: string } }) {
   useEffect(() => {
     const fetchPost = async () => {
       try {
+        const resolvedParams = await params;
         const { data, error } = await supabase
           .from('blog_posts')
           .select('*')
-          .eq('id', params.id)
+          .eq('id', resolvedParams.id)
           .single();
 
         if (error) {
@@ -86,7 +95,7 @@ export default function EditBlogPost({ params }: { params: { id: string } }) {
     };
 
     fetchPost();
-  }, [params.id, supabase, router]);
+  }, [params, supabase, router]);
 
   const handleTitleChange = (title: string) => {
     const slug = slugify(title, { lower: true, strict: true });
@@ -121,10 +130,11 @@ export default function EditBlogPost({ params }: { params: { id: string } }) {
           : originalPost.published_at,
       };
 
+      const resolvedParams = await params;
       const { error } = await supabase
         .from('blog_posts')
         .update(postData)
-        .eq('id', params.id);
+        .eq('id', resolvedParams.id);
 
       if (error) {
         console.error('Error updating post:', error);
@@ -156,10 +166,11 @@ export default function EditBlogPost({ params }: { params: { id: string } }) {
     if (!confirmed) return;
 
     try {
+      const resolvedParams = await params;
       const { error } = await supabase
         .from('blog_posts')
         .delete()
-        .eq('id', params.id);
+        .eq('id', resolvedParams.id);
 
       if (error) {
         console.error('Error deleting post:', error);

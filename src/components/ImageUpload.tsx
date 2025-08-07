@@ -2,7 +2,7 @@
 
 import { useAuth } from '@/hooks/useAuth';
 import { useCallback, useState } from 'react';
-import { useDropzone } from 'react-dropzone';
+import { useDropzone, FileRejection } from 'react-dropzone';
 
 interface ImageUploadProps {
   onImageUploaded: (url: string) => void;
@@ -27,7 +27,7 @@ export function ImageUpload({
   const [uploadProgress, setUploadProgress] = useState(0);
   const [error, setError] = useState<string | null>(null);
 
-  const uploadImage = async (file: File) => {
+  const uploadImage = useCallback(async (file: File) => {
     try {
       setUploading(true);
       setError(null);
@@ -39,7 +39,7 @@ export function ImageUpload({
       const filePath = `blog-images/${fileName}`;
 
       // Upload to Supabase Storage
-      const { data, error: uploadError } = await supabase.storage
+      const { error: uploadError } = await supabase.storage
         .from('blog-images')
         .upload(filePath, file, {
           cacheControl: '3600',
@@ -67,16 +67,16 @@ export function ImageUpload({
       setUploading(false);
       setTimeout(() => setUploadProgress(0), 1000);
     }
-  };
+  }, [supabase, onImageUploaded]);
 
-  const onDrop = useCallback((acceptedFiles: File[], rejectedFiles: any[]) => {
+  const onDrop = useCallback((acceptedFiles: File[], rejectedFiles: FileRejection[]) => {
     setError(null);
 
     if (rejectedFiles.length > 0) {
       const rejection = rejectedFiles[0];
-      if (rejection.errors.some((e: any) => e.code === 'file-too-large')) {
+      if (rejection.errors.some((e) => e.code === 'file-too-large')) {
         setError(`File is too large. Maximum size is ${Math.round(maxSize / 1024 / 1024)}MB.`);
-      } else if (rejection.errors.some((e: any) => e.code === 'file-invalid-type')) {
+      } else if (rejection.errors.some((e) => e.code === 'file-invalid-type')) {
         setError('Invalid file type. Please upload a valid image file.');
       } else {
         setError('File rejected. Please try again.');
@@ -87,7 +87,7 @@ export function ImageUpload({
     if (acceptedFiles.length > 0) {
       uploadImage(acceptedFiles[0]);
     }
-  }, [maxSize]);
+  }, [maxSize, uploadImage]);
 
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
     onDrop,
