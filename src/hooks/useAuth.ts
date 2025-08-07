@@ -28,8 +28,19 @@ export function useAuth() {
     let isMounted = true; // Prevent state updates after unmount
 
     const getUserAndProfile = async () => {
+      // Add timeout to prevent infinite loading
+      const timeoutId = setTimeout(() => {
+        if (isMounted) {
+          console.warn('Auth check timed out');
+          setLoading(false);
+          setError('Authentication check timed out');
+        }
+      }, 5000); // 5 second timeout
+
       try {
         const { data: { user }, error: authError } = await supabase.auth.getUser();
+        
+        clearTimeout(timeoutId);
         
         if (!isMounted) return; // Component unmounted, bail out
         
@@ -64,6 +75,7 @@ export function useAuth() {
         
         setLoading(false);
       } catch (err) {
+        clearTimeout(timeoutId);
         if (!isMounted) return;
         console.error('Unexpected auth error:', err);
         setError('An unexpected error occurred');
