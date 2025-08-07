@@ -1,12 +1,32 @@
 {
-  // "model": "claude-opus-4-1-20250805",
-  
-  // Alternative models - uncomment to switch:
-  // "model": "claude-opus-4-20250522",        // Claude Opus 4 (May 2025)
-  "model": "claude-sonnet-4-20250514",      // Claude Sonnet 4 (Current default)
-  // "model": "claude-3-5-haiku-20241022",     // Claude Haiku 3.5 (Fastest/cheapest)
-  
-  // Optional additional settings:
-  // "max_tokens": 4096,
-  // "temperature": 0.1
+  "model": "claude-sonnet-4-20250514",
+  "max_tokens": 4096,
+  "temperature": 0.1,
+  "hooks": {
+    "UserPromptSubmit": {
+      "hooks": [
+        { "type": "agent", "agent": "prompt-refiner" }
+      ]
+    },
+    "AfterMultiEdit": {
+      "hooks": [
+        { 
+          "type": "agent", 
+          "agent": "principal-code-architect",
+          "description": "Review significant code changes"
+        }
+      ]
+    }
+  },
+  "agent_defaults": {
+    "frontend-code-reviewer": {
+      "context": "This is a Next.js 15 personal website (chopaul.com) using React 19, TypeScript, and Tailwind CSS"
+    },
+    "backend-code-reviewer": {
+      "context": "This is a Next.js API with Supabase authentication and server-side rendering"  
+    },
+    "principal-code-architect": {
+      "context": "Personal website project: chopaul.com - focus on security, performance, and professional quality"
+    }
+  }
 }
