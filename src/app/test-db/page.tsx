@@ -1,15 +1,23 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { createClient } from '@/lib/supabase';
 
+interface TestResult {
+  test: string;
+  status: 'SUCCESS' | 'FAILED';
+  result?: unknown;
+  error?: string;
+  duration: string;
+}
+
 export default function TestDBPage() {
-  const [results, setResults] = useState<any[]>([]);
+  const [results, setResults] = useState<TestResult[]>([]);
   const [loading, setLoading] = useState(false);
 
   const supabase = createClient();
 
-  const runTest = async (testName: string, testFn: () => Promise<any>) => {
+  const runTest = async (testName: string, testFn: () => Promise<unknown>) => {
     setLoading(true);
     const startTime = Date.now();
     
@@ -31,12 +39,12 @@ export default function TestDBPage() {
         result, 
         duration: `${duration}ms`
       }]);
-    } catch (error: any) {
+    } catch (error: unknown) {
       const duration = Date.now() - startTime;
       setResults(prev => [...prev, { 
         test: testName, 
         status: 'FAILED', 
-        error: error.message, 
+        error: error instanceof Error ? error.message : 'Unknown error', 
         duration: `${duration}ms`
       }]);
     }
@@ -144,7 +152,7 @@ export default function TestDBPage() {
 
         {results.length === 0 && (
           <div className="text-center text-gray-500 py-12">
-            Click "Run All Tests" to start testing database connectivity
+            Click &ldquo;Run All Tests&rdquo; to start testing database connectivity
           </div>
         )}
       </div>

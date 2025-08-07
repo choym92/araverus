@@ -172,7 +172,7 @@ export function useAuth() {
       const { data: profileData, error: profileError } = await Promise.race([
         profilePromise,
         timeoutPromise
-      ]) as any;
+      ]) as Awaited<typeof profilePromise>;
       
       if (!profileError && profileData) {
         console.log('Profile refreshed successfully:', profileData);
@@ -186,12 +186,12 @@ export function useAuth() {
           setError(`Database error: ${profileError.message}`);
         }
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('Profile refresh error:', err);
-      if (err.message === 'Profile query timeout') {
+      if (err instanceof Error && err.message === 'Profile query timeout') {
         setError('Profile query timed out - database may be slow');
       } else {
-        setError(`Profile refresh failed: ${err.message}`);
+        setError(`Profile refresh failed: ${err instanceof Error ? err.message : 'Unknown error'}`);
       }
     }
   }, [user, supabase]);
