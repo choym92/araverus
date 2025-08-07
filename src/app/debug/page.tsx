@@ -3,7 +3,7 @@
 import { useAuth } from '@/hooks/useAuth';
 
 export default function DebugPage() {
-  const { user, profile, loading, error, isAdmin, supabase } = useAuth();
+  const { user, profile, loading, error, isAdmin, supabase, refreshProfile } = useAuth();
 
   return (
     <div className="min-h-screen bg-gray-50 p-8">
@@ -92,6 +92,47 @@ export default function DebugPage() {
               className="bg-purple-600 text-white px-4 py-2 rounded hover:bg-purple-700"
             >
               Test DB Connection
+            </button>
+            <button
+              onClick={async () => {
+                try {
+                  // Check if profile exists for current user
+                  if (user) {
+                    const { data, error } = await supabase
+                      .from('user_profiles')
+                      .select('*')
+                      .eq('id', user.id)
+                      .single();
+                    console.log('Profile Check:', { data, error });
+                    alert(`Profile Check: ${data ? `Found - Role: ${data.role}` : `Not found - Error: ${error?.message}`}`);
+                  } else {
+                    alert('No user logged in');
+                  }
+                } catch (err) {
+                  console.error('Profile Check Error:', err);
+                  alert('Profile check failed - check console');
+                }
+              }}
+              className="bg-orange-600 text-white px-4 py-2 rounded hover:bg-orange-700"
+            >
+              Check My Profile
+            </button>
+            <button
+              onClick={() => {
+                window.location.reload();
+              }}
+              className="bg-gray-600 text-white px-4 py-2 rounded hover:bg-gray-700"
+            >
+              Refresh Page
+            </button>
+            <button
+              onClick={async () => {
+                await refreshProfile();
+                alert('Profile refreshed! Check if admin status changed.');
+              }}
+              className="bg-red-600 text-white px-4 py-2 rounded hover:bg-red-700"
+            >
+              Refresh Profile
             </button>
           </div>
         </div>

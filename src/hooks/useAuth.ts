@@ -3,7 +3,7 @@
 
 import { createClient } from '@/lib/supabase';
 import { User } from '@supabase/supabase-js';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, useCallback } from 'react';
 
 interface UserProfile {
   id: string;
@@ -145,6 +145,30 @@ export function useAuth() {
   // Helper function to check if user is admin
   const isAdmin = profile?.role === 'admin';
 
+  // Function to manually refresh profile data
+  const refreshProfile = useCallback(async () => {
+    if (!user) return;
+    
+    try {
+      const { data: profileData, error: profileError } = await supabase
+        .from('user_profiles')
+        .select('*')
+        .eq('id', user.id)
+        .single();
+      
+      if (!profileError && profileData) {
+        setProfile(profileData);
+        setError(null);
+      } else if (profileError) {
+        console.error('Profile refresh error:', profileError);
+        setError('Failed to refresh profile');
+      }
+    } catch (err) {
+      console.error('Profile refresh error:', err);
+      setError('Failed to refresh profile');
+    }
+  }, [user, supabase]);
+
   return {
     user,
     profile,
@@ -153,6 +177,7 @@ export function useAuth() {
     isAdmin,
     supabase,
     signOut,
+    refreshProfile,
     setError, // Allow manual error clearing
   };
 }
