@@ -41,21 +41,37 @@ export async function middleware(request: NextRequest) {
     }
   )
 
-  // Refresh session if expired - required for Server Components
-  const { data: { user }, error } = await supabase.auth.getUser()
+  // Only check auth for protected routes to avoid timeouts
+  const isProtectedRoute = request.nextUrl.pathname.startsWith('/dashboard') || 
+                          request.nextUrl.pathname.startsWith('/admin')
+  const isLoginRoute = request.nextUrl.pathname === '/login'
 
-  // Protect dashboard routes
-  if (request.nextUrl.pathname.startsWith('/dashboard')) {
-    if (!user || error) {
-      // Redirect to login if not authenticated
-      return NextResponse.redirect(new URL('/login', request.url))
-    }
-  }
+  if (isProtectedRoute || isLoginRoute) {
+    try {
+      // Add timeout to prevent middleware blocking
+      const authPromise = supabase.auth.getUser()
+      const timeoutPromise = new Promise((_, reject) => 
+        setTimeout(() => reject(new Error('Auth timeout')), 2000)
+      )
+      
+      const { data: { user }, error } = await Promise.race([
+        authPromise, 
+        timeoutPromise
+      ]) as Awaited<typeof authPromise>
 
-  // Redirect authenticated users away from login page
-  if (request.nextUrl.pathname === '/login') {
-    if (user && !error) {
-      return NextResponse.redirect(new URL('/dashboard', request.url))
+      if (isProtectedRoute && (!user || error)) {
+        return NextResponse.redirect(new URL('/login', request.url))
+      }
+
+      if (isLoginRoute && user && !error) {
+        return NextResponse.redirect(new URL('/dashboard', request.url))
+      }
+    } catch (err) {
+      // If auth check fails, allow through but log the issue
+      console.warn('Middleware auth check failed:', err)
+      if (isProtectedRoute) {
+        return NextResponse.redirect(new URL('/login', request.url))
+      }
     }
   }
 
