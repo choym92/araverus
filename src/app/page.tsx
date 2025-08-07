@@ -17,16 +17,16 @@ export default function Home() {
           
           <div className="flex flex-wrap justify-center gap-4 mb-12">
             <Link 
-              href="#about" 
+              href="/blog" 
               className="bg-blue-600 hover:bg-blue-700 text-white px-8 py-3 rounded-lg font-medium transition-colors"
             >
-              About Me
+              Blog
             </Link>
             <Link 
-              href="#projects" 
+              href="#about" 
               className="bg-gray-600 hover:bg-gray-700 text-white px-8 py-3 rounded-lg font-medium transition-colors"
             >
-              Projects
+              About Me
             </Link>
             <Link 
               href="#contact" 
