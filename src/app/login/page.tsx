@@ -74,7 +74,7 @@ export default function LoginPage() {
               },
             }}
             providers={['google']}
-            redirectTo={`${typeof window !== 'undefined' ? window.location.origin : ''}/dashboard`}
+            redirectTo={`${typeof window !== 'undefined' ? window.location.origin : ''}/auth/callback`}
           />
         </div>
       </div>
