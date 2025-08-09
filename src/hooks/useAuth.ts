@@ -2,13 +2,21 @@
 
 import { createClient } from '@/lib/supabase';
 import { User } from '@supabase/supabase-js';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, useCallback } from 'react';
+
+// Create client singleton to prevent unnecessary recreations
+let supabaseClientInstance: ReturnType<typeof createClient> | null = null;
 
 export function useAuth() {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
 
-  const supabase = useMemo(() => createClient(), []);
+  const supabase = useMemo(() => {
+    if (!supabaseClientInstance) {
+      supabaseClientInstance = createClient();
+    }
+    return supabaseClientInstance;
+  }, []);
 
   useEffect(() => {
     let mounted = true;
@@ -34,6 +42,7 @@ export function useAuth() {
       async (event, session) => {
         if (mounted) {
           setUser(session?.user ?? null);
+          setLoading(false);
         }
       }
     );
@@ -44,7 +53,7 @@ export function useAuth() {
     };
   }, [supabase]);
 
-  const signOut = async () => {
+  const signOut = useCallback(async () => {
     try {
       const { error } = await supabase.auth.signOut();
       if (error) throw error;
@@ -53,12 +62,12 @@ export function useAuth() {
       console.error('Sign out error:', error);
       return false;
     }
-  };
+  }, [supabase]);
 
-  return {
+  return useMemo(() => ({
     user,
     loading,
     supabase,
     signOut,
-  };
+  }), [user, loading, supabase, signOut]);
 }

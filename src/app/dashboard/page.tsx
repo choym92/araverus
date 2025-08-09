@@ -2,11 +2,12 @@
 
 import { useAuth } from '@/hooks/useAuth';
 import { useRouter } from 'next/navigation';
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 
 export default function DashboardPage() {
   const router = useRouter();
   const { user, loading, signOut } = useAuth();
+  const [isSigningOut, setIsSigningOut] = useState(false);
 
   useEffect(() => {
     if (!loading && !user) {
@@ -15,14 +16,18 @@ export default function DashboardPage() {
   }, [user, loading, router]);
 
   const handleSignOut = async () => {
+    if (isSigningOut) return;
+    setIsSigningOut(true);
+    
     await signOut();
     router.push('/');
   };
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
+      <div className="min-h-screen flex items-center justify-center" aria-live="polite">
         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+        <span className="sr-only">Loading dashboard...</span>
       </div>
     );
   }
@@ -30,6 +35,15 @@ export default function DashboardPage() {
   if (!user) {
     return null;
   }
+
+  const formatLastSignIn = (timestamp: string | null | undefined) => {
+    if (!timestamp) return 'Never';
+    try {
+      return new Date(timestamp).toLocaleString();
+    } catch {
+      return 'Invalid date';
+    }
+  };
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -41,14 +55,15 @@ export default function DashboardPage() {
           <div className="bg-gray-50 p-4 rounded mb-6">
             <p><strong>Email:</strong> {user.email}</p>
             <p><strong>User ID:</strong> {user.id}</p>
-            <p><strong>Last Sign In:</strong> {new Date(user.last_sign_in_at || '').toLocaleString()}</p>
+            <p><strong>Last Sign In:</strong> {formatLastSignIn(user.last_sign_in_at)}</p>
           </div>
           
           <button
             onClick={handleSignOut}
-            className="bg-red-600 text-white px-4 py-2 rounded hover:bg-red-700"
+            disabled={isSigningOut}
+            className="bg-red-600 text-white px-4 py-2 rounded hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
           >
-            Sign Out
+            {isSigningOut ? 'Signing out...' : 'Sign Out'}
           </button>
         </div>
       </div>

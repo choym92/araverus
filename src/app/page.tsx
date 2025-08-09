@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { useEffect, Suspense } from 'react';
+import { useEffect, Suspense, useState } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { useAuth } from '@/hooks/useAuth';
 
@@ -9,21 +9,42 @@ function AuthCodeHandler() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const { supabase } = useAuth();
+  const [isProcessing, setIsProcessing] = useState(false);
 
   useEffect(() => {
     const code = searchParams.get('code');
-    if (code) {
+    if (code && !isProcessing) {
+      setIsProcessing(true);
       // Exchange code for session
-      supabase.auth.exchangeCodeForSession(code).then(({ error }) => {
+      supabase.auth.exchangeCodeForSession(code).then(({ data, error }) => {
         if (error) {
           console.error('Auth exchange failed:', error);
-          router.push('/login');
+          // Redirect to login with error parameter
+          router.push('/login?error=auth_failed');
         } else {
+          console.log('Authentication successful:', data.user?.email);
           router.push('/dashboard');
         }
+      }).catch((err) => {
+        console.error('Unexpected auth error:', err);
+        router.push('/login?error=unexpected');
+      }).finally(() => {
+        setIsProcessing(false);
       });
     }
-  }, [searchParams, router, supabase]);
+  }, [searchParams, router, supabase, isProcessing]);
+
+  // Show processing state if handling auth code
+  if (isProcessing) {
+    return (
+      <div className="fixed inset-0 bg-white bg-opacity-80 flex items-center justify-center z-50">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-4"></div>
+          <p className="text-gray-600">Completing sign in...</p>
+        </div>
+      </div>
+    );
+  }
 
   return null;
 }
