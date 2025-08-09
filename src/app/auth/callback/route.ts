@@ -2,7 +2,7 @@ import { createClient } from '@/lib/supabase-server';
 import { NextRequest, NextResponse } from 'next/server';
 
 export async function GET(request: NextRequest) {
-  const { searchParams, origin } = new URL(request.url);
+  const { searchParams } = new URL(request.url);
   const code = searchParams.get('code');
   const next = searchParams.get('next') ?? '/dashboard';
 
@@ -11,20 +11,20 @@ export async function GET(request: NextRequest) {
     const { error } = await supabase.auth.exchangeCodeForSession(code);
     
     if (!error) {
-      const forwardedHost = request.headers.get('x-forwarded-host'); // original origin before load balancer
-      const isLocalEnv = process.env.NODE_ENV === 'development';
-      
-      if (isLocalEnv) {
-        // We can be sure that there is no load balancer in between, so no need to watch for X-Forwarded-Host
-        return NextResponse.redirect(`${origin}${next}`);
-      } else if (forwardedHost) {
-        return NextResponse.redirect(`https://${forwardedHost}${next}`);
-      } else {
-        return NextResponse.redirect(`${origin}${next}`);
-      }
+      // Successfully authenticated - redirect to dashboard
+      const redirectUrl = new URL(next, request.url);
+      return NextResponse.redirect(redirectUrl);
+    } else {
+      console.error('OAuth callback error:', error);
+      // Redirect to error page with error details
+      const errorUrl = new URL('/auth/auth-code-error', request.url);
+      errorUrl.searchParams.set('error', error.message);
+      return NextResponse.redirect(errorUrl);
     }
   }
 
-  // Return the user to an error page with instructions
-  return NextResponse.redirect(`${origin}/auth/auth-code-error`);
+  // No code provided - redirect to error page
+  const errorUrl = new URL('/auth/auth-code-error', request.url);
+  errorUrl.searchParams.set('error', 'No authorization code provided');
+  return NextResponse.redirect(errorUrl);
 }
