@@ -13,12 +13,17 @@ export class BlogService {
   private static readonly IMAGE_BUCKET = 'blog-assets';
   private static readonly IMAGE_BASE_PATH = 'blog-images';
 
-  // Check if user is admin
+  // Check if user is admin (only choym92@gmail.com)
   async isAdmin(): Promise<boolean> {
     if (this._adminCache !== undefined) return this._adminCache;
     try {
       const { data: { user } } = await this.supabase.auth.getUser();
       if (!user) return (this._adminCache = false);
+      
+      // Only allow specific admin email
+      if (user.email !== 'choym92@gmail.com') {
+        return (this._adminCache = false);
+      }
 
       const { data: profile, error } = await this.supabase
         .from('user_profiles')
@@ -26,7 +31,24 @@ export class BlogService {
         .eq('id', user.id)
         .single();
 
-      if (error) return (this._adminCache = false);
+      if (error) {
+        // If no profile exists yet, create one for admin email
+        if (user.email === 'choym92@gmail.com') {
+          await this.supabase
+            .from('user_profiles')
+            .upsert({
+              id: user.id,
+              email: user.email,
+              role: 'admin',
+              created_at: new Date().toISOString(),
+              updated_at: new Date().toISOString()
+            }, {
+              onConflict: 'id'
+            });
+          return (this._adminCache = true);
+        }
+        return (this._adminCache = false);
+      }
       return (this._adminCache = profile?.role === 'admin');
     } catch {
       return (this._adminCache = false);

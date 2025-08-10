@@ -38,24 +38,13 @@ export default function BlogPage() {
   const [isAdmin, setIsAdmin] = useState(false);
   const limit = 12;
 
-  // Check if user is admin
+  // Check if user is admin (only choym92@gmail.com)
   useEffect(() => {
-    const checkAdmin = async () => {
-      if (!user) {
-        setIsAdmin(false);
-        return;
-      }
-      
-      try {
-        const res = await fetch('/api/blog', { method: 'HEAD' });
-        // If user can access blog API, they're admin
-        setIsAdmin(res.ok);
-      } catch {
-        setIsAdmin(false);
-      }
-    };
-    
-    checkAdmin();
+    if (user?.email === 'choym92@gmail.com') {
+      setIsAdmin(true);
+    } else {
+      setIsAdmin(false);
+    }
   }, [user]);
 
   useEffect(() => {
@@ -209,16 +198,17 @@ export default function BlogPage() {
             
             {/* Controls */}
             <div className="flex items-center gap-3">
-              {/* Write Button for Admins */}
-              {user && isAdmin && (
+              {/* Write Button for Admin - Modern minimal style */}
+              {isAdmin && (
                 <Link
                   href="/admin/blog/write"
-                  className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                  className="px-4 py-2 text-sm font-medium border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors flex items-center gap-2 h-[38px]"
                 >
-                  <PenTool size={16} />
-                  Write
+                  <PenTool size={16} strokeWidth={1.5} />
+                  <span>Write</span>
                 </Link>
               )}
+              
               {/* Search */}
               <div className="relative">
                 <input

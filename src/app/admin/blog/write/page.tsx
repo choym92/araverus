@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/hooks/useAuth';
-import BlogEditor from '@/components/BlogEditor';
+import TiptapEditor from '@/components/TiptapEditor';
 import { Loader2, Save, Eye, X } from 'lucide-react';
 
 export default function WriteBlogPage() {
@@ -28,62 +28,54 @@ export default function WriteBlogPage() {
   const [lastSaved, setLastSaved] = useState<Date | null>(null);
   const [showPreview, setShowPreview] = useState(false);
 
-  // Check admin status - Auto-set admin for logged in users
+  // Check admin status - Only allow choym92@gmail.com
   useEffect(() => {
     const setupAdmin = async () => {
       if (!user) return;
       
-      // Auto-set user as admin if they're logged in
+      // Only allow specific admin email
+      if (user.email !== 'choym92@gmail.com') {
+        console.log('Access denied: Not admin email');
+        router.push('/blog');
+        return;
+      }
+      
       try {
         const { createClient } = await import('@/lib/supabase');
         const supabase = createClient();
         
-        // Check if profile exists
-        const { data: existingProfile } = await supabase
+        // Ensure admin profile exists
+        const { error: profileError } = await supabase
           .from('user_profiles')
-          .select('role')
-          .eq('id', user.id)
-          .single();
+          .upsert({
+            id: user.id,
+            email: user.email,
+            role: 'admin',
+            full_name: user.user_metadata?.full_name || user.email?.split('@')[0] || 'Admin',
+            avatar_url: user.user_metadata?.avatar_url || user.user_metadata?.picture,
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString()
+          }, {
+            onConflict: 'id'
+          });
         
-        if (!existingProfile || existingProfile.role !== 'admin') {
-          // Upsert the user profile with admin role
-          const { error: profileError } = await supabase
+        if (profileError) {
+          console.error('Failed to set admin role:', profileError);
+          // Try update only
+          const { error: retryError } = await supabase
             .from('user_profiles')
-            .upsert({
-              id: user.id,
-              email: user.email,
+            .update({
               role: 'admin',
-              full_name: user.user_metadata?.full_name || user.email?.split('@')[0] || 'Admin',
-              avatar_url: user.user_metadata?.avatar_url || user.user_metadata?.picture,
-              created_at: new Date().toISOString(),
               updated_at: new Date().toISOString()
-            }, {
-              onConflict: 'id'
-            });
-          
-          if (profileError) {
-            console.error('Failed to set admin role:', profileError);
-            // Try without created_at for existing records
-            const { error: retryError } = await supabase
-              .from('user_profiles')
-              .update({
-                role: 'admin',
-                updated_at: new Date().toISOString()
-              })
-              .eq('id', user.id);
-              
-            if (retryError) {
-              console.error('Retry failed:', retryError);
-            } else {
-              console.log('Admin role updated successfully');
-              setIsAdmin(true);
-            }
-          } else {
-            console.log('Admin role set successfully');
+            })
+            .eq('id', user.id);
+            
+          if (!retryError) {
+            console.log('Admin role updated successfully');
             setIsAdmin(true);
           }
         } else {
-          console.log('User is already admin');
+          console.log('Admin role set successfully');
           setIsAdmin(true);
         }
       } catch (error) {
@@ -419,11 +411,10 @@ export default function WriteBlogPage() {
                   <div dangerouslySetInnerHTML={{ __html: content }} />
                 </div>
               ) : (
-                <BlogEditor
-                  markdown={content}
+                <TiptapEditor
+                  content={content}
                   onChange={setContent}
                   onImageUpload={postId ? handleImageUpload : undefined}
-                  postIdForUpload={postId || undefined}
                 />
               )}
             </div>
