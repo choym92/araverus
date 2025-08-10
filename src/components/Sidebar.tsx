@@ -16,6 +16,7 @@ const navItems = [
   { id: 'blogs', label: 'Blog' },
   { id: 'finance', label: 'Finance' },
   { id: 'contact', label: 'Contact' },
+  { id: 'admin', label: 'Admin', href: '/admin/blog/write' },
 ];
 
 
@@ -69,17 +70,30 @@ export default function Sidebar({ isOpen, onClose, onNavigate, currentPage }: Si
                   const active = currentPage === item.id;
                   return (
                     <li key={item.id}>
-                      <button
-                        onClick={() => onNavigate(item.id)}
-                        aria-current={active ? 'page' : undefined}
-                        className={`w-full rounded-md px-3 py-2 text-left text-sm font-medium transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-neutral-300 ${
-                          active
-                            ? 'bg-neutral-100 text-neutral-900 shadow-sm'
-                            : 'text-neutral-600 hover:bg-neutral-50 hover:text-neutral-900'
-                        }`}
-                      >
-                        {item.label}
-                      </button>
+                      {item.href ? (
+                        <a
+                          href={item.href}
+                          className={`block w-full rounded-md px-3 py-2 text-left text-sm font-medium transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-neutral-300 ${
+                            active
+                              ? 'bg-neutral-100 text-neutral-900 shadow-sm'
+                              : 'text-neutral-600 hover:bg-neutral-50 hover:text-neutral-900'
+                          }`}
+                        >
+                          {item.label}
+                        </a>
+                      ) : (
+                        <button
+                          onClick={() => onNavigate(item.id)}
+                          aria-current={active ? 'page' : undefined}
+                          className={`w-full rounded-md px-3 py-2 text-left text-sm font-medium transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-neutral-300 ${
+                            active
+                              ? 'bg-neutral-100 text-neutral-900 shadow-sm'
+                              : 'text-neutral-600 hover:bg-neutral-50 hover:text-neutral-900'
+                          }`}
+                        >
+                          {item.label}
+                        </button>
+                      )}
                     </li>
                   );
                 })}
