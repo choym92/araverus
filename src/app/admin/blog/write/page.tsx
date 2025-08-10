@@ -1,10 +1,13 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/hooks/useAuth';
-import TiptapEditor from '@/components/TiptapEditor';
-import { Loader2, Save, Eye, X } from 'lucide-react';
+import { useEditor, EditorContent } from '@tiptap/react';
+import StarterKit from '@tiptap/starter-kit';
+import Image from '@tiptap/extension-image';
+import Link from '@tiptap/extension-link';
+import { Loader2 } from 'lucide-react';
 
 export default function WriteBlogPage() {
   const router = useRouter();
@@ -13,7 +16,6 @@ export default function WriteBlogPage() {
   // Form state
   const [title, setTitle] = useState('');
   const [slug, setSlug] = useState('');
-  const [content, setContent] = useState('');
   const [excerpt, setExcerpt] = useState('');
   const [featuredImage, setFeaturedImage] = useState('');
   const [tags, setTags] = useState('');
@@ -23,141 +25,87 @@ export default function WriteBlogPage() {
   
   // UI state
   const [isSaving, setIsSaving] = useState(false);
-  const [isAdmin, setIsAdmin] = useState(false);
   const [postId, setPostId] = useState<number | null>(null);
-  const [lastSaved, setLastSaved] = useState<Date | null>(null);
-  const [showPreview, setShowPreview] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
 
-  // Check admin status - Only allow choym92@gmail.com
-  useEffect(() => {
-    const setupAdmin = async () => {
-      if (!user) return;
-      
-      // Only allow specific admin email
-      if (user.email !== 'choym92@gmail.com') {
-        console.log('Access denied: Not admin email');
-        router.push('/blog');
-        return;
-      }
-      
-      try {
-        const { createClient } = await import('@/lib/supabase');
-        const supabase = createClient();
-        
-        // Ensure admin profile exists
-        const { error: profileError } = await supabase
-          .from('user_profiles')
-          .upsert({
-            id: user.id,
-            email: user.email,
-            role: 'admin',
-            full_name: user.user_metadata?.full_name || user.email?.split('@')[0] || 'Admin',
-            avatar_url: user.user_metadata?.avatar_url || user.user_metadata?.picture,
-            created_at: new Date().toISOString(),
-            updated_at: new Date().toISOString()
-          }, {
-            onConflict: 'id'
-          });
-        
-        if (profileError) {
-          console.error('Failed to set admin role:', profileError);
-          // Try update only
-          const { error: retryError } = await supabase
-            .from('user_profiles')
-            .update({
-              role: 'admin',
-              updated_at: new Date().toISOString()
-            })
-            .eq('id', user.id);
-            
-          if (!retryError) {
-            console.log('Admin role updated successfully');
-            setIsAdmin(true);
-          }
-        } else {
-          console.log('Admin role set successfully');
-          setIsAdmin(true);
+  // Initialize Tiptap editor
+  const editor = useEditor({
+    extensions: [
+      StarterKit.configure({
+        heading: {
+          levels: [1, 2, 3]
         }
-      } catch (error) {
-        console.error('Setup error:', error);
+      }),
+      Image,
+      Link.configure({
+        openOnClick: false,
+      })
+    ],
+    content: '',
+    editorProps: {
+      attributes: {
+        class: 'prose prose-lg max-w-none focus:outline-none min-h-[400px] px-4 py-3'
       }
-    };
+    }
+  });
 
-    if (!authLoading && user) {
-      setupAdmin();
-    } else if (!authLoading && !user) {
-      router.push('/login');
+  // Check if user is admin (only choym92@gmail.com)
+  useEffect(() => {
+    if (!authLoading) {
+      if (!user || user.email !== 'choym92@gmail.com') {
+        router.push('/blog');
+      }
     }
   }, [user, authLoading, router]);
 
-  // Auto-generate slug from title only when slug is completely empty
-  useEffect(() => {
-    if (title && slug === '') {
-      const autoSlug = title
+  // Auto-generate slug from title
+  const generateSlug = useCallback(() => {
+    if (title && !slug) {
+      const newSlug = title
         .toLowerCase()
         .replace(/[^a-z0-9]+/g, '-')
         .replace(/^-+|-+$/g, '');
-      setSlug(autoSlug);
+      setSlug(newSlug);
     }
-  }, [title]); // Remove slug from dependencies to prevent loop
+  }, [title, slug]);
 
-  // Auto-save draft
-  useEffect(() => {
-    if (!postId || status !== 'draft') return;
-    
-    const timer = setTimeout(async () => {
-      try {
-        await fetch('/api/blog/autosave', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ postId, content })
-        });
-        setLastSaved(new Date());
-      } catch (error) {
-        console.error('Auto-save failed:', error);
-      }
-    }, 5000);
-
-    return () => clearTimeout(timer);
-  }, [content, postId, status]);
-
+  // Handle save
   const handleSave = async () => {
-    if (!title || !content) {
-      alert('Title and content are required');
+    setSaveError(null);
+    
+    if (!title || !editor?.getHTML()) {
+      setSaveError('Title and content are required');
       return;
     }
 
     if (!slug) {
-      alert('Slug is required');
+      setSaveError('Slug is required');
       return;
     }
 
     setIsSaving(true);
+    
     try {
       const body = {
         title,
         slug,
-        content,
+        content: editor.getHTML(),
         excerpt: excerpt || '',
         featured_image: featuredImage || null,
         tags: tags ? tags.split(',').map(t => t.trim()).filter(Boolean) : [],
-        meta_title: metaTitle || '',
-        meta_description: metaDescription || '',
+        meta_title: metaTitle || title,
+        meta_description: metaDescription || excerpt,
         status
       };
 
-      console.log('Saving post:', body);
-
       let res;
       if (postId) {
-        // Update existing post
         res = await fetch(`/api/blog/${postId}`, {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(body)
         });
       } else {
-        // Create new post
         res = await fetch('/api/blog', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -165,132 +113,53 @@ export default function WriteBlogPage() {
         });
       }
 
-      const responseText = await res.text();
-      console.log('Response:', res.status, responseText);
-
       if (!res.ok) {
-        let errorMessage = 'Failed to save post';
-        try {
-          const errorData = JSON.parse(responseText);
-          errorMessage = errorData.error || errorMessage;
-        } catch {
-          // Use default error message
-        }
-        throw new Error(errorMessage);
+        const data = await res.json().catch(() => ({ error: 'Failed to save' }));
+        throw new Error(data.error || 'Failed to save post');
       }
       
-      const data = JSON.parse(responseText);
+      const data = await res.json();
       if (!postId && data.post) {
         setPostId(data.post.id);
-        alert('Post created successfully! You can now upload images.');
-      } else {
-        alert('Post saved successfully!');
       }
       
-      setLastSaved(new Date());
-      
+      // Redirect if published
       if (status === 'published') {
-        setTimeout(() => {
-          router.push(`/blog/${slug}`);
-        }, 1000);
+        router.push(`/blog/${slug}`);
+      } else {
+        setSaveError(null);
+        alert('Draft saved successfully!');
       }
     } catch (error) {
       console.error('Save error:', error);
-      alert(error instanceof Error ? error.message : 'Failed to save post');
+      setSaveError(error instanceof Error ? error.message : 'Failed to save post');
     } finally {
       setIsSaving(false);
     }
   };
 
+  // Upload image handler
   const handleImageUpload = async (file: File): Promise<string> => {
     if (!postId) {
-      alert('Please save the post first before uploading images');
-      throw new Error('No post ID');
+      throw new Error('Please save the post first');
     }
 
-    console.log('Uploading image:', file.name, 'for post:', postId);
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('postId', String(postId));
+    formData.append('type', 'content');
 
-    const fd = new FormData();
-    fd.set('file', file);
-    fd.set('postId', String(postId));
-    fd.set('type', 'content');
+    const res = await fetch('/api/blog/upload', {
+      method: 'POST',
+      body: formData
+    });
 
-    try {
-      const res = await fetch('/api/blog/upload', {
-        method: 'POST',
-        body: fd
-      });
-
-      const responseText = await res.text();
-      console.log('Upload response:', res.status, responseText);
-
-      if (!res.ok) {
-        let errorMessage = 'Upload failed';
-        try {
-          const errorData = JSON.parse(responseText);
-          errorMessage = errorData.error || errorMessage;
-        } catch {
-          // Use default error message
-        }
-        throw new Error(errorMessage);
-      }
-
-      const data = JSON.parse(responseText);
-      console.log('Image uploaded successfully:', data.url);
-      return data.url;
-    } catch (error) {
-      console.error('Image upload error:', error);
-      alert(error instanceof Error ? error.message : 'Failed to upload image');
-      throw error;
-    }
-  };
-
-  const handleBannerUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    
-    if (!postId) {
-      alert('Please save the post first before uploading images');
-      e.target.value = ''; // Reset file input
-      return;
+    if (!res.ok) {
+      throw new Error('Failed to upload image');
     }
 
-    console.log('Uploading banner:', file.name, 'for post:', postId);
-
-    const fd = new FormData();
-    fd.set('file', file);
-    fd.set('postId', String(postId));
-    fd.set('type', 'banner');
-
-    try {
-      const res = await fetch('/api/blog/upload', {
-        method: 'POST',
-        body: fd
-      });
-
-      const responseText = await res.text();
-      console.log('Banner upload response:', res.status, responseText);
-
-      if (!res.ok) {
-        let errorMessage = 'Upload failed';
-        try {
-          const errorData = JSON.parse(responseText);
-          errorMessage = errorData.error || errorMessage;
-        } catch {
-          // Use default error message
-        }
-        throw new Error(errorMessage);
-      }
-
-      const data = JSON.parse(responseText);
-      setFeaturedImage(data.url);
-      console.log('Banner uploaded successfully:', data.url);
-      alert('Banner image uploaded successfully!');
-    } catch (error) {
-      console.error('Banner upload error:', error);
-      alert(error instanceof Error ? error.message : 'Failed to upload banner image');
-      e.target.value = ''; // Reset file input on error
-    }
+    const data = await res.json();
+    return data.url;
   };
 
   if (authLoading) {
@@ -301,212 +170,227 @@ export default function WriteBlogPage() {
     );
   }
 
-  if (!user) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <p className="text-gray-600">Redirecting to login...</p>
-      </div>
-    );
-  }
-
-  if (!isAdmin) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="text-center">
-          <Loader2 className="animate-spin h-8 w-8 mx-auto mb-4" />
-          <p className="text-gray-600">Setting up admin access...</p>
-        </div>
-      </div>
-    );
+  if (!user || user.email !== 'choym92@gmail.com') {
+    return null;
   }
 
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
-      <header className="bg-white border-b border-gray-200 sticky top-0 z-40">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between h-16">
-            <h1 className="text-xl font-semibold">Write Blog Post</h1>
-            
-            <div className="flex items-center gap-4">
-              {lastSaved && (
-                <span className="text-sm text-gray-500">
-                  Saved {lastSaved.toLocaleTimeString()}
-                </span>
-              )}
-              
-              <button
-                onClick={() => setShowPreview(!showPreview)}
-                className="px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100 rounded-md flex items-center gap-2"
-              >
-                {showPreview ? <X size={16} /> : <Eye size={16} />}
-                {showPreview ? 'Edit' : 'Preview'}
-              </button>
-              
+      <div className="bg-white border-b">
+        <div className="max-w-4xl mx-auto px-4 py-4">
+          <div className="flex items-center justify-between">
+            <h1 className="text-2xl font-semibold">Write Blog Post</h1>
+            <div className="flex items-center gap-3">
               <select
                 value={status}
                 onChange={(e) => setStatus(e.target.value as 'draft' | 'published')}
-                className="px-3 py-2 border border-gray-300 rounded-md text-sm"
+                className="px-3 py-2 border rounded-md text-sm"
               >
                 <option value="draft">Draft</option>
                 <option value="published">Published</option>
               </select>
-              
               <button
                 onClick={handleSave}
-                disabled={isSaving || !title || !content}
-                className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                disabled={isSaving || !title || !editor?.getHTML()}
+                className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {isSaving ? (
-                  <Loader2 size={16} className="animate-spin" />
+                  <>
+                    <Loader2 className="inline-block animate-spin h-4 w-4 mr-2" />
+                    Saving...
+                  </>
                 ) : (
-                  <Save size={16} />
+                  'Save'
                 )}
-                {isSaving ? 'Saving...' : 'Save'}
               </button>
             </div>
           </div>
         </div>
-      </header>
+      </div>
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          {/* Main Content */}
-          <div className="lg:col-span-2 space-y-6">
+      {/* Main Content */}
+      <div className="max-w-4xl mx-auto px-4 py-8">
+        {saveError && (
+          <div className="mb-6 p-4 bg-red-50 border border-red-200 text-red-700 rounded-md">
+            {saveError}
+          </div>
+        )}
+
+        <div className="bg-white rounded-lg shadow-sm">
+          <div className="p-6 space-y-6">
             {/* Title */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Title *
-              </label>
               <input
                 type="text"
                 value={title}
                 onChange={(e) => setTitle(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                placeholder="Enter post title"
+                onBlur={generateSlug}
+                placeholder="Post title"
+                className="w-full text-3xl font-bold border-0 focus:outline-none focus:ring-0 placeholder-gray-400"
               />
             </div>
 
             {/* Slug */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Slug
-              </label>
               <input
                 type="text"
                 value={slug}
                 onChange={(e) => setSlug(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                 placeholder="post-url-slug"
+                className="w-full text-sm text-gray-600 border-0 focus:outline-none focus:ring-0 placeholder-gray-400"
               />
-            </div>
-
-            {/* Content Editor */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Content *
-              </label>
-              {showPreview ? (
-                <div className="prose prose-lg max-w-none p-6 bg-white rounded-lg border border-gray-200">
-                  <div dangerouslySetInnerHTML={{ __html: content }} />
-                </div>
-              ) : (
-                <TiptapEditor
-                  content={content}
-                  onChange={setContent}
-                  onImageUpload={postId ? handleImageUpload : undefined}
-                />
-              )}
-            </div>
-          </div>
-
-          {/* Sidebar */}
-          <div className="space-y-6">
-            {/* Featured Image */}
-            <div className="bg-white p-6 rounded-lg border border-gray-200">
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Featured Image
-              </label>
-              {featuredImage && (
-                <img
-                  src={featuredImage}
-                  alt="Featured"
-                  className="w-full h-40 object-cover rounded-md mb-4"
-                />
-              )}
-              <input
-                type="file"
-                accept="image/*"
-                onChange={handleBannerUpload}
-                disabled={!postId}
-                className="w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100 disabled:opacity-50"
-              />
-              {!postId && (
-                <p className="text-xs text-gray-500 mt-2">
-                  Save the post first to upload images
-                </p>
-              )}
             </div>
 
             {/* Excerpt */}
-            <div className="bg-white p-6 rounded-lg border border-gray-200">
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Excerpt
-              </label>
+            <div>
               <textarea
                 value={excerpt}
                 onChange={(e) => setExcerpt(e.target.value)}
-                rows={3}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                placeholder="Brief description of the post"
+                placeholder="Brief description (optional)"
+                rows={2}
+                className="w-full border-0 focus:outline-none focus:ring-0 placeholder-gray-400 resize-none"
               />
             </div>
 
+            {/* Editor Toolbar */}
+            {editor && (
+              <div className="border-y py-2 flex flex-wrap gap-1">
+                <button
+                  onClick={() => editor.chain().focus().toggleHeading({ level: 1 }).run()}
+                  className={`px-3 py-1 rounded ${
+                    editor.isActive('heading', { level: 1 }) ? 'bg-gray-200' : 'hover:bg-gray-100'
+                  }`}
+                >
+                  H1
+                </button>
+                <button
+                  onClick={() => editor.chain().focus().toggleHeading({ level: 2 }).run()}
+                  className={`px-3 py-1 rounded ${
+                    editor.isActive('heading', { level: 2 }) ? 'bg-gray-200' : 'hover:bg-gray-100'
+                  }`}
+                >
+                  H2
+                </button>
+                <button
+                  onClick={() => editor.chain().focus().toggleHeading({ level: 3 }).run()}
+                  className={`px-3 py-1 rounded ${
+                    editor.isActive('heading', { level: 3 }) ? 'bg-gray-200' : 'hover:bg-gray-100'
+                  }`}
+                >
+                  H3
+                </button>
+                <div className="w-px h-6 bg-gray-300 mx-1" />
+                <button
+                  onClick={() => editor.chain().focus().toggleBold().run()}
+                  className={`px-3 py-1 rounded font-bold ${
+                    editor.isActive('bold') ? 'bg-gray-200' : 'hover:bg-gray-100'
+                  }`}
+                >
+                  B
+                </button>
+                <button
+                  onClick={() => editor.chain().focus().toggleItalic().run()}
+                  className={`px-3 py-1 rounded italic ${
+                    editor.isActive('italic') ? 'bg-gray-200' : 'hover:bg-gray-100'
+                  }`}
+                >
+                  I
+                </button>
+                <button
+                  onClick={() => editor.chain().focus().toggleCode().run()}
+                  className={`px-3 py-1 rounded font-mono text-sm ${
+                    editor.isActive('code') ? 'bg-gray-200' : 'hover:bg-gray-100'
+                  }`}
+                >
+                  {'</>'}
+                </button>
+                <div className="w-px h-6 bg-gray-300 mx-1" />
+                <button
+                  onClick={() => editor.chain().focus().toggleBulletList().run()}
+                  className={`px-3 py-1 rounded ${
+                    editor.isActive('bulletList') ? 'bg-gray-200' : 'hover:bg-gray-100'
+                  }`}
+                >
+                  • List
+                </button>
+                <button
+                  onClick={() => editor.chain().focus().toggleOrderedList().run()}
+                  className={`px-3 py-1 rounded ${
+                    editor.isActive('orderedList') ? 'bg-gray-200' : 'hover:bg-gray-100'
+                  }`}
+                >
+                  1. List
+                </button>
+                <button
+                  onClick={() => editor.chain().focus().toggleBlockquote().run()}
+                  className={`px-3 py-1 rounded ${
+                    editor.isActive('blockquote') ? 'bg-gray-200' : 'hover:bg-gray-100'
+                  }`}
+                >
+                  &quot; Quote
+                </button>
+                <div className="w-px h-6 bg-gray-300 mx-1" />
+                <button
+                  onClick={() => {
+                    const url = window.prompt('URL:');
+                    if (url) {
+                      editor.chain().focus().extendMarkRange('link').setLink({ href: url }).run();
+                    }
+                  }}
+                  className={`px-3 py-1 rounded ${
+                    editor.isActive('link') ? 'bg-gray-200' : 'hover:bg-gray-100'
+                  }`}
+                >
+                  Link
+                </button>
+                <button
+                  onClick={() => {
+                    const url = window.prompt('Image URL:');
+                    if (url) {
+                      editor.chain().focus().setImage({ src: url }).run();
+                    }
+                  }}
+                  className="px-3 py-1 rounded hover:bg-gray-100"
+                >
+                  Image
+                </button>
+              </div>
+            )}
+
+            {/* Editor Content */}
+            <div className="min-h-[400px]">
+              <EditorContent editor={editor} />
+            </div>
+
             {/* Tags */}
-            <div className="bg-white p-6 rounded-lg border border-gray-200">
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Tags
-              </label>
+            <div className="border-t pt-6">
               <input
                 type="text"
                 value={tags}
                 onChange={(e) => setTags(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                placeholder="tag1, tag2, tag3"
+                placeholder="Tags (comma separated)"
+                className="w-full border-0 focus:outline-none focus:ring-0 placeholder-gray-400"
               />
             </div>
 
-            {/* SEO */}
-            <div className="bg-white p-6 rounded-lg border border-gray-200">
-              <h3 className="text-sm font-medium text-gray-700 mb-4">SEO Settings</h3>
-              
-              <div className="space-y-4">
-                <div>
-                  <label className="block text-xs font-medium text-gray-600 mb-1">
-                    Meta Title
-                  </label>
-                  <input
-                    type="text"
-                    value={metaTitle}
-                    onChange={(e) => setMetaTitle(e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm"
-                    placeholder="SEO title"
-                  />
-                </div>
-                
-                <div>
-                  <label className="block text-xs font-medium text-gray-600 mb-1">
-                    Meta Description
-                  </label>
-                  <textarea
-                    value={metaDescription}
-                    onChange={(e) => setMetaDescription(e.target.value)}
-                    rows={2}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm"
-                    placeholder="SEO description"
-                  />
-                </div>
-              </div>
+            {/* SEO Fields */}
+            <div className="border-t pt-6 space-y-4">
+              <h3 className="text-sm font-medium text-gray-700">SEO Settings</h3>
+              <input
+                type="text"
+                value={metaTitle}
+                onChange={(e) => setMetaTitle(e.target.value)}
+                placeholder="SEO Title (optional)"
+                className="w-full border-0 focus:outline-none focus:ring-0 placeholder-gray-400"
+              />
+              <textarea
+                value={metaDescription}
+                onChange={(e) => setMetaDescription(e.target.value)}
+                placeholder="SEO Description (optional)"
+                rows={2}
+                className="w-full border-0 focus:outline-none focus:ring-0 placeholder-gray-400 resize-none"
+              />
             </div>
           </div>
         </div>
