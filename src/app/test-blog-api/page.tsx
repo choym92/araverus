@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 
 export default function TestBlogAPI() {
@@ -219,7 +219,7 @@ export default function TestBlogAPI() {
           <h2 className="text-xl font-semibold mb-4">Test Results</h2>
           <div className="bg-gray-900 text-gray-100 p-4 rounded-md font-mono text-sm max-h-96 overflow-y-auto">
             {testResults.length === 0 ? (
-              <p className="text-gray-400">No tests run yet. Click "Run All Tests" to start.</p>
+              <p className="text-gray-400">No tests run yet. Click &quot;Run All Tests&quot; to start.</p>
             ) : (
               testResults.map((result, index) => (
                 <div key={index} className="mb-1">

@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { z } from 'zod';
 import { BlogService } from '@/lib/blog.service';
 
 const blogService = new BlogService();
@@ -37,6 +38,20 @@ export async function GET(request: NextRequest) {
   }
 }
 
+// Validation schema for creating blog post
+const CreatePostSchema = z.object({
+  title: z.string().min(1).max(200),
+  content: z.string().min(1),
+  slug: z.string().optional(),
+  excerpt: z.string().max(500).optional(),
+  featured_image: z.string().url().optional(),
+  status: z.enum(['draft', 'published', 'scheduled']).optional(),
+  tags: z.array(z.string()).optional(),
+  meta_title: z.string().max(200).optional(),
+  meta_description: z.string().max(500).optional(),
+  publish_at: z.string().optional(),
+});
+
 // POST /api/blog - Create new blog post (admin only)
 export async function POST(request: NextRequest) {
   try {
@@ -50,20 +65,24 @@ export async function POST(request: NextRequest) {
 
     const body = await request.json();
     
-    // Validate required fields
-    if (!body.title || !body.content) {
+    // Validate with zod
+    const parsed = CreatePostSchema.safeParse(body);
+    if (!parsed.success) {
       return NextResponse.json(
-        { error: 'Title and content are required' },
+        { error: 'Validation failed', issues: parsed.error.flatten() },
         { status: 400 }
       );
     }
 
+    const data = parsed.data;
+    
     // Generate slug if not provided
-    if (!body.slug) {
-      body.slug = await blogService.generateSlug(body.title);
-    }
+    const slug = data.slug || await blogService.generateSlug(data.title);
 
-    const post = await blogService.createPost(body);
+    const post = await blogService.createPost({
+      ...data,
+      slug
+    });
     
     if (!post) {
       return NextResponse.json(

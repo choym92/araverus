@@ -4,9 +4,7 @@ import type {
   BlogPostWithAuthor, 
   CreateBlogPostInput, 
   UpdateBlogPostInput,
-  BlogAsset,
-  BigIntId,
-  ISODateString
+  BigIntId
 } from './blog.types';
 
 export class BlogService {
@@ -54,7 +52,7 @@ export class BlogService {
         published_at,
         tags: input.tags ? input.tags.join(',') : null, // Convert array to string for DB
       };
-      delete (row as any).publish_at;
+      delete (row as Record<string, unknown>).publish_at;
 
       const { data, error } = await this.supabase
         .from('blog_posts')
@@ -82,7 +80,7 @@ export class BlogService {
       const isAdmin = await this.isAdmin();
       if (!isAdmin) throw new Error('Not authorized');
 
-      const updates: Record<string, any> = { 
+      const updates: Record<string, unknown> = { 
         ...input, 
         updated_at: new Date().toISOString(),
         tags: input.tags ? input.tags.join(',') : undefined
@@ -142,12 +140,10 @@ export class BlogService {
       if (error) throw error;
 
       // Increment view count (non-blocking)
-      this.supabase
+      void this.supabase
         .from('blog_posts')
-        .update({ view_count: ((data as any).view_count || 0) + 1 })
-        .eq('id', (data as any).id)
-        .then(() => {})
-        .catch(() => {});
+        .update({ view_count: ((data as BlogPost).view_count || 0) + 1 })
+        .eq('id', (data as BlogPost).id);
 
       // Convert tags to array
       if (data && typeof data.tags === 'string') {
@@ -313,11 +309,11 @@ export class BlogService {
       .replace(/[^a-z0-9]+/g, '-')
       .replace(/^-+|-+$/g, '');
 
-    let slug = base || 'post';
+    const baseSlug = base || 'post';
     let suffix = 0;
 
     for (let i = 0; i < 20; i++) {
-      const candidate = suffix === 0 ? slug : `${slug}-${suffix}`;
+      const candidate = suffix === 0 ? baseSlug : `${baseSlug}-${suffix}`;
       const { data, error } = await this.supabase
         .from('blog_posts')
         .select('id')
@@ -329,7 +325,7 @@ export class BlogService {
       suffix++;
     }
 
-    return `${slug}-${Date.now().toString(36)}`;
+    return `${baseSlug}-${Date.now().toString(36)}`;
   }
 
   // Auto-save draft

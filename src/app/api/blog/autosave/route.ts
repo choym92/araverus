@@ -47,4 +47,6 @@ export async function POST(request: NextRequest) {
     );
   } catch (error) {
     console.error('POST /api/blog/autosave error:', error);
-    return NextResponse.json({ error: 'Failed to auto-save' }, { status
+    return NextResponse.json({ error: 'Failed to auto-save' }, { status: 500 });
+  }
+}
