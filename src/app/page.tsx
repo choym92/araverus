@@ -26,7 +26,7 @@ function AuthCodeHandler() {
           router.push('/login?error=auth_failed');
         } else {
           console.log('Authentication successful:', data.user?.email);
-          router.push('/dashboard');
+          router.push('/');
         }
       }).catch((err) => {
         console.error('Unexpected auth error:', err);
