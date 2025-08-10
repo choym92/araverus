@@ -12,7 +12,7 @@ export default function LoginPage() {
 
   useEffect(() => {
     if (user) {
-      router.push('/dashboard');
+      router.push('/');
     }
   }, [user, router]);
 
@@ -26,7 +26,7 @@ export default function LoginPage() {
       const { error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
-          redirectTo: `${window.location.origin}/dashboard`
+          redirectTo: `${window.location.origin}/`
         }
       });
       
@@ -55,7 +55,7 @@ export default function LoginPage() {
     return (
       <div className="min-h-screen flex items-center justify-center" aria-live="polite">
         <div className="text-center">
-          <p className="text-gray-600">Redirecting to dashboard...</p>
+          <p className="text-gray-600">Redirecting to home...</p>
         </div>
       </div>
     );
