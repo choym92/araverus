@@ -5,6 +5,8 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Calendar, ChevronRight, Filter, ArrowUpDown, Grid3x3, List, Search, X, Tag, Eye, Clock } from 'lucide-react';
 import Link from 'next/link';
 import type { BlogPostWithAuthor } from '@/lib/blog.types';
+import Sidebar from '@/components/Sidebar';
+import Header from '@/components/Header';
 
 // Filter tabs
 const filterTabs = ['All', 'Publication', 'Insight', 'Release', 'Tutorial'];
@@ -29,7 +31,31 @@ export default function BlogPage() {
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
   const [page, setPage] = useState(1);
   const [total, setTotal] = useState(0);
+  const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [mounted, setMounted] = useState(false);
   const limit = 12;
+
+  useEffect(() => {
+    setMounted(true);
+    // Check saved preference
+    const saved = localStorage.getItem('sidebar-open');
+    if (saved !== null) {
+      setSidebarOpen(saved === 'true');
+    }
+  }, []);
+
+  useEffect(() => {
+    if (mounted) {
+      localStorage.setItem('sidebar-open', String(sidebarOpen));
+    }
+  }, [sidebarOpen, mounted]);
+
+  const handleNavigation = (page: string) => {
+    // Handle navigation
+    if (window.innerWidth < 768) {
+      setSidebarOpen(false);
+    }
+  };
 
   // Fetch posts
   useEffect(() => {
@@ -120,10 +146,38 @@ export default function BlogPage() {
     return `${minutes} min`;
   };
 
+  if (!mounted) return null;
+
   return (
-    <div className="min-h-screen bg-white">
-      {/* Header */}
-      <div className="border-b border-gray-200 sticky top-0 bg-white/95 backdrop-blur-sm z-20">
+    <div 
+      className="min-h-screen bg-white relative overflow-hidden"
+      style={{ '--sidebar-w': '16rem' } as React.CSSProperties}
+    >
+      {/* Animated background gradient */}
+      <div className="fixed inset-0 bg-gradient-to-br from-blue-50/30 via-white to-purple-50/30 pointer-events-none" />
+      
+      {/* Sidebar */}
+      <Sidebar 
+        isOpen={sidebarOpen}
+        onClose={() => setSidebarOpen(false)}
+        onNavigate={handleNavigation}
+        currentPage="blogs"
+      />
+      
+      {/* Main Content */}
+      <div
+        className={`relative transition-[margin] duration-300 ease-out pt-16 ${
+          sidebarOpen ? 'lg:ml-[var(--sidebar-w)]' : 'lg:ml-0'
+        }`}
+      >
+        {/* Header */}
+        <Header 
+          sidebarOpen={sidebarOpen}
+          onToggleSidebar={() => setSidebarOpen(!sidebarOpen)}
+        />
+
+      {/* Blog Content */}
+      <div className="border-b border-gray-200 sticky top-16 bg-white/95 backdrop-blur-sm z-20">
         <div className="max-w-7xl mx-auto px-6 py-6">
           <div className="flex items-center justify-between mb-6">
             <h1 className="text-4xl font-light tracking-[-0.02em] text-neutral-900">
@@ -456,6 +510,7 @@ export default function BlogPage() {
             </button>
           </motion.div>
         )}
+      </div>
       </div>
     </div>
   );

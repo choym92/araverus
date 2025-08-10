@@ -2,6 +2,7 @@
 
 import { useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import Link from 'next/link';
 
 interface SidebarProps {
   isOpen: boolean;
@@ -13,7 +14,7 @@ interface SidebarProps {
 // Nav Items
 const navItems = [
   { id: 'home', label: 'Home' },
-  { id: 'blogs', label: 'Blog' },
+  { id: 'blogs', label: 'Blog', href: '/blog' },
   { id: 'finance', label: 'Finance' },
   { id: 'contact', label: 'Contact' },
   { id: 'admin', label: 'Admin', href: '/admin/blog/write' },
@@ -71,7 +72,7 @@ export default function Sidebar({ isOpen, onClose, onNavigate, currentPage }: Si
                   return (
                     <li key={item.id}>
                       {item.href ? (
-                        <a
+                        <Link
                           href={item.href}
                           className={`block w-full rounded-md px-3 py-2 text-left text-sm font-medium transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-neutral-300 ${
                             active
@@ -80,7 +81,7 @@ export default function Sidebar({ isOpen, onClose, onNavigate, currentPage }: Si
                           }`}
                         >
                           {item.label}
-                        </a>
+                        </Link>
                       ) : (
                         <button
                           onClick={() => onNavigate(item.id)}

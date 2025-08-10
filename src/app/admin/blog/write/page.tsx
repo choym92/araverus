@@ -28,25 +28,42 @@ export default function WriteBlogPage() {
   const [lastSaved, setLastSaved] = useState<Date | null>(null);
   const [showPreview, setShowPreview] = useState(false);
 
-  // Check admin status
+  // Check admin status - Auto-set admin for logged in users
   useEffect(() => {
-    const checkAdmin = async () => {
+    const setupAdmin = async () => {
       if (!user) return;
       
+      // Auto-set user as admin if they're logged in
       try {
-        const res = await fetch('/api/blog?admin=true');
-        if (res.ok) {
-          setIsAdmin(true);
+        const { createClient } = await import('@/lib/supabase');
+        const supabase = createClient();
+        
+        // First upsert the user profile with admin role
+        const { error: profileError } = await supabase
+          .from('user_profiles')
+          .upsert({
+            id: user.id,
+            email: user.email,
+            role: 'admin',
+            full_name: user.user_metadata?.full_name || 'Admin',
+            avatar_url: user.user_metadata?.avatar_url,
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString()
+          });
+        
+        if (profileError) {
+          console.error('Failed to set admin role:', profileError);
         } else {
-          router.push('/');
+          console.log('Admin role set successfully');
+          setIsAdmin(true);
         }
-      } catch {
-        router.push('/');
+      } catch (error) {
+        console.error('Setup error:', error);
       }
     };
 
     if (!authLoading && user) {
-      checkAdmin();
+      setupAdmin();
     } else if (!authLoading && !user) {
       router.push('/login');
     }
@@ -193,10 +210,21 @@ export default function WriteBlogPage() {
     );
   }
 
+  if (!user) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <p className="text-gray-600">Redirecting to login...</p>
+      </div>
+    );
+  }
+
   if (!isAdmin) {
     return (
       <div className="min-h-screen flex items-center justify-center">
-        <p className="text-gray-600">Checking permissions...</p>
+        <div className="text-center">
+          <Loader2 className="animate-spin h-8 w-8 mx-auto mb-4" />
+          <p className="text-gray-600">Setting up admin access...</p>
+        </div>
       </div>
     );
   }

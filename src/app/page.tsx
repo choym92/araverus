@@ -6,7 +6,6 @@ import { useAuth } from '@/hooks/useAuth';
 import Sidebar from '@/components/Sidebar';
 import Header from '@/components/Header';
 import Hero from '@/components/Hero';
-import BlogsPage from '@/components/BlogsPage';
 
 function AuthCodeHandler() {
   const searchParams = useSearchParams();
@@ -114,13 +113,7 @@ export default function Home() {
         />
         
         {/* Page Content */}
-        {currentPage === 'home' ? (
-          <Hero />
-        ) : currentPage === 'blogs' ? (
-          <BlogsPage />
-        ) : (
-          <Hero />
-        )}
+        <Hero />
       </div>
 
       <Suspense fallback={null}>
