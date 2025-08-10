@@ -85,7 +85,7 @@ export default function Home() {
   return (
     <div 
       className="min-h-screen bg-white relative overflow-hidden"
-      style={{ ['--sidebar-w' as any]: '16rem' }} // 16rem = 256px
+      style={{ '--sidebar-w': '16rem' } as React.CSSProperties} // 16rem = 256px
     >
       {/* Animated background gradient */}
       <div className="fixed inset-0 bg-gradient-to-br from-blue-50/30 via-white to-purple-50/30 pointer-events-none" />
