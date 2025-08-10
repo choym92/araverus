@@ -8,7 +8,7 @@ const blogItems = [
   {
     id: 1,
     type: 'Publication',
-    title: 'GPT-5 System Card',
+    title: 'GPT-5 ㅈ',
     date: 'Aug 7, 2025',
     description:
       'This GPT-5 system card explains how a unified model routing system powers fast and smart responses using gpt-5-main, gpt-5-thinking, and lightweight versions like gpt-5-thinking-nano.',
