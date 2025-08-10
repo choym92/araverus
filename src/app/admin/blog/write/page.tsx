@@ -38,23 +38,52 @@ export default function WriteBlogPage() {
         const { createClient } = await import('@/lib/supabase');
         const supabase = createClient();
         
-        // First upsert the user profile with admin role
-        const { error: profileError } = await supabase
+        // Check if profile exists
+        const { data: existingProfile } = await supabase
           .from('user_profiles')
-          .upsert({
-            id: user.id,
-            email: user.email,
-            role: 'admin',
-            full_name: user.user_metadata?.full_name || 'Admin',
-            avatar_url: user.user_metadata?.avatar_url,
-            created_at: new Date().toISOString(),
-            updated_at: new Date().toISOString()
-          });
+          .select('role')
+          .eq('id', user.id)
+          .single();
         
-        if (profileError) {
-          console.error('Failed to set admin role:', profileError);
+        if (!existingProfile || existingProfile.role !== 'admin') {
+          // Upsert the user profile with admin role
+          const { error: profileError } = await supabase
+            .from('user_profiles')
+            .upsert({
+              id: user.id,
+              email: user.email,
+              role: 'admin',
+              full_name: user.user_metadata?.full_name || user.email?.split('@')[0] || 'Admin',
+              avatar_url: user.user_metadata?.avatar_url || user.user_metadata?.picture,
+              created_at: new Date().toISOString(),
+              updated_at: new Date().toISOString()
+            }, {
+              onConflict: 'id'
+            });
+          
+          if (profileError) {
+            console.error('Failed to set admin role:', profileError);
+            // Try without created_at for existing records
+            const { error: retryError } = await supabase
+              .from('user_profiles')
+              .update({
+                role: 'admin',
+                updated_at: new Date().toISOString()
+              })
+              .eq('id', user.id);
+              
+            if (retryError) {
+              console.error('Retry failed:', retryError);
+            } else {
+              console.log('Admin role updated successfully');
+              setIsAdmin(true);
+            }
+          } else {
+            console.log('Admin role set successfully');
+            setIsAdmin(true);
+          }
         } else {
-          console.log('Admin role set successfully');
+          console.log('User is already admin');
           setIsAdmin(true);
         }
       } catch (error) {
@@ -106,19 +135,26 @@ export default function WriteBlogPage() {
       return;
     }
 
+    if (!slug) {
+      alert('Slug is required');
+      return;
+    }
+
     setIsSaving(true);
     try {
       const body = {
         title,
         slug,
         content,
-        excerpt,
+        excerpt: excerpt || '',
         featured_image: featuredImage || null,
-        tags: tags ? tags.split(',').map(t => t.trim()) : [],
-        meta_title: metaTitle,
-        meta_description: metaDescription,
+        tags: tags ? tags.split(',').map(t => t.trim()).filter(Boolean) : [],
+        meta_title: metaTitle || '',
+        meta_description: metaDescription || '',
         status
       };
+
+      console.log('Saving post:', body);
 
       let res;
       if (postId) {
@@ -137,21 +173,38 @@ export default function WriteBlogPage() {
         });
       }
 
-      if (!res.ok) throw new Error('Failed to save post');
+      const responseText = await res.text();
+      console.log('Response:', res.status, responseText);
+
+      if (!res.ok) {
+        let errorMessage = 'Failed to save post';
+        try {
+          const errorData = JSON.parse(responseText);
+          errorMessage = errorData.error || errorMessage;
+        } catch {
+          // Use default error message
+        }
+        throw new Error(errorMessage);
+      }
       
-      const data = await res.json();
-      if (!postId) {
+      const data = JSON.parse(responseText);
+      if (!postId && data.post) {
         setPostId(data.post.id);
+        alert('Post created successfully! You can now upload images.');
+      } else {
+        alert('Post saved successfully!');
       }
       
       setLastSaved(new Date());
       
       if (status === 'published') {
-        router.push(`/blog/${slug}`);
+        setTimeout(() => {
+          router.push(`/blog/${slug}`);
+        }, 1000);
       }
     } catch (error) {
       console.error('Save error:', error);
-      alert('Failed to save post');
+      alert(error instanceof Error ? error.message : 'Failed to save post');
     } finally {
       setIsSaving(false);
     }
@@ -163,24 +216,54 @@ export default function WriteBlogPage() {
       throw new Error('No post ID');
     }
 
+    console.log('Uploading image:', file.name, 'for post:', postId);
+
     const fd = new FormData();
     fd.set('file', file);
     fd.set('postId', String(postId));
     fd.set('type', 'content');
 
-    const res = await fetch('/api/blog/upload', {
-      method: 'POST',
-      body: fd
-    });
+    try {
+      const res = await fetch('/api/blog/upload', {
+        method: 'POST',
+        body: fd
+      });
 
-    if (!res.ok) throw new Error('Upload failed');
-    const { url } = await res.json();
-    return url;
+      const responseText = await res.text();
+      console.log('Upload response:', res.status, responseText);
+
+      if (!res.ok) {
+        let errorMessage = 'Upload failed';
+        try {
+          const errorData = JSON.parse(responseText);
+          errorMessage = errorData.error || errorMessage;
+        } catch {
+          // Use default error message
+        }
+        throw new Error(errorMessage);
+      }
+
+      const data = JSON.parse(responseText);
+      console.log('Image uploaded successfully:', data.url);
+      return data.url;
+    } catch (error) {
+      console.error('Image upload error:', error);
+      alert(error instanceof Error ? error.message : 'Failed to upload image');
+      throw error;
+    }
   };
 
   const handleBannerUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (!file || !postId) return;
+    if (!file) return;
+    
+    if (!postId) {
+      alert('Please save the post first before uploading images');
+      e.target.value = ''; // Reset file input
+      return;
+    }
+
+    console.log('Uploading banner:', file.name, 'for post:', postId);
 
     const fd = new FormData();
     fd.set('file', file);
@@ -193,12 +276,28 @@ export default function WriteBlogPage() {
         body: fd
       });
 
-      if (!res.ok) throw new Error('Upload failed');
-      const { url } = await res.json();
-      setFeaturedImage(url);
+      const responseText = await res.text();
+      console.log('Banner upload response:', res.status, responseText);
+
+      if (!res.ok) {
+        let errorMessage = 'Upload failed';
+        try {
+          const errorData = JSON.parse(responseText);
+          errorMessage = errorData.error || errorMessage;
+        } catch {
+          // Use default error message
+        }
+        throw new Error(errorMessage);
+      }
+
+      const data = JSON.parse(responseText);
+      setFeaturedImage(data.url);
+      console.log('Banner uploaded successfully:', data.url);
+      alert('Banner image uploaded successfully!');
     } catch (error) {
       console.error('Banner upload error:', error);
-      alert('Failed to upload banner image');
+      alert(error instanceof Error ? error.message : 'Failed to upload banner image');
+      e.target.value = ''; // Reset file input on error
     }
   };
 

@@ -2,11 +2,12 @@
 
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Calendar, ChevronRight, Filter, ArrowUpDown, Grid3x3, List, Search, X, Tag, Eye, Clock } from 'lucide-react';
+import { Calendar, ChevronRight, Filter, ArrowUpDown, Grid3x3, List, Search, X, Tag, Eye, Clock, PenTool } from 'lucide-react';
 import Link from 'next/link';
 import type { BlogPostWithAuthor } from '@/lib/blog.types';
 import Sidebar from '@/components/Sidebar';
 import Header from '@/components/Header';
+import { useAuth } from '@/hooks/useAuth';
 
 // Filter tabs
 const filterTabs = ['All', 'Publication', 'Insight', 'Release', 'Tutorial'];
@@ -20,6 +21,7 @@ const sortOptions = [
 ];
 
 export default function BlogPage() {
+  const { user } = useAuth();
   const [posts, setPosts] = useState<BlogPostWithAuthor[]>([]);
   const [filteredPosts, setFilteredPosts] = useState<BlogPostWithAuthor[]>([]);
   const [loading, setLoading] = useState(true);
@@ -33,7 +35,28 @@ export default function BlogPage() {
   const [total, setTotal] = useState(0);
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [mounted, setMounted] = useState(false);
+  const [isAdmin, setIsAdmin] = useState(false);
   const limit = 12;
+
+  // Check if user is admin
+  useEffect(() => {
+    const checkAdmin = async () => {
+      if (!user) {
+        setIsAdmin(false);
+        return;
+      }
+      
+      try {
+        const res = await fetch('/api/blog', { method: 'HEAD' });
+        // If user can access blog API, they're admin
+        setIsAdmin(res.ok);
+      } catch {
+        setIsAdmin(false);
+      }
+    };
+    
+    checkAdmin();
+  }, [user]);
 
   useEffect(() => {
     setMounted(true);
@@ -186,6 +209,16 @@ export default function BlogPage() {
             
             {/* Controls */}
             <div className="flex items-center gap-3">
+              {/* Write Button for Admins */}
+              {user && isAdmin && (
+                <Link
+                  href="/admin/blog/write"
+                  className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                >
+                  <PenTool size={16} />
+                  Write
+                </Link>
+              )}
               {/* Search */}
               <div className="relative">
                 <input
