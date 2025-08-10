@@ -90,16 +90,16 @@ export default function WriteBlogPage() {
     }
   }, [user, authLoading, router]);
 
-  // Auto-generate slug from title
+  // Auto-generate slug from title only when slug is completely empty
   useEffect(() => {
-    if (title && !slug) {
+    if (title && slug === '') {
       const autoSlug = title
         .toLowerCase()
         .replace(/[^a-z0-9]+/g, '-')
         .replace(/^-+|-+$/g, '');
       setSlug(autoSlug);
     }
-  }, [title, slug]);
+  }, [title]); // Remove slug from dependencies to prevent loop
 
   // Auto-save draft
   useEffect(() => {

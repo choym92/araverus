@@ -13,13 +13,8 @@ import {
   Redo, 
   Undo, 
   Code,
-  Heading1,
-  Heading2,
-  Heading3,
   Link as LinkIcon,
   Image as ImageIcon,
-  Type,
-  Minus
 } from 'lucide-react';
 import { useCallback } from 'react';
 
@@ -35,24 +30,39 @@ export default function TiptapEditor({ content, onChange, onImageUpload }: Tipta
       StarterKit.configure({
         heading: {
           levels: [1, 2, 3]
+        },
+        code: {
+          HTMLAttributes: {
+            class: 'bg-gray-100 px-1 py-0.5 rounded text-sm font-mono'
+          }
+        },
+        codeBlock: {
+          HTMLAttributes: {
+            class: 'bg-gray-100 rounded-lg p-4 my-4 font-mono text-sm'
+          }
+        },
+        blockquote: {
+          HTMLAttributes: {
+            class: 'border-l-4 border-gray-300 pl-4 my-4 italic text-gray-600'
+          }
         }
       }),
       Image.configure({
         HTMLAttributes: {
-          class: 'max-w-full h-auto rounded-lg'
+          class: 'max-w-full h-auto rounded-lg my-4'
         }
       }),
       Link.configure({
         openOnClick: false,
         HTMLAttributes: {
-          class: 'text-blue-600 hover:text-blue-700 underline'
+          class: 'text-blue-600 hover:text-blue-700 underline cursor-pointer'
         }
       })
     ],
     content,
     editorProps: {
       attributes: {
-        class: 'prose prose-lg max-w-none focus:outline-none min-h-[500px] px-8 py-6'
+        class: 'prose prose-lg max-w-none focus:outline-none min-h-[400px] px-6 py-4 [&>*:first-child]:mt-0 [&>*:last-child]:mb-0'
       }
     },
     onUpdate: ({ editor }) => {
@@ -105,178 +115,176 @@ export default function TiptapEditor({ content, onChange, onImageUpload }: Tipta
 
   if (!editor) {
     return (
-      <div className="flex items-center justify-center h-[600px] bg-gray-50 rounded-lg">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+      <div className="flex items-center justify-center h-[400px] bg-white rounded-lg border border-gray-200">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-400"></div>
       </div>
     );
   }
 
+  const ToolButton = ({ 
+    onClick, 
+    isActive = false, 
+    disabled = false, 
+    children, 
+    title 
+  }: { 
+    onClick: () => void; 
+    isActive?: boolean; 
+    disabled?: boolean; 
+    children: React.ReactNode; 
+    title: string;
+  }) => (
+    <button
+      onClick={onClick}
+      disabled={disabled}
+      className={`
+        p-2 rounded-md transition-all
+        ${isActive 
+          ? 'bg-gray-100 text-gray-900' 
+          : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
+        }
+        ${disabled ? 'opacity-40 cursor-not-allowed' : 'cursor-pointer'}
+      `}
+      title={title}
+    >
+      {children}
+    </button>
+  );
+
   return (
     <div className="border border-gray-200 rounded-lg overflow-hidden bg-white">
-      {/* Toolbar */}
-      <div className="border-b border-gray-200 bg-gray-50 p-2 flex flex-wrap items-center gap-1">
-        {/* Text Style */}
-        <div className="flex items-center gap-1 px-2 border-r border-gray-300">
-          <button
-            onClick={() => editor.chain().focus().toggleHeading({ level: 1 }).run()}
-            className={`p-2 rounded hover:bg-gray-200 transition-colors ${
-              editor.isActive('heading', { level: 1 }) ? 'bg-gray-200' : ''
-            }`}
-            title="Heading 1"
+      {/* Minimal Toolbar */}
+      <div className="border-b border-gray-200 bg-white px-4 py-2">
+        <div className="flex items-center gap-1">
+          {/* Headings Dropdown */}
+          <select
+            onChange={(e) => {
+              const level = e.target.value;
+              if (level === 'p') {
+                editor.chain().focus().setParagraph().run();
+              } else {
+                editor.chain().focus().toggleHeading({ level: parseInt(level) as 1 | 2 | 3 }).run();
+              }
+            }}
+            value={
+              editor.isActive('heading', { level: 1 }) ? '1' :
+              editor.isActive('heading', { level: 2 }) ? '2' :
+              editor.isActive('heading', { level: 3 }) ? '3' : 'p'
+            }
+            className="px-3 py-1.5 text-sm border border-gray-200 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
           >
-            <Heading1 size={18} />
-          </button>
-          <button
-            onClick={() => editor.chain().focus().toggleHeading({ level: 2 }).run()}
-            className={`p-2 rounded hover:bg-gray-200 transition-colors ${
-              editor.isActive('heading', { level: 2 }) ? 'bg-gray-200' : ''
-            }`}
-            title="Heading 2"
-          >
-            <Heading2 size={18} />
-          </button>
-          <button
-            onClick={() => editor.chain().focus().toggleHeading({ level: 3 }).run()}
-            className={`p-2 rounded hover:bg-gray-200 transition-colors ${
-              editor.isActive('heading', { level: 3 }) ? 'bg-gray-200' : ''
-            }`}
-            title="Heading 3"
-          >
-            <Heading3 size={18} />
-          </button>
-          <button
-            onClick={() => editor.chain().focus().setParagraph().run()}
-            className={`p-2 rounded hover:bg-gray-200 transition-colors ${
-              editor.isActive('paragraph') ? 'bg-gray-200' : ''
-            }`}
-            title="Paragraph"
-          >
-            <Type size={18} />
-          </button>
-        </div>
+            <option value="p">Normal</option>
+            <option value="1">Heading 1</option>
+            <option value="2">Heading 2</option>
+            <option value="3">Heading 3</option>
+          </select>
 
-        {/* Formatting */}
-        <div className="flex items-center gap-1 px-2 border-r border-gray-300">
-          <button
+          <div className="w-px h-6 bg-gray-200 mx-1" />
+
+          {/* Text Formatting */}
+          <ToolButton
             onClick={() => editor.chain().focus().toggleBold().run()}
-            className={`p-2 rounded hover:bg-gray-200 transition-colors ${
-              editor.isActive('bold') ? 'bg-gray-200' : ''
-            }`}
-            title="Bold"
+            isActive={editor.isActive('bold')}
+            title="Bold (Cmd+B)"
           >
-            <Bold size={18} />
-          </button>
-          <button
+            <Bold size={18} strokeWidth={2} />
+          </ToolButton>
+
+          <ToolButton
             onClick={() => editor.chain().focus().toggleItalic().run()}
-            className={`p-2 rounded hover:bg-gray-200 transition-colors ${
-              editor.isActive('italic') ? 'bg-gray-200' : ''
-            }`}
-            title="Italic"
+            isActive={editor.isActive('italic')}
+            title="Italic (Cmd+I)"
           >
-            <Italic size={18} />
-          </button>
-          <button
+            <Italic size={18} strokeWidth={2} />
+          </ToolButton>
+
+          <ToolButton
             onClick={() => editor.chain().focus().toggleCode().run()}
-            className={`p-2 rounded hover:bg-gray-200 transition-colors ${
-              editor.isActive('code') ? 'bg-gray-200' : ''
-            }`}
+            isActive={editor.isActive('code')}
             title="Code"
           >
-            <Code size={18} />
-          </button>
-        </div>
+            <Code size={18} strokeWidth={2} />
+          </ToolButton>
 
-        {/* Lists */}
-        <div className="flex items-center gap-1 px-2 border-r border-gray-300">
-          <button
+          <div className="w-px h-6 bg-gray-200 mx-1" />
+
+          {/* Lists */}
+          <ToolButton
             onClick={() => editor.chain().focus().toggleBulletList().run()}
-            className={`p-2 rounded hover:bg-gray-200 transition-colors ${
-              editor.isActive('bulletList') ? 'bg-gray-200' : ''
-            }`}
+            isActive={editor.isActive('bulletList')}
             title="Bullet List"
           >
-            <List size={18} />
-          </button>
-          <button
+            <List size={18} strokeWidth={2} />
+          </ToolButton>
+
+          <ToolButton
             onClick={() => editor.chain().focus().toggleOrderedList().run()}
-            className={`p-2 rounded hover:bg-gray-200 transition-colors ${
-              editor.isActive('orderedList') ? 'bg-gray-200' : ''
-            }`}
-            title="Ordered List"
+            isActive={editor.isActive('orderedList')}
+            title="Numbered List"
           >
-            <ListOrdered size={18} />
-          </button>
-          <button
+            <ListOrdered size={18} strokeWidth={2} />
+          </ToolButton>
+
+          <ToolButton
             onClick={() => editor.chain().focus().toggleBlockquote().run()}
-            className={`p-2 rounded hover:bg-gray-200 transition-colors ${
-              editor.isActive('blockquote') ? 'bg-gray-200' : ''
-            }`}
+            isActive={editor.isActive('blockquote')}
             title="Quote"
           >
-            <Quote size={18} />
-          </button>
-          <button
-            onClick={() => editor.chain().focus().setHorizontalRule().run()}
-            className="p-2 rounded hover:bg-gray-200 transition-colors"
-            title="Horizontal Rule"
-          >
-            <Minus size={18} />
-          </button>
-        </div>
+            <Quote size={18} strokeWidth={2} />
+          </ToolButton>
 
-        {/* Links & Images */}
-        <div className="flex items-center gap-1 px-2 border-r border-gray-300">
-          <button
+          <div className="w-px h-6 bg-gray-200 mx-1" />
+
+          {/* Links & Images */}
+          <ToolButton
             onClick={setLink}
-            className={`p-2 rounded hover:bg-gray-200 transition-colors ${
-              editor.isActive('link') ? 'bg-gray-200' : ''
-            }`}
+            isActive={editor.isActive('link')}
             title="Add Link"
           >
-            <LinkIcon size={18} />
-          </button>
+            <LinkIcon size={18} strokeWidth={2} />
+          </ToolButton>
+
           {onImageUpload ? (
-            <button
+            <ToolButton
               onClick={handleImageUpload}
-              className="p-2 rounded hover:bg-gray-200 transition-colors"
               title="Upload Image"
             >
-              <ImageIcon size={18} />
-            </button>
+              <ImageIcon size={18} strokeWidth={2} />
+            </ToolButton>
           ) : (
-            <button
+            <ToolButton
               onClick={addImage}
-              className="p-2 rounded hover:bg-gray-200 transition-colors"
               title="Add Image URL"
             >
-              <ImageIcon size={18} />
-            </button>
+              <ImageIcon size={18} strokeWidth={2} />
+            </ToolButton>
           )}
-        </div>
 
-        {/* History */}
-        <div className="flex items-center gap-1 px-2">
-          <button
-            onClick={() => editor.chain().focus().undo().run()}
-            disabled={!editor.can().undo()}
-            className="p-2 rounded hover:bg-gray-200 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-            title="Undo"
-          >
-            <Undo size={18} />
-          </button>
-          <button
-            onClick={() => editor.chain().focus().redo().run()}
-            disabled={!editor.can().redo()}
-            className="p-2 rounded hover:bg-gray-200 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-            title="Redo"
-          >
-            <Redo size={18} />
-          </button>
+          <div className="ml-auto flex items-center gap-1">
+            <div className="w-px h-6 bg-gray-200 mx-1" />
+            
+            {/* History */}
+            <ToolButton
+              onClick={() => editor.chain().focus().undo().run()}
+              disabled={!editor.can().undo()}
+              title="Undo (Cmd+Z)"
+            >
+              <Undo size={18} strokeWidth={2} />
+            </ToolButton>
+
+            <ToolButton
+              onClick={() => editor.chain().focus().redo().run()}
+              disabled={!editor.can().redo()}
+              title="Redo (Cmd+Shift+Z)"
+            >
+              <Redo size={18} strokeWidth={2} />
+            </ToolButton>
+          </div>
         </div>
       </div>
 
-      {/* Editor */}
-      <div className="bg-white">
+      {/* Editor Content */}
+      <div className="bg-white min-h-[400px] cursor-text" onClick={() => editor?.chain().focus().run()}>
         <EditorContent editor={editor} />
       </div>
     </div>

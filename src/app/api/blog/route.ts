@@ -2,11 +2,10 @@ import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { BlogService } from '@/lib/blog.service';
 
-const blogService = new BlogService();
-
 // GET /api/blog - Get published posts or admin posts
 export async function GET(request: NextRequest) {
   try {
+    const blogService = new BlogService(); // Create new instance for each request
     const { searchParams } = new URL(request.url);
     const isAdminView = searchParams.get('admin') === 'true';
     
@@ -55,6 +54,7 @@ const CreatePostSchema = z.object({
 // POST /api/blog - Create new blog post (admin only)
 export async function POST(request: NextRequest) {
   try {
+    const blogService = new BlogService(); // Create new instance for each request
     const isAdmin = await blogService.isAdmin();
     if (!isAdmin) {
       return NextResponse.json(

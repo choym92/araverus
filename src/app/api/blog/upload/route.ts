@@ -1,9 +1,6 @@
-// ⏺ Write(src/app/api/blog/upload/route.ts)
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { BlogService } from '@/lib/blog.service';
-
-const blogService = new BlogService();
 
 // --- Schemas ---
 const FormSchema = z.object({
@@ -51,6 +48,7 @@ function looksLikeImage(mime: string, bytes: Uint8Array): boolean {
 // POST /api/blog/upload - Upload image for blog post
 export async function POST(request: NextRequest) {
   try {
+    const blogService = new BlogService();
     const isAdmin = await blogService.isAdmin();
     if (!isAdmin) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });

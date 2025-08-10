@@ -1,14 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { BlogService } from '@/lib/blog.service';
 
-const blogService = new BlogService();
-
 // GET /api/blog/[id] - Get single post for editing (admin only)
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const blogService = new BlogService();
     const { id } = await params;
     
     const isAdmin = await blogService.isAdmin();
@@ -38,12 +37,13 @@ export async function GET(
   }
 }
 
-// PUT /api/blog/[id] - Update blog post (admin only)
+// PUT /api/blog/[id] - Update existing post (admin only)
 export async function PUT(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const blogService = new BlogService();
     const { id } = await params;
     
     const isAdmin = await blogService.isAdmin();
@@ -55,6 +55,7 @@ export async function PUT(
     }
 
     const body = await request.json();
+    
     const post = await blogService.updatePost({
       ...body,
       id: parseInt(id)
@@ -77,12 +78,13 @@ export async function PUT(
   }
 }
 
-// DELETE /api/blog/[id] - Delete blog post (admin only)
+// DELETE /api/blog/[id] - Delete post (admin only)
 export async function DELETE(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const blogService = new BlogService();
     const { id } = await params;
     
     const isAdmin = await blogService.isAdmin();

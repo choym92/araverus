@@ -202,10 +202,9 @@ export default function BlogPage() {
               {isAdmin && (
                 <Link
                   href="/admin/blog/write"
-                  className="px-4 py-2 text-sm font-medium border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors flex items-center gap-2 h-[38px]"
+                  className="px-4 py-2 text-sm font-medium border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors flex items-center h-[38px]"
                 >
-                  <PenTool size={16} strokeWidth={1.5} />
-                  <span>Write</span>
+                  Write
                 </Link>
               )}
               
