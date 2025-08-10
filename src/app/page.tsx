@@ -1,9 +1,12 @@
 'use client';
 
-import Link from 'next/link';
 import { useEffect, Suspense, useState } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { useAuth } from '@/hooks/useAuth';
+import Sidebar from '@/components/Sidebar';
+import Header from '@/components/Header';
+import Hero from '@/components/Hero';
+import BlogsPage from '@/components/BlogsPage';
 
 function AuthCodeHandler() {
   const searchParams = useSearchParams();
@@ -50,57 +53,79 @@ function AuthCodeHandler() {
 }
 
 export default function Home() {
+  const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [currentPage, setCurrentPage] = useState('home');
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+    // Check saved preference
+    const saved = localStorage.getItem('sidebar-open');
+    if (saved !== null) {
+      setSidebarOpen(saved === 'true');
+    }
+  }, []);
+
+  useEffect(() => {
+    if (mounted) {
+      localStorage.setItem('sidebar-open', String(sidebarOpen));
+    }
+  }, [sidebarOpen, mounted]);
+
+  const handleNavigation = (page: string) => {
+    setCurrentPage(page);
+    // Close sidebar on mobile after navigation
+    if (window.innerWidth < 768) {
+      setSidebarOpen(false);
+    }
+  };
+
+  if (!mounted) return null;
+
   return (
-    <main className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100">
+    <div 
+      className="min-h-screen bg-white relative overflow-hidden"
+      style={{ ['--sidebar-w' as any]: '16rem' }} // 16rem = 256px
+    >
+      {/* Animated background gradient */}
+      <div className="fixed inset-0 bg-gradient-to-br from-blue-50/30 via-white to-purple-50/30 pointer-events-none" />
+      
+      {/* Performance-friendly blur for supported browsers */}
+      <div className="fixed inset-0 pointer-events-none opacity-40 supports-[backdrop-filter]:backdrop-blur-[60px]" />
+      
+      {/* Sidebar */}
+      <Sidebar 
+        isOpen={sidebarOpen}
+        onClose={() => setSidebarOpen(false)}
+        onNavigate={handleNavigation}
+        currentPage={currentPage}
+      />
+      
+      {/* Main Content - CSS transition, desktop only push */}
+      <div
+        className={`relative transition-[margin] duration-300 ease-out pt-16 ${
+          sidebarOpen ? 'lg:ml-[var(--sidebar-w)]' : 'lg:ml-0'
+        }`}
+      >
+        {/* Header */}
+        <Header 
+          sidebarOpen={sidebarOpen}
+          onToggleSidebar={() => setSidebarOpen(!sidebarOpen)}
+        />
+        
+        {/* Page Content */}
+        {currentPage === 'home' ? (
+          <Hero />
+        ) : currentPage === 'blogs' ? (
+          <BlogsPage />
+        ) : (
+          <Hero />
+        )}
+      </div>
+
       <Suspense fallback={null}>
         <AuthCodeHandler />
       </Suspense>
-      <section className="mx-auto max-w-4xl px-6 py-24">
-        {/* Hero Section */}
-        <div className="text-center mb-16">
-          <h1 className="text-6xl font-bold text-gray-900 mb-6">
-            Paul Cho
-          </h1>
-          <p className="text-xl text-gray-600 mb-8 max-w-2xl mx-auto leading-relaxed">
-            Welcome to my personal website. I&apos;m passionate about technology, innovation, 
-            and building meaningful digital experiences.
-          </p>
-        </div>
-
-        {/* Quick Intro Cards */}
-        <div className="grid md:grid-cols-3 gap-8 mb-16">
-          <div className="bg-white p-6 rounded-xl shadow-sm border">
-            <h3 className="text-lg font-semibold text-gray-900 mb-3">Developer</h3>
-            <p className="text-gray-600">
-              Building modern web applications with cutting-edge technologies
-            </p>
-          </div>
-          
-          <div className="bg-white p-6 rounded-xl shadow-sm border">
-            <h3 className="text-lg font-semibold text-gray-900 mb-3">Innovator</h3>
-            <p className="text-gray-600">
-              Exploring new ideas and turning concepts into reality
-            </p>
-          </div>
-          
-          <div className="bg-white p-6 rounded-xl shadow-sm border">
-            <h3 className="text-lg font-semibold text-gray-900 mb-3">Learner</h3>
-            <p className="text-gray-600">
-              Continuously growing and adapting to new challenges
-            </p>
-          </div>
-        </div>
-
-        {/* Admin Access (Hidden) */}
-        <div className="text-center">
-          <Link 
-            href="/login" 
-            className="text-sm text-gray-400 hover:text-gray-600 transition-colors"
-          >
-            Admin
-          </Link>
-        </div>
-      </section>
-    </main>
+    </div>
   );
 }
