@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { BlogService } from '@/lib/blog.service';
+import { createClient } from '@/lib/supabase-server';
 
 // GET /api/blog/[id] - Get single post for editing (admin only)
 export async function GET(
@@ -7,7 +8,8 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const blogService = new BlogService();
+    const supabase = await createClient();
+    const blogService = new BlogService(supabase);
     const { id } = await params;
     
     const isAdmin = await blogService.isAdmin();
@@ -43,7 +45,8 @@ export async function PUT(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const blogService = new BlogService();
+    const supabase = await createClient();
+    const blogService = new BlogService(supabase);
     const { id } = await params;
     
     const isAdmin = await blogService.isAdmin();
@@ -84,7 +87,8 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const blogService = new BlogService();
+    const supabase = await createClient();
+    const blogService = new BlogService(supabase);
     const { id } = await params;
     
     const isAdmin = await blogService.isAdmin();

@@ -1,9 +1,7 @@
-// ⏺ Write(src/app/api/blog/autosave/route.ts)
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { BlogService } from '@/lib/blog.service';
-
-const blogService = new BlogService();
+import { createClient } from '@/lib/supabase-server';
 
 // 입력 검증 스키마
 const AutoSaveSchema = z.object({
@@ -14,6 +12,9 @@ const AutoSaveSchema = z.object({
 // POST /api/blog/autosave - Auto-save draft content
 export async function POST(request: NextRequest) {
   try {
+    const supabase = await createClient();
+    const blogService = new BlogService(supabase);
+    
     const isAdmin = await blogService.isAdmin();
     if (!isAdmin) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });

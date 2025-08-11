@@ -23,7 +23,9 @@ const calcReadTime = (content?: string) => {
 // fetchers (서버에서 API 호출: 캐시 없이 최신)
 async function fetchPost(slug: string): Promise<BlogPostWithAuthor | null> {
   const { BlogService } = await import('@/lib/blog.service');
-  const svc = new BlogService();
+  const { createClient } = await import('@/lib/supabase-server');
+  const supabase = await createClient();
+  const svc = new BlogService(supabase);
   return await svc.getPostBySlug(slug);
 }
 

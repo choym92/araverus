@@ -1,4 +1,3 @@
-import { createClient } from '@/lib/supabase';
 import type { 
   BlogPost, 
   BlogPostWithAuthor, 
@@ -6,12 +5,21 @@ import type {
   UpdateBlogPostInput,
   BigIntId
 } from './blog.types';
+import type { SupabaseClient } from '@supabase/supabase-js';
 
 export class BlogService {
-  private supabase = createClient();
+  private supabase: SupabaseClient;
   private _adminCache?: boolean;
   private static readonly IMAGE_BUCKET = 'blog-assets';
   private static readonly IMAGE_BASE_PATH = 'blog-images';
+  
+  constructor(supabaseClient: SupabaseClient) {
+    // Supabase client is required
+    if (!supabaseClient) {
+      throw new Error('BlogService requires a Supabase client instance');
+    }
+    this.supabase = supabaseClient;
+  }
 
   // Check if user is admin (only choym92@gmail.com)
   async isAdmin(): Promise<boolean> {
