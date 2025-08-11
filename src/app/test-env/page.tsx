@@ -44,7 +44,7 @@ export default function TestEnvironmentPage() {
   return (
     <div className="min-h-screen p-8 bg-gray-50">
       <div className="max-w-4xl mx-auto">
-        <h1 className="text-3xl font-bold mb-8">Environment Test Page</h1>
+        <h1 className="text-3xl font-bold mb-8">🧪 Environment Test Page (Feature Branch)</h1>
         
         {/* Current User */}
         <div className="bg-white rounded-lg shadow p-6 mb-6">
