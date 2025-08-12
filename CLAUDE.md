@@ -1,71 +1,69 @@
 # CLAUDE.md
+This file provides guidance to Claude Code (claude.ai/code) when working in this repository.
+**Invariant global rules only.** Detailed architecture/schema/notes live in `README.md` or `docs/`.
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+---
 
-## Project Overview
+## 🚨 GLOBAL RULES — ALWAYS FOLLOW THESE (Invariant)
 
-Araverus is an AI-powered SEC filing screener and market dashboard - a financial intelligence platform that democratizes institutional-grade analysis through AI-powered SEC filing interpretation. The platform combines a sophisticated stock screener with natural language processing of regulatory documents.
+### Critical Behaviors
+1) **BEFORE change**: Read neighboring files; follow existing patterns.  
+2) **AFTER change**: Run `npm run lint` and `npm run build` (type check).  
+3) **VERIFY deps**: Never assume a library exists; check `package.json`.  
+4) **EDIT over CREATE**: Prefer modifying existing files/components.  
+5) **Server-first**: Next.js App Router uses **Server Components by default**; use Client **only** for interaction/state/DOM APIs.
 
-## Common Development Commands
+### Power Keywords & Enhanced Behaviors
+- **IMPORTANT**: Must not be overlooked.  
+- **PROACTIVELY**: Propose safe improvements within these rules.  
+- **VERIFY**: Validate changes with checks/tests and a short runbook note.  
+- **SECURITY-FIRST**: Treat inputs, secrets, and errors defensively.  
+- **Be concise**: Output is short, actionable, copy-pastable.
 
-- **Development server**: `npm run dev` (starts Next.js dev server on http://localhost:3000)
-- **Build project**: `npm run build` (creates production build)
-- **Start production**: `npm start` (starts production server)  
-- **Lint code**: `npm run lint` (runs ESLint with Next.js config)
+### Anti-Patterns to Avoid
+- ❌ **Over-engineering** (unneeded abstractions/deps/complexity).  
+- ❌ **Breaking public contracts**: Keep public API/URL/DB schema compatible. (Internal/private pieces may be changed.)  
+- ❌ Creating new files when a focused edit suffices.  
+- ❌ Long prose; prefer steps, diffs, and exact commands.
 
-## Architecture & Tech Stack
+### Automation Checklist (Every task)
+- [ ] `npm run lint` (fix issues)  
+- [ ] `npm run build` (fix type errors)  
+- [ ] Manual verify in browser; check console for errors  
+- [ ] Ensure **no secrets** in code/logs/diffs  
+- [ ] Add/update a minimal test (happy + one edge) if logic changed  
+- [ ] Append change summary to `docs/cc/YYYY-MM-DD.md` (what/why/how)
 
-### Frontend Architecture
-- **Framework**: Next.js 15 with App Router
-- **UI**: React 19 + TypeScript 5
-- **Styling**: Tailwind CSS 4 with custom theme system
-- **Fonts**: Geist Sans & Geist Mono (optimized with next/font)
+---
 
-### Planned Architecture (from project documentation)
-- **Backend**: Supabase (BaaS) for database, auth, storage
-- **AI Processing**: Python FastAPI microservice with LangChain + OpenAI
-- **External APIs**: SEC EDGAR API, Alpha Vantage for market data
-- **Deployment**: Vercel (frontend) + containerized AI service
+## 🏗️ PROJECT-SPECIFIC RULES (Stable Defaults)
 
-### Key Configuration
-- **TypeScript**: Strict mode enabled with path aliases (`@/*` → `./src/*`)
-- **ESLint**: Uses Next.js core-web-vitals and TypeScript configs
-- **CSS**: Tailwind with CSS custom properties for theming (supports dark mode)
+### Conventions
+1) **Auth**: Protected routes/pages must pass `useAuth` **or** server-side session/role check.  
+2) **Data**: Use the service layer (e.g., `BlogService`) for DB logic; call explicitly from server actions/APIs when needed.  
+3) **Admin**: **No hardcoded emails**. Use `user_profiles.role = 'admin'` (RLS/policies enforced) for authorization.  
+4) **Styling**: Tailwind only; avoid inline styles (except utility overrides when justified).  
+5) **Components**: **Server by default**; add `'use client'` only when truly required.
 
-## Code Conventions
+### Security · A11y · Testing (Minimum)
+- **Secrets**: Live only in `.env*`; never commit. Mask in logs/errors.  
+- **A11y**: ARIA, focus management, color contrast; never `alert()` as UX—use accessible error UI.  
+- **Tests**: For new/changed logic, provide at least **1 happy + 1 edge** unit test. E2E optional.
 
-### File Structure
-- `src/app/` - Next.js App Router pages and layouts
-- `src/app/globals.css` - Global styles with Tailwind imports and custom CSS variables
-- Public assets in `public/` directory
+### Token/Context Strategy & Tools
+- **Large files**: Read/edit by **line range** or summaries—avoid full-file context.  
+- **MCP**:  
+  - **Serena** for semantic code search/refactors/cross-refs.  
+  - **Context7** for "latest official docs" — explicitly say **"use context7"** when needed.  
+- **Hooks**: Before any destructive action, print a 3-line note: **What / Impact / Rollback**. Keep Bash/Write/Edit logging on.
 
-### Styling Approach
-- Uses Tailwind CSS 4 with `@theme inline` configuration
-- Custom CSS variables for theming (`--background`, `--foreground`, etc.)
-- Built-in dark mode support via `prefers-color-scheme`
-- Geist font variables available as `--font-geist-sans` and `--font-geist-mono`
+### Output Contract
+- Keep responses **short and step-based**.  
+- Include filenames + minimal diffs or exact commands.  
+- State how to run/verify locally (1–2 lines).  
+- Document changes in `docs/cc/YYYY-MM-DD.md`.
 
-### Component Patterns
-- TypeScript interfaces for props with `Readonly<>` wrapper for children
-- Metadata exports for SEO in page components
-- CSS custom properties integrated with Tailwind theme system
+---
 
-## Development Notes
-
-### Current State
-- Early scaffold phase with basic Next.js setup
-- Homepage displays project branding with Tailwind styling
-- Supabase dependencies installed but not yet integrated
-- Project follows phased development approach (MVP → Fast Follow → Monetization)
-
-### Key Dependencies
-- **Frontend**: Next.js 15, React 19, TypeScript 5, Tailwind CSS 4
-- **Database**: Supabase packages (@supabase/ssr, @supabase/supabase-js)
-- **Development**: ESLint with Next.js configs
-
-### Planned Features (from project docs)
-- SEC filing analysis with AI-powered summaries
-- Stock screener with advanced filtering
-- User authentication via Supabase Auth
-- Watchlists and notification system
-- Real-time market data integration
+## Project Overview (Pointer)
+- Architecture, schema, dependencies, editor/animation details → **move to** `README.md` / `docs/` and keep this file invariant.

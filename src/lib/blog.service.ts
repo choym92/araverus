@@ -24,43 +24,14 @@ export class BlogService {
   // Check if user is admin (only choym92@gmail.com)
   async isAdmin(): Promise<boolean> {
     if (this._adminCache !== undefined) return this._adminCache;
-    try {
-      const { data: { user } } = await this.supabase.auth.getUser();
-      if (!user) return (this._adminCache = false);
-      
-      // Only allow specific admin email
-      if (user.email !== 'choym92@gmail.com') {
-        return (this._adminCache = false);
-      }
-
-      const { data: profile, error } = await this.supabase
-        .from('user_profiles')
-        .select('role')
-        .eq('id', user.id)
-        .single();
-
-      if (error) {
-        // If no profile exists yet, create one for admin email
-        if (user.email === 'choym92@gmail.com') {
-          await this.supabase
-            .from('user_profiles')
-            .upsert({
-              id: user.id,
-              email: user.email,
-              role: 'admin',
-              created_at: new Date().toISOString(),
-              updated_at: new Date().toISOString()
-            }, {
-              onConflict: 'id'
-            });
-          return (this._adminCache = true);
-        }
-        return (this._adminCache = false);
-      }
-      return (this._adminCache = profile?.role === 'admin');
-    } catch {
-      return (this._adminCache = false);
-    }
+    const { data: { user }, error } = await this.supabase.auth.getUser();
+    if (error || !user) return (this._adminCache = false);
+    const { data: profile } = await this.supabase
+      .from('user_profiles')
+      .select('role')
+      .eq('id', user.id)
+      .single();
+    return (this._adminCache = profile?.role === 'admin');
   }
 
   // Create new blog post
