@@ -16,6 +16,15 @@
           "description": "Review significant code changes"
         }
       ]
+    },
+    "BeforeCommit": {
+      "hooks": [
+        {
+          "type": "agent",
+          "agent": "staged-diff-reviewer",
+          "description": "Final staged diff review (line-range, minimal patches)"
+        }
+      ]
     }
   },
   "agent_defaults": {
@@ -27,6 +36,9 @@
     },
     "principal-code-architect": {
       "context": "Personal website project: chopaul.com - focus on security, performance, and professional quality"
+    },
+    "staged-diff-reviewer": {
+      "context": "araverus: server-first Next.js with Supabase, role-based admin, service layer pattern"
     }
   }
 }

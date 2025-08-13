@@ -38,19 +38,25 @@ Run gates in order (stop on failure, suggest fixes, then retry):
 - Route Smoke (if PRP adds routes): print ready-to-run `curl` snippets from PRP
 - Minimal a11y: keyboard/focus/aria notes if UI added
 
-### Phase 3 — Finalize
-1. Re-read PRP and verify all acceptance criteria done.
-2. Print final **Changed Files** list and mini-diffs (high level).
-3. Prepend EoD entry to `docs/cc/YYYY-MM-DD.md` (create if absent):
+### Phase 3 — Auto Review & PR
+- Run staged diff review (no huge dumps; line-ranged notes only):
+  - **/agent-reviewer "staged"**
+  - **/review-diff** (optional) to propose minimal patches
+- If clean, generate PR text:
+  - **/gen-pr "auto from current staged diff"**
+- Show exact `git add/commit` and (optional) `gh pr create` commands.
+
+### Phase 4 — EoD Log
+- Prepend 5-line summary to `docs/cc/YYYY-MM-DD.md`:
 ```markdown
 ## Summary (HH:MM)
-- **What**: <short feat summary>
-- **Why**: <intent/impact>
-- **Impact**: <scope of change; user-visible/none>
-- **Verify**: <lint/build/tests/route-smoke status>
-- **Next**: <follow-ups or NONE>
+- **What**: <short>
+- **Why**: <intent>
+- **Impact**: <scope/user-visible or none>
+- **Verify**: <lint/build/tests/route status>
+- **Next**: <follow-up or NONE>
 ```
-4. Suggest commit message (Conventional Commits) and show exact `git add/commit` commands.
+- Print changed files list.
 
 ## Error Handling & Rollback
 - On error, print: failing step, suggested fix, and how to revert:
