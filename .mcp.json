@@ -14,6 +14,9 @@
         "/Users/youngmincho/Project/araverus"
       ],
       "env": {}
+    },
+    "context7": {
+      "httpUrl": "https://mcp.context7.com/mcp"
     }
   }
 }

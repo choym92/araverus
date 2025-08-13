@@ -47,7 +47,7 @@ export default function Hero() {
               transition={{ delay: 0.2, duration: 0.6 }}
               className="mb-6 text-5xl font-light text-neutral-900 md:text-7xl"
             >
-              Introducing GPT-5
+              Undergoing Construction....
             </motion.h1>
 
             <motion.p
@@ -56,8 +56,7 @@ export default function Hero() {
               transition={{ delay: 0.3, duration: 0.6 }}
               className="mx-auto mb-10 max-w-3xl text-lg leading-relaxed text-neutral-600 md:text-xl"
             >
-              Our smartest, fastest, most useful model yet, with built-in thinking
-              that puts expert-level intelligence in everyone&apos;s hands.
+              Personal website with Finance tools
             </motion.p>
 
             {/* CTA */}

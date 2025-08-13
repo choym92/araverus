@@ -51,7 +51,7 @@ export default function Header({ sidebarOpen, onToggleSidebar }: HeaderProps) {
             <div className="w-8 h-8 bg-black rounded-sm flex items-center justify-center">
               <span className="text-white font-bold text-sm">O</span>
             </div>
-            <span className="font-semibold text-lg">OpenAI</span>
+            <span className="font-semibold text-lg">ClosedAI</span>
           </div>
           
           {/* Toggle button - Always visible with improved accessibility */}
