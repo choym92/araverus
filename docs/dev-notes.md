@@ -1,5 +1,12 @@
 # Development Notes (araverus)
 
+## Blog Authoring (MDX)
+1. Create post: `content/blog/<slug>/index.mdx`
+2. Add frontmatter: title, date, category (Publication/Tutorial/Insight/Release), tags, draft
+3. Add images: `public/blog/<slug>/cover.jpg`
+4. Category filtering works automatically via frontmatter
+5. Drafts (draft: true) visible in dev, hidden in production
+
 ## Commands
 - Dev server: `npm run dev`
 - Type/Build: `npm run build`

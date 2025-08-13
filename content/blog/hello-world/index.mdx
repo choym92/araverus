@@ -1,0 +1,77 @@
+---
+title: "Getting Started with MDX Blogging"
+date: "2025-08-13"
+category: "Tutorial"
+tags: ["mdx", "blogging", "tutorial"]
+draft: false
+coverImage: "/blog/hello-world/cover.jpg"
+excerpt: "Learn how to create beautiful, performant blog posts using MDX and Next.js"
+---
+
+# Welcome to MDX Blogging
+
+This is your first MDX blog post! MDX allows you to write JSX directly in your markdown files, making it perfect for technical blogs.
+
+## Why MDX?
+
+MDX combines the simplicity of Markdown with the power of React components. Here are some benefits:
+
+- **Component Integration**: Use React components directly in your content
+- **Type Safety**: Full TypeScript support
+- **Performance**: Static generation for blazing fast pages
+- **Developer Experience**: Write in your favorite editor (like Obsidian!)
+
+## Code Examples
+
+Here's a simple React component:
+
+```tsx
+function Welcome({ name }: { name: string }) {
+  return <h1>Hello, {name}!</h1>;
+}
+```
+
+## Using Custom Components
+
+You can even use custom components like this Figure component:
+
+<Figure src="/blog/hello-world/example.png" caption="An example image with caption" />
+
+## Lists and Formatting
+
+### Ordered List
+1. First item
+2. Second item
+3. Third item
+
+### Unordered List
+- Bullet point one
+- Bullet point two
+- Bullet point three
+
+### Task List
+- [x] Set up MDX
+- [x] Create first post
+- [ ] Add more content
+
+## Tables
+
+| Feature | MDX | Traditional Markdown |
+|---------|-----|---------------------|
+| Components | ✅ | ❌ |
+| JSX | ✅ | ❌ |
+| Type Safety | ✅ | ❌ |
+| Simplicity | ✅ | ✅ |
+
+## Blockquotes
+
+> "The best way to predict the future is to invent it."
+> — Alan Kay
+
+## Conclusion
+
+MDX brings the best of both worlds - the simplicity of Markdown and the power of React. Start creating your own MDX posts today!
+
+---
+
+*This post was written in MDX and rendered with Next.js*

@@ -123,3 +123,11 @@ Idea → (optional) /agent-architect → INITIAL.md → /generate-prp → /execu
 - Narrow review scope: refine `trigger_on` patterns
 
 ---
+
+## 9) Blog Workflow (MDX-based)
+
+- **Source**: `content/blog/<slug>/index.mdx` (Git + Obsidian authoring)
+- **Assets**: `public/blog/<slug>/` (images, covers)
+- **Deploy**: Push to Git → Next.js SSG → Vercel auto-deploy
+
+---
