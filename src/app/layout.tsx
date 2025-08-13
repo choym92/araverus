@@ -18,6 +18,7 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: "Paul Cho - Personal Website",
   description: "Paul Cho's personal website - showcasing projects, insights, and professional journey",
+  alternates: { types: { 'application/rss+xml': '/rss.xml' } },
 };
 
 /* ---------- root layout ---------- */
