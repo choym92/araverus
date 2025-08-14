@@ -5,8 +5,6 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Calendar, ChevronRight, Filter, Grid3x3, List, Search, X, Tag, Clock } from 'lucide-react';
 import Link from 'next/link';
 import type { Post } from '@/lib/mdx';
-import Sidebar from '@/components/Sidebar';
-import Header from '@/components/Header';
 import { useAuth } from '@/hooks/useAuth';
 
 // Filter tabs
@@ -36,8 +34,6 @@ export default function BlogPage({ initialPosts, initialCategory }: BlogPageProp
   const [searchQuery, setSearchQuery] = useState('');
   const [showFilters, setShowFilters] = useState(false);
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
-  const [sidebarOpen, setSidebarOpen] = useState(true);
-  const [mounted, setMounted] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false);
 
   // Check if user is admin (only choym92@gmail.com)
@@ -48,28 +44,6 @@ export default function BlogPage({ initialPosts, initialCategory }: BlogPageProp
       setIsAdmin(false);
     }
   }, [user]);
-
-  useEffect(() => {
-    setMounted(true);
-    // Check saved preference
-    const saved = localStorage.getItem('sidebar-open');
-    if (saved !== null) {
-      setSidebarOpen(saved === 'true');
-    }
-  }, []);
-
-  useEffect(() => {
-    if (mounted) {
-      localStorage.setItem('sidebar-open', String(sidebarOpen));
-    }
-  }, [sidebarOpen, mounted]);
-
-  const handleNavigation = (page: string) => {
-    // Handle navigation
-    if (window.innerWidth < 768) {
-      setSidebarOpen(false);
-    }
-  };
 
 
   // Filter and sort posts
@@ -140,36 +114,8 @@ export default function BlogPage({ initialPosts, initialCategory }: BlogPageProp
     return `${minutes} min`;
   };
 
-  if (!mounted) return null;
-
   return (
-    <div 
-      className="min-h-screen bg-white relative overflow-hidden"
-      style={{ '--sidebar-w': '16rem' } as React.CSSProperties}
-    >
-      {/* Animated background gradient */}
-      <div className="fixed inset-0 bg-gradient-to-br from-blue-50/30 via-white to-purple-50/30 pointer-events-none" />
-      
-      {/* Sidebar */}
-      <Sidebar 
-        isOpen={sidebarOpen}
-        onClose={() => setSidebarOpen(false)}
-        onNavigate={handleNavigation}
-        currentPage="blogs"
-      />
-      
-      {/* Main Content */}
-      <div
-        className={`relative transition-[margin] duration-300 ease-out pt-16 ${
-          sidebarOpen ? 'lg:ml-[var(--sidebar-w)]' : 'lg:ml-0'
-        }`}
-      >
-        {/* Header */}
-        <Header 
-          sidebarOpen={sidebarOpen}
-          onToggleSidebar={() => setSidebarOpen(!sidebarOpen)}
-        />
-
+    <>
       {/* Blog Content */}
       <div className="border-b border-gray-200 sticky top-16 bg-white/95 backdrop-blur-sm z-20">
         <div className="max-w-7xl mx-auto px-6 py-6">
@@ -487,7 +433,6 @@ export default function BlogPage({ initialPosts, initialCategory }: BlogPageProp
         )}
 
       </div>
-      </div>
-    </div>
+    </>
   );
 }

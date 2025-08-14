@@ -31,7 +31,8 @@ export default function Sidebar({ isOpen, onClose, onNavigate, currentPage }: Si
 
   // 모바일 오픈 시 배경 스크롤 락
   useEffect(() => {
-    if (!isOpen) return;
+    // Only lock scroll on mobile
+    if (!isOpen || window.innerWidth >= 1024) return;
     const prev = document.body.style.overflow;
     document.body.style.overflow = 'hidden';
     return () => { document.body.style.overflow = prev; };
@@ -64,8 +65,8 @@ export default function Sidebar({ isOpen, onClose, onNavigate, currentPage }: Si
           >
 
             {/* Navigation */}
-            <nav className="p-4" aria-label="Sections">
-              <ul className="space-y-1">
+            <nav className="p-6 pt-16" aria-label="Sections">
+              <ul className="space-y-2">
                 {navItems.map((item) => {
                   const active = currentPage === item.id;
                   return (
@@ -73,7 +74,7 @@ export default function Sidebar({ isOpen, onClose, onNavigate, currentPage }: Si
                       {item.href ? (
                         <Link
                           href={item.href}
-                          className={`block w-full rounded-md px-3 py-2 text-left text-sm font-medium transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-neutral-300 ${
+                          className={`block w-full rounded-md px-3 py-2.5 text-left text-base transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-neutral-300 ${
                             active
                               ? 'bg-neutral-100 text-neutral-900 shadow-sm'
                               : 'text-neutral-600 hover:bg-neutral-50 hover:text-neutral-900'
@@ -85,7 +86,7 @@ export default function Sidebar({ isOpen, onClose, onNavigate, currentPage }: Si
                         <button
                           onClick={() => onNavigate(item.id)}
                           aria-current={active ? 'page' : undefined}
-                          className={`w-full rounded-md px-3 py-2 text-left text-sm font-medium transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-neutral-300 ${
+                          className={`w-full rounded-md px-3 py-2.5 text-left text-base transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-neutral-300 ${
                             active
                               ? 'bg-neutral-100 text-neutral-900 shadow-sm'
                               : 'text-neutral-600 hover:bg-neutral-50 hover:text-neutral-900'
