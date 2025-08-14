@@ -2,13 +2,11 @@ import { notFound } from 'next/navigation';
 import { Metadata } from 'next';
 import Image from 'next/image';
 import Link from 'next/link';
-import { Calendar, Clock, Tag, ArrowLeft } from 'lucide-react';
+import { Tag, ArrowLeft } from 'lucide-react';
 import { MDXRemote } from 'next-mdx-remote/rsc';
 import remarkGfm from 'remark-gfm';
 import rehypeSlug from 'rehype-slug';
-import rehypeAutolinkHeadings from 'rehype-autolink-headings';
-import rehypeHighlight from 'rehype-highlight';
-import 'highlight.js/styles/github-dark.css';
+import rehypePrettyCode from 'rehype-pretty-code';
 import { getPostBySlug, getAllPostSlugs, getAllPosts } from '@/lib/mdx';
 import { mdxComponents } from '@/components/mdx/components';
 import ShareButtons from './ShareButtons';
@@ -76,80 +74,66 @@ export default async function BlogPostPage({
     .slice(0, 3);
 
   return (
-    <div className="min-h-screen bg-white">
-      {/* Header */}
-      <header className="border-b border-gray-200">
-        <div className="max-w-4xl mx-auto px-6 py-4">
-          <Link 
-            href="/blog" 
-            className="inline-flex items-center gap-2 text-gray-600 hover:text-gray-900 transition-colors"
-          >
-            <ArrowLeft size={16} />
-            Back to Blog
-          </Link>
+    <div className="blog max-w-4xl mx-auto px-6 py-12">
+      {/* Back to Blog */}
+      <Link 
+        href="/blog" 
+        className="inline-flex items-center gap-2 text-gray-500 hover:text-gray-700 text-sm mb-8"
+      >
+        <ArrowLeft size={14} />
+        Back to Blog
+      </Link>
+
+      {/* Post Header */}
+      <header className="mb-12 text-center">
+        {/* Title */}
+        <h1 className="text-3xl md:text-4xl font-semibold text-gray-900 mb-4 leading-tight">
+          {post.frontmatter.title}
+        </h1>
+
+        {/* Meta */}
+        <div className="flex flex-wrap items-center justify-center gap-4 text-sm text-gray-500">
+          <span>
+            {formatDate(post.frontmatter.date)}
+          </span>
+          <span>·</span>
+          <span>
+            {calcReadTime(post.content)}
+          </span>
         </div>
-      </header>
 
-      {/* Main Content */}
-      <article className="max-w-4xl mx-auto px-6 py-12">
-        {/* Post Header */}
-        <header className="mb-12">
-          {/* Category */}
-          <div className="mb-4">
-            <span className="inline-block px-3 py-1 text-sm font-medium text-blue-600 bg-blue-50 rounded-full">
-              {post.frontmatter.category}
-            </span>
-          </div>
-
-          {/* Title */}
-          <h1 className="text-4xl md:text-5xl font-bold text-gray-900 mb-6">
-            {post.frontmatter.title}
-          </h1>
-
-          {/* Meta */}
-          <div className="flex flex-wrap items-center gap-4 text-sm text-gray-600">
-            <span className="flex items-center gap-1">
-              <Calendar size={16} />
-              {formatDate(post.frontmatter.date)}
-            </span>
-            <span className="flex items-center gap-1">
-              <Clock size={16} />
-              {calcReadTime(post.content)}
-            </span>
-          </div>
-
-          {/* Tags */}
-          {post.frontmatter.tags && post.frontmatter.tags.length > 0 && (
-            <div className="flex flex-wrap gap-2 mt-4">
-              {post.frontmatter.tags.map((tag) => (
-                <span 
-                  key={tag} 
-                  className="inline-flex items-center gap-1 px-2 py-1 text-xs font-medium text-gray-600 bg-gray-100 rounded-md"
-                >
-                  <Tag size={10} />
-                  {tag}
-                </span>
-              ))}
-            </div>
-          )}
-        </header>
-
-        {/* Featured Image */}
-        {post.frontmatter.coverImage && (
-          <div className="mb-12 -mx-6 md:mx-0">
-            <Image
-              src={post.frontmatter.coverImage}
-              alt={post.frontmatter.title}
-              width={1200}
-              height={630}
-              className="w-full h-auto rounded-lg"
-              priority
-            />
+        {/* Tags */}
+        {post.frontmatter.tags && post.frontmatter.tags.length > 0 && (
+          <div className="flex flex-wrap justify-center gap-2 mt-4">
+            {post.frontmatter.tags.map((tag) => (
+              <span 
+                key={tag} 
+                className="inline-flex items-center gap-1 px-2 py-1 text-xs text-gray-500 bg-gray-50 rounded"
+              >
+                <Tag size={10} />
+                {tag}
+              </span>
+            ))}
           </div>
         )}
+      </header>
 
-        {/* MDX Content */}
-        <div className="prose prose-lg prose-gray max-w-none">
+      {/* Featured Image */}
+      {post.frontmatter.coverImage && (
+        <div className="mb-12">
+          <Image
+            src={post.frontmatter.coverImage}
+            alt={post.frontmatter.title}
+            width={1200}
+            height={630}
+            className="w-full h-auto rounded"
+            priority
+          />
+        </div>
+      )}
+
+      {/* MDX Content */}
+      <div className="prose prose-lg max-w-none">
           <MDXRemote
             source={post.content}
             components={mdxComponents}
@@ -158,27 +142,29 @@ export default async function BlogPostPage({
                 remarkPlugins: [remarkGfm],
                 rehypePlugins: [
                   rehypeSlug,
-                  [rehypeAutolinkHeadings, { behavior: 'wrap' }],
-                  rehypeHighlight,
+                  [rehypePrettyCode, {
+                    theme: 'github-dark',
+                    keepBackground: true,
+                    defaultLang: 'plaintext',
+                  }],
                 ],
               },
             }}
           />
-        </div>
+      </div>
 
-        {/* Share Buttons */}
-        <div className="mt-12 pt-8 border-t border-gray-200">
-          <ShareButtons 
-            url={`https://chopaul.com/blog/${post.slug}`}
-            title={post.frontmatter.title}
-          />
-        </div>
-      </article>
+      {/* Share Buttons */}
+      <div className="mt-12 pt-8 border-t border-gray-200">
+        <ShareButtons 
+          url={`https://chopaul.com/blog/${post.slug}`}
+          title={post.frontmatter.title}
+        />
+      </div>
 
       {/* Related Posts */}
       {relatedPosts.length > 0 && (
-        <section className="max-w-4xl mx-auto px-6 py-12 border-t border-gray-200">
-          <h2 className="text-2xl font-bold text-gray-900 mb-8">Related Posts</h2>
+        <section className="mt-16 pt-16 border-t border-gray-200">
+          <h2 className="text-xl font-semibold text-gray-900 mb-8">Related Posts</h2>
           <div className="grid gap-6 md:grid-cols-3">
             {relatedPosts.map((related) => (
               <Link

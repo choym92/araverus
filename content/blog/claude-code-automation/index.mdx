@@ -1,0 +1,345 @@
+---
+title: "Building a Reliable Claude Code Workspace"
+date: "2025-08-13"
+category: "Playbook"
+tags: ["claude-code", "automation", "agents", "mcp", "hooks", "context-engineering"]
+draft: false
+coverImage: "/blog/claude-code-automation/cover.png"
+excerpt: "Enable Claude Code to Oneshot (without the chaos)."
+---
+
+
+TL;DR: Read this if you want a one-shot prompt that works well in the Claude CLI.
+
+There is a lot of debate on Cursor vs. [**Claude Code**](https://www.anthropic.com/claude-code) and GPT-5 vs. Opus.
+
+> I think the chef is now as almost good as we hope it to be; it's more about how to list the ingredients and giving it a well-designed 500-line recipe with endless constraints so it doesn't fail. 
+> 1. We all know that for all models, it's garbage in → garbage out.
+> 2. We can’t afford to re-prompt every 10 minutes.
+> 3. We want a setup that’s repeatable, safe, and boringly reliable.
+
+This means setting up a Product Requirement Prompt (context engineering) + Agents + MCP + Hooks that basically automates a lot of the work you should do.
+
+
+So our goal is to spend time thinking; let the LLM does the typing.
+
+**Core idea and how it works:** Your idea (5-7 sentences) -> automation 1 (~ 40 lines) → automation 2 (~200 lines) → autionmation 3 (runs edits, gates, reviews) → hands you a ready PR with fully autonomous `MCP` & `agents` by using `hooks`.
+
+Let's do this step-by-step (without chaos)
+This is the playbook I use with Claude Code.
+
+---
+
+###  Definitions:
+
+- **[Context engineering](https://blog.langchain.com/the-rise-of-context-engineering/)** = practical RAG + prompt patterns + in-repo memory.
+- **[PRPs](https://www.atlassian.com/agile/product-management/requirements)** give a one-pass plan. 
+- **[MCP](https://modelcontextprotocol.io/docs/getting-started/intro)** extends search and refactors like a USB driver for the LLM. 
+- **[Agents](https://www.anthropic.com/engineering/building-effective-agents)** keep edits small.
+
+## Context engineering at a glance
+
+![Context Engineering](/blog/claude-code-automation/context-engineering.webp)
+
+## Core ideas and how it works:
+
+```
+Human idea
+   │
+   ├─ INITIAL.md        ← tiny spec
+   ├─ /generate-prp     ← research + plan
+   ├─ /execute-prp      ← small edits + checkpoints
+   │     ├─ lint/build/tests
+   │     ├─ staged diff review (agent)
+   │     └─ PR text + EoD log
+   │
+   └─ Commit / PR / Merge
+```
+
+**PRP** (Product Requirement Prompt) is the spine.  
+**Agents** and **MCP** are power-ups.  
+**Hooks** keep you honest at the right time (after edit, before commit).
+
+Before we dive into how it works this is the process.
+
+1. Write a `INITIAL.md` (your prompt engineering becomes INITIAL and obviously get help from LLM).
+2. Run `/generate-prp` with your `INITIAL.md`
+3. Run `/execute-prp` with your `generated PRP` 
+4. Obviously midway you will have `MCPs`, `Hooks`, and `Agents` supporting all these processing being triggered automatically.
+5. Check if all finished Commit/PR.
+
+
+## 1) Create CLAUD.md: The Global Rules
+
+Use LLM + Prompt to create this, check GitHub/YouTube for templates and ***ALWAYS*** do proof read. 
+
+```markdown
+## Global Rules
+- Server-first; reuse patterns; minimal edits.
+- Verify deps in package.json.
+- After any change: `npm run lint && npm run build`.
+- No secrets in logs; do role checks on the server.
+- Output: small diffs; ≤ 25 lines per file in reviews.
+
+## Project Conventions
+- API: /src/app/api/[resource]/route.ts
+- Components: /src/components/[Name].tsx
+- Hooks: /src/hooks/use[Name].ts
+- Services: /src/lib/[service].service.ts
+...
+```
+
+Create/maintain a `CLAUDE.md` at the repo root. These "invariants" guide all work:
+
+**What it does:** This one file pays for itself every day. It turns "preferences" into policy.
+
+## 2) Create INITIAL
+Use LLM + Prompt to create this, check GitHub/YouTube for templates and ***ALWAYS*** do proof read. 
+
+This was my example for LLM to read
+```markdown
+## FEATURE
+<Short one-liner>
+e.g., Admin-only tag management UI (`/admin/tags`): create/rename/delete
+
+## CONTEXT (Why)
+<Why this feature is needed (2-3 lines)>
+
+## USER STORY
+- As an admin, I want to <…>
+- So that <…>
+
+## NON-GOALS
+- What is out of scope for this task (2-3 items) (e.g., search, pagination, permission editor)
+
+## EXAMPLES (Codebase references)
+- `src/lib/authz.ts` → `requireAdmin()` for a server-side guard
+- `src/lib/blog.service.ts` → Reference for the service layer pattern
+- (Add 1-2 more if there are similar UI/route paths)
+
+## DOCUMENTATION
+- **Global rules**: `CLAUDE.md` (server-first, role-based admin)
+- **DB**: `docs/schema.md` (related tables/columns)
+- (If needed) 1-2 links to official docs for Next.js / Supabase / Zod / Tailwind
+
+
+## SUCCESS CRITERIA (Acceptance)
+- **Access Control**: Non-logged-in user → `/login`, regular user → 404, admin → OK
+- **Functionality**: <2-3 specific criteria> (e.g., creating/editing/deleting a tag is reflected in the DB and the list is updated)
+- **Quality**: `npm run lint && npm run build` passes
+
+## IMPLEMENTATION NOTES
+- **Server-first**: No direct calls to Supabase from the client. Mutations must be via **API (POST)** or **Server Actions**.
+- **Service Layer**: Database mutations must go through a `BlogService` method.
+- **UI States**: Display loading/error/success messages (consider accessibility, do not use `alert()`).
+
+## VALIDATION (How to verify)
+- **curl smoke tests** (1-2 API paths, if applicable):
+  - `POST /api/admin/<resource>/<id>/create|update|delete`
+- **Browser**: Verify access and button functionality at `/admin/<path>` (happy path + 1 edge case).
+
+## RISKS / GOTCHAS
+- Server/client boundary, RLS/permissions, duplicate/case-sensitivity policies, etc.
+
+## SLICE HINT (Optional)
+- **Slice 1**: List/Read → **Slice 2**: Create → **Slice 3**: Update/Delete
+```
+
+## 3) Build commands
+
+You’ll need two commands in `.claude/commands/`: one to generate a PRP from your INITIAL, and one to execute it safely.
+
+### 3.1) generate-prp (Create PRP)
+Example:
+```markdown
+# Command: Create PRP
+# Usage: /generate-prp <path/to/INITIAL.md>
+# Goal: Read INITIAL.md, research codebase + docs, and produce a single executable PRP.
+
+## Behavior
+1) Plan-only (no writes)
+   - Read the feature file at `$ARGUMENTS`.
+   - Summarize goal, constraints, success criteria.
+   - List codebase references (relative paths + line ranges).
+   - List external references (exact docs URLs/sections).
+   - Print a short plan and ask for approval.
+
+2) PRP generation (on approval)
+   - Use `PRPs/templates/prp_base.md` as the skeleton.
+   - Fill in real code snippets (small, line-ranged).
+   - Include external references (URLs to specific sections).
+   - Add Implementation Blueprint (pseudocode + file plan + error handling).
+   - Add Validation Gates tailored to this repo.
+   - Add Rollback Plan and Risks/Gotchas.
+   - Save as `PRPs/<feature-slug>.md` (slug from title or INITIAL filename).
+   - Print output path and confidence score (1–10).
+
+## Research Process
+### Codebase Analysis
+- Search for similar patterns/components/services/hooks.
+- Identify target files to modify vs create.
+- Respect Global Rules in `CLAUDE.md` (server-first, role-based admin, minimal edits).
+- Prefer a service layer and server actions/APIs.
+
+### External Research
+- Official docs (Next.js, Supabase, Tailwind, TipTap, Zod, etc.) with anchors.
+- 1–2 credible implementation examples if helpful.
+- Note pitfalls (RLS, SSR/client boundaries, auth flows).
+
+### Clarifications (optional)
+- If ambiguous, propose 2–3 precise assumptions and proceed.
+
+## Validation Gates (this repo)
+- Syntax/Style: `npm run lint`
+- Type Check: `npm run build` (no emit)
+- Unit Tests (if present): `npm run test -s` or `vitest run`
+- Route Smoke (if routes added): list `curl` examples
+- A11y minimal: keyboard/focus/aria notes if UI is added
+
+## Output
+- Save to `PRPs/<feature-slug>.md`
+- Echo:
+  - Saved path
+  - Files to touch (create/modify)
+  - Validation commands
+  - Confidence (1–10)
+
+## Quality Checklist
+- Sufficient internal + external context
+- Validation gates executable here
+- Reuses existing repo patterns
+- Clear file plan (minimal edits, server-first)
+- Error handling + rollback are documented
+```
+
+
+### 3.2) execute-prp (Implement PRP)
+Example:
+```markdown
+# Command: Execute PRP
+# Usage: /execute-prp <path/to/PRPs/feature.md>
+# Goal: Implement the PRP with minimal, safe edits and pass all validation gates.
+
+## Ground Rules
+- Respect `CLAUDE.md` (server-first, role-based admin, minimal edits, no secrets).
+- Prefer modifying existing files; use line-range edits.
+- No destructive DB ops unless explicitly approved.
+- Keep changes small, reviewable, and logged in `docs/cc/YYYY-MM-DD.md`.
+
+## Phases
+
+### Phase 0 — Plan-Only (no writes)
+1. Read the PRP file.
+2. Summarize:
+   - Objective / Scope / Risks
+   - Ordered Task List (numbered checklist)
+   - File plan (create/modify with relative paths; include line-ranges if known)
+   - Validation Gates (lint/build/tests/route smoke)
+3. Print Plan and “Diff Preview candidates”.
+4. Wait for: Approve / Enhance (with diffs) / Block.
+
+### Phase 1 — Execute (safe, minimal)
+- For each task:
+  - If modify: patch only required lines; show mini-diff.
+  - If create: minimal file with TODOs from PRP.
+  - Use Serena MCP for symbol find/replace (name_path + relative_path).
+  - Use Context7 MCP only for latest docs (cite URLs in comments).
+- After each logical group (service → API → UI), pause for approval or offer “Apply All”.
+- Track changed files.
+
+### Phase 2 — Validate
+- `npm run lint`
+- `npm run build`
+- `npm run test -s` or `vitest run` (if present)
+- Route smoke (if routes added): print ready-to-run `curl` snippets
+- Minimal a11y notes if UI added
+
+### Phase 3 — Auto Review & PR
+- Run staged diff review (line-ranged notes only):
+  - `/agent-reviewer "staged"`
+  - `/review-diff` (optional) for minimal patches
+- If clean, generate PR text:
+  - `/gen-pr "auto from current staged diff"`
+- Print exact `git add/commit` and optional `gh pr create`.
+
+### Phase 4 — EoD Log
+- Prepend to `docs/cc/YYYY-MM-DD.md`:
+```
+
+## 4) Run the flow
+```bash
+/generate-prp PRPs/INITIAL/<feature>.md
+/execute-prp PRPs/<feature>.md
+```
+
+While the PRP is being read and executed, MCPs and agents assist automatically (search, refactor, review) and hooks enforce gates so failures are caught early.
+
+## 5) Agents
+Example:
+```markdown
+---
+name: backend-code-reviewer
+description: Senior backend reviewer for Node/TS, Python, Go, and DB layers. Focus: API contracts, data correctness, migrations/rollbacks, reliability, security, performance, and ops readiness.
+tools: Glob, Grep, LS, Read, WebFetch, TodoWrite, WebSearch, mcp__ide__getDiagnostics, mcp__ide__executeCode
+model: sonnet
+color: green
+---
+
+# You are a Staff+ Backend Engineer.
+
+## Step 1 — Scope Detection
+- Identify changed services/modules and external integrations.
+- Enumerate impacted endpoints and data models; note compatibility risks.
+- Run mcp__ide__getDiagnostics for immediate type/syntax issues.
+
+...
+
+```
+
+Other helpful agents:
+
+`staged-diff reviewer`: reviews only staged changes; flags security/SSR/CSR/secret/a11y issues; returns LGTM or Block with line notes
+`optional reviewers`: backend/front-end path scopes
+`optional architect`: proposes file plan and boundaries before big changes
+`etc`: list goes on
+
+## 6) Hooks (automation switches)
+Hooks run at the right time so you don’t forget checks.
+
+Example:
+```json
+{
+  "hooks": {
+    "AfterEdit": {
+      "hooks": [
+        { "type": "command", "command": "npm run lint", "continue_on_error": true }
+      ]
+    },
+    "BeforeCommit": {
+      "hooks": [
+        { "type": "command", "command": "npm run build" },
+        { "type": "agent", "agent": "staged-diff-reviewer" }
+      ]
+    }
+  }
+}
+```
+
+## 7) MCP servers (USB drivers for LLM)
+Serena: symbol-aware find/replace and large-code search for safe refactors
+Context docs: pull relevant docs/snippets into planning
+Use them during generate-prp and execute-prp. The flow still works if MCP is down.
+
+
+## 8) Guardrails and logs
+- Block writes to .env* and deploy configs
+- Log risky shell ops
+- Prepend a 5-line EoD summary to docs/cc/YYYY-MM-DD.md
+
+## 9) Finished!
+
+You now have a one-shot path from `INITIAL` (5–7 sentences) to a `PRP` (~200 lines) to safe execution with tiny diffs, validations, staged reviews, and a ready PR—backed by `MCP`, `agents`, `hooks`, and `guardrails`.
+
+---
+
+*This workflow was battle-tested building this very blog system—from TipTap to MDX migration, with zero runtime database dependencies.*

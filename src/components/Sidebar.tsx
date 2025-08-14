@@ -3,6 +3,7 @@
 import { useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import Link from 'next/link';
+import { ChevronRight } from 'lucide-react';
 
 interface SidebarProps {
   isOpen: boolean;
@@ -31,7 +32,8 @@ export default function Sidebar({ isOpen, onClose, onNavigate, currentPage }: Si
 
   // 모바일 오픈 시 배경 스크롤 락
   useEffect(() => {
-    if (!isOpen) return;
+    // Only lock scroll on mobile
+    if (!isOpen || window.innerWidth >= 1024) return;
     const prev = document.body.style.overflow;
     document.body.style.overflow = 'hidden';
     return () => { document.body.style.overflow = prev; };
@@ -58,14 +60,18 @@ export default function Sidebar({ isOpen, onClose, onNavigate, currentPage }: Si
             initial={{ x: '-100%' }}
             animate={{ x: 0 }}
             exit={{ x: '-100%' }}
-            transition={{ type: 'spring', damping: 20, stiffness: 300 }}
+            transition={{ 
+              type: 'tween',
+              duration: 0.3,
+              ease: [0.25, 0.1, 0.25, 1]  // Custom cubic-bezier for smooth, non-bouncy animation
+            }}
             className="fixed left-0 top-16 z-50 h-[calc(100vh-4rem)] w-[var(--sidebar-w)] border-r border-neutral-200 bg-white shadow-xl lg:shadow-none"
             aria-label="Primary"
           >
 
             {/* Navigation */}
-            <nav className="p-4" aria-label="Sections">
-              <ul className="space-y-1">
+            <nav className="p-6 pt-16" aria-label="Sections">
+              <ul className="space-y-0.5">
                 {navItems.map((item) => {
                   const active = currentPage === item.id;
                   return (
@@ -73,25 +79,31 @@ export default function Sidebar({ isOpen, onClose, onNavigate, currentPage }: Si
                       {item.href ? (
                         <Link
                           href={item.href}
-                          className={`block w-full rounded-md px-3 py-2 text-left text-sm font-medium transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-neutral-300 ${
+                          className={`group flex items-center justify-between w-full rounded-md px-3 py-2.5 text-left text-base transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-neutral-300 ${
                             active
                               ? 'bg-neutral-100 text-neutral-900 shadow-sm'
                               : 'text-neutral-600 hover:bg-neutral-50 hover:text-neutral-900'
                           }`}
                         >
-                          {item.label}
+                          <span>{item.label}</span>
+                          <ChevronRight 
+                            className="w-4 h-4 opacity-0 -translate-x-2 group-hover:opacity-100 group-hover:translate-x-0 transition-all duration-200" 
+                          />
                         </Link>
                       ) : (
                         <button
                           onClick={() => onNavigate(item.id)}
                           aria-current={active ? 'page' : undefined}
-                          className={`w-full rounded-md px-3 py-2 text-left text-sm font-medium transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-neutral-300 ${
+                          className={`group flex items-center justify-between w-full rounded-md px-3 py-2.5 text-left text-base transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-neutral-300 ${
                             active
                               ? 'bg-neutral-100 text-neutral-900 shadow-sm'
                               : 'text-neutral-600 hover:bg-neutral-50 hover:text-neutral-900'
                           }`}
                         >
-                          {item.label}
+                          <span>{item.label}</span>
+                          <ChevronRight 
+                            className="w-4 h-4 opacity-0 -translate-x-2 group-hover:opacity-100 group-hover:translate-x-0 transition-all duration-200" 
+                          />
                         </button>
                       )}
                     </li>

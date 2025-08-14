@@ -5,12 +5,10 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Calendar, ChevronRight, Filter, Grid3x3, List, Search, X, Tag, Clock } from 'lucide-react';
 import Link from 'next/link';
 import type { Post } from '@/lib/mdx';
-import Sidebar from '@/components/Sidebar';
-import Header from '@/components/Header';
 import { useAuth } from '@/hooks/useAuth';
 
 // Filter tabs
-const filterTabs = ['All', 'Publication', 'Insight', 'Release', 'Tutorial'];
+const filterTabs = ['All', 'Insight', 'Journal', 'Playbook', 'Release'];
 
 // Sort options
 const sortOptions = [
@@ -36,8 +34,6 @@ export default function BlogPage({ initialPosts, initialCategory }: BlogPageProp
   const [searchQuery, setSearchQuery] = useState('');
   const [showFilters, setShowFilters] = useState(false);
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
-  const [sidebarOpen, setSidebarOpen] = useState(true);
-  const [mounted, setMounted] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false);
 
   // Check if user is admin (only choym92@gmail.com)
@@ -48,28 +44,6 @@ export default function BlogPage({ initialPosts, initialCategory }: BlogPageProp
       setIsAdmin(false);
     }
   }, [user]);
-
-  useEffect(() => {
-    setMounted(true);
-    // Check saved preference
-    const saved = localStorage.getItem('sidebar-open');
-    if (saved !== null) {
-      setSidebarOpen(saved === 'true');
-    }
-  }, []);
-
-  useEffect(() => {
-    if (mounted) {
-      localStorage.setItem('sidebar-open', String(sidebarOpen));
-    }
-  }, [sidebarOpen, mounted]);
-
-  const handleNavigation = (page: string) => {
-    // Handle navigation
-    if (window.innerWidth < 768) {
-      setSidebarOpen(false);
-    }
-  };
 
 
   // Filter and sort posts
@@ -135,41 +109,15 @@ export default function BlogPage({ initialPosts, initialCategory }: BlogPageProp
 
   const calculateReadTime = (content: string) => {
     const wordsPerMinute = 200;
-    const words = content.split(/\s+/).length;
-    const minutes = Math.ceil(words / wordsPerMinute);
-    return `${minutes} min`;
+    // Strip markdown syntax and HTML tags for accurate word count
+    const text = content.replace(/[#_*`>~\[\]\(\)!]/g, ' ').replace(/<[^>]+>/g, ' ');
+    const words = text.trim() ? text.trim().split(/\s+/).length : 0;
+    const minutes = Math.max(1, Math.ceil(words / wordsPerMinute));
+    return `${minutes} min read`;
   };
 
-  if (!mounted) return null;
-
   return (
-    <div 
-      className="min-h-screen bg-white relative overflow-hidden"
-      style={{ '--sidebar-w': '16rem' } as React.CSSProperties}
-    >
-      {/* Animated background gradient */}
-      <div className="fixed inset-0 bg-gradient-to-br from-blue-50/30 via-white to-purple-50/30 pointer-events-none" />
-      
-      {/* Sidebar */}
-      <Sidebar 
-        isOpen={sidebarOpen}
-        onClose={() => setSidebarOpen(false)}
-        onNavigate={handleNavigation}
-        currentPage="blogs"
-      />
-      
-      {/* Main Content */}
-      <div
-        className={`relative transition-[margin] duration-300 ease-out pt-16 ${
-          sidebarOpen ? 'lg:ml-[var(--sidebar-w)]' : 'lg:ml-0'
-        }`}
-      >
-        {/* Header */}
-        <Header 
-          sidebarOpen={sidebarOpen}
-          onToggleSidebar={() => setSidebarOpen(!sidebarOpen)}
-        />
-
+    <>
       {/* Blog Content */}
       <div className="border-b border-gray-200 sticky top-16 bg-white/95 backdrop-blur-sm z-20">
         <div className="max-w-7xl mx-auto px-6 py-6">
@@ -363,17 +311,17 @@ export default function BlogPage({ initialPosts, initialCategory }: BlogPageProp
                   <div className="flex flex-col gap-6 border-b border-neutral-200/60 pb-8 lg:flex-row lg:items-start">
                     {/* Meta */}
                     <div className="flex-shrink-0 lg:w-48">
-                      <div className="mb-2 flex items-center gap-3 text-sm text-neutral-500">
-                        <span className="font-medium text-neutral-700">
+                      <div className="mb-3">
+                        <span className="text-sm font-medium text-neutral-700">
                           {post.frontmatter.category}
                         </span>
                       </div>
-                      <div className="flex items-center gap-4 text-sm text-neutral-500">
-                        <span className="flex items-center gap-1">
+                      <div className="flex flex-col gap-2 text-sm text-neutral-500">
+                        <span className="flex items-center gap-1.5">
                           <Calendar size={14} />
                           {formatDate(post.frontmatter.date)}
                         </span>
-                        <span className="flex items-center gap-1">
+                        <span className="flex items-center gap-1.5">
                           <Clock size={14} />
                           {calculateReadTime(post.content)}
                         </span>
@@ -487,7 +435,6 @@ export default function BlogPage({ initialPosts, initialCategory }: BlogPageProp
         )}
 
       </div>
-      </div>
-    </div>
+    </>
   );
 }

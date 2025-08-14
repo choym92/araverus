@@ -6,7 +6,7 @@ export default function Hero() {
   const reduceMotion = useReducedMotion();
 
   return (
-    <section className="container py-14 sm:py-24">
+    <section className="px-6 py-14 sm:py-24">
       <motion.div
         initial={reduceMotion ? false : { opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
