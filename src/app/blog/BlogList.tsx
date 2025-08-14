@@ -8,7 +8,7 @@ import type { Post } from '@/lib/mdx';
 import { useAuth } from '@/hooks/useAuth';
 
 // Filter tabs
-const filterTabs = ['All', 'Publication', 'Insight', 'Release', 'Tutorial'];
+const filterTabs = ['All', 'Insight', 'Journal', 'Playbook', 'Release'];
 
 // Sort options
 const sortOptions = [
@@ -109,9 +109,11 @@ export default function BlogPage({ initialPosts, initialCategory }: BlogPageProp
 
   const calculateReadTime = (content: string) => {
     const wordsPerMinute = 200;
-    const words = content.split(/\s+/).length;
-    const minutes = Math.ceil(words / wordsPerMinute);
-    return `${minutes} min`;
+    // Strip markdown syntax and HTML tags for accurate word count
+    const text = content.replace(/[#_*`>~\[\]\(\)!]/g, ' ').replace(/<[^>]+>/g, ' ');
+    const words = text.trim() ? text.trim().split(/\s+/).length : 0;
+    const minutes = Math.max(1, Math.ceil(words / wordsPerMinute));
+    return `${minutes} min read`;
   };
 
   return (
@@ -309,17 +311,17 @@ export default function BlogPage({ initialPosts, initialCategory }: BlogPageProp
                   <div className="flex flex-col gap-6 border-b border-neutral-200/60 pb-8 lg:flex-row lg:items-start">
                     {/* Meta */}
                     <div className="flex-shrink-0 lg:w-48">
-                      <div className="mb-2 flex items-center gap-3 text-sm text-neutral-500">
-                        <span className="font-medium text-neutral-700">
+                      <div className="mb-3">
+                        <span className="text-sm font-medium text-neutral-700">
                           {post.frontmatter.category}
                         </span>
                       </div>
-                      <div className="flex items-center gap-4 text-sm text-neutral-500">
-                        <span className="flex items-center gap-1">
+                      <div className="flex flex-col gap-2 text-sm text-neutral-500">
+                        <span className="flex items-center gap-1.5">
                           <Calendar size={14} />
                           {formatDate(post.frontmatter.date)}
                         </span>
-                        <span className="flex items-center gap-1">
+                        <span className="flex items-center gap-1.5">
                           <Clock size={14} />
                           {calculateReadTime(post.content)}
                         </span>

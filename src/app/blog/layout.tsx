@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { usePathname } from 'next/navigation';
 import Sidebar from '@/components/Sidebar';
 import Header from '@/components/Header';
 
@@ -9,8 +10,10 @@ export default function BlogLayout({
 }: {
   children: React.ReactNode;
 }) {
+  const pathname = usePathname();
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [mounted, setMounted] = useState(false);
+  const [sidebarKey, setSidebarKey] = useState(0);
 
   useEffect(() => {
     setMounted(true);
@@ -26,6 +29,13 @@ export default function BlogLayout({
       localStorage.setItem('sidebar-open', String(sidebarOpen));
     }
   }, [sidebarOpen, mounted]);
+
+  // Trigger sidebar animation on route change
+  useEffect(() => {
+    if (mounted && pathname) {
+      setSidebarKey(prev => prev + 1);
+    }
+  }, [pathname, mounted]);
 
   const handleNavigation = (page: string) => {
     // Handle navigation
@@ -44,8 +54,9 @@ export default function BlogLayout({
       {/* Animated background gradient */}
       <div className="fixed inset-0 bg-gradient-to-br from-blue-50/30 via-white to-purple-50/30 pointer-events-none" />
       
-      {/* Sidebar */}
+      {/* Sidebar with key to trigger animation on route change */}
       <Sidebar 
+        key={`sidebar-${sidebarKey}`}
         isOpen={sidebarOpen}
         onClose={() => setSidebarOpen(false)}
         onNavigate={handleNavigation}

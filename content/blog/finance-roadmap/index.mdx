@@ -1,0 +1,87 @@
+---
+title: "Where This Blog Is Headed: Building a Finance Tab with Real Signals"
+date: "2025-08-14"
+category: "Release"
+tags: ["finance", "automation", "signals", "rsi", "macd", "fundamentals", "araverus"]
+draft: false
+coverImage: "/blog/finance-roadmap/cover.png"
+excerpt: "I’m adding a Finance tab to this site: a simple, automated signals board that blends RSI/MACD with fundamentals—built for swing and long-term investors."
+---
+
+I’m pointing this blog in a clear direction: **a practical Finance tab** on this site that tracks a small watchlist and labels each ticker as **Early Buy, Confirmed Buy, Early Sell, Confirmed Sell, or Neutral**.
+
+No day-trading noise. No hype. Just a daily (or weekly) pass that turns data into simple, explainable signals.
+
+---
+
+## Why this, why now
+
+- Most of us can’t sit at screens all day.  
+- Swing + long-term investing fits real life.  
+- A once-per-day (or week) script can do the watching and ping us when something actually changed.
+
+I’ll keep the writing short and the tooling boring and reliable—the same way I approach coding in the **araverus** repo.
+
+---
+
+## What I’m building in the Finance tab
+
+**Signals board**  
+  A compact table: Ticker • Price • RSI • MACD • Label (Early/Confirmed Buy/Sell/Neutral) • Notes.
+
+**Trend alignment**  
+  Weekly trend for context, daily for timing. Monthly is reserved for slow fundamentals.
+
+**Fundamentals overlay**  
+  Quality (growth, margins, ROIC) and Valuation (DCF or simple multiples).  
+  If quality is low or valuation is stretched, buy signals get down-weighted.
+
+**Explanations, not magic**  
+  Each label shows the exact checks that fired: “RSI < 30 on daily, MACD crossed up, price > 50-DMA.”
+
+**Alerts**  
+  Only on state changes (e.g., Neutral → Confirmed Buy). Daily email summary optional.
+
+---
+
+## How it will work (high level)
+
+1) **Data in**: daily candles for price; periodic fundamentals on earnings.  
+2) **Compute**: RSI, MACD, moving averages; update quality/valuation scores.  
+3) **Decide**: early vs confirmed rules; fundamentals adjust conviction.  
+4) **Publish**: write a small JSON file the site reads for the Finance tab.  
+5) **Notify**: send an alert only when a label changes.
+
+Automation runs once per day after the close. Weekly confirms run on Fridays.
+
+---
+
+## What you’ll see on the page
+
+- A watchlist board with current labels and confidence.
+- A tiny “Why” panel per ticker (one or two sentences).
+- A fundamentals mini-card (quality/valuation at a glance).
+- A changelog of label flips (so we don’t forget context).
+
+I’ll start with AAPL for clarity, then expand to a small basket.
+
+---
+
+## Roadmap for posts (short reads)
+
+1) **The label system**: Early vs Confirmed, and why it reduces false starts.  
+2) **The fundamentals overlay**: when to trust a buy, when to wait.  
+3) **Apple, end-to-end**: one page that ties it together.  
+4) **Backtests (sanity only)**: did the rules behave as expected?  
+5) **Shipping the Finance tab**: wiring it into this site and setting alerts.
+
+Each post will be 5–7 minutes, tops.
+
+---
+
+## How you can help
+
+Feel free to email me on any imporvements or metrics you want me to utilize.
+
+I’ll keep the system simple, explainable, and easy to verify.  
+When the first version lands, you’ll find it under **Finance** in the navigation.
