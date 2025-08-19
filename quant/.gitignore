@@ -1,0 +1,29 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+venv/
+env/
+ENV/
+
+# Data files
+*.csv
+*.json
+data/
+raw_data/
+
+# Notebooks (research outputs)
+notebooks/
+*.ipynb_checkpoints/
+
+# Environment variables
+.env
+
+# Logs
+*.log
+logs/
+
+# Cache
+.cache/

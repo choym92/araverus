@@ -1,0 +1,41 @@
+name: Daily Stock Data Update
+
+on:
+  schedule:
+    # Run daily at 6 PM ET (after market close)
+    - cron: '0 23 * * 1-5'  # Monday-Friday at 11pm UTC (6pm ET)
+  workflow_dispatch:  # Allow manual runs
+
+jobs:
+  update-stock-data:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.11'
+        
+    - name: Install dependencies
+      run: |
+        cd quant
+        pip install -r requirements.txt
+        
+    - name: Run stock data update
+      env:
+        SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+        SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
+        LOG_LEVEL: INFO
+      run: |
+        cd quant
+        python engine.py
+        
+    - name: Upload logs on failure
+      if: failure()
+      uses: actions/upload-artifact@v3
+      with:
+        name: stock-data-logs
+        path: quant/*.log

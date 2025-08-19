@@ -10,8 +10,6 @@ import type { SupabaseClient } from '@supabase/supabase-js';
 export class BlogService {
   private supabase: SupabaseClient;
   private _adminCache?: boolean;
-  private static readonly IMAGE_BUCKET = 'blog-assets';
-  private static readonly IMAGE_BASE_PATH = 'blog-images';
   
   constructor(supabaseClient: SupabaseClient) {
     // Supabase client is required
@@ -235,12 +233,6 @@ export class BlogService {
       const isAdmin = await this.isAdmin();
       if (!isAdmin) throw new Error('Not authorized');
 
-      // Delete associated assets first
-      await this.supabase
-        .from('blog_assets')
-        .delete()
-        .eq('blog_post_id', id);
-
       const { error } = await this.supabase
         .from('blog_posts')
         .delete()
@@ -254,54 +246,6 @@ export class BlogService {
     }
   }
 
-  // Upload image to Supabase Storage
-  async uploadImage(
-    file: File,
-    postId: BigIntId,
-    type: 'banner' | 'content'
-  ): Promise<string | null> {
-    try {
-      const isAdmin = await this.isAdmin();
-      if (!isAdmin) throw new Error('Not authorized');
-
-      const ext = file.name.includes('.') ? file.name.split('.').pop() : 'bin';
-      const fileName = `${Date.now()}-${Math.random().toString(36).substr(2, 9)}.${ext}`;
-      const filePath = `${BlogService.IMAGE_BASE_PATH}/${type}/${postId}/${fileName}`;
-
-      const { error: uploadError } = await this.supabase.storage
-        .from(BlogService.IMAGE_BUCKET)
-        .upload(filePath, file, {
-          upsert: false,
-          cacheControl: '3600',
-        });
-
-      if (uploadError) throw uploadError;
-
-      const { data: pub } = this.supabase.storage
-        .from(BlogService.IMAGE_BUCKET)
-        .getPublicUrl(filePath);
-
-      const assetRow = {
-        blog_post_id: postId,
-        file_path: filePath,
-        file_name: fileName,
-        file_size: file.size,
-        mime_type: file.type,
-        alt_text: type === 'banner' ? 'Blog banner image' : null,
-      };
-
-      const { error: assetErr } = await this.supabase
-        .from('blog_assets')
-        .insert(assetRow);
-
-      if (assetErr) console.error('Asset record error:', assetErr);
-
-      return pub.publicUrl ?? null;
-    } catch (error) {
-      console.error('Error uploading image:', error);
-      return null;
-    }
-  }
 
   // Generate unique slug from title
   async generateSlug(title: string): Promise<string> {
