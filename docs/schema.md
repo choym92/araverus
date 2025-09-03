@@ -1,6 +1,9 @@
 # Database Schema (araverus)
+<!-- Updated: 2025-09-03 -->
 
 > 실제 스키마는 마이그레이션/DB를 기준으로 하며, 본 문서는 개념 요약입니다.
+
+**Note**: Finance-related tables (`trading_signals`, `stock_prices`) were removed in 2025-09-03 cleanup.
 
 ## Tables
 
