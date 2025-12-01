@@ -1,6 +1,6 @@
 // src/app/layout.tsx
 import type { Metadata } from "next";
-import { Inter, Geist_Mono } from "next/font/google";
+import { Inter, Geist_Mono, Playfair_Display } from "next/font/google";
 import "./globals.css";
 
 /* ---------- fonts ---------- */
@@ -12,6 +12,11 @@ const inter = Inter({
 const geistMono = Geist_Mono({
   variable: "--font-geist-mono",
   subsets: ["latin"],
+});
+const playfair = Playfair_Display({
+  variable: "--font-playfair",
+  subsets: ["latin"],
+  style: ["normal", "italic"],
 });
 
 
@@ -31,7 +36,7 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body
-        className={`${inter.variable} ${geistMono.variable} font-sans antialiased`}
+        className={`${inter.variable} ${geistMono.variable} ${playfair.variable} font-sans antialiased`}
       >
 {children}
       </body>

@@ -12,6 +12,8 @@
     "@supabase/ssr": "^0.7.0-rc.2",
     "@supabase/supabase-js": "^2.53.0",
     "@tailwindcss/typography": "^0.5.16",
+    "@tsparticles/react": "^3.0.0",
+    "@tsparticles/slim": "^3.9.1",
     "framer-motion": "^12.23.12",
     "gray-matter": "^4.0.3",
     "highlight.js": "^11.11.1",

@@ -47,13 +47,16 @@ export default function Header({ sidebarOpen, onToggleSidebar }: HeaderProps) {
         {/* Left side - Logo and Toggle button always visible */}
         <div className="flex items-center gap-3">
           {/* OpenAI Logo - Always visible */}
-          <div className="flex items-center gap-3">
-            <div className="w-8 h-8 bg-black rounded-sm flex items-center justify-center">
-              <span className="text-white font-bold text-sm">O</span>
-            </div>
-            <span className="font-semibold text-lg">ClosedAI</span>
+          {/* Logo + Name - Always visible */}
+          <div className="flex items-center gap-2">
+            <img
+              src="/logo.png"
+              alt="Logo"
+              className="h-6 w-auto object-contain"
+            />
+            <span className="text-xl font-normal tracking-tight text-neutral-900">Paul Cho</span>
           </div>
-          
+
           {/* Toggle button - Always visible with improved accessibility */}
           <button
             onClick={onToggleSidebar}
@@ -65,7 +68,7 @@ export default function Header({ sidebarOpen, onToggleSidebar }: HeaderProps) {
             <Menu size={20} className="text-gray-600" />
           </button>
         </div>
-        
+
         {/* Right side - Search and Auth */}
         <div className="flex items-center gap-3">
           <button
@@ -74,7 +77,7 @@ export default function Header({ sidebarOpen, onToggleSidebar }: HeaderProps) {
           >
             <Search size={20} className="text-gray-600" />
           </button>
-          
+
           {loading ? (
             <div className="px-4 py-2">
               <Loader2 size={18} className="animate-spin text-gray-500" />
@@ -88,8 +91,8 @@ export default function Header({ sidebarOpen, onToggleSidebar }: HeaderProps) {
                 aria-label="User menu"
               >
                 {user.user_metadata?.avatar_url ? (
-                  <img 
-                    src={user.user_metadata.avatar_url} 
+                  <img
+                    src={user.user_metadata.avatar_url}
                     alt={user.user_metadata?.full_name || 'User'}
                     className="w-6 h-6 rounded-full"
                   />
@@ -100,7 +103,7 @@ export default function Header({ sidebarOpen, onToggleSidebar }: HeaderProps) {
                   {user.user_metadata?.full_name || user.email?.split('@')[0] || 'User'}
                 </span>
               </button>
-              
+
               {/* Dropdown Menu */}
               <AnimatePresence>
                 {isProfileOpen && (
@@ -137,7 +140,7 @@ export default function Header({ sidebarOpen, onToggleSidebar }: HeaderProps) {
             </div>
           ) : (
             /* Login Button */
-            <button 
+            <button
               onClick={handleLogin}
               className="px-4 py-2 text-sm font-medium text-gray-700 hover:text-gray-900 hover:bg-gray-100 rounded-md transition-colors"
             >

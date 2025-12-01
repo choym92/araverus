@@ -10,7 +10,7 @@ To guide an AI assistant in creating a detailed Product Requirements Document (P
 1. **Read Idea File:** Read the idea file at `$ARGUMENTS`
 2. **Ask Clarifying Questions:** Before writing the PRD, the AI *must* ask clarifying questions to gather sufficient detail. Make sure to provide options in letter/number lists so I can respond easily with my selections.
 3. **Generate PRD:** Based on the idea file and the user's answers to the clarifying questions, generate a PRD using the structure outlined below.
-4. **Save PRD:** Save the generated document as `[number]-prd-[feature-name].md` inside the `docs/workflow/2_prds/` directory. Extract the number from the idea filename (e.g., if idea file is `1-idea-feature.md`, save as `1-prd-feature.md`).
+4. **Save PRD:** Save the generated document as `[number]-prd-[feature-name].md` inside the `docs/workflow/2-prds/` directory. Extract the number from the idea filename (e.g., if idea file is `1-idea-feature.md`, save as `1-prd-feature.md`).
 
 ## Clarifying Questions (Examples)
 
