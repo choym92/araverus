@@ -43,7 +43,7 @@ export default function ParticleBackground({ className }: ParticleBackgroundProp
         enable: true,
         url: '/logo.svg',
         type: 'inline',
-        scale: 0.5,
+        scale: 0.8,
         position: { x: 50, y: 35 },
         inline: {
           arrangement: 'equidistant',
@@ -58,7 +58,7 @@ export default function ParticleBackground({ className }: ParticleBackgroundProp
       },
       particles: {
         number: {
-          value: 200,
+          value: 300,
         },
         color: { value: '#1A1A1A' },
         shape: { type: 'circle' },

@@ -56,7 +56,7 @@ export default function Hero() {
                          transition hover:bg-neutral-800 active:scale-[0.98]
                          focus:outline-none focus-visible:ring-2 focus-visible:ring-neutral-900 focus-visible:ring-offset-2"
               >
-                Resume
+                MyResume
               </Link>
               <Link
                 href="/finance"
@@ -65,7 +65,7 @@ export default function Hero() {
                          transition hover:bg-neutral-50 active:scale-[0.98]
                          focus:outline-none focus-visible:ring-2 focus-visible:ring-neutral-900 focus-visible:ring-offset-2"
               >
-                Finance
+                View Finance Tool
               </Link>
             </motion.div>
           </div>
