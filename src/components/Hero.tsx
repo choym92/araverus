@@ -17,11 +17,11 @@ export default function Hero() {
       >
         {/* Hero Card */}
         <div className="relative overflow-hidden rounded-3xl bg-white border border-neutral-200/60 p-12 md:p-20 shadow-[0_8px_30px_rgba(0,0,0,.06)] min-h-[70vh] flex items-center">
-          {/* Particle Background - visible on right side */}
+          {/* Particle Background - visible on right side, hidden on mobile */}
           {!reduceMotion && (
             <div
               aria-hidden="true"
-              className="pointer-events-none absolute inset-0 z-0"
+              className="pointer-events-none absolute inset-0 z-0 hidden md:block"
             >
               <ParticleBackground className="absolute inset-0 w-full h-full" />
               {/* Gradient mask to fade particles on left side (keep text area clean) */}

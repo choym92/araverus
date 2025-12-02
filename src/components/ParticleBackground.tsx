@@ -5,6 +5,7 @@ import dynamic from 'next/dynamic';
 import { type ISourceOptions } from '@tsparticles/engine';
 import { initParticlesEngine } from '@tsparticles/react';
 import { loadSlim } from '@tsparticles/slim';
+import { loadPolygonMaskPlugin } from '@tsparticles/plugin-polygon-mask';
 
 const Particles = dynamic(
   () => import('@tsparticles/react').then((m) => m.default),
@@ -24,6 +25,7 @@ export default function ParticleBackground({ className }: ParticleBackgroundProp
     // hoisting initParticlesEngine to a higher-level provider.
     initParticlesEngine(async (engine) => {
       await loadSlim(engine);
+      await loadPolygonMaskPlugin(engine);
     }).then(() => {
       setInit(true);
     });
@@ -37,33 +39,49 @@ export default function ParticleBackground({ className }: ParticleBackgroundProp
     () => ({
       fullScreen: { enable: false },
       fpsLimit: 60,
+      polygon: {
+        enable: true,
+        url: '/logo.svg',
+        type: 'inline',
+        scale: 0.5,
+        position: { x: 65, y: 50 },
+        inline: {
+          arrangement: 'equidistant',
+        },
+        move: {
+          radius: 5,
+          type: 'radius',
+        },
+        draw: {
+          enable: false,
+        },
+      },
       particles: {
         number: {
-          value: 120,
-          density: { enable: true, width: 800, height: 800 },
+          value: 100,
         },
         color: { value: '#1A1A1A' },
         shape: { type: 'circle' },
         size: {
-          value: { min: 1.5, max: 3 },
+          value: { min: 1, max: 2 },
         },
         opacity: {
-          value: { min: 0.4, max: 0.8 },
+          value: { min: 0.5, max: 0.9 },
         },
         links: {
           enable: true,
-          distance: 120,
+          distance: 30,
           color: '#1A1A1A',
-          opacity: 0.25,
-          width: 0.8,
+          opacity: 0.15,
+          width: 0.5,
         },
         move: {
           enable: true,
-          speed: 0.8,
+          speed: 0.3,
           direction: 'none',
-          random: true,
+          random: false,
           straight: false,
-          outModes: { default: 'out' },
+          outModes: { default: 'bounce' },
         },
       },
       interactivity: {
