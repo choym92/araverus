@@ -82,22 +82,22 @@ Based on PRD: `docs/workflow/2_prds/prd-landing-page.md`
   - [x] 5.6 Verify Finance CTA navigates to `/finance` page
   - [ ] 5.7 Test both CTAs work on mobile and desktop *(Manual testing)*
 
-- [ ] 6.0 Accessibility & Reduced Motion Support
-  - [ ] 6.1 Wrap `ParticleBackground` render in `{!reduceMotion && ...}` conditional
-  - [ ] 6.2 Ensure `useReducedMotion()` hook is imported from framer-motion (already exists)
-  - [ ] 6.3 Verify headline/background contrast meets WCAG AA (4.5:1 ratio) - near-black on white passes
-  - [ ] 6.4 Confirm both CTAs have visible `:focus` states with `focus:ring-2 focus:ring-offset-2`
-  - [ ] 6.5 Verify CTAs have `aria-label` or SR-only text for screen readers
-  - [ ] 6.6 Test keyboard navigation: Tab through CTAs, Enter to activate
-  - [ ] 6.7 Test with browser "prefers-reduced-motion" setting enabled
+- [x] 6.0 Accessibility & Reduced Motion Support
+  - [x] 6.1 Wrap `ParticleBackground` render in `{!reduceMotion && ...}` conditional
+  - [x] 6.2 Ensure `useReducedMotion()` hook is imported from framer-motion (already exists)
+  - [x] 6.3 Verify headline/background contrast meets WCAG AA (4.5:1 ratio) - near-black on white passes
+  - [x] 6.4 Confirm both CTAs have visible `:focus` states with `focus:ring-2 focus:ring-offset-2`
+  - [x] 6.5 Verify CTAs have `aria-label` or SR-only text for screen readers
+  - [ ] 6.6 Test keyboard navigation: Tab through CTAs, Enter to activate *(Manual testing)*
+  - [ ] 6.7 Test with browser "prefers-reduced-motion" setting enabled *(Manual testing)*
 
-- [ ] 7.0 Testing & Verification
-  - [ ] 7.1 Run `npm run lint` and fix any issues
-  - [ ] 7.2 Run `npm run build` and ensure no type errors
-  - [ ] 7.3 Test in browser at localhost - verify particles render and animate slowly
-  - [ ] 7.4 Test responsive design on mobile viewport
-  - [ ] 7.5 Check mobile particle performance, reduce count if needed (60-80 instead of 120)
-  - [ ] 7.6 Cross-browser test: Chrome, Safari, Firefox - verify Hero and particles work
-  - [ ] 7.7 Run Lighthouse audit and verify performance score > 90
-  - [ ] 7.8 Verify sidebar and header functionality still works
-  - [ ] 7.9 Check browser console for any errors or warnings
+- [x] 7.0 Testing & Verification
+  - [x] 7.1 Run `npm run lint` and fix any issues
+  - [x] 7.2 Run `npm run build` and ensure no type errors
+  - [ ] 7.3 Test in browser at localhost - verify particles render and animate slowly *(Manual testing)*
+  - [ ] 7.4 Test responsive design on mobile viewport *(Manual testing)*
+  - [ ] 7.5 Check mobile particle performance, reduce count if needed (60-80 instead of 120) *(Manual testing)*
+  - [ ] 7.6 Cross-browser test: Chrome, Safari, Firefox - verify Hero and particles work *(Manual testing)*
+  - [ ] 7.7 Run Lighthouse audit and verify performance score > 90 *(Manual testing)*
+  - [ ] 7.8 Verify sidebar and header functionality still works *(Manual testing)*
+  - [ ] 7.9 Check browser console for any errors or warnings *(Manual testing)*

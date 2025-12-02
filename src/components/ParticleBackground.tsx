@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import dynamic from 'next/dynamic';
-import { type Container, type ISourceOptions } from '@tsparticles/engine';
+import { type ISourceOptions } from '@tsparticles/engine';
 import { initParticlesEngine } from '@tsparticles/react';
 import { loadSlim } from '@tsparticles/slim';
 
@@ -29,7 +29,7 @@ export default function ParticleBackground({ className }: ParticleBackgroundProp
     });
   }, []);
 
-  const particlesLoaded = async (container?: Container) => {
+  const particlesLoaded = async () => {
     // Particles loaded successfully
   };
 
