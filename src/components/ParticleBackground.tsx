@@ -42,9 +42,9 @@ export default function ParticleBackground({ className }: ParticleBackgroundProp
       polygon: {
         enable: true,
         url: '/logo.svg',
-        type: 'inline',
+        type: 'inside',
         scale: 0.8,
-        position: { x: 50, y: 35 },
+        position: { x: 30, y: 25 },
         inline: {
           arrangement: 'equidistant',
         },
@@ -58,7 +58,7 @@ export default function ParticleBackground({ className }: ParticleBackgroundProp
       },
       particles: {
         number: {
-          value: 300,
+          value: 500,
         },
         color: { value: '#1A1A1A' },
         shape: { type: 'circle' },

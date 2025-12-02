@@ -9,15 +9,13 @@ export default function Hero() {
 
   return (
     <section className="relative min-h-screen flex items-start pt-20 md:pt-24 bg-white">
-      {/* Particle Background - visible on right side, hidden on mobile */}
+      {/* Particle Background - hidden on mobile */}
       {!reduceMotion && (
         <div
           aria-hidden="true"
           className="pointer-events-none absolute inset-0 z-0 hidden md:block"
         >
           <ParticleBackground className="absolute inset-0 w-full h-full" />
-          {/* Gradient mask to fade particles on left side (keep text area clean) */}
-          <div className="absolute inset-0 bg-gradient-to-r from-white via-white/80 to-transparent" />
         </div>
       )}
 
