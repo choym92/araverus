@@ -8,29 +8,27 @@ export default function Hero() {
   const reduceMotion = useReducedMotion();
 
   return (
-    <section className="px-6 py-14 sm:py-24">
+    <section className="relative min-h-screen flex items-center">
+      {/* Particle Background - visible on right side, hidden on mobile */}
+      {!reduceMotion && (
+        <div
+          aria-hidden="true"
+          className="pointer-events-none absolute inset-0 z-0 hidden md:block"
+        >
+          <ParticleBackground className="absolute inset-0 w-full h-full" />
+          {/* Gradient mask to fade particles on left side (keep text area clean) */}
+          <div className="absolute inset-0 bg-gradient-to-r from-white via-white/80 to-transparent" />
+        </div>
+      )}
+
       <motion.div
         initial={reduceMotion ? false : { opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.6, ease: 'easeOut' }}
-        className="mx-auto w-full max-w-6xl"
+        className="relative z-10 w-full max-w-6xl mx-auto px-6 md:px-12 lg:px-20"
       >
-        {/* Hero Card */}
-        <div className="relative overflow-hidden rounded-3xl bg-white border border-neutral-200/60 p-12 md:p-20 shadow-[0_8px_30px_rgba(0,0,0,.06)] min-h-[70vh] flex items-center">
-          {/* Particle Background - visible on right side, hidden on mobile */}
-          {!reduceMotion && (
-            <div
-              aria-hidden="true"
-              className="pointer-events-none absolute inset-0 z-0 hidden md:block"
-            >
-              <ParticleBackground className="absolute inset-0 w-full h-full" />
-              {/* Gradient mask to fade particles on left side (keep text area clean) */}
-              <div className="absolute inset-0 bg-gradient-to-r from-white via-white/80 to-transparent" />
-            </div>
-          )}
-
-          {/* Content - left aligned */}
-          <div className="relative z-10 max-w-2xl">
+        {/* Content - left aligned */}
+        <div className="max-w-2xl">
             <motion.h1
               initial={reduceMotion ? false : { opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
@@ -76,7 +74,6 @@ export default function Hero() {
               </Link>
             </motion.div>
           </div>
-        </div>
       </motion.div>
     </section>
   );
