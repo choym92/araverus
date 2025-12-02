@@ -42,7 +42,7 @@ export default function ParticleBackground({ className }: ParticleBackgroundProp
       polygon: {
         enable: true,
         url: '/logo.svg',
-        type: 'inside',
+        type: 'inline',
         scale: 0.8,
         position: { x: 30, y: 25 },
         inline: {
