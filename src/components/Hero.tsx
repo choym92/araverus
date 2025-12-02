@@ -8,7 +8,7 @@ export default function Hero() {
   const reduceMotion = useReducedMotion();
 
   return (
-    <section className="relative min-h-screen flex items-center">
+    <section className="relative min-h-screen flex items-start pt-32 md:pt-40">
       {/* Particle Background - visible on right side, hidden on mobile */}
       {!reduceMotion && (
         <div
@@ -56,21 +56,21 @@ export default function Hero() {
             >
               <Link
                 href="/resume"
-                aria-label="View resume"
+                aria-label="View my resume"
                 className="inline-flex items-center justify-center rounded-full bg-neutral-900 px-8 py-3 text-sm font-medium text-white
                          transition hover:bg-neutral-800 active:scale-[0.98]
                          focus:outline-none focus-visible:ring-2 focus-visible:ring-neutral-900 focus-visible:ring-offset-2"
               >
-                Resume
+                My Resume
               </Link>
               <Link
                 href="/finance"
-                aria-label="Open finance tools"
+                aria-label="View finance project"
                 className="inline-flex items-center justify-center rounded-full border border-neutral-300 bg-white px-8 py-3 text-sm font-medium text-neutral-900
                          transition hover:bg-neutral-50 active:scale-[0.98]
                          focus:outline-none focus-visible:ring-2 focus-visible:ring-neutral-900 focus-visible:ring-offset-2"
               >
-                Finance
+                Finance Project
               </Link>
             </motion.div>
           </div>
