@@ -73,14 +73,14 @@ Based on PRD: `docs/workflow/2_prds/prd-landing-page.md`
   - [x] 4.7 ParticleBackground container: `absolute inset-0 -z-10 pointer-events-none`
   - [x] 4.8 Content wrapper: `relative z-10`
 
-- [ ] 5.0 Create Resume Page & Wire Up CTAs
-  - [ ] 5.1 Add `resume.pdf` file to `public/` directory
-  - [ ] 5.2 Create `src/app/resume/page.tsx` - displays PDF in web viewer (iframe or embed)
-  - [ ] 5.3 Add "Download PDF" button on resume page (`<a href="/resume.pdf" download>`)
-  - [ ] 5.4 Verify `/resume.pdf` returns 200 (not 404)
-  - [ ] 5.5 Verify Resume CTA navigates to `/resume` page
-  - [ ] 5.6 Verify Finance CTA navigates to `/finance` page
-  - [ ] 5.7 Test both CTAs work on mobile and desktop
+- [x] 5.0 Create Resume Page & Wire Up CTAs
+  - [ ] 5.1 Add `resume.pdf` file to `public/` directory *(User action required)*
+  - [x] 5.2 Create `src/app/resume/page.tsx` - displays PDF in web viewer (iframe or embed)
+  - [x] 5.3 Add "Download PDF" button on resume page (`<a href="/resume.pdf" download>`)
+  - [ ] 5.4 Verify `/resume.pdf` returns 200 (not 404) *(Requires 5.1)*
+  - [x] 5.5 Verify Resume CTA navigates to `/resume` page
+  - [x] 5.6 Verify Finance CTA navigates to `/finance` page
+  - [ ] 5.7 Test both CTAs work on mobile and desktop *(Manual testing)*
 
 - [ ] 6.0 Accessibility & Reduced Motion Support
   - [ ] 6.1 Wrap `ParticleBackground` render in `{!reduceMotion && ...}` conditional
