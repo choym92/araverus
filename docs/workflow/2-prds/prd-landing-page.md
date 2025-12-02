@@ -161,8 +161,8 @@ const Particles = dynamic(
 **Headline:**
 ```
 Continual Learning
-of Paul Cho
 ```
+*(Single line only - no "of Paul Cho")*
 
 **Subheadline:**
 ```
@@ -277,31 +277,61 @@ export default function ParticleBackground() {
 
 ## Decisions Made
 
-1. **Serif font:** Playfair Display
-2. **Particle color:** Near-black (`#1A1A1A`)
-3. **Resume format:** PDF download
+1. **Headline:** "Continual Learning" only (no "of Paul Cho")
+2. **Font:** Light weight sans-serif (not serif italic)
+3. **Particle color:** Near-black (`#1A1A1A`)
+4. **Resume format:** Web page with PDF viewer + download option
 
 ---
 
 ## Timeline & Phases
 
-### Phase 1: Core Implementation
-- [ ] Add tsParticles dependencies
-- [ ] Create `ParticleBackground.tsx` with dynamic import
-- [ ] Update `Hero.tsx` with new content and layout
-- [ ] Apply monochrome styling
-- [ ] Add serif font for headline
+### Phase 1: Core Implementation ✅ COMPLETE
+- [x] Add tsParticles dependencies
+- [x] Create `ParticleBackground.tsx` with dynamic import
+- [x] Update `Hero.tsx` with new content and layout
+- [x] Apply monochrome styling
+- [x] Create resume page with PDF viewer
+- [x] Accessibility & reduced motion support
 
-### Phase 2: Polish & Experimentation
-- [ ] Fine-tune particle speed (target: barely perceptible)
-- [ ] Experiment with `links.enable: false` for pure dust effect
-- [ ] Implement curved region mask for particle placement
-- [ ] Add subtle mouse interaction (optional — test if it feels calm)
-- [ ] Responsive adjustments (reduce particles on mobile)
-- [ ] Performance optimization
+### Phase 2: Logo-Shaped Particle Effect (Antigravity-style) 🚧 IN PROGRESS
+
+**Goal:** Particles form the logo shape (three interlocking rings) on the right side of the hero, similar to Google Antigravity's product visualization.
+
+#### Technical Approach
+- **Plugin:** `@tsparticles/plugin-polygon-mask`
+- **Input:** SVG version of logo with `<path>` elements
+- **Effect:** Particles spawn along the logo path and drift subtly
+
+#### Polygon Mask Configuration
+```typescript
+{
+  polygon: {
+    enable: true,
+    type: 'inline',
+    url: '/logo.svg',
+    position: { x: 70, y: 50 },  // Right side of hero
+    scale: 1,
+    draw: { enable: false },
+    move: { type: 'path', radius: 2 },
+    inline: { arrangement: 'equidistant' }
+  },
+  particles: {
+    number: { value: 100 },
+    size: { value: { min: 1, max: 2 } },
+    move: { speed: 0.3 }
+  }
+}
+```
+
+#### Requirements
+- [ ] SVG version of logo (convert from PNG or export from design tool)
+- [ ] Install `@tsparticles/plugin-polygon-mask`
+- [ ] Configure polygon mask options
+- [ ] Position logo on right side of hero
+- [ ] Fine-tune particle behavior
 
 ### Phase 3: Content & Sections (Future)
-- [ ] Add resume (PDF in `/public` or dedicated page)
 - [ ] Add sections below hero:
   - **Recent Projects** — 3 project cards
   - **Latest Writing** — 3 blog post previews
@@ -315,5 +345,5 @@ export default function ParticleBackground() {
 - [Google Antigravity](https://antigravity.google/product) — Design inspiration
 - [tsParticles GitHub](https://github.com/tsparticles/tsparticles) — Particle library
 - [tsParticles React](https://github.com/tsparticles/react) — React integration
+- [tsParticles Polygon Mask Plugin](https://particles.js.org/docs/modules/tsParticles_Polygon_Mask_Plugin.html) — Logo shape effect
 - [Stack Overflow: tsParticles + Next.js SSR](https://stackoverflow.com/questions/77395525/is-it-in-any-way-possible-to-use-tsparticles-with-next-js-and-ssr) — SSR handling
-- [Codrops: Three.js Particles](https://tympanus.net/codrops/2019/01/17/interactive-particles-with-three-js/) — Advanced reference

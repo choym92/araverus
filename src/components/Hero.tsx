@@ -17,11 +17,11 @@ export default function Hero() {
       >
         {/* Hero Card */}
         <div className="relative overflow-hidden rounded-3xl bg-white border border-neutral-200/60 p-12 md:p-20 shadow-[0_8px_30px_rgba(0,0,0,.06)] min-h-[70vh] flex items-center">
-          {/* Particle Background - right/bottom region */}
+          {/* Particle Background - visible on right side */}
           {!reduceMotion && (
             <div
               aria-hidden="true"
-              className="pointer-events-none absolute inset-0 -z-10"
+              className="pointer-events-none absolute inset-0 z-0"
             >
               <ParticleBackground className="absolute inset-0 w-full h-full" />
               {/* Gradient mask to fade particles on left side (keep text area clean) */}
@@ -35,11 +35,9 @@ export default function Hero() {
               initial={reduceMotion ? false : { opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.2, duration: 0.6 }}
-              className="mb-6 font-serif text-5xl md:text-7xl font-normal italic leading-[1.1]"
+              className="mb-6 text-5xl md:text-7xl font-light leading-[1.1] text-neutral-900"
             >
-              <span className="text-neutral-900">Continual Learning</span>
-              <br />
-              <span className="text-neutral-600">of Paul Cho</span>
+              Continual Learning
             </motion.h1>
 
             <motion.p

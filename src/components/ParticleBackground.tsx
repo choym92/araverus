@@ -45,21 +45,21 @@ export default function ParticleBackground({ className }: ParticleBackgroundProp
         color: { value: '#1A1A1A' },
         shape: { type: 'circle' },
         size: {
-          value: { min: 1, max: 2 },
+          value: { min: 1.5, max: 3 },
         },
         opacity: {
-          value: { min: 0.2, max: 0.5 },
+          value: { min: 0.4, max: 0.8 },
         },
         links: {
           enable: true,
-          distance: 100,
+          distance: 120,
           color: '#1A1A1A',
-          opacity: 0.1,
-          width: 0.5,
+          opacity: 0.25,
+          width: 0.8,
         },
         move: {
           enable: true,
-          speed: 0.15,
+          speed: 0.8,
           direction: 'none',
           random: true,
           straight: false,

@@ -1,20 +1,25 @@
-<!-- Updated: 2025-12-01 -->
+<!-- Updated: 2025-12-02 -->
 # Task List: Landing Page Redesign
 
-Based on PRD: `docs/workflow/2_prds/prd-landing-page.md`
+Based on PRD: `docs/workflow/2-prds/prd-landing-page.md`
 
 ---
 
 ## Relevant Files
 
-- `src/app/layout.tsx` - Add Playfair Display font import and CSS variable
-- `src/app/globals.css` - Add `--font-serif` to `@theme inline` block
-- `src/components/ParticleBackground.tsx` - **NEW** - Client component wrapping tsParticles with dynamic import
-- `src/components/Hero.tsx` - Replace gradient background with particles, update content and CTAs
-- `src/app/page.tsx` - Minor adjustments if needed for layout
-- `src/app/resume/page.tsx` - **NEW** - Resume page with PDF viewer and download option
-- `public/resume.pdf` - **NEW** - Resume PDF file
-- `package.json` - Will be updated by npm install
+### Phase 1 (Complete)
+- `src/app/layout.tsx` - Playfair Display font import and CSS variable
+- `src/app/globals.css` - `--font-serif` in `@theme inline` block
+- `src/components/ParticleBackground.tsx` - Client component wrapping tsParticles
+- `src/components/Hero.tsx` - Hero with particles, content and CTAs
+- `src/app/resume/page.tsx` - Resume page with PDF viewer
+- `public/resume.pdf` - Resume PDF file *(user to provide)*
+
+### Phase 2 (Logo Particles)
+- `public/logo.svg` - **NEW** - SVG version of logo for polygon mask
+- `src/components/ParticleBackground.tsx` - **UPDATE** - Add polygon mask plugin
+- `src/components/LogoParticles.tsx` - **NEW** (optional) - Dedicated logo particle component
+- `package.json` - Add `@tsparticles/plugin-polygon-mask`
 
 ### Notes
 
@@ -22,6 +27,8 @@ Based on PRD: `docs/workflow/2_prds/prd-landing-page.md`
 - tsParticles requires `dynamic()` import with `ssr: false` for Next.js compatibility
 - Test with `npm run build` after each major change to catch type errors early
 - Resume opens as web page first, with download option available
+- **Polygon Mask requires SVG with valid `<path>` elements** - PNG won't work directly
+- SVG must be served from same origin (place in `/public` folder)
 
 ---
 
@@ -101,3 +108,138 @@ Based on PRD: `docs/workflow/2_prds/prd-landing-page.md`
   - [ ] 7.7 Run Lighthouse audit and verify performance score > 90 *(Manual testing)*
   - [ ] 7.8 Verify sidebar and header functionality still works *(Manual testing)*
   - [ ] 7.9 Check browser console for any errors or warnings *(Manual testing)*
+
+---
+
+## Phase 2: Logo-Shaped Particle Effect (Antigravity-style)
+
+**Goal:** Transform the particle background into a logo-shaped particle formation, inspired by Google Antigravity's effect where particles form and gravitate towards the logo shape.
+
+**Reference:** [Google Antigravity](https://antigravity.google/product) - particles form the product shape on the right side
+
+### Design Decisions
+
+| Decision | Choice | Rationale |
+|----------|--------|-----------|
+| Plugin | `@tsparticles/plugin-polygon-mask` | Spawns particles along SVG path - creates logo outline effect |
+| Logo Format | SVG with `<path>` elements | Required by polygon mask; PNG won't work |
+| Particle Placement | Right side of hero card | Text on left, logo particles on right (like Antigravity) |
+| Movement | Subtle drift along path | Particles stay in formation with gentle movement |
+
+---
+
+- [ ] 8.0 Prepare Logo SVG for Polygon Mask
+  - [ ] 8.1 Obtain or create SVG version of logo (three interlocking rings)
+    - Option A: Export from original design tool (Figma, Illustrator, etc.)
+    - Option B: Trace PNG to SVG using vectorization tool
+    - Option C: Manually recreate as SVG paths
+  - [ ] 8.2 Optimize SVG structure for polygon mask:
+    - Ensure logo uses `<path>` elements (not `<circle>`, `<rect>`, etc.)
+    - Merge overlapping paths if needed
+    - Remove unnecessary attributes (fills, strokes - only path data matters)
+  - [ ] 8.3 Validate SVG path data:
+    - Each path should be closed (end with `Z` or return to start point)
+    - Test path renders correctly in browser
+  - [ ] 8.4 Save optimized SVG to `public/logo.svg`
+  - [ ] 8.5 Test SVG loads correctly: verify `/logo.svg` returns 200
+
+- [ ] 9.0 Install & Configure Polygon Mask Plugin
+  - [ ] 9.1 Install plugin: `npm install @tsparticles/plugin-polygon-mask`
+  - [ ] 9.2 Update `ParticleBackground.tsx` imports:
+    ```typescript
+    import { loadPolygonMaskPlugin } from '@tsparticles/plugin-polygon-mask';
+    ```
+  - [ ] 9.3 Load plugin in `initParticlesEngine`:
+    ```typescript
+    await loadSlim(engine);
+    await loadPolygonMaskPlugin(engine);
+    ```
+  - [ ] 9.4 Run `npm run build` to verify no type errors
+
+- [ ] 10.0 Configure Polygon Mask Options
+  - [ ] 10.1 Add `polygon` configuration to particle options:
+    ```typescript
+    polygon: {
+      enable: true,
+      type: 'inline',
+      url: '/logo.svg',
+      position: { x: 50, y: 50 },
+      scale: 1,
+      draw: { enable: false },
+      move: { type: 'path', radius: 2 },
+      inline: { arrangement: 'equidistant' }
+    }
+    ```
+  - [ ] 10.2 Adjust particle settings for logo effect:
+    - Reduce particle count (80-100 for performance)
+    - Smaller size for finer detail (1-2px)
+    - Slower speed for subtle drift (0.3-0.5)
+  - [ ] 10.3 Position logo on right side of hero:
+    - Adjust `position.x` to ~70-80 (percentage from left)
+    - Adjust `scale` to fit within hero card
+  - [ ] 10.4 Test polygon mask renders correctly in browser
+
+- [ ] 11.0 Fine-Tune Particle Behavior
+  - [ ] 11.1 Configure movement along path:
+    - `move.type: 'path'` - particles follow the SVG path
+    - `move.radius: 2-5` - how far particles drift from path
+  - [ ] 11.2 Adjust particle density:
+    - `inline.arrangement: 'equidistant'` - even spacing along path
+    - OR `inline.arrangement: 'random-point'` - random positions on path
+  - [ ] 11.3 Configure links (connecting lines):
+    - Option A: Disable links (`links.enable: false`) for cleaner logo
+    - Option B: Enable with low opacity for constellation effect
+  - [ ] 11.4 Test particle behavior matches Antigravity reference
+
+- [ ] 12.0 Layout Integration & Responsive Design
+  - [ ] 12.1 Update Hero component layout:
+    - Remove gradient mask if logo particles are on right only
+    - Ensure text content has sufficient contrast/space on left
+  - [ ] 12.2 Handle responsive sizing:
+    - Desktop: Full logo at 70-80% from left
+    - Tablet: Slightly smaller scale, same position
+    - Mobile: Either hide logo particles OR position below text
+  - [ ] 12.3 Test hero layout at all breakpoints
+  - [ ] 12.4 Verify text remains readable with logo particles
+
+- [ ] 13.0 Performance & Accessibility
+  - [ ] 13.1 Optimize particle count for mobile (reduce by 30-50%)
+  - [ ] 13.2 Test performance on low-end devices
+  - [ ] 13.3 Ensure `prefers-reduced-motion` still works:
+    - Logo particles should be hidden when reduced motion is enabled
+    - OR show static logo image as fallback
+  - [ ] 13.4 Verify no FOUC (flash of unstyled content) during load
+  - [ ] 13.5 Run Lighthouse audit - target performance score > 85
+
+- [ ] 14.0 Polish & Final Testing
+  - [ ] 14.1 Fine-tune timing and easing of particle movement
+  - [ ] 14.2 Adjust colors if needed (consider subtle color gradient)
+  - [ ] 14.3 Cross-browser test: Chrome, Safari, Firefox
+  - [ ] 14.4 Test on real mobile devices (iOS Safari, Android Chrome)
+  - [ ] 14.5 Check console for any errors or warnings
+  - [ ] 14.6 Update PRD with final particle configuration
+  - [ ] 14.7 Commit all changes with descriptive message
+
+---
+
+## Alternative Approaches (If Polygon Mask Doesn't Work)
+
+If polygon mask proves too complex or doesn't achieve desired effect:
+
+### Option B: Canvas Mask Plugin
+- Uses raster image (PNG) instead of SVG
+- Particles fill non-transparent areas of image
+- Install: `npm install @tsparticles/plugin-canvas-mask`
+- Simpler setup but less precise than polygon mask
+
+### Option C: Absorbers Plugin (Gravity Effect)
+- Particles get pulled toward a central point
+- Good for "black hole" or "vortex" effect
+- Won't form exact logo shape, but creates gravitational pull
+- Install: `npm install @tsparticles/plugin-absorbers`
+
+### Option D: Custom Implementation
+- Sample logo image pixels to get coordinate points
+- Use those coordinates as particle spawn positions
+- More control but requires custom code
+- Reference: Canvas pixel sampling approach
