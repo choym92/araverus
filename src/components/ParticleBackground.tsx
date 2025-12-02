@@ -69,11 +69,7 @@ export default function ParticleBackground({ className }: ParticleBackgroundProp
           value: 0.8,
         },
         links: {
-          enable: true,
-          distance: 30,
-          color: '#1A1A1A',
-          opacity: 0.15,
-          width: 0.5,
+          enable: false,
         },
         move: {
           enable: true,
