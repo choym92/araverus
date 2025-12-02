@@ -8,7 +8,7 @@ export default function Hero() {
   const reduceMotion = useReducedMotion();
 
   return (
-    <section className="relative min-h-screen flex items-start pt-32 md:pt-40">
+    <section className="relative min-h-screen flex items-start pt-20 md:pt-24 bg-white">
       {/* Particle Background - visible on right side, hidden on mobile */}
       {!reduceMotion && (
         <div
@@ -21,12 +21,7 @@ export default function Hero() {
         </div>
       )}
 
-      <motion.div
-        initial={reduceMotion ? false : { opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.6, ease: 'easeOut' }}
-        className="relative z-10 w-full max-w-6xl mx-auto px-6 md:px-12 lg:px-20"
-      >
+      <div className="relative z-10 w-full px-6 md:px-10 lg:px-16">
         {/* Content - left aligned */}
         <div className="max-w-2xl">
             <motion.h1
@@ -56,25 +51,25 @@ export default function Hero() {
             >
               <Link
                 href="/resume"
-                aria-label="View my resume"
+                aria-label="View resume"
                 className="inline-flex items-center justify-center rounded-full bg-neutral-900 px-8 py-3 text-sm font-medium text-white
                          transition hover:bg-neutral-800 active:scale-[0.98]
                          focus:outline-none focus-visible:ring-2 focus-visible:ring-neutral-900 focus-visible:ring-offset-2"
               >
-                My Resume
+                Resume
               </Link>
               <Link
                 href="/finance"
-                aria-label="View finance project"
+                aria-label="Open finance tools"
                 className="inline-flex items-center justify-center rounded-full border border-neutral-300 bg-white px-8 py-3 text-sm font-medium text-neutral-900
                          transition hover:bg-neutral-50 active:scale-[0.98]
                          focus:outline-none focus-visible:ring-2 focus-visible:ring-neutral-900 focus-visible:ring-offset-2"
               >
-                Finance Project
+                Finance
               </Link>
             </motion.div>
           </div>
-      </motion.div>
+      </div>
     </section>
   );
 }
