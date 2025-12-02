@@ -42,23 +42,16 @@ export default function ParticleBackground({ className }: ParticleBackgroundProp
       polygon: {
         enable: true,
         url: '/logo.svg',
-        type: 'inline',
+        type: 'inside',
         scale: 0.8,
         position: { x: 30, y: 25 },
-        inline: {
-          arrangement: 'equidistant',
-        },
-        move: {
-          radius: 5,
-          type: 'radius',
-        },
         draw: {
           enable: false,
         },
       },
       particles: {
         number: {
-          value: 500,
+          value: 1000,
         },
         color: { value: '#1A1A1A' },
         shape: { type: 'circle' },
@@ -72,12 +65,7 @@ export default function ParticleBackground({ className }: ParticleBackgroundProp
           enable: false,
         },
         move: {
-          enable: true,
-          speed: 0.3,
-          direction: 'none',
-          random: false,
-          straight: false,
-          outModes: { default: 'bounce' },
+          enable: false,
         },
       },
       interactivity: {
