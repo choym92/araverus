@@ -33,19 +33,19 @@ Based on PRD: `docs/workflow/2_prds/prd-landing-page.md`
   - [x] 1.5 Add `--font-serif: var(--font-playfair);` to `@theme inline` in `globals.css`
   - [x] 1.6 Run `npm run build` to verify no type errors
 
-- [ ] 2.0 Create ParticleBackground Component
-  - [ ] 2.1 Create new file `src/components/ParticleBackground.tsx` with `'use client'` directive
-  - [ ] 2.2 Import `dynamic` from `next/dynamic` and set up lazy loading with `ssr: false`
-  - [ ] 2.3 Import `loadSlim` from `@tsparticles/slim` for smaller bundle
-  - [ ] 2.4 Create `particlesInit` callback using `useCallback` to initialize engine
-  - [ ] 2.5 Create `options` config using `useMemo` with PRD particle settings:
+- [x] 2.0 Create ParticleBackground Component
+  - [x] 2.1 Create new file `src/components/ParticleBackground.tsx` with `'use client'` directive
+  - [x] 2.2 Import `dynamic` from `next/dynamic` and set up lazy loading with `ssr: false`
+  - [x] 2.3 Import `loadSlim` from `@tsparticles/slim` for smaller bundle
+  - [x] 2.4 Create `particlesInit` callback using `useCallback` to initialize engine
+  - [x] 2.5 Create `options` config using `useMemo` with PRD particle settings:
     - Color: `#1A1A1A` (near-black)
     - Size: min 1, max 2 (very small)
     - Speed: 0.2 (extremely slow)
     - Links: enabled with opacity 0.1 (very faint)
     - Interactivity: disabled (calm, no mouse interaction)
-  - [ ] 2.6 Accept `className` prop for positioning flexibility
-  - [ ] 2.7 Run `npm run build` to verify component compiles
+  - [x] 2.6 Accept `className` prop for positioning flexibility
+  - [x] 2.7 Run `npm run build` to verify component compiles
 
 - [ ] 3.0 Update Hero Component with New Design
   - [ ] 3.1 Import `ParticleBackground` component and `Link` from `next/link`
