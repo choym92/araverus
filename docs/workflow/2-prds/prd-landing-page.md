@@ -173,7 +173,7 @@ Building AI systems, financial tools, and lifelong learning projects.
 
 | CTA | Label | Action | Style |
 |-----|-------|--------|-------|
-| Primary | "Resume" | Download/view resume (PDF or `/resume` page) | Black filled, rounded |
+| Primary | "Resume" | Navigate to `/resume` page (web viewer with download option) | Black filled, rounded |
 | Secondary | "Finance" | Navigate to `/finance` | Outlined, rounded |
 
 ---

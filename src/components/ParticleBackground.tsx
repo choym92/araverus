@@ -19,6 +19,9 @@ export default function ParticleBackground({ className }: ParticleBackgroundProp
   const [init, setInit] = useState(false);
 
   useEffect(() => {
+    // Initialize particles engine once when component mounts.
+    // If reusing this component across multiple pages, consider
+    // hoisting initParticlesEngine to a higher-level provider.
     initParticlesEngine(async (engine) => {
       await loadSlim(engine);
     }).then(() => {
@@ -80,7 +83,7 @@ export default function ParticleBackground({ className }: ParticleBackgroundProp
 
   return (
     <Particles
-      id="tsparticles"
+      id="landing-hero-particles"
       className={className}
       particlesLoaded={particlesLoaded}
       options={options}
