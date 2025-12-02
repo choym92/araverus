@@ -63,7 +63,7 @@ export default function ParticleBackground({ className }: ParticleBackgroundProp
         color: { value: '#1A1A1A' },
         shape: { type: 'circle' },
         size: {
-          value: { min: 1, max: 2 },
+          value: 1.5,
         },
         opacity: {
           value: { min: 0.5, max: 0.9 },
