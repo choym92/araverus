@@ -135,6 +135,7 @@ Based on PRD: `docs/workflow/2-prds/prd-landing-page.md`
     - Option C: Manually recreate as SVG paths
   - [ ] 8.2 Optimize SVG structure for polygon mask:
     - Ensure logo uses `<path>` elements (not `<circle>`, `<rect>`, etc.)
+    - Normalize `viewBox` (e.g., `viewBox="0 0 100 100"`) for predictable scale/position
     - Merge overlapping paths if needed
     - Remove unnecessary attributes (fills, strokes - only path data matters)
   - [ ] 8.3 Validate SVG path data:
@@ -157,27 +158,33 @@ Based on PRD: `docs/workflow/2-prds/prd-landing-page.md`
   - [ ] 9.4 Run `npm run build` to verify no type errors
 
 - [ ] 10.0 Configure Polygon Mask Options
-  - [ ] 10.1 Add `polygon` configuration to particle options:
+  - [ ] 10.1 **VERIFY API first**: Check actual property name (`polygon` vs `polygonMask`) in tsParticles v3 docs
+  - [ ] 10.2 Add polygon mask configuration (example - verify against actual API):
     ```typescript
-    polygon: {
+    polygonMask: {  // or 'polygon' - verify actual property name
       enable: true,
       type: 'inline',
       url: '/logo.svg',
-      position: { x: 50, y: 50 },
+      position: { x: 75, y: 50 },  // Right side (75% from left)
       scale: 1,
       draw: { enable: false },
-      move: { type: 'path', radius: 2 },
+      move: { radius: 3 },  // Max drift from path (polygon-level)
       inline: { arrangement: 'equidistant' }
+    },
+    particles: {
+      move: { speed: 0.3 }  // Overall movement speed (particle-level)
     }
     ```
-  - [ ] 10.2 Adjust particle settings for logo effect:
+  - [ ] 10.3 **Understand the distinction**:
+    - `polygonMask.move.radius` = how far particles can drift FROM the path
+    - `particles.move.speed` = how fast particles move overall
+  - [ ] 10.4 Adjust particle settings for logo effect:
     - Reduce particle count (80-100 for performance)
     - Smaller size for finer detail (1-2px)
-    - Slower speed for subtle drift (0.3-0.5)
-  - [ ] 10.3 Position logo on right side of hero:
-    - Adjust `position.x` to ~70-80 (percentage from left)
+  - [ ] 10.5 Position logo on right side of hero:
+    - `position.x: 70-80` (percentage from left)
     - Adjust `scale` to fit within hero card
-  - [ ] 10.4 Test polygon mask renders correctly in browser
+  - [ ] 10.6 Test polygon mask renders correctly in browser
 
 - [ ] 11.0 Fine-Tune Particle Behavior
   - [ ] 11.1 Configure movement along path:
@@ -195,12 +202,16 @@ Based on PRD: `docs/workflow/2-prds/prd-landing-page.md`
   - [ ] 12.1 Update Hero component layout:
     - Remove gradient mask if logo particles are on right only
     - Ensure text content has sufficient contrast/space on left
-  - [ ] 12.2 Handle responsive sizing:
+  - [ ] 12.2 **Defensive checks** (carry over from Phase 1):
+    - Verify `<h1>` semantic structure is preserved (SEO/a11y)
+    - Confirm `pointer-events-none` on particle container (don't block CTA clicks)
+    - Ensure `aria-hidden="true"` on particle container
+  - [ ] 12.3 Handle responsive sizing:
     - Desktop: Full logo at 70-80% from left
     - Tablet: Slightly smaller scale, same position
     - Mobile: Either hide logo particles OR position below text
-  - [ ] 12.3 Test hero layout at all breakpoints
-  - [ ] 12.4 Verify text remains readable with logo particles
+  - [ ] 12.4 Test hero layout at all breakpoints
+  - [ ] 12.5 Verify text remains readable with logo particles
 
 - [ ] 13.0 Performance & Accessibility
   - [ ] 13.1 Optimize particle count for mobile (reduce by 30-50%)
