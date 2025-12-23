@@ -1,5 +1,7 @@
 'use client';
 
+import Link from 'next/link';
+import Image from 'next/image';
 import { Search, Menu, User, LogOut, Loader2 } from 'lucide-react';
 import { useState } from 'react';
 import { useAuth } from '@/hooks/useAuth';
@@ -47,13 +49,15 @@ export default function Header({ sidebarOpen, onToggleSidebar }: HeaderProps) {
         {/* Left side - Logo and Toggle button always visible */}
         <div className="flex items-center gap-8">
           {/* Logo only - OpenAI style */}
-          <a href="/" className="flex items-center">
-            <img
+          <Link href="/" className="flex items-center">
+            <Image
               src="/logo.png"
               alt="Logo"
+              width={40}
+              height={40}
               className="h-10 w-auto object-contain"
             />
-          </a>
+          </Link>
 
           {/* Toggle button - Always visible with improved accessibility */}
           <button
