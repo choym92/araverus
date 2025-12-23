@@ -42,20 +42,18 @@ export default function Header({ sidebarOpen, onToggleSidebar }: HeaderProps) {
   };
 
   return (
-    <header className="fixed top-0 right-0 left-0 h-16 bg-white/80 backdrop-blur-md border-b border-gray-100 z-30">
-      <div className="h-full px-6 flex items-center justify-between">
+    <header className="fixed top-0 right-0 left-0 h-20 pt-2 bg-white/80 backdrop-blur-md border-b border-gray-100 z-30">
+      <div className="h-full px-6 md:px-12 lg:px-16 flex items-center justify-between">
         {/* Left side - Logo and Toggle button always visible */}
-        <div className="flex items-center gap-3">
-          {/* OpenAI Logo - Always visible */}
-          {/* Logo + Name - Always visible */}
-          <div className="flex items-center gap-2">
+        <div className="flex items-center gap-8">
+          {/* Logo only - OpenAI style */}
+          <a href="/" className="flex items-center">
             <img
               src="/logo.png"
               alt="Logo"
-              className="h-6 w-auto object-contain"
+              className="h-10 w-auto object-contain"
             />
-            <span className="text-xl font-normal tracking-tight text-neutral-900">Paul Cho</span>
-          </div>
+          </a>
 
           {/* Toggle button - Always visible with improved accessibility */}
           <button

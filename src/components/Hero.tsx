@@ -2,20 +2,25 @@
 
 import Link from 'next/link';
 import { motion, useReducedMotion } from 'framer-motion';
-import ParticleBackground from './ParticleBackground';
+import dynamic from 'next/dynamic';
+
+const WaveGrid = dynamic(() => import('./WaveGrid'), {
+  ssr: false,
+  loading: () => null,
+});
 
 export default function Hero() {
   const reduceMotion = useReducedMotion();
 
   return (
     <section className="relative min-h-screen flex items-start pt-20 md:pt-24 bg-white">
-      {/* Particle Background - hidden on mobile */}
+      {/* 3D Wave Grid - hidden on mobile */}
       {!reduceMotion && (
         <div
           aria-hidden="true"
-          className="pointer-events-none absolute inset-0 z-0 hidden md:block"
+          className="absolute inset-0 z-0 hidden md:block"
         >
-          <ParticleBackground className="absolute inset-0 w-full h-full" />
+          <WaveGrid className="absolute inset-0 w-full h-full" />
         </div>
       )}
 
