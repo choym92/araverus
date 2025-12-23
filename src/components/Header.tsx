@@ -93,6 +93,7 @@ export default function Header({ sidebarOpen, onToggleSidebar }: HeaderProps) {
                 aria-label="User menu"
               >
                 {user.user_metadata?.avatar_url ? (
+                  /* eslint-disable-next-line @next/next/no-img-element */
                   <img
                     src={user.user_metadata.avatar_url}
                     alt={user.user_metadata?.full_name || 'User'}

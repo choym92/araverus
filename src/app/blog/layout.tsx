@@ -37,8 +37,9 @@ export default function BlogLayout({
     }
   }, [pathname, mounted]);
 
-  const handleNavigation = (page: string) => {
-    // Handle navigation
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const handleNavigation = (_page: string) => {
+    // Handle navigation - page parameter required by Sidebar callback signature
     if (window.innerWidth < 768) {
       setSidebarOpen(false);
     }

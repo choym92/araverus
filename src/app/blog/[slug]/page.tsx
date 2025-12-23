@@ -175,6 +175,7 @@ export default async function BlogPostPage({
                 <article className="h-full bg-white border border-gray-200 rounded-lg overflow-hidden hover:shadow-lg transition-shadow">
                   {related.frontmatter.coverImage ? (
                     <div className="h-40 bg-gray-200 overflow-hidden">
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
                       <img
                         src={related.frontmatter.coverImage}
                         alt={related.frontmatter.title}
