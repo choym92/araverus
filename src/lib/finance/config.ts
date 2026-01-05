@@ -48,27 +48,6 @@ export const SCORING_CONFIG = {
 };
 
 // ============================================================
-// Google News Query Templates
-// ============================================================
-
-export const GOOGLE_NEWS_QUERIES: Record<string, string[]> = {
-  NVDA: [
-    'NVDA OR NVIDIA earnings OR guidance',
-    'NVDA OR NVIDIA "export controls" OR China OR H20 OR H100',
-    'NVDA OR NVIDIA Blackwell OR GPU launch OR datacenter',
-    'NVDA OR NVIDIA "SEC" OR 8-K OR "Form 4"',
-    'NVDA OR NVIDIA supply chain OR TSMC OR HBM',
-  ],
-  GOOG: [
-    'GOOG OR GOOGL earnings OR guidance',
-    'GOOG OR Alphabet antitrust OR DOJ OR regulation',
-    'GOOG OR Google "AI" OR Gemini OR TPU',
-    'GOOG OR Alphabet "SEC" OR 8-K OR "Form 4"',
-    'GOOG OR Google Cloud contract OR partnership',
-  ],
-};
-
-// ============================================================
 // SEC Feed Configuration
 // ============================================================
 

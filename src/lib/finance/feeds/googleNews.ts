@@ -1,8 +1,10 @@
 // src/lib/finance/feeds/googleNews.ts
 // Google News RSS Feed Fetcher
 // Created: 2025-01-05
+// Updated: 2025-01-05 - Simplified to use ticker/company name instead of hardcoded queries
 //
 // Fetches news from Google News RSS feeds for monitored tickers.
+// Query is built automatically from ticker symbol + company name.
 // These are Tier B/C sources - need URL resolution to get canonical URLs.
 //
 // IMPORTANT: Google News URLs are redirects. The actual source URL must be
@@ -15,13 +17,13 @@ import { createHash } from 'crypto';
 import {
   buildGoogleNewsUrl,
   fetchWithRetry,
-  GOOGLE_NEWS_QUERIES,
   RATE_LIMITS,
 } from '../config';
 import {
   insertRawFeedItem,
+  getActiveTickers,
 } from '../db';
-import type { CreateRawFeedItemInput } from '../types';
+import type { Ticker, CreateRawFeedItemInput } from '../types';
 
 // ============================================================
 // Types
@@ -42,6 +44,39 @@ export interface GoogleNewsFetchResult {
   itemsInserted: number;
   itemsSkipped: number;
   errors: string[];
+}
+
+// ============================================================
+// Query Building
+// ============================================================
+
+/**
+ * Build a Google News search query from ticker data.
+ *
+ * Examples:
+ *   { ticker: 'NVDA', company_name: 'NVIDIA Corporation' } → 'NVDA OR NVIDIA'
+ *   { ticker: 'GOOG', company_name: 'Alphabet Inc.' } → 'GOOG OR Alphabet'
+ *   { ticker: 'AAPL', company_name: 'Apple Inc.', aliases: ['iPhone'] } → 'AAPL OR Apple'
+ */
+export function buildSearchQuery(ticker: Ticker): string {
+  const terms: string[] = [ticker.ticker];
+
+  // Add first word of company name (e.g., "NVIDIA" from "NVIDIA Corporation")
+  const companyFirstWord = ticker.company_name.split(/\s+/)[0];
+  if (companyFirstWord && companyFirstWord.toUpperCase() !== ticker.ticker.toUpperCase()) {
+    terms.push(companyFirstWord);
+  }
+
+  // Add aliases if any (e.g., GOOGL for GOOG)
+  if (ticker.aliases && ticker.aliases.length > 0) {
+    for (const alias of ticker.aliases) {
+      if (!terms.includes(alias)) {
+        terms.push(alias);
+      }
+    }
+  }
+
+  return terms.join(' OR ');
 }
 
 // ============================================================
@@ -181,36 +216,22 @@ function determineTier(source: string): 'A' | 'B' | 'C' {
 // ============================================================
 
 /**
- * Fetch Google News for a given ticker and query.
+ * Fetch Google News for a given ticker.
+ * Query is built automatically from ticker symbol + company name.
  *
  * @param supabase - Supabase client
- * @param ticker - Stock ticker symbol (e.g., "NVDA")
- * @param queryIndex - Index into GOOGLE_NEWS_QUERIES[ticker] array
+ * @param ticker - Ticker object with symbol and company_name
  * @returns Fetch result with counts and errors
  */
 export async function fetchGoogleNews(
   supabase: SupabaseClient,
-  ticker: string,
-  queryIndex: number = 0
+  ticker: Ticker
 ): Promise<GoogleNewsFetchResult> {
-  const queries = GOOGLE_NEWS_QUERIES[ticker];
-
-  if (!queries || queryIndex >= queries.length) {
-    return {
-      ticker,
-      query: '',
-      itemsFetched: 0,
-      itemsInserted: 0,
-      itemsSkipped: 0,
-      errors: [`No query found for ticker ${ticker} at index ${queryIndex}`],
-    };
-  }
-
-  const query = queries[queryIndex];
+  const query = buildSearchQuery(ticker);
   const feedUrl = buildGoogleNewsUrl(query);
 
   const result: GoogleNewsFetchResult = {
-    ticker,
+    ticker: ticker.ticker,
     query,
     itemsFetched: 0,
     itemsInserted: 0,
@@ -233,7 +254,7 @@ export async function fetchGoogleNews(
     // Process each item
     for (const item of items) {
       try {
-        const inserted = await insertGoogleNewsItem(supabase, ticker, item);
+        const inserted = await insertGoogleNewsItem(supabase, ticker.ticker, item);
         if (inserted) {
           result.itemsInserted++;
         } else {
@@ -260,7 +281,7 @@ export async function fetchGoogleNews(
  */
 async function insertGoogleNewsItem(
   supabase: SupabaseClient,
-  ticker: string,
+  tickerSymbol: string,
   item: GoogleNewsItem
 ): Promise<boolean> {
   // Hash the Google redirect URL for deduplication
@@ -271,7 +292,7 @@ async function insertGoogleNewsItem(
     feed_source_id: null,
     source_name: item.source || 'Google News',
     tier,
-    ticker,
+    ticker: tickerSymbol,
     published_at: parseRfc2822Date(item.pubDate),
     title: item.title,
     summary: item.description || null,
@@ -294,61 +315,26 @@ async function insertGoogleNewsItem(
 }
 
 /**
- * Fetch Google News for all queries of a given ticker.
+ * Fetch Google News for all active tickers.
  *
  * @param supabase - Supabase client
- * @param ticker - Stock ticker symbol
- * @returns Combined results for all queries
+ * @returns Combined results for all tickers
  */
-export async function fetchAllGoogleNewsForTicker(
-  supabase: SupabaseClient,
-  ticker: string
+export async function fetchAllGoogleNews(
+  supabase: SupabaseClient
 ): Promise<GoogleNewsFetchResult[]> {
-  const queries = GOOGLE_NEWS_QUERIES[ticker];
-
-  if (!queries) {
-    return [{
-      ticker,
-      query: '',
-      itemsFetched: 0,
-      itemsInserted: 0,
-      itemsSkipped: 0,
-      errors: [`No queries configured for ticker ${ticker}`],
-    }];
-  }
-
+  const tickers = await getActiveTickers(supabase);
   const results: GoogleNewsFetchResult[] = [];
 
-  for (let i = 0; i < queries.length; i++) {
-    const result = await fetchGoogleNews(supabase, ticker, i);
+  for (const ticker of tickers) {
+    const result = await fetchGoogleNews(supabase, ticker);
     results.push(result);
 
-    // Rate limit: Be conservative with Google
+    // Rate limit: Be conservative with Google (1 req/sec)
     await sleep(1000 / RATE_LIMITS.GOOGLE_NEWS);
   }
 
   return results;
-}
-
-/**
- * Fetch Google News for multiple tickers.
- *
- * @param supabase - Supabase client
- * @param tickers - Array of ticker symbols
- * @returns Combined results for all tickers
- */
-export async function fetchAllGoogleNews(
-  supabase: SupabaseClient,
-  tickers: string[]
-): Promise<GoogleNewsFetchResult[]> {
-  const allResults: GoogleNewsFetchResult[] = [];
-
-  for (const ticker of tickers) {
-    const results = await fetchAllGoogleNewsForTicker(supabase, ticker);
-    allResults.push(...results);
-  }
-
-  return allResults;
 }
 
 // ============================================================

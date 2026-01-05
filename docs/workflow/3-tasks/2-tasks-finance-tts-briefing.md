@@ -1,4 +1,4 @@
-<!-- Updated: 2025-01-05 -->
+<!-- Updated: 2025-01-05 - Simplified Google News to use ticker data instead of hardcoded queries -->
 # Task List: Finance TTS Briefing System (Phase 1)
 
 Based on PRD: `docs/workflow/2-prds/prd-finance-tts-briefing.md`
@@ -7,7 +7,7 @@ Based on PRD: `docs/workflow/2-prds/prd-finance-tts-briefing.md`
 
 ### Library Core
 - `src/lib/finance/db.ts` - Supabase client & TypeScript types for all tables
-- `src/lib/finance/config.ts` - FETCH_CONFIG, constants, rate limits, Google News queries
+- `src/lib/finance/config.ts` - FETCH_CONFIG, constants, rate limits, URL builders
 - `src/lib/finance/types.ts` - TypeScript interfaces for all entities
 - `src/lib/finance/pipeline.ts` - Pipeline run logging utilities
 
@@ -172,9 +172,10 @@ impact_score = tier_score + source_bonus + risk_weight - novelty_penalty
   - [x] 4.2 Implement `buildGoogleNewsUrl(query: string)` function (in config.ts)
   - [x] 4.3 Implement `parseGoogleNewsRss(xml: string)` to extract items
   - [x] 4.4 Extract title, summary, google_redirect_url, published_at from RSS items
-  - [x] 4.5 Implement `fetchGoogleNews(ticker: string, queryIndex: number)` main function
+  - [x] 4.5 Implement `fetchGoogleNews(supabase, ticker: Ticker)` - query built from ticker data
   - [x] 4.6 Set resolve_status to 'pending' for new items (url_hash = sha256(google_redirect_url))
-  - [x] 4.7 Write unit tests for Google News RSS parsing (21 tests passing)
+  - [x] 4.7 Write unit tests for Google News RSS parsing (25 tests passing)
+  - **Note:** Removed hardcoded `GOOGLE_NEWS_QUERIES` - query is now built dynamically via `buildSearchQuery(ticker)` using ticker symbol + company name + aliases from `tickers` table
 
 - [ ] 5.0 Build URL Resolver for Google News
   - [ ] 5.1 Create `src/lib/finance/feeds/resolver.ts`

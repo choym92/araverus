@@ -1,16 +1,19 @@
 // src/lib/finance/feeds/googleNews.test.ts
 // Unit tests for Google News RSS Fetcher
 // Created: 2025-01-05
+// Updated: 2025-01-05 - Updated for simplified query building
 
 import { describe, it, expect } from 'vitest';
 import {
   parseGoogleNewsRss,
+  buildSearchQuery,
   extractDescription,
   extractSource,
   generateUrlHash,
   parseRfc2822Date,
   determineTier,
 } from './googleNews';
+import type { Ticker } from '../types';
 
 // ============================================================
 // Sample Google News RSS Feed XML
@@ -81,6 +84,65 @@ const FEED_WITH_HTML_DESCRIPTION = `<?xml version="1.0" encoding="UTF-8"?>
     </item>
   </channel>
 </rss>`;
+
+// ============================================================
+// Tests: buildSearchQuery
+// ============================================================
+
+describe('buildSearchQuery', () => {
+  it('should build query from ticker and company name', () => {
+    const ticker: Ticker = {
+      ticker: 'NVDA',
+      company_name: 'NVIDIA Corporation',
+      cik: '0001045810',
+      aliases: [],
+      is_active: true,
+      created_at: '2025-01-01',
+    };
+
+    expect(buildSearchQuery(ticker)).toBe('NVDA OR NVIDIA');
+  });
+
+  it('should include aliases in query', () => {
+    const ticker: Ticker = {
+      ticker: 'GOOG',
+      company_name: 'Alphabet Inc.',
+      cik: '0001652044',
+      aliases: ['GOOGL'],
+      is_active: true,
+      created_at: '2025-01-01',
+    };
+
+    expect(buildSearchQuery(ticker)).toBe('GOOG OR Alphabet OR GOOGL');
+  });
+
+  it('should not duplicate ticker if company name starts with same word', () => {
+    const ticker: Ticker = {
+      ticker: 'META',
+      company_name: 'Meta Platforms Inc.',
+      cik: '0001234567',
+      aliases: [],
+      is_active: true,
+      created_at: '2025-01-01',
+    };
+
+    // Should not have "META OR Meta" - just "META"
+    expect(buildSearchQuery(ticker)).toBe('META');
+  });
+
+  it('should handle ticker with multiple aliases', () => {
+    const ticker: Ticker = {
+      ticker: 'BRK.A',
+      company_name: 'Berkshire Hathaway',
+      cik: '0001234567',
+      aliases: ['BRK.B', 'Berkshire'],
+      is_active: true,
+      created_at: '2025-01-01',
+    };
+
+    expect(buildSearchQuery(ticker)).toBe('BRK.A OR Berkshire OR BRK.B');
+  });
+});
 
 // ============================================================
 // Tests: parseGoogleNewsRss
