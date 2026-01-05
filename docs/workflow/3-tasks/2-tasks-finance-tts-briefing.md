@@ -1,4 +1,4 @@
-<!-- Updated: 2025-01-05 - Simplified Google News to use ticker data instead of hardcoded queries -->
+<!-- Updated: 2025-01-05 - Reordered: Task 10.0 (API) first, then 6-9 with real data -->
 # Task List: Finance TTS Briefing System (Phase 1)
 
 Based on PRD: `docs/workflow/2-prds/prd-finance-tts-briefing.md`
@@ -232,19 +232,19 @@ impact_score = tier_score + source_bonus + risk_weight - novelty_penalty
   - [ ] 9.8 Write unit tests for generator
 
 - [ ] 10.0 Build API Endpoints
-  - [ ] 10.1 Create `src/app/api/finance/ingest/route.ts`
-  - [ ] 10.2 Add CRON_SECRET authentication middleware check
-  - [ ] 10.3 Implement POST handler: fetch feeds → dedupe → cluster → score
-  - [ ] 10.4 Log pipeline run to `pipeline_runs` table (start/finish/status)
-  - [ ] 10.5 Return stats: itemsIngested, clustersCreated, resolveQueueSize, duration
-  - [ ] 10.6 Create `src/app/api/finance/resolve/route.ts`
-  - [ ] 10.7 Implement POST handler: process resolve queue with limit
-  - [ ] 10.8 Log pipeline run to `pipeline_runs` table
-  - [ ] 10.9 Return stats: resolved, failed, remaining
-  - [ ] 10.10 Create `src/app/api/finance/brief/route.ts`
-  - [ ] 10.11 Implement GET handler with date query parameter
-  - [ ] 10.12 Return brief data: date, tickers, script, topEvents
-  - [ ] 10.13 Add error handling and appropriate HTTP status codes
+  - [x] 10.1 Create `src/app/api/finance/ingest/route.ts`
+  - [x] 10.2 Add CRON_SECRET authentication middleware check
+  - [x] 10.3 Implement POST handler: fetch feeds → insert (clustering/scoring deferred to 6-9)
+  - [x] 10.4 Log pipeline run to `pipeline_runs` table (start/finish/status)
+  - [x] 10.5 Return stats: itemsIngested, resolveQueueSize, duration (clustersCreated deferred)
+  - [x] 10.6 Create `src/app/api/finance/resolve/route.ts`
+  - [x] 10.7 Implement POST handler: process resolve queue with limit
+  - [x] 10.8 Log pipeline run to `pipeline_runs` table
+  - [x] 10.9 Return stats: resolved, failed, remaining
+  - [ ] 10.10 Create `src/app/api/finance/brief/route.ts` *(deferred - needs Task 9.0)*
+  - [ ] 10.11 Implement GET handler with date query parameter *(deferred)*
+  - [ ] 10.12 Return brief data: date, tickers, script, topEvents *(deferred)*
+  - [ ] 10.13 Add error handling and appropriate HTTP status codes *(done for ingest/resolve)*
 
 - [ ] 11.0 Add Environment Variables & Configuration
   - [ ] 11.1 Add `CRON_SECRET` to `.env.local`
