@@ -177,16 +177,16 @@ impact_score = tier_score + source_bonus + risk_weight - novelty_penalty
   - [x] 4.7 Write unit tests for Google News RSS parsing (25 tests passing)
   - **Note:** Removed hardcoded `GOOGLE_NEWS_QUERIES` - query is now built dynamically via `buildSearchQuery(ticker)` using ticker symbol + company name + aliases from `tickers` table
 
-- [ ] 5.0 Build URL Resolver for Google News
-  - [ ] 5.1 Create `src/lib/finance/feeds/resolver.ts`
-  - [ ] 5.2 Implement `resolveGoogleNewsUrl(itemId: string, googleUrl: string)` function
-  - [ ] 5.3 Follow redirects to get canonical_url
-  - [ ] 5.4 Extract source_domain from final URL
-  - [ ] 5.5 Set `canonical_url_hash` = sha256(canonical_url) — **url_hash는 변경 금지!**
-  - [ ] 5.6 Handle failures: set resolve_status='failed', store resolve_error
-  - [ ] 5.7 Implement `processResolveQueue(limit: number)` to batch process pending items
-  - [ ] 5.8 Add rate limiting (1 req/sec for Google News)
-  - [ ] 5.9 Write unit tests for resolver
+- [x] 5.0 Build URL Resolver for Google News
+  - [x] 5.1 Create `src/lib/finance/feeds/resolver.ts`
+  - [x] 5.2 Implement `resolveGoogleNewsUrl(itemId: string, googleUrl: string)` function
+  - [x] 5.3 Follow redirects to get canonical_url
+  - [x] 5.4 Extract source_domain from final URL
+  - [x] 5.5 Set `canonical_url_hash` = sha256(canonical_url) — **url_hash는 변경 금지!**
+  - [x] 5.6 Handle failures: set resolve_status='failed', store resolve_error
+  - [x] 5.7 Implement `processResolveQueue(limit: number)` to batch process pending items
+  - [x] 5.8 Add rate limiting (1 req/sec for Google News)
+  - [x] 5.9 Write unit tests for resolver (15 tests passing)
 
 - [ ] 6.0 Implement Deduplication Logic
   - [ ] 6.1 Create `src/lib/finance/clustering/dedup.ts`
