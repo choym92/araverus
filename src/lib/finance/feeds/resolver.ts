@@ -124,22 +124,77 @@ function extractArticleId(googleUrl: string): string | null {
 /**
  * Decode Google News URL using the batchexecute API.
  * This works for the new format (2024+) with AU_yqL encoding.
+ *
+ * Two-step process:
+ * 1. Fetch the article page to get signature and timestamp
+ * 2. Call batchexecute with those parameters
+ *
+ * Based on: https://github.com/SSujitX/google-news-url-decoder
  */
 async function fetchDecodedBatchExecute(articleId: string): Promise<string> {
-  // Build the batchexecute request payload
-  const payload =
-    '[[["Fbv4je","[\\"garturlreq\\",[[\\"en-US\\",\\"US\\",[\\"FINANCE_TOP_INDICES\\",\\"' +
-    'WEB_TEST_1_0_0\\"],null,null,1,1,\\"US:en\\",null,180,' +
-    'null,null,null,null,null,0,null,null,[1608992183,723341000]],' +
-    '\\"en-US\\",\\"US\\",1,[2,3,4,8],1,0,\\"655000234\\",0,0,' +
-    'null,0],\\"' + articleId + '\\"]",null,"generic"]]]';
+  // Step 1: Fetch article page to get signature and timestamp
+  const articleUrl = `https://news.google.com/articles/${articleId}`;
+
+  const pageResponse = await fetch(articleUrl, {
+    method: 'GET',
+    headers: {
+      'User-Agent': FETCH_CONFIG.headers['User-Agent'],
+      'Accept': 'text/html,application/xhtml+xml',
+    },
+  });
+
+  if (!pageResponse.ok) {
+    throw new Error(`Failed to fetch article page: HTTP ${pageResponse.status}`);
+  }
+
+  const html = await pageResponse.text();
+
+  // Extract signature (data-n-a-sg) and timestamp (data-n-a-ts)
+  const sigMatch = html.match(/data-n-a-sg="([^"]+)"/);
+  const tsMatch = html.match(/data-n-a-ts="([^"]+)"/);
+
+  if (!sigMatch || !tsMatch) {
+    throw new Error('Could not extract signature/timestamp from article page');
+  }
+
+  const signature = sigMatch[1];
+  const timestamp = tsMatch[1];
+
+  // Step 2: Call batchexecute with signature and timestamp
+  const payload = JSON.stringify([
+    [
+      [
+        'Fbv4je',
+        JSON.stringify([
+          'garturlreq',
+          [
+            ['X', 'X', ['X', 'X'], null, null, 1, 1, 'US:en', null, 1, null, null, null, null, null, 0, 1],
+            'X',
+            'X',
+            1,
+            [1, 1, 1],
+            1,
+            1,
+            null,
+            0,
+            0,
+            null,
+            0,
+          ],
+          articleId,
+          parseInt(timestamp),
+          signature,
+        ]),
+      ],
+    ],
+  ]);
 
   const response = await fetch(
     'https://news.google.com/_/DotsSplashUi/data/batchexecute?rpcids=Fbv4je',
     {
       method: 'POST',
       headers: {
-        'Content-Type': 'application/x-www-form-urlencoded;charset=utf-8',
+        'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8',
         'Referer': 'https://news.google.com/',
         'User-Agent': FETCH_CONFIG.headers['User-Agent'],
       },
@@ -154,21 +209,19 @@ async function fetchDecodedBatchExecute(articleId: string): Promise<string> {
   const text = await response.text();
 
   // Parse the response to extract the URL
-  const header = '[\\"garturlres\\",\\"';
-  const footer = '\\",';
-
-  const headerIndex = text.indexOf(header);
-  if (headerIndex === -1) {
-    throw new Error('batchexecute response missing header marker');
+  // Response format: ["garturlres","https://...",1] (with possible escaping)
+  const urlMatch = text.match(/\["garturlres","(https?:[^"]+)"/);
+  if (urlMatch) {
+    return urlMatch[1].replace(/\\u003d/g, '=').replace(/\\u0026/g, '&');
   }
 
-  const start = text.substring(headerIndex + header.length);
-  const footerIndex = start.indexOf(footer);
-  if (footerIndex === -1) {
-    throw new Error('batchexecute response missing footer marker');
+  // Alternative format with escaped quotes
+  const altMatch = text.match(/\[\\"garturlres\\",\\"(https?:[^"\\]+)\\"/);
+  if (altMatch) {
+    return altMatch[1].replace(/\\u003d/g, '=').replace(/\\u0026/g, '&');
   }
 
-  return start.substring(0, footerIndex);
+  throw new Error('Could not parse URL from batchexecute response');
 }
 
 /**
