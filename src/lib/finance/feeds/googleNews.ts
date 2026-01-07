@@ -197,8 +197,36 @@ function parseRfc2822Date(dateStr: string): string | null {
  * This is a rough estimate - will be refined after URL resolution.
  */
 function determineTier(source: string): 'A' | 'B' | 'C' {
-  const tierA = ['Reuters', 'Bloomberg', 'WSJ', 'Wall Street Journal', 'CNBC', 'Financial Times'];
-  const tierB = ['Yahoo Finance', 'MarketWatch', 'Seeking Alpha', 'Barron\'s', 'Investor\'s Business Daily'];
+  const tierA = [
+    'Reuters',
+    'Bloomberg',
+    'WSJ',
+    'Wall Street Journal',
+    'CNBC',
+    'Financial Times',
+  ];
+
+  const tierB = [
+    // Financial media
+    'Yahoo Finance',
+    'MarketWatch',
+    'Seeking Alpha',
+    "Barron's",
+    "Investor's Business Daily",
+    'Benzinga',
+    'Nasdaq',
+    // Official company sources
+    'NVIDIA Blog',
+    'NVIDIA Developer',
+    'NVIDIA Newsroom',
+    'NVIDIA',
+    // Major news/tech outlets
+    'The Information',
+    'Axios',
+    'Fortune',
+    'TechCrunch',
+    'Business Wire',
+  ];
 
   const sourceLower = source.toLowerCase();
 
