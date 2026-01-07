@@ -35,73 +35,234 @@ export interface ResolveItemResult {
 // ============================================================
 
 /**
- * Resolve a Google News redirect URL to get the canonical URL.
+ * Decode a Google News URL to extract the actual article URL.
  *
- * Google News URLs are like:
- * https://news.google.com/rss/articles/CBMiK2h0dHBzOi8vd3d3LnJldXRlcnMuY29tLy4uLg
- *
- * Following the redirect gives us the actual article URL:
- * https://www.reuters.com/markets/nvidia-stock-surges/
+ * Google News URLs encode the real URL in base64/protobuf format.
+ * There are two formats:
+ * 1. Old format: URL is directly in the base64 decoded content
+ * 2. New format (2024+): Contains "AU_yqL" prefix, requires batchexecute API
  *
  * @param googleUrl - The Google News redirect URL
- * @returns The canonical URL after following redirects
+ * @returns The decoded canonical URL or null if needs API call
  */
-export async function resolveGoogleNewsUrl(googleUrl: string): Promise<string> {
-  const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), FETCH_CONFIG.timeout);
-
+export function decodeGoogleNewsUrl(googleUrl: string): string | null {
   try {
-    // Use HEAD request (faster - we only need the final URL, not content)
-    const response = await fetch(googleUrl, {
-      method: 'HEAD',
-      redirect: 'follow', // Automatically follow redirects
-      headers: {
-        'User-Agent': FETCH_CONFIG.headers['User-Agent'],
-        'Accept': 'text/html,application/xhtml+xml',
-      },
-      signal: controller.signal,
-    });
+    const match = googleUrl.match(/\/articles\/([^/?]+)/);
+    if (!match) return null;
 
-    clearTimeout(timeoutId);
+    const encoded = match[1];
+    const base64 = encoded.replace(/-/g, '+').replace(/_/g, '/');
+    const decoded = Buffer.from(base64, 'base64');
+    const str = decoded.toString('latin1');
 
-    // response.url is the final URL after all redirects
-    return response.url;
-  } catch (error) {
-    clearTimeout(timeoutId);
-
-    // If HEAD fails, try GET (some servers don't support HEAD)
-    if (error instanceof Error && !error.message.includes('abort')) {
-      return resolveWithGet(googleUrl);
+    // Check for protobuf prefix markers
+    const prefix = Buffer.from([0x08, 0x13, 0x22]).toString('latin1');
+    let content = str;
+    if (str.startsWith(prefix)) {
+      content = str.substring(prefix.length);
     }
 
-    throw error;
+    // Remove known suffix if present
+    const suffix = Buffer.from([0xd2, 0x01, 0x00]).toString('latin1');
+    if (content.endsWith(suffix)) {
+      content = content.substring(0, content.length - suffix.length);
+    }
+
+    // Parse length byte and extract inner content
+    const bytes = Uint8Array.from(content, c => c.charCodeAt(0));
+    const len = bytes[0];
+    if (len >= 0x80) {
+      content = content.substring(2, len + 2);
+    } else {
+      content = content.substring(1, len + 1);
+    }
+
+    // Check if this is the new format that needs batchexecute API
+    if (content.startsWith('AU_yqL')) {
+      return null; // Signal that we need to use batchexecute API
+    }
+
+    // Old format: look for URL directly
+    const urlMatch = content.match(/https?:\/\/[^\s\x00-\x1f"<>]+/);
+    if (urlMatch) {
+      return urlMatch[0].replace(/[\x00-\x1f\x7f-\xff]+$/, '');
+    }
+
+    return null;
+  } catch {
+    return null;
   }
 }
 
 /**
- * Fallback: resolve URL using GET request.
- * Some servers don't support HEAD requests.
+ * Check if a Google News URL uses the new format requiring batchexecute API.
  */
-async function resolveWithGet(googleUrl: string): Promise<string> {
-  const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), FETCH_CONFIG.timeout);
+export function needsBatchExecute(googleUrl: string): boolean {
+  try {
+    const match = googleUrl.match(/\/articles\/([^/?]+)/);
+    if (!match) return false;
 
+    const encoded = match[1];
+    const base64 = encoded.replace(/-/g, '+').replace(/_/g, '/');
+    const decoded = Buffer.from(base64, 'base64').toString('latin1');
+
+    // Check for AU_yqL pattern after protobuf markers
+    return decoded.includes('AU_yqL');
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Extract the article ID from a Google News URL.
+ */
+function extractArticleId(googleUrl: string): string | null {
+  const match = googleUrl.match(/\/articles\/([^/?]+)/);
+  return match ? match[1] : null;
+}
+
+/**
+ * Decode Google News URL using the batchexecute API.
+ * This works for the new format (2024+) with AU_yqL encoding.
+ */
+async function fetchDecodedBatchExecute(articleId: string): Promise<string> {
+  // Build the batchexecute request payload
+  const payload =
+    '[[["Fbv4je","[\\"garturlreq\\",[[\\"en-US\\",\\"US\\",[\\"FINANCE_TOP_INDICES\\",\\"' +
+    'WEB_TEST_1_0_0\\"],null,null,1,1,\\"US:en\\",null,180,' +
+    'null,null,null,null,null,0,null,null,[1608992183,723341000]],' +
+    '\\"en-US\\",\\"US\\",1,[2,3,4,8],1,0,\\"655000234\\",0,0,' +
+    'null,0],\\"' + articleId + '\\"]",null,"generic"]]]';
+
+  const response = await fetch(
+    'https://news.google.com/_/DotsSplashUi/data/batchexecute?rpcids=Fbv4je',
+    {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/x-www-form-urlencoded;charset=utf-8',
+        'Referer': 'https://news.google.com/',
+        'User-Agent': FETCH_CONFIG.headers['User-Agent'],
+      },
+      body: 'f.req=' + encodeURIComponent(payload),
+    }
+  );
+
+  if (!response.ok) {
+    throw new Error(`batchexecute failed: HTTP ${response.status}`);
+  }
+
+  const text = await response.text();
+
+  // Parse the response to extract the URL
+  const header = '[\\"garturlres\\",\\"';
+  const footer = '\\",';
+
+  const headerIndex = text.indexOf(header);
+  if (headerIndex === -1) {
+    throw new Error('batchexecute response missing header marker');
+  }
+
+  const start = text.substring(headerIndex + header.length);
+  const footerIndex = start.indexOf(footer);
+  if (footerIndex === -1) {
+    throw new Error('batchexecute response missing footer marker');
+  }
+
+  return start.substring(0, footerIndex);
+}
+
+/**
+ * Fallback: Parse canonical URL from HTML page.
+ */
+async function fetchCanonicalFromHtml(googleUrl: string): Promise<string | null> {
   try {
     const response = await fetch(googleUrl, {
       method: 'GET',
-      redirect: 'follow',
       headers: {
         'User-Agent': FETCH_CONFIG.headers['User-Agent'],
-        'Accept': 'text/html,application/xhtml+xml',
+        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+        'Accept-Language': 'en-US,en;q=0.5',
       },
-      signal: controller.signal,
+      redirect: 'follow',
     });
 
-    clearTimeout(timeoutId);
-    return response.url;
-  } finally {
-    clearTimeout(timeoutId);
+    // If we got redirected to a non-Google URL, that's our answer
+    if (!response.url.includes('news.google.com')) {
+      return response.url;
+    }
+
+    const html = await response.text();
+
+    // Try to find canonical URL
+    const canonicalMatch = html.match(/<link[^>]+rel=["']canonical["'][^>]+href=["']([^"']+)["']/i);
+    if (canonicalMatch && !canonicalMatch[1].includes('news.google.com')) {
+      return canonicalMatch[1];
+    }
+
+    // Try og:url
+    const ogUrlMatch = html.match(/<meta[^>]+property=["']og:url["'][^>]+content=["']([^"']+)["']/i);
+    if (ogUrlMatch && !ogUrlMatch[1].includes('news.google.com')) {
+      return ogUrlMatch[1];
+    }
+
+    return null;
+  } catch {
+    return null;
   }
+}
+
+/**
+ * Resolve a Google News URL to get the canonical URL.
+ *
+ * Multi-strategy approach:
+ * 1. Try direct base64 decode (old format, no HTTP needed)
+ * 2. For new format (AU_yqL), use Google's batchexecute API
+ * 3. Fallback: GET HTML and parse canonical/og:url
+ *
+ * NOTE: Google News URL format changes frequently. The new AU_yqL format
+ * (introduced 2024) is particularly difficult to decode. Some URLs may
+ * fail to resolve - this is expected and the pipeline handles it gracefully.
+ *
+ * @param googleUrl - The Google News redirect URL
+ * @returns The canonical URL
+ */
+export async function resolveGoogleNewsUrl(googleUrl: string): Promise<string> {
+  // Sanitize URL - check for whitespace/newlines (indicates bad stored URL)
+  const cleanUrl = googleUrl.trim();
+  if (/\s/.test(cleanUrl)) {
+    throw new Error('URL contains whitespace/newline (corrupted stored URL)');
+  }
+
+  // Strategy 1: Try direct decode (works for old format)
+  const decodedUrl = decodeGoogleNewsUrl(cleanUrl);
+  if (decodedUrl && !decodedUrl.includes('news.google.com')) {
+    return decodedUrl;
+  }
+
+  // Strategy 2: For new format, use batchexecute API
+  // Note: This API is brittle and may not work due to format changes
+  if (needsBatchExecute(cleanUrl)) {
+    const articleId = extractArticleId(cleanUrl);
+    if (articleId) {
+      try {
+        const url = await fetchDecodedBatchExecute(articleId);
+        if (url && !url.includes('news.google.com')) {
+          return url;
+        }
+      } catch {
+        // batchexecute failed - expected for many URLs
+      }
+    }
+  }
+
+  // Strategy 3: Fallback - GET HTML and parse canonical URL
+  const canonicalUrl = await fetchCanonicalFromHtml(cleanUrl);
+  if (canonicalUrl) {
+    return canonicalUrl;
+  }
+
+  // All strategies failed - this is expected for new AU_yqL format URLs
+  throw new Error('URL uses new Google News format (AU_yqL) - decode not available');
 }
 
 // ============================================================
