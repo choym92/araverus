@@ -460,9 +460,9 @@ export async function processResolveQueue(
     }
 
     // Rate limit: wait between requests (except after last item)
+    // Google News batchexecute is rate limited - use 3 sec delay to avoid blocking
     if (i < pendingItems.length - 1) {
-      const delayMs = 1000 / RATE_LIMITS.GOOGLE_NEWS; // 1 req/sec
-      await sleep(delayMs);
+      await sleep(3000);
     }
   }
 
