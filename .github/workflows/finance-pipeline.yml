@@ -146,21 +146,9 @@ jobs:
       - name: Install dependencies (uv)
         run: uv pip install --system -r scripts/requirements.txt
 
-      # Playwright browser cache
-      - name: Cache Playwright browsers
-        uses: actions/cache@v4
-        id: playwright-cache
-        with:
-          path: ~/.cache/ms-playwright
-          key: playwright-${{ runner.os }}-${{ hashFiles('scripts/requirements.txt') }}
-
+      # Playwright browser - always install fresh to avoid cache issues
       - name: Install Playwright browsers
-        if: steps.playwright-cache.outputs.cache-hit != 'true'
         run: playwright install chromium --with-deps
-
-      - name: Install Playwright deps (if cached)
-        if: steps.playwright-cache.outputs.cache-hit == 'true'
-        run: playwright install-deps chromium
 
       - name: Download ranked results
         uses: actions/download-artifact@v4
