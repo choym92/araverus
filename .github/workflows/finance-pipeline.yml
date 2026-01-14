@@ -235,6 +235,7 @@ jobs:
                   for article in ranked:
                       if article.get('resolve_status') == 'success':
                           record = {
+                              'wsj_item_id': wsj.get('id'),  # FK to wsj_items
                               'wsj_title': wsj.get('title'),
                               'wsj_link': wsj.get('link'),
                               'source': article.get('source'),

@@ -1,10 +1,14 @@
 -- Pipeline results table for storing processed articles
 -- Created: 2026-01-14
+-- Links to wsj_items via foreign key
 
 CREATE TABLE IF NOT EXISTS pipeline_results (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
 
-  -- WSJ source article
+  -- Foreign key to WSJ source article
+  wsj_item_id UUID REFERENCES wsj_items(id) ON DELETE CASCADE,
+
+  -- Denormalized WSJ info (for convenience, optional)
   wsj_title TEXT,
   wsj_link TEXT,
 
@@ -28,5 +32,6 @@ CREATE TABLE IF NOT EXISTS pipeline_results (
 );
 
 -- Indexes
+CREATE INDEX IF NOT EXISTS idx_pipeline_results_wsj_item ON pipeline_results(wsj_item_id);
 CREATE INDEX IF NOT EXISTS idx_pipeline_results_domain ON pipeline_results(resolved_domain);
 CREATE INDEX IF NOT EXISTS idx_pipeline_results_created ON pipeline_results(created_at DESC);
