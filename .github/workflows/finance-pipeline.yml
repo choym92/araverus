@@ -24,6 +24,7 @@ env:
   NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
   SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_KEY }}
   PYTHON_VERSION: '3.11'
+  UV_CACHE_DIR: /tmp/.uv-cache
 
 jobs:
   # ============================================================
@@ -37,15 +38,19 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Set up Python with pip cache
+      - name: Set up Python
         uses: actions/setup-python@v5
         with:
           python-version: ${{ env.PYTHON_VERSION }}
-          cache: 'pip'
-          cache-dependency-path: scripts/requirements.txt
 
-      - name: Install dependencies
-        run: pip install -r scripts/requirements.txt
+      - name: Set up uv (fast package manager)
+        uses: astral-sh/setup-uv@v4
+        with:
+          enable-cache: true
+          cache-dependency-glob: "scripts/requirements.txt"
+
+      - name: Install dependencies (uv)
+        run: uv pip install --system -r scripts/requirements.txt
 
       - name: Create output directory
         run: mkdir -p scripts/output
@@ -81,15 +86,19 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Set up Python with pip cache
+      - name: Set up Python
         uses: actions/setup-python@v5
         with:
           python-version: ${{ env.PYTHON_VERSION }}
-          cache: 'pip'
-          cache-dependency-path: scripts/requirements.txt
 
-      - name: Install dependencies
-        run: pip install -r scripts/requirements.txt
+      - name: Set up uv (fast package manager)
+        uses: astral-sh/setup-uv@v4
+        with:
+          enable-cache: true
+          cache-dependency-glob: "scripts/requirements.txt"
+
+      - name: Install dependencies (uv)
+        run: uv pip install --system -r scripts/requirements.txt
 
       - name: Download search results
         uses: actions/download-artifact@v4
@@ -123,15 +132,19 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Set up Python with pip cache
+      - name: Set up Python
         uses: actions/setup-python@v5
         with:
           python-version: ${{ env.PYTHON_VERSION }}
-          cache: 'pip'
-          cache-dependency-path: scripts/requirements.txt
 
-      - name: Install dependencies
-        run: pip install -r scripts/requirements.txt
+      - name: Set up uv (fast package manager)
+        uses: astral-sh/setup-uv@v4
+        with:
+          enable-cache: true
+          cache-dependency-glob: "scripts/requirements.txt"
+
+      - name: Install dependencies (uv)
+        run: uv pip install --system -r scripts/requirements.txt
 
       # Playwright browser cache
       - name: Cache Playwright browsers
@@ -181,15 +194,19 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Set up Python with pip cache
+      - name: Set up Python
         uses: actions/setup-python@v5
         with:
           python-version: ${{ env.PYTHON_VERSION }}
-          cache: 'pip'
-          cache-dependency-path: scripts/requirements.txt
 
-      - name: Install dependencies
-        run: pip install -r scripts/requirements.txt
+      - name: Set up uv (fast package manager)
+        uses: astral-sh/setup-uv@v4
+        with:
+          enable-cache: true
+          cache-dependency-glob: "scripts/requirements.txt"
+
+      - name: Install dependencies (uv)
+        run: uv pip install --system -r scripts/requirements.txt
 
       - name: Download all artifacts
         uses: actions/download-artifact@v4
