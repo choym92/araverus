@@ -8,7 +8,6 @@
 name: Finance Pipeline
 
 on:
-  # Manual trigger
   workflow_dispatch:
     inputs:
       skip_crawl:
@@ -18,85 +17,244 @@ on:
         type: boolean
 
   # Scheduled run (daily at 6 AM UTC = 3 PM KST)
-  # Uncomment when ready for production
   # schedule:
   #   - cron: '0 6 * * *'
 
 env:
-  # Map secrets to env vars expected by scripts
   NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
   SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_KEY }}
+  PYTHON_VERSION: '3.11'
 
 jobs:
-  pipeline:
+  # ============================================================
+  # Job 1: Ingest & Search (lightweight)
+  # ============================================================
+  ingest-search:
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 15
 
     steps:
-      - name: Checkout repository
+      - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Set up Python
+      - name: Set up Python with pip cache
         uses: actions/setup-python@v5
         with:
-          python-version: '3.11'
+          python-version: ${{ env.PYTHON_VERSION }}
           cache: 'pip'
           cache-dependency-path: scripts/requirements.txt
 
       - name: Install dependencies
-        run: |
-          pip install -r scripts/requirements.txt
-
-      - name: Install Playwright (for crawl4ai)
-        if: ${{ inputs.skip_crawl != 'true' }}
-        run: |
-          playwright install chromium
-          playwright install-deps chromium
+        run: pip install -r scripts/requirements.txt
 
       - name: Create output directory
         run: mkdir -p scripts/output
 
-      - name: 1a. WSJ RSS Ingest
-        run: |
-          cd scripts
-          python wsj_ingest.py
+      - name: 1. WSJ RSS Ingest
+        run: cd scripts && python wsj_ingest.py
 
-      - name: 1b. Export WSJ items to JSONL
-        run: |
-          cd scripts
-          python wsj_ingest.py --export
+      - name: 2. Export to JSONL
+        run: cd scripts && python wsj_ingest.py --export
 
-      - name: 2. Google News Search
-        run: |
-          cd scripts
-          python wsj_to_google_news.py --delay 3
-        continue-on-error: true  # Don't fail pipeline if rate limited
+      - name: 3. Google News Search
+        run: cd scripts && python wsj_to_google_news.py --delay 3
+        continue-on-error: true
 
-      - name: 3. BM25 Ranking
-        run: |
-          cd scripts
-          python bm25_rank.py
-
-      - name: 4. Resolve URLs
-        run: |
-          cd scripts
-          python resolve_ranked.py --delay 3
-
-      - name: 5. Crawl Articles
-        if: ${{ inputs.skip_crawl != 'true' }}
-        run: |
-          cd scripts
-          python crawl_ranked.py --delay 2
-        continue-on-error: true  # Crawling may have partial failures
-
-      - name: Upload output artifacts
+      - name: Upload search results
         uses: actions/upload-artifact@v4
         with:
-          name: pipeline-output-${{ github.run_number }}
+          name: search-results
           path: |
-            scripts/output/*.jsonl
-            scripts/output/*.json
+            scripts/output/wsj_items.jsonl
+            scripts/output/wsj_google_news_results.jsonl
           retention-days: 7
+
+  # ============================================================
+  # Job 2: Rank & Resolve (lightweight)
+  # ============================================================
+  rank-resolve:
+    needs: ingest-search
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python with pip cache
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: 'pip'
+          cache-dependency-path: scripts/requirements.txt
+
+      - name: Install dependencies
+        run: pip install -r scripts/requirements.txt
+
+      - name: Download search results
+        uses: actions/download-artifact@v4
+        with:
+          name: search-results
+          path: scripts/output
+
+      - name: 4. BM25 Ranking
+        run: cd scripts && python bm25_rank.py
+
+      - name: 5. Resolve URLs
+        run: cd scripts && python resolve_ranked.py --delay 3
+
+      - name: Upload ranked results
+        uses: actions/upload-artifact@v4
+        with:
+          name: ranked-results
+          path: scripts/output/wsj_ranked_results.jsonl
+          retention-days: 7
+
+  # ============================================================
+  # Job 3: Crawl (heavy - Playwright)
+  # ============================================================
+  crawl:
+    needs: rank-resolve
+    if: ${{ inputs.skip_crawl != 'true' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python with pip cache
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: 'pip'
+          cache-dependency-path: scripts/requirements.txt
+
+      - name: Install dependencies
+        run: pip install -r scripts/requirements.txt
+
+      # Playwright browser cache
+      - name: Cache Playwright browsers
+        uses: actions/cache@v4
+        id: playwright-cache
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ hashFiles('scripts/requirements.txt') }}
+
+      - name: Install Playwright browsers
+        if: steps.playwright-cache.outputs.cache-hit != 'true'
+        run: playwright install chromium --with-deps
+
+      - name: Install Playwright deps (if cached)
+        if: steps.playwright-cache.outputs.cache-hit == 'true'
+        run: playwright install-deps chromium
+
+      - name: Download ranked results
+        uses: actions/download-artifact@v4
+        with:
+          name: ranked-results
+          path: scripts/output
+
+      - name: 6. Crawl Articles
+        run: cd scripts && python crawl_ranked.py --delay 2
+        continue-on-error: true
+
+      - name: Upload crawl results
+        uses: actions/upload-artifact@v4
+        with:
+          name: crawl-results
+          path: |
+            scripts/output/wsj_ranked_results.jsonl
+            scripts/output/articles/
+          retention-days: 7
+
+  # ============================================================
+  # Job 4: Save to Supabase (persist results)
+  # ============================================================
+  save-results:
+    needs: [rank-resolve, crawl]
+    if: always() && needs.rank-resolve.result == 'success'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python with pip cache
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: 'pip'
+          cache-dependency-path: scripts/requirements.txt
+
+      - name: Install dependencies
+        run: pip install -r scripts/requirements.txt
+
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+
+      - name: Merge artifacts
+        run: |
+          mkdir -p scripts/output
+          cp -r artifacts/search-results/* scripts/output/ 2>/dev/null || true
+          cp -r artifacts/ranked-results/* scripts/output/ 2>/dev/null || true
+          cp -r artifacts/crawl-results/* scripts/output/ 2>/dev/null || true
+          ls -la scripts/output/
+
+      - name: Save to Supabase
+        run: |
+          cd scripts
+          python -c "
+          import json
+          import os
+          from pathlib import Path
+          from supabase import create_client
+
+          # Connect to Supabase
+          url = os.environ['NEXT_PUBLIC_SUPABASE_URL']
+          key = os.environ['SUPABASE_SERVICE_ROLE_KEY']
+          supabase = create_client(url, key)
+
+          # Load ranked results
+          results_file = Path('output/wsj_ranked_results.jsonl')
+          if not results_file.exists():
+              print('No ranked results to save')
+              exit(0)
+
+          # Read and save
+          saved = 0
+          with open(results_file) as f:
+              for line in f:
+                  data = json.loads(line)
+                  wsj = data.get('wsj', {})
+                  ranked = data.get('ranked', [])
+
+                  for article in ranked:
+                      if article.get('resolve_status') == 'success':
+                          record = {
+                              'wsj_title': wsj.get('title'),
+                              'wsj_link': wsj.get('link'),
+                              'source': article.get('source'),
+                              'title': article.get('title'),
+                              'resolved_url': article.get('resolved_url'),
+                              'resolved_domain': article.get('resolved_domain'),
+                              'bm25_score': article.get('bm25_score'),
+                              'bm25_rank': article.get('bm25_rank'),
+                          }
+                          try:
+                              supabase.table('pipeline_results').upsert(
+                                  record,
+                                  on_conflict='resolved_url'
+                              ).execute()
+                              saved += 1
+                          except Exception as e:
+                              print(f'Error saving: {e}')
+
+          print(f'Saved {saved} articles to Supabase')
+          "
 
       - name: Summary
         run: |
@@ -108,4 +266,4 @@ jobs:
             echo "- WSJ items processed: $TOTAL" >> $GITHUB_STEP_SUMMARY
           fi
 
-          echo "- Artifacts uploaded: pipeline-output-${{ github.run_number }}" >> $GITHUB_STEP_SUMMARY
+          echo "- Results saved to Supabase ✓" >> $GITHUB_STEP_SUMMARY
