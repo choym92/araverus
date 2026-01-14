@@ -1,0 +1,108 @@
+# Finance TTS Briefing Pipeline
+# Runs WSJ RSS ingestion → Google News search → BM25 ranking → URL resolution → Crawling
+#
+# Required Secrets:
+#   SUPABASE_URL - Supabase project URL
+#   SUPABASE_KEY - Supabase service role key
+
+name: Finance Pipeline
+
+on:
+  # Manual trigger
+  workflow_dispatch:
+    inputs:
+      skip_crawl:
+        description: 'Skip crawling step (faster test)'
+        required: false
+        default: 'false'
+        type: boolean
+
+  # Scheduled run (daily at 6 AM UTC = 3 PM KST)
+  # Uncomment when ready for production
+  # schedule:
+  #   - cron: '0 6 * * *'
+
+env:
+  SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+  SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
+
+jobs:
+  pipeline:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+          cache-dependency-path: scripts/requirements.txt
+
+      - name: Install dependencies
+        run: |
+          pip install -r scripts/requirements.txt
+
+      - name: Install Playwright (for crawl4ai)
+        if: ${{ inputs.skip_crawl != 'true' }}
+        run: |
+          playwright install chromium
+          playwright install-deps chromium
+
+      - name: Create output directory
+        run: mkdir -p scripts/output
+
+      - name: 1. WSJ RSS Ingest
+        run: |
+          cd scripts
+          python wsj_ingest.py
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
+
+      - name: 2. Google News Search
+        run: |
+          cd scripts
+          python wsj_to_google_news.py --delay 3
+        continue-on-error: true  # Don't fail pipeline if rate limited
+
+      - name: 3. BM25 Ranking
+        run: |
+          cd scripts
+          python bm25_rank.py
+
+      - name: 4. Resolve URLs
+        run: |
+          cd scripts
+          python resolve_ranked.py --delay 3
+
+      - name: 5. Crawl Articles
+        if: ${{ inputs.skip_crawl != 'true' }}
+        run: |
+          cd scripts
+          python crawl_ranked.py --delay 2
+        continue-on-error: true  # Crawling may have partial failures
+
+      - name: Upload output artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: pipeline-output-${{ github.run_number }}
+          path: |
+            scripts/output/*.jsonl
+            scripts/output/*.json
+          retention-days: 7
+
+      - name: Summary
+        run: |
+          echo "## Pipeline Results" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          if [ -f scripts/output/wsj_ranked_results.jsonl ]; then
+            TOTAL=$(wc -l < scripts/output/wsj_ranked_results.jsonl)
+            echo "- WSJ items processed: $TOTAL" >> $GITHUB_STEP_SUMMARY
+          fi
+
+          echo "- Artifacts uploaded: pipeline-output-${{ github.run_number }}" >> $GITHUB_STEP_SUMMARY
