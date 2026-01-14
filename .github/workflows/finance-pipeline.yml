@@ -56,10 +56,15 @@ jobs:
       - name: Create output directory
         run: mkdir -p scripts/output
 
-      - name: 1. WSJ RSS Ingest
+      - name: 1a. WSJ RSS Ingest
         run: |
           cd scripts
           python wsj_ingest.py
+
+      - name: 1b. Export WSJ items to JSONL
+        run: |
+          cd scripts
+          python wsj_ingest.py --export
 
       - name: 2. Google News Search
         run: |
