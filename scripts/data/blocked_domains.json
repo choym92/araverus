@@ -1,0 +1,158 @@
+{
+  "blocked": {
+    "reuters.com": {
+      "reason": "401 Unauthorized - bot detection",
+      "tested": "2026-01-08"
+    },
+    "wsj.com": {
+      "reason": "401 Unauthorized - paywall + bot detection",
+      "tested": "2026-01-08"
+    },
+    "ft.com": {
+      "reason": "Paywall - requires subscription",
+      "tested": "2026-01-08"
+    },
+    "bloomberg.com": {
+      "reason": "Robot check - intermittent blocking",
+      "tested": "2026-01-08"
+    },
+    "nytimes.com": {
+      "reason": "Status 403",
+      "tested": "2026-01-08"
+    },
+    "theaiinsider.tech": {
+      "reason": "Status 307",
+      "tested": "2026-01-09"
+    },
+    "businesstimes.com.sg": {
+      "reason": "Status 404",
+      "tested": "2026-01-09"
+    },
+    "asia.nikkei.com": {
+      "reason": "Status 500",
+      "tested": "2026-01-09"
+    },
+    "azat.tv": {
+      "reason": "Status None",
+      "tested": "2026-01-09"
+    },
+    "globaltimes.cn": {
+      "reason": "Content too short (bot block?)",
+      "tested": "2026-01-09"
+    },
+    "breakingthenews.net": {
+      "reason": "Content too short (bot block?)",
+      "tested": "2026-01-09"
+    },
+    "news.google.com": {
+      "reason": "Status 302",
+      "tested": "2026-01-09"
+    },
+    "forbes.com": {
+      "reason": "Status 403",
+      "tested": "2026-01-09"
+    },
+    "x.com": {
+      "reason": "Social media - shares WSJ links, no article content",
+      "tested": "2026-01-12"
+    },
+    "twitter.com": {
+      "reason": "Social media - shares WSJ links, no article content",
+      "tested": "2026-01-12"
+    },
+    "linkedin.com": {
+      "reason": "Social media - shares WSJ links, no article content",
+      "tested": "2026-01-12"
+    },
+    "facebook.com": {
+      "reason": "Social media - shares WSJ links, no article content",
+      "tested": "2026-01-12"
+    },
+    "instagram.com": {
+      "reason": "Social media - no article content",
+      "tested": "2026-01-12"
+    },
+    "tiktok.com": {
+      "reason": "Social media - no article content",
+      "tested": "2026-01-12"
+    },
+    "msn.com": {
+      "reason": "URL resolution fails - aggregator with inconsistent redirects",
+      "tested": "2026-01-14"
+    },
+    "barrons.com": {
+      "reason": "WSJ sister site - paywall + URL resolution fails",
+      "tested": "2026-01-14"
+    },
+    "thetimes.co.uk": {
+      "reason": "Heavy paywall - URL resolution fails",
+      "tested": "2026-01-14"
+    },
+    "youtube.com": {
+      "reason": "Video content - not article",
+      "tested": "2026-01-14"
+    }
+  },
+  "working": {
+    "finance.yahoo.com": {
+      "tested": "2026-01-09"
+    },
+    "cnbc.com": {
+      "tested": "2026-01-12"
+    },
+    "cnn.com": {
+      "tested": "2026-01-09"
+    },
+    "finviz.com": {
+      "tested": "2026-01-09"
+    },
+    "livemint.com": {
+      "tested": "2026-01-09"
+    },
+    "hindustantimes.com": {
+      "tested": "2026-01-12"
+    },
+    "techcrunch.com": {
+      "tested": "2026-01-09"
+    },
+    "theguardian.com": {
+      "tested": "2026-01-09"
+    },
+    "latimes.com": {
+      "tested": "2026-01-12"
+    },
+    "tech.yahoo.com": {
+      "tested": "2026-01-12"
+    },
+    "euractiv.com": {
+      "tested": "2026-01-12"
+    },
+    "engineering.com": {
+      "tested": "2026-01-12"
+    },
+    "subscriber.politicopro.com": {
+      "tested": "2026-01-12"
+    },
+    "zacks.com": {
+      "tested": "2026-01-14"
+    },
+    "argusmedia.com": {
+      "tested": "2026-01-14"
+    },
+    "cbsnews.com": {
+      "tested": "2026-01-14"
+    },
+    "al-monitor.com": {
+      "tested": "2026-01-14"
+    },
+    "autonews.com": {
+      "tested": "2026-01-14"
+    },
+    "morningstar.com": {
+      "tested": "2026-01-14"
+    },
+    "yahoo.com": {
+      "tested": "2026-01-14"
+    }
+  }
+}

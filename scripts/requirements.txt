@@ -1,0 +1,18 @@
+# Python dependencies for finance pipeline scripts
+# Install: pip install -r scripts/requirements.txt
+
+# HTTP client
+httpx>=0.27.0
+
+# Supabase client
+supabase>=2.0.0
+
+# Environment variables
+python-dotenv>=1.0.0
+
+# ML/NLP dependencies (for existing scripts)
+rank-bm25>=0.2.2
+scikit-learn>=1.0.0
+
+# Web crawling (for crawl_article.py)
+crawl4ai>=0.4.0
