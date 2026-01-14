@@ -23,8 +23,9 @@ on:
   #   - cron: '0 6 * * *'
 
 env:
-  SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
-  SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
+  # Map secrets to env vars expected by scripts
+  NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+  SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_KEY }}
 
 jobs:
   pipeline:
@@ -59,9 +60,6 @@ jobs:
         run: |
           cd scripts
           python wsj_ingest.py
-        env:
-          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
-          SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
 
       - name: 2. Google News Search
         run: |
