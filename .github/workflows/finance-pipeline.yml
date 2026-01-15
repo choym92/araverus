@@ -226,6 +226,7 @@ jobs:
           python -c "
           import json
           import os
+          from datetime import datetime, timezone
           from pathlib import Path
           from supabase import create_client
 
@@ -249,9 +250,10 @@ jobs:
                   ranked = data.get('ranked', [])
 
                   for article in ranked:
+                      # Save all resolved articles with crawl status
                       if article.get('resolve_status') == 'success':
                           record = {
-                              'wsj_item_id': wsj.get('id'),  # FK to wsj_items
+                              'wsj_item_id': wsj.get('id'),
                               'wsj_title': wsj.get('title'),
                               'wsj_link': wsj.get('link'),
                               'source': article.get('source'),
@@ -259,9 +261,15 @@ jobs:
                               'resolved_url': article.get('resolved_url'),
                               'resolved_domain': article.get('resolved_domain'),
                               'embedding_score': article.get('embedding_score'),
+                              # Crawl data
+                              'crawl_status': article.get('crawl_status'),
+                              'crawl_error': article.get('crawl_error'),
+                              'crawl_length': article.get('crawl_length'),
+                              'content': article.get('crawl_markdown'),
+                              'crawled_at': datetime.now(timezone.utc).isoformat() if article.get('crawl_status') == 'success' else None,
                           }
                           try:
-                              supabase.table('pipeline_results').upsert(
+                              supabase.table('wsj_crawl_results').upsert(
                                   record,
                                   on_conflict='resolved_url'
                               ).execute()
