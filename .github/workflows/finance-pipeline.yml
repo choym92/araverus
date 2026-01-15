@@ -83,7 +83,7 @@ jobs:
   rank-resolve:
     needs: ingest-search
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 25
 
     steps:
       - name: Checkout
@@ -121,7 +121,7 @@ jobs:
         run: cd scripts && python embedding_rank.py
 
       - name: 5. Resolve URLs
-        run: cd scripts && python resolve_ranked.py
+        run: cd scripts && python resolve_ranked.py --delay 2
 
       - name: Upload ranked results
         uses: actions/upload-artifact@v4
