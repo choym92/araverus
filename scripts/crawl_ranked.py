@@ -9,12 +9,17 @@ Usage:
 """
 import asyncio
 import json
+import os
 import sys
 from pathlib import Path
 
 # Import the crawler
 sys.path.insert(0, str(Path(__file__).parent))
 from crawl_article import crawl_article
+
+# Use stealth mode in CI (headless), undetected locally (better evasion)
+IS_CI = os.environ.get("CI") == "true" or os.environ.get("GITHUB_ACTIONS") == "true"
+CRAWL_MODE = "stealth" if IS_CI else "undetected"
 
 
 async def main():
@@ -39,6 +44,7 @@ async def main():
 
     print(f"Loaded {len(all_data)} WSJ items")
     print(f"Strategy: 1 article per WSJ, fallback on failure")
+    print(f"Crawl mode: {CRAWL_MODE} ({'CI detected' if IS_CI else 'local'})")
     print(f"Delay: {delay}s")
     print("=" * 80)
 
@@ -74,7 +80,7 @@ async def main():
             print(f"  {is_pref} Trying [{j+1}/{len(crawlable)}]: {domain}...", end=" ", flush=True)
 
             try:
-                result = await crawl_article(url, mode="undetected")
+                result = await crawl_article(url, mode=CRAWL_MODE)
 
                 if result.get("success") and result.get("markdown_length", 0) > 500:
                     # Success! Mark this article
