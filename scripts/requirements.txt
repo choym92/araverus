@@ -10,9 +10,13 @@ supabase>=2.0.0
 # Environment variables
 python-dotenv>=1.0.0
 
-# ML/NLP dependencies (for existing scripts)
-rank-bm25>=0.2.2
-scikit-learn>=1.0.0
+# ML/NLP dependencies
+sentence-transformers>=2.2.0  # Embedding-based ranking (all-MiniLM-L6-v2)
+numpy>=1.24.0
+
+# Content extraction (for crawl_article.py)
+trafilatura>=1.6.0
+lxml>=4.9.0
 
 # Web crawling (for crawl_article.py)
 crawl4ai>=0.4.0

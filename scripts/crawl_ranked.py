@@ -33,7 +33,7 @@ async def main():
     # Load ranked results
     input_path = Path(__file__).parent / "output" / "wsj_ranked_results.jsonl"
     if not input_path.exists():
-        print(f"Error: Run bm25_rank.py and resolve_ranked.py first")
+        print(f"Error: Run embedding_rank.py and resolve_ranked.py first")
         return
 
     # Read all data

@@ -2,6 +2,13 @@
 """
 Crawl article content using crawl4ai with stealth/undetected mode.
 
+Features:
+- Google News URL resolution
+- crawl4ai fetch (basic/stealth/undetected)
+- HTML-first extraction via trafilatura (with crawl4ai fallback)
+- Quality metrics + reason codes for debugging
+- Section cutting to remove noise
+
 Usage:
     python scripts/crawl_article.py <url> [mode] [--save]
 
@@ -16,12 +23,183 @@ import base64
 import json
 import re
 import sys
+from dataclasses import dataclass, asdict
 from datetime import date
 from pathlib import Path
+from typing import Optional
 from urllib.parse import urlparse
 
 import httpx
 from crawl4ai import AsyncWebCrawler, BrowserConfig, CrawlerRunConfig
+
+# Optional: trafilatura for better content extraction
+try:
+    import trafilatura
+    HAS_TRAFILATURA = True
+except ImportError:
+    trafilatura = None
+    HAS_TRAFILATURA = False
+
+
+# ============================================================================
+# Quality Metrics
+# ============================================================================
+
+@dataclass
+class QualityMetrics:
+    """Content quality metrics for debugging and filtering."""
+    char_len: int
+    word_len: int
+    line_count: int
+    short_line_ratio: float  # Menu/nav indicator
+    link_line_ratio: float   # Navigation indicator
+    boilerplate_ratio: float # Noise indicator
+    quality_score: float     # 0-1 overall score
+    reason_code: Optional[str]  # TOO_SHORT, TOO_LONG, MENU_HEAVY, etc.
+
+# Boilerplate keywords that indicate noise
+BOILERPLATE_KEYWORDS = [
+    "cookie", "privacy", "terms of service", "sign in", "subscribe",
+    "newsletter", "all rights reserved", "advertisement", "related articles",
+    "recommended for you", "most read", "more from", "sitemap", "contact us",
+    "read next", "continue reading", "references", "acknowledgements",
+]
+
+# Section markers where we should cut content
+SECTION_CUT_MARKERS = [
+    r"^\s*#{1,3}\s*related\s*articles?\s*$",
+    r"^\s*#{1,3}\s*read\s*next\s*$",
+    r"^\s*#{1,3}\s*recommended\s*(for\s*you)?\s*$",
+    r"^\s*#{1,3}\s*more\s*from\s+",
+    r"^\s*#{1,3}\s*references\s*$",
+    r"^\s*#{1,3}\s*citations?\s*$",
+    r"^\s*#{1,3}\s*acknowledg(e)?ments?\s*$",
+    r"^\s*\*\*read\s*next:?\*\*",
+    r"^\s*mentioned\s*in\s*this\s*article",
+    r"^\s*#{1,3}\s*latest\s*news\s*$",
+    r"^\s*#{1,3}\s*topics?\s*$",
+    r"^\s*explore\s*more\s*on\s*these\s*topics",
+]
+
+
+def _compute_quality(text: str) -> QualityMetrics:
+    """Compute quality metrics for extracted content."""
+    if not text:
+        return QualityMetrics(0, 0, 0, 1.0, 0.0, 0.0, 0.0, "EMPTY")
+
+    chars = len(text)
+    words = len(text.split())
+    lines = [ln for ln in text.split("\n") if ln.strip()]
+    line_count = max(1, len(lines))
+
+    # Short line ratio (menu/nav indicator)
+    short_lines = sum(1 for ln in lines if len(ln.strip()) < 40)
+    short_line_ratio = short_lines / line_count
+
+    # Link line ratio (navigation indicator)
+    link_lines = sum(1 for ln in lines if re.search(r"https?://|^\s*\[[^\]]+\]\([^)]+\)\s*$", ln))
+    link_line_ratio = link_lines / line_count
+
+    # Boilerplate ratio
+    text_lower = text.lower()
+    bp_hits = sum(1 for kw in BOILERPLATE_KEYWORDS if kw in text_lower)
+    boilerplate_ratio = bp_hits / len(BOILERPLATE_KEYWORDS)
+
+    # Quality score (0-1)
+    # Prefer 800-15000 chars
+    if 800 <= chars <= 15000:
+        length_score = 1.0
+    elif 400 <= chars < 800:
+        length_score = 0.7
+    elif 15000 < chars <= 30000:
+        length_score = 0.7
+    elif chars < 400:
+        length_score = 0.3
+    else:
+        length_score = 0.4
+
+    score = (
+        0.40 * length_score
+        + 0.25 * (1.0 - min(1.0, short_line_ratio))
+        + 0.20 * (1.0 - min(1.0, link_line_ratio))
+        + 0.15 * (1.0 - min(1.0, boilerplate_ratio))
+    )
+    score = max(0.0, min(1.0, score))
+
+    # Determine reason code
+    reason = None
+    if chars < 350 or words < 60:
+        reason = "TOO_SHORT"
+    elif chars > 50000:
+        reason = "TOO_LONG"
+    elif link_line_ratio > 0.30:
+        reason = "LINK_HEAVY"
+    elif short_line_ratio > 0.55:
+        reason = "MENU_HEAVY"
+    elif boilerplate_ratio > 0.40:
+        reason = "BOILERPLATE_HEAVY"
+
+    return QualityMetrics(
+        char_len=chars,
+        word_len=words,
+        line_count=line_count,
+        short_line_ratio=round(short_line_ratio, 3),
+        link_line_ratio=round(link_line_ratio, 3),
+        boilerplate_ratio=round(boilerplate_ratio, 3),
+        quality_score=round(score, 3),
+        reason_code=reason,
+    )
+
+
+def _cut_at_section_markers(text: str) -> str:
+    """Cut content at section markers like 'Related Articles', 'References'."""
+    if not text:
+        return text
+
+    lines = text.split("\n")
+    result = []
+
+    for line in lines:
+        stripped = line.strip().lower()
+
+        # Check if this line matches a section cut marker
+        should_cut = False
+        for pattern in SECTION_CUT_MARKERS:
+            if re.match(pattern, stripped, re.IGNORECASE):
+                should_cut = True
+                break
+
+        if should_cut:
+            break
+
+        result.append(line)
+
+    return "\n".join(result).strip()
+
+
+def _extract_with_trafilatura(html: str, url: str = None) -> tuple[str, str]:
+    """
+    Extract main content using trafilatura.
+    Returns (content, method) where method is 'trafilatura' or 'failed'.
+    """
+    if not HAS_TRAFILATURA or not html or not html.strip():
+        return "", "no_trafilatura"
+
+    try:
+        content = trafilatura.extract(
+            html,
+            url=url,
+            include_comments=False,
+            include_tables=False,
+            favor_precision=True,  # Prefer accuracy over recall
+            output_format="txt",
+        )
+        if content and len(content) > 200:
+            return content.strip(), "trafilatura"
+    except Exception:
+        pass
+
+    return "", "trafilatura_failed"
 
 
 # ============================================================================
@@ -631,26 +809,72 @@ def _fetch_title_from_url(url: str) -> str | None:
 
 
 def _build_result(result, domain: str, url: str = None) -> dict:
-    """Build standardized result dict from crawler result."""
-    # Handle StringCompatibleMarkdown object - convert to string explicitly
+    """Build standardized result dict from crawler result.
+
+    Extraction strategy:
+    1. Try trafilatura on raw HTML (best quality)
+    2. Fall back to crawl4ai markdown + cleaning
+    3. Apply section cutting and truncation
+    4. Compute quality metrics
+    """
+    # Get raw HTML and markdown from result
+    html = getattr(result, "html", "") or ""
     if result.markdown:
         markdown = str(result.markdown)
     else:
         markdown = ""
-    cleaned = clean_article_content(markdown)
+
+    # Strategy 1: Try trafilatura on HTML (preferred)
+    content = ""
+    extraction_method = "none"
+
+    if html:
+        content, extraction_method = _extract_with_trafilatura(html, url)
+
+    # Strategy 2: Fall back to crawl4ai markdown + cleaning
+    if not content or len(content) < 300:
+        cleaned_md = clean_article_content(markdown)
+        if len(cleaned_md) > len(content):
+            content = cleaned_md
+            extraction_method = "crawl4ai_cleaned"
+
+    # Post-process: cut at section markers
+    content = _cut_at_section_markers(content)
+
+    # Truncate if too long (max 20k chars)
+    MAX_CONTENT_LENGTH = 20000
+    truncated = False
+    if len(content) > MAX_CONTENT_LENGTH:
+        content = content[:MAX_CONTENT_LENGTH].rstrip()
+        # Try to cut at last paragraph
+        last_para = content.rfind("\n\n")
+        if last_para > MAX_CONTENT_LENGTH * 0.8:
+            content = content[:last_para]
+        content += "\n\n[TRUNCATED]"
+        truncated = True
+
+    # Compute quality metrics
+    quality = _compute_quality(content)
 
     # Extract title - try from result first, then fetch from URL
     title = _extract_title(result)
     if not title and url:
         title = _fetch_title_from_url(url)
 
+    # Determine success: fetch OK + content quality OK
+    fetch_success = bool(getattr(result, "success", False))
+    quality_ok = quality.char_len >= 350 and quality.word_len >= 50 and quality.reason_code not in ("MENU_HEAVY", "LINK_HEAVY")
+
     return {
-        "success": result.success,
+        "success": fetch_success and quality_ok,
         "status_code": result.status_code,
         "title": title,
-        "markdown": cleaned,
-        "markdown_length": len(cleaned),
+        "markdown": content,  # Keep field name for compatibility
+        "markdown_length": len(content),
         "domain": domain,
+        "extraction_method": extraction_method,
+        "truncated": truncated,
+        "quality": asdict(quality),
     }
 
 
@@ -1040,7 +1264,11 @@ async def main():
     print(f"Success: {result['success']}")
     print(f"Status: {result['status_code']}")
     print(f"Title: {result['title']}")
-    print(f"Content length: {result['markdown_length']} chars")
+    print(f"Extraction: {result.get('extraction_method', 'unknown')}")
+    if result.get('quality'):
+        q = result['quality']
+        print(f"Quality: score={q['quality_score']:.2f}, reason={q['reason_code']}")
+    print(f"Content length: {result['markdown_length']} chars" + (" [TRUNCATED]" if result.get('truncated') else ""))
 
     if result["markdown"] and result["markdown_length"] > 100:
         if save_to_file:

@@ -1,5 +1,5 @@
 # Finance TTS Briefing Pipeline
-# Runs WSJ RSS ingestion → Google News search → BM25 ranking → URL resolution → Crawling
+# Runs WSJ RSS ingestion → Google News search → Embedding ranking → URL resolution → Crawling
 #
 # Required Secrets:
 #   SUPABASE_URL - Supabase project URL
@@ -106,8 +106,8 @@ jobs:
           name: search-results
           path: scripts/output
 
-      - name: 4. BM25 Ranking
-        run: cd scripts && python bm25_rank.py
+      - name: 4. Embedding Ranking
+        run: cd scripts && python embedding_rank.py
 
       - name: 5. Resolve URLs
         run: cd scripts && python resolve_ranked.py
@@ -247,8 +247,7 @@ jobs:
                               'title': article.get('title'),
                               'resolved_url': article.get('resolved_url'),
                               'resolved_domain': article.get('resolved_domain'),
-                              'bm25_score': article.get('bm25_score'),
-                              'bm25_rank': article.get('bm25_rank'),
+                              'embedding_score': article.get('embedding_score'),
                           }
                           try:
                               supabase.table('pipeline_results').upsert(
