@@ -25,6 +25,9 @@ env:
   SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_KEY }}
   PYTHON_VERSION: '3.11'
   UV_CACHE_DIR: /tmp/.uv-cache
+  # HuggingFace settings
+  TOKENIZERS_PARALLELISM: 'false'  # Suppress tokenizer warnings
+  HF_HUB_DISABLE_TELEMETRY: '1'    # Disable telemetry
 
 jobs:
   # ============================================================
@@ -99,6 +102,14 @@ jobs:
 
       - name: Install dependencies (uv)
         run: uv pip install --system -r scripts/requirements.txt
+
+      - name: Cache HuggingFace models
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/huggingface
+          key: hf-models-${{ runner.os }}-all-MiniLM-L6-v2
+          restore-keys: |
+            hf-models-${{ runner.os }}-
 
       - name: Download search results
         uses: actions/download-artifact@v4
