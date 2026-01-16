@@ -241,15 +241,31 @@ def insert_wsj_item(supabase: Client, item: WsjItem) -> bool:
         raise
 
 
-def get_unprocessed_items(supabase: Client, limit: int = 500) -> list[dict]:
-    """Get unprocessed WSJ items from Supabase."""
+def get_unsearched_items(supabase: Client, limit: int = 500) -> list[dict]:
+    """Get WSJ items that haven't been searched on Google News yet."""
     response = supabase.table('wsj_items') \
         .select('*') \
-        .eq('processed', False) \
+        .eq('searched', False) \
         .order('published_at', desc=True) \
         .limit(limit) \
         .execute()
     return response.data or []
+
+
+def mark_items_searched(supabase: Client, ids: list[str]) -> int:
+    """Mark items as searched. Returns count of updated items."""
+    if not ids:
+        return 0
+
+    response = supabase.table('wsj_items') \
+        .update({
+            'searched': True,
+            'searched_at': datetime.utcnow().isoformat(),
+        }) \
+        .in_('id', ids) \
+        .execute()
+
+    return len(response.data) if response.data else 0
 
 
 def mark_items_processed(supabase: Client, ids: list[str]) -> int:
@@ -411,16 +427,16 @@ def cmd_ingest() -> None:
 
 
 def cmd_export(output_path: Optional[Path] = None) -> None:
-    """Export unprocessed items to JSONL."""
+    """Export unsearched items to JSONL for Google News search."""
     print("=" * 60)
-    print("Export Unprocessed WSJ Items")
+    print("Export Unsearched WSJ Items")
     print("=" * 60)
 
     supabase = get_supabase_client()
-    items = get_unprocessed_items(supabase)
+    items = get_unsearched_items(supabase)
 
     if not items:
-        print("No unprocessed items to export.")
+        print("No unsearched items to export.")
         return
 
     # Default output path
@@ -504,6 +520,42 @@ def cmd_mark_processed_from_db() -> None:
     # Mark as processed
     updated = mark_items_processed(supabase, wsj_ids)
     print(f"Marked {updated} items as processed in wsj_items.")
+
+
+def cmd_mark_searched(jsonl_path: Path) -> None:
+    """Mark WSJ items as searched based on exported JSONL file.
+
+    After Google News search completes, this marks all items from the
+    original export as 'searched' so they won't be searched again.
+    """
+    print("=" * 60)
+    print("Mark Items as Searched")
+    print("=" * 60)
+
+    if not jsonl_path.exists():
+        print(f"Error: File not found: {jsonl_path}")
+        sys.exit(1)
+
+    # Load IDs from JSONL
+    ids = []
+    with open(jsonl_path) as f:
+        for line in f:
+            if not line.strip():
+                continue
+            item = json.loads(line)
+            if item.get('id'):
+                ids.append(item['id'])
+
+    if not ids:
+        print("No item IDs found in file.")
+        return
+
+    print(f"Found {len(ids)} items in: {jsonl_path}")
+
+    supabase = get_supabase_client()
+    updated = mark_items_searched(supabase, ids)
+
+    print(f"Marked {updated} items as searched.")
 
 
 def cmd_update_domain_status() -> None:
@@ -640,7 +692,8 @@ def main():
         print(__doc__)
         print("\nCommands:")
         print("  (default)                Ingest all WSJ feeds to Supabase")
-        print("  --export [PATH]          Export unprocessed items to JSONL")
+        print("  --export [PATH]          Export unsearched items to JSONL")
+        print("  --mark-searched FILE     Mark items in JSONL as searched")
         print("  --mark-processed FILE    Mark items in JSONL as processed")
         print("  --mark-processed-from-db Query wsj_crawl_results and mark processed")
         print("  --update-domain-status   Aggregate crawl results to wsj_domain_status")
@@ -654,6 +707,11 @@ def main():
     if args[0] == '--export':
         output_path = Path(args[1]) if len(args) > 1 else None
         cmd_export(output_path)
+    elif args[0] == '--mark-searched':
+        if len(args) < 2:
+            print("Error: --mark-searched requires a JSONL file path")
+            sys.exit(1)
+        cmd_mark_searched(Path(args[1]))
     elif args[0] == '--mark-processed':
         if len(args) < 2:
             print("Error: --mark-processed requires a JSONL file path")

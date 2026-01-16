@@ -68,6 +68,9 @@ jobs:
         run: cd scripts && python wsj_to_google_news.py
         continue-on-error: true
 
+      - name: 4. Mark items as searched
+        run: cd scripts && python wsj_ingest.py --mark-searched output/wsj_items.jsonl
+
       - name: Upload search results
         uses: actions/upload-artifact@v4
         with:
@@ -117,10 +120,10 @@ jobs:
           name: search-results
           path: scripts/output
 
-      - name: 4. Embedding Ranking
+      - name: 5. Embedding Ranking
         run: cd scripts && python embedding_rank.py
 
-      - name: 5. Resolve URLs
+      - name: 6. Resolve URLs
         run: cd scripts && python resolve_ranked.py --delay 2
 
       - name: Upload ranked results
@@ -167,7 +170,7 @@ jobs:
           name: ranked-results
           path: scripts/output
 
-      - name: 6. Crawl Articles
+      - name: 7. Crawl Articles
         run: cd scripts && python crawl_ranked.py --delay 2
         continue-on-error: true
 
