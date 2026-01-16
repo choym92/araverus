@@ -267,6 +267,9 @@ jobs:
                               'crawl_length': article.get('crawl_length'),
                               'content': article.get('crawl_markdown'),
                               'crawled_at': datetime.now(timezone.utc).isoformat() if article.get('crawl_status') == 'success' else None,
+                              # Relevance check
+                              'relevance_score': article.get('relevance_score'),
+                              'relevance_flag': article.get('relevance_flag'),
                           }
                           try:
                               supabase.table('wsj_crawl_results').upsert(
@@ -279,6 +282,12 @@ jobs:
 
           print(f'Saved {saved} articles to Supabase')
           "
+
+      - name: Mark WSJ items as processed
+        run: cd scripts && python wsj_ingest.py --mark-processed-from-db
+
+      - name: Update domain status
+        run: cd scripts && python wsj_ingest.py --update-domain-status
 
       - name: Summary
         run: |

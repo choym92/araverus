@@ -466,6 +466,151 @@ def cmd_mark_processed(file_path: Path) -> None:
     print(f"Marked {updated} items as processed.")
 
 
+def cmd_mark_processed_from_db() -> None:
+    """Mark WSJ items as processed by querying wsj_crawl_results table.
+
+    Finds all wsj_item_id values where crawl_status = 'success',
+    then marks those items as processed in wsj_items table.
+    """
+    print("=" * 60)
+    print("Mark Processed from DB (wsj_crawl_results)")
+    print("=" * 60)
+
+    supabase = get_supabase_client()
+
+    # Query wsj_crawl_results for successful crawls
+    print("Querying wsj_crawl_results for successful crawls...")
+    response = supabase.table('wsj_crawl_results') \
+        .select('wsj_item_id') \
+        .eq('crawl_status', 'success') \
+        .not_.is_('wsj_item_id', 'null') \
+        .execute()
+
+    if not response.data:
+        print("No successful crawls found in wsj_crawl_results.")
+        return
+
+    # Get unique wsj_item_ids
+    wsj_ids = list(set(
+        row['wsj_item_id'] for row in response.data
+        if row.get('wsj_item_id')
+    ))
+    print(f"Found {len(wsj_ids)} unique WSJ items with successful crawls")
+
+    if not wsj_ids:
+        print("No valid wsj_item_id values found.")
+        return
+
+    # Mark as processed
+    updated = mark_items_processed(supabase, wsj_ids)
+    print(f"Marked {updated} items as processed in wsj_items.")
+
+
+def cmd_update_domain_status() -> None:
+    """Update wsj_domain_status table from wsj_crawl_results.
+
+    Aggregates crawl results by domain and upserts to wsj_domain_status.
+    Auto-blocks domains with: fail_count > 5 AND success_rate < 20%
+    """
+    print("=" * 60)
+    print("Update Domain Status from Crawl Results")
+    print("=" * 60)
+
+    supabase = get_supabase_client()
+
+    # Query all crawl results with domain info
+    print("Querying wsj_crawl_results...")
+    response = supabase.table('wsj_crawl_results') \
+        .select('resolved_domain, crawl_status, crawl_error') \
+        .not_.is_('resolved_domain', 'null') \
+        .execute()
+
+    if not response.data:
+        print("No crawl results found.")
+        return
+
+    # Aggregate by domain
+    domain_stats: dict = {}
+    for row in response.data:
+        domain = row.get('resolved_domain')
+        if not domain:
+            continue
+
+        if domain not in domain_stats:
+            domain_stats[domain] = {
+                'success_count': 0,
+                'fail_count': 0,
+                'last_error': None,
+            }
+
+        if row.get('crawl_status') == 'success':
+            domain_stats[domain]['success_count'] += 1
+        elif row.get('crawl_status') in ('failed', 'error'):
+            domain_stats[domain]['fail_count'] += 1
+            domain_stats[domain]['last_error'] = row.get('crawl_error')
+
+    print(f"Found {len(domain_stats)} unique domains")
+
+    # Upsert to wsj_domain_status
+    now = datetime.utcnow().isoformat()
+    updated = 0
+    blocked = 0
+
+    for domain, stats in domain_stats.items():
+        success = stats['success_count']
+        fail = stats['fail_count']
+        total = success + fail
+
+        # Calculate success rate
+        success_rate = success / total if total > 0 else 0
+
+        # Determine status: auto-block if fail > 5 AND success_rate < 20%
+        should_block = fail > 5 and success_rate < 0.2
+        status = 'blocked' if should_block else 'active'
+        block_reason = f"Auto-blocked: {fail} failures, {success_rate:.0%} success rate" if should_block else None
+
+        record = {
+            'domain': domain,
+            'status': status,
+            'success_count': success,
+            'fail_count': fail,
+            'failure_type': stats['last_error'][:100] if stats['last_error'] else None,
+            'block_reason': block_reason,
+            'updated_at': now,
+        }
+
+        # Add timestamps based on status
+        if success > 0:
+            record['last_success'] = now
+        if fail > 0:
+            record['last_failure'] = now
+
+        try:
+            supabase.table('wsj_domain_status').upsert(
+                record,
+                on_conflict='domain'
+            ).execute()
+            updated += 1
+            if should_block:
+                blocked += 1
+        except Exception as e:
+            print(f"Error updating {domain}: {e}")
+
+    print(f"\nUpdated {updated} domains in wsj_domain_status")
+    print(f"Auto-blocked {blocked} domains (fail > 5 AND success < 20%)")
+
+    # Show blocked domains
+    if blocked > 0:
+        print("\nNewly blocked domains:")
+        for domain, stats in domain_stats.items():
+            success = stats['success_count']
+            fail = stats['fail_count']
+            total = success + fail
+            rate = success / total if total > 0 else 0
+            if fail > 5 and rate < 0.2:
+                print(f"  {domain}: {fail} fails, {rate:.0%} success")
+
+
 def cmd_stats() -> None:
     """Show current database statistics."""
     print("=" * 60)
@@ -494,10 +639,12 @@ def main():
     if args and args[0] == '--help':
         print(__doc__)
         print("\nCommands:")
-        print("  (default)           Ingest all WSJ feeds to Supabase")
-        print("  --export [PATH]     Export unprocessed items to JSONL")
-        print("  --mark-processed    Mark items in JSONL as processed")
-        print("  --stats             Show database statistics")
+        print("  (default)                Ingest all WSJ feeds to Supabase")
+        print("  --export [PATH]          Export unprocessed items to JSONL")
+        print("  --mark-processed FILE    Mark items in JSONL as processed")
+        print("  --mark-processed-from-db Query wsj_crawl_results and mark processed")
+        print("  --update-domain-status   Aggregate crawl results to wsj_domain_status")
+        print("  --stats                  Show database statistics")
         return
 
     if not args:
@@ -512,6 +659,10 @@ def main():
             print("Error: --mark-processed requires a JSONL file path")
             sys.exit(1)
         cmd_mark_processed(Path(args[1]))
+    elif args[0] == '--mark-processed-from-db':
+        cmd_mark_processed_from_db()
+    elif args[0] == '--update-domain-status':
+        cmd_update_domain_status()
     elif args[0] == '--stats':
         cmd_stats()
     else:

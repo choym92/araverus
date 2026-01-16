@@ -26,6 +26,7 @@ import asyncio
 import hashlib
 import html
 import json
+import os
 import re
 import sys
 import time
@@ -37,7 +38,11 @@ from pathlib import Path
 from urllib.parse import quote_plus, urlparse
 
 import httpx
+from dotenv import load_dotenv
 from sklearn.feature_extraction.text import ENGLISH_STOP_WORDS
+
+# Load environment variables
+load_dotenv(Path(__file__).parent.parent / '.env.local')
 
 # Path to blocked domains file (auto-updated by crawler)
 BLOCKED_DOMAINS_FILE = Path(__file__).parent / "data" / "blocked_domains.json"
@@ -150,16 +155,64 @@ def dedupe_key(article: dict) -> str:
     return hashlib.md5(text.encode()).hexdigest()
 
 
-@lru_cache(maxsize=1)
-def load_blocked_domains() -> frozenset[str]:
-    """Load blocked domains from blocked_domains.json (cached)."""
+def _load_blocked_domains_from_json() -> set[str]:
+    """Load blocked domains from local JSON file."""
     blocked = set()
     if BLOCKED_DOMAINS_FILE.exists():
         with open(BLOCKED_DOMAINS_FILE) as f:
             data = json.load(f)
             for domain in data.get("blocked", {}).keys():
                 blocked.add(domain.lower())
-    return frozenset(blocked)
+    return blocked
+
+
+def _load_blocked_domains_from_db() -> set[str]:
+    """Load blocked domains from wsj_domain_status table in Supabase."""
+    blocked = set()
+
+    # Check for Supabase credentials
+    url = os.getenv('NEXT_PUBLIC_SUPABASE_URL') or os.getenv('SUPABASE_URL')
+    key = os.getenv('SUPABASE_SERVICE_ROLE_KEY')
+
+    if not url or not key:
+        # No credentials, skip DB query
+        return blocked
+
+    try:
+        from supabase import create_client
+        supabase = create_client(url, key)
+
+        # Query blocked domains
+        response = supabase.table('wsj_domain_status') \
+            .select('domain') \
+            .eq('status', 'blocked') \
+            .execute()
+
+        if response.data:
+            for row in response.data:
+                if row.get('domain'):
+                    blocked.add(row['domain'].lower())
+
+        print(f"  Loaded {len(blocked)} blocked domains from DB")
+    except Exception as e:
+        print(f"  Warning: Could not load blocked domains from DB: {e}")
+
+    return blocked
+
+
+@lru_cache(maxsize=1)
+def load_blocked_domains() -> frozenset[str]:
+    """Load blocked domains from JSON file + Supabase DB (cached)."""
+    # Load from both sources
+    blocked_json = _load_blocked_domains_from_json()
+    blocked_db = _load_blocked_domains_from_db()
+
+    # Combine (union)
+    all_blocked = blocked_json | blocked_db
+
+    print(f"  Total blocked domains: {len(all_blocked)} (JSON: {len(blocked_json)}, DB: {len(blocked_db)})")
+
+    return frozenset(all_blocked)
 
 
 def is_source_blocked(source_name: str, source_domain: str) -> bool:

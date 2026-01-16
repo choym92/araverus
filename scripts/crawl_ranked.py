@@ -5,13 +5,16 @@ Crawl resolved URLs from BM25 ranked results.
 Strategy: Crawl 1 article per WSJ item, with fallback to next if failed.
 
 Usage:
-    python scripts/crawl_ranked.py [--delay N]
+    python scripts/crawl_ranked.py [--delay N] [--no-relevance]
 """
 import asyncio
 import json
 import os
 import sys
 from pathlib import Path
+
+import numpy as np
+from sentence_transformers import SentenceTransformer
 
 # Import the crawler
 sys.path.insert(0, str(Path(__file__).parent))
@@ -20,6 +23,42 @@ from crawl_article import crawl_article
 # Use stealth mode in CI (headless), undetected locally (better evasion)
 IS_CI = os.environ.get("CI") == "true" or os.environ.get("GITHUB_ACTIONS") == "true"
 CRAWL_MODE = "stealth" if IS_CI else "undetected"
+
+# Relevance check settings
+RELEVANCE_THRESHOLD = 0.25  # Flag if below this
+RELEVANCE_CHARS = 800       # Characters from crawled content to compare
+
+# Load embedding model for relevance check (cached after first load)
+print("Loading embedding model for relevance check...")
+RELEVANCE_MODEL = SentenceTransformer('all-MiniLM-L6-v2')
+print("Model loaded.\n")
+
+
+def compute_relevance_score(wsj_text: str, crawled_text: str) -> float:
+    """Compute cosine similarity between WSJ and crawled content.
+
+    Args:
+        wsj_text: WSJ title + description
+        crawled_text: First N characters of crawled content
+
+    Returns:
+        Cosine similarity score (0-1)
+    """
+    if not wsj_text or not crawled_text:
+        return 0.0
+
+    # Truncate crawled text to stay within token limit
+    crawled_truncated = crawled_text[:RELEVANCE_CHARS]
+
+    # Encode both texts
+    embeddings = RELEVANCE_MODEL.encode(
+        [wsj_text, crawled_truncated],
+        normalize_embeddings=True
+    )
+
+    # Cosine similarity (dot product since normalized)
+    score = float(np.dot(embeddings[0], embeddings[1]))
+    return score
 
 
 async def main():
@@ -54,7 +93,10 @@ async def main():
     total_attempts = 0
 
     for i, data in enumerate(all_data):
-        wsj_title = data.get("wsj", {}).get("title", "Unknown")
+        wsj = data.get("wsj", {})
+        wsj_title = wsj.get("title", "Unknown")
+        wsj_description = wsj.get("description", "")
+        wsj_text = f"{wsj_title} {wsj_description}".strip()
         articles = data.get("ranked", [])
 
         # Filter to articles with resolved URLs
@@ -89,7 +131,16 @@ async def main():
                     article["crawl_markdown"] = result.get("markdown", "")
                     article["crawl_length"] = result.get("markdown_length", 0)
 
-                    print(f"✓ {result.get('markdown_length', 0):,} chars")
+                    # Compute relevance score
+                    crawled_content = result.get("markdown", "")
+                    relevance = compute_relevance_score(wsj_text, crawled_content)
+                    article["relevance_score"] = round(relevance, 4)
+                    article["relevance_flag"] = "low" if relevance < RELEVANCE_THRESHOLD else "ok"
+
+                    # Output with relevance indicator
+                    rel_indicator = "⚠" if relevance < RELEVANCE_THRESHOLD else "✓"
+                    print(f"✓ {result.get('markdown_length', 0):,} chars | rel:{relevance:.2f} {rel_indicator}")
+
                     success = True
                     wsj_success += 1
                     break  # Stop trying more articles for this WSJ
@@ -131,6 +182,30 @@ async def main():
     print(f"  ✗ Failed: {wsj_failed}")
     print(f"Total crawl attempts: {total_attempts}")
 
+    # Relevance statistics
+    relevance_scores = []
+    low_relevance = []
+    for data in all_data:
+        wsj_title = data.get("wsj", {}).get("title", "")[:40]
+        for art in data.get("ranked", []):
+            if art.get("crawl_status") == "success" and "relevance_score" in art:
+                score = art["relevance_score"]
+                relevance_scores.append(score)
+                if art.get("relevance_flag") == "low":
+                    low_relevance.append((wsj_title, art.get("resolved_domain", ""), score))
+
+    if relevance_scores:
+        print(f"\nRelevance scores:")
+        print(f"  Min: {min(relevance_scores):.3f}")
+        print(f"  Max: {max(relevance_scores):.3f}")
+        print(f"  Avg: {sum(relevance_scores)/len(relevance_scores):.3f}")
+        print(f"  Low relevance (<{RELEVANCE_THRESHOLD}): {len(low_relevance)}")
+
+    if low_relevance:
+        print(f"\n⚠ Low relevance articles:")
+        for wsj, domain, score in low_relevance:
+            print(f"  [{score:.2f}] {domain} - {wsj}...")
+
     # Show successful crawls
     print("\nSuccessful crawls:")
     for data in all_data:
@@ -139,7 +214,9 @@ async def main():
             if art.get("crawl_status") == "success":
                 domain = art.get("resolved_domain", "")
                 length = art.get("crawl_length", 0)
-                print(f"  [{domain}] {length:,} chars - {wsj}...")
+                rel = art.get("relevance_score", 0)
+                flag = "⚠" if art.get("relevance_flag") == "low" else "✓"
+                print(f"  {flag} [{domain}] {length:,} chars, rel:{rel:.2f} - {wsj}...")
 
     print(f"\nUpdated: {input_path}")
 
