@@ -91,11 +91,27 @@
     "youtube.com": {
       "reason": "Video content - not article",
       "tested": "2026-01-14"
+    },
+    "bbc.com": {
+      "reason": "Status 404",
+      "tested": "2026-01-15"
+    },
+    "apnews.com": {
+      "reason": "Status 404",
+      "tested": "2026-01-15"
+    },
+    "edition.cnn.com": {
+      "reason": "Status 404",
+      "tested": "2026-01-15"
+    },
+    "theguardian.com": {
+      "reason": "Status 301",
+      "tested": "2026-01-15"
     }
   },
   "working": {
     "finance.yahoo.com": {
-      "tested": "2026-01-09"
+      "tested": "2026-01-15"
     },
     "cnbc.com": {
       "tested": "2026-01-12"
@@ -113,9 +129,6 @@
       "tested": "2026-01-12"
     },
     "techcrunch.com": {
-      "tested": "2026-01-09"
-    },
-    "theguardian.com": {
       "tested": "2026-01-09"
     },
     "latimes.com": {
@@ -153,6 +166,18 @@
     },
     "yahoo.com": {
       "tested": "2026-01-14"
+    },
+    "link.springer.com": {
+      "tested": "2026-01-15"
+    },
+    "nbcnews.com": {
+      "tested": "2026-01-15"
+    },
+    "anthropic.com": {
+      "tested": "2026-01-15"
+    },
+    "investopedia.com": {
+      "tested": "2026-01-15"
     }
   }
 }

@@ -487,7 +487,7 @@ FEED_PRIORITY = {
 }
 
 
-def load_wsj_jsonl(jsonl_path: str, today_only: bool = True) -> list[dict]:
+def load_wsj_jsonl(jsonl_path: str, today_only: bool = False) -> list[dict]:
     """Load WSJ items from JSONL file (exported from Supabase).
 
     Deduplicates by title, keeping the item from the highest priority feed.
@@ -495,7 +495,10 @@ def load_wsj_jsonl(jsonl_path: str, today_only: bool = True) -> list[dict]:
 
     Args:
         jsonl_path: Path to JSONL file
-        today_only: If True, only include items published today (default: True)
+        today_only: If True, only include items published today (default: False)
+
+    Note: Date filtering for Google News results happens via add_date_filter(),
+    which uses WSJ pubDate to create an appropriate date range for search results.
     """
     from datetime import date
 
