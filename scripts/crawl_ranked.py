@@ -105,6 +105,28 @@ def save_crawl_result_to_db(supabase, article: dict, wsj: dict) -> bool:
         return False
 
 
+def mark_other_articles_skipped(supabase, wsj_item_id: str, success_url: str) -> int:
+    """Mark other pending articles for the same WSJ item as 'skipped'.
+
+    After a successful crawl, we don't need the backup articles anymore.
+    This makes the status more accurate (not 'pending' when they won't be crawled).
+    """
+    if not supabase or not wsj_item_id:
+        return 0
+
+    try:
+        # Update all pending articles for this WSJ item (except the successful one)
+        response = supabase.table('wsj_crawl_results').update({
+            'crawl_status': 'skipped',
+            'crawl_error': 'Another article succeeded for this WSJ item',
+        }).eq('wsj_item_id', wsj_item_id).eq('crawl_status', 'pending').neq('resolved_url', success_url).execute()
+
+        return len(response.data) if response.data else 0
+    except Exception as e:
+        print(f"  DB skip error: {e}")
+        return 0
+
+
 async def main():
     # Parse arguments
     delay = 3.0
@@ -201,6 +223,10 @@ async def main():
                     # Save to DB immediately
                     if supabase:
                         save_crawl_result_to_db(supabase, article, wsj)
+                        # Mark other pending articles for this WSJ as skipped
+                        skipped = mark_other_articles_skipped(supabase, wsj.get('id'), url)
+                        if skipped > 0:
+                            print(f"    → Marked {skipped} backup articles as skipped")
 
                     success = True
                     wsj_success += 1
