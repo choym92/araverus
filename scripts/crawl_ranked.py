@@ -61,13 +61,70 @@ def compute_relevance_score(wsj_text: str, crawled_text: str) -> float:
     return score
 
 
+def get_supabase_client():
+    """Get Supabase client if credentials are available."""
+    supabase_url = os.getenv("SUPABASE_URL")
+    supabase_key = os.getenv("SUPABASE_KEY")
+
+    if not supabase_url or not supabase_key:
+        return None
+
+    from supabase import create_client
+    return create_client(supabase_url, supabase_key)
+
+
+def save_crawl_result_to_db(supabase, article: dict, wsj: dict) -> bool:
+    """Save a single crawl result to Supabase immediately.
+
+    Updates the existing 'pending' record with crawl data.
+    """
+    if not supabase:
+        return False
+
+    from datetime import datetime, timezone
+
+    record = {
+        'resolved_url': article.get('resolved_url'),
+        'crawl_status': article.get('crawl_status'),
+        'crawl_error': article.get('crawl_error'),
+        'crawl_length': article.get('crawl_length'),
+        'content': article.get('crawl_markdown'),
+        'crawled_at': datetime.now(timezone.utc).isoformat() if article.get('crawl_status') == 'success' else None,
+        'relevance_score': article.get('relevance_score'),
+        'relevance_flag': article.get('relevance_flag'),
+    }
+
+    try:
+        supabase.table('wsj_crawl_results').upsert(
+            record,
+            on_conflict='resolved_url'
+        ).execute()
+        return True
+    except Exception as e:
+        print(f"  DB save error: {e}")
+        return False
+
+
 async def main():
     # Parse arguments
     delay = 3.0
+    update_db = False
     args = sys.argv[1:]
-    for i, arg in enumerate(args):
-        if arg == "--delay" and i + 1 < len(args):
+    i = 0
+    while i < len(args):
+        if args[i] == "--delay" and i + 1 < len(args):
             delay = float(args[i + 1])
+            i += 2
+        elif args[i] == "--update-db":
+            update_db = True
+            i += 1
+        else:
+            i += 1
+
+    # Initialize Supabase client if updating DB
+    supabase = get_supabase_client() if update_db else None
+    if update_db and not supabase:
+        print("Warning: --update-db specified but SUPABASE_URL/KEY not set")
 
     # Load ranked results
     input_path = Path(__file__).parent / "output" / "wsj_ranked_results.jsonl"
@@ -141,6 +198,10 @@ async def main():
                     rel_indicator = "⚠" if relevance < RELEVANCE_THRESHOLD else "✓"
                     print(f"✓ {result.get('markdown_length', 0):,} chars | rel:{relevance:.2f} {rel_indicator}")
 
+                    # Save to DB immediately
+                    if supabase:
+                        save_crawl_result_to_db(supabase, article, wsj)
+
                     success = True
                     wsj_success += 1
                     break  # Stop trying more articles for this WSJ
@@ -150,10 +211,18 @@ async def main():
                     article["crawl_error"] = result.get("skip_reason", "Content too short")
                     print(f"✗ {result.get('skip_reason', 'Too short')[:30]}")
 
+                    # Save failure to DB
+                    if supabase:
+                        save_crawl_result_to_db(supabase, article, wsj)
+
             except Exception as e:
                 article["crawl_status"] = "error"
                 article["crawl_error"] = str(e)[:100]
                 print(f"✗ {str(e)[:30]}")
+
+                # Save error to DB
+                if supabase:
+                    save_crawl_result_to_db(supabase, article, wsj)
 
             # Rate limit before next attempt
             if j < len(crawlable) - 1:

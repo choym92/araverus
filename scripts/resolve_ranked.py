@@ -74,7 +74,13 @@ def atomic_write_jsonl(path: Path, data: list) -> None:
 
 
 async def update_supabase(all_data: list) -> None:
-    """Update resolved URLs in Supabase (optional)."""
+    """Save resolve results to Supabase.
+
+    - Successful resolutions: crawl_status='pending' (ready for crawl)
+    - Failed resolutions: crawl_status='resolve_failed' (tracked for domain blocking)
+
+    Uses INSERT with ignore_duplicates to preserve existing records.
+    """
     supabase_url = os.getenv("SUPABASE_URL")
     supabase_key = os.getenv("SUPABASE_KEY")
 
@@ -82,10 +88,70 @@ async def update_supabase(all_data: list) -> None:
         print("\nSkipping Supabase update (missing SUPABASE_URL or SUPABASE_KEY)")
         return
 
-    print("\nUpdating Supabase...")
-    # TODO: Implement Supabase batch update
-    # This would update google_news_results table with resolved URLs
-    print("  (Supabase update not yet implemented)")
+    from supabase import create_client
+    supabase = create_client(supabase_url, supabase_key)
+
+    print("\nSaving resolve results to Supabase...")
+    saved_success = 0
+    saved_failed = 0
+    skipped = 0
+
+    for data in all_data:
+        wsj = data.get('wsj', {})
+        ranked = data.get('ranked', [])
+
+        for article in ranked:
+            resolve_status = article.get('resolve_status')
+
+            if resolve_status == 'success':
+                # Successfully resolved - ready for crawl
+                record = {
+                    'wsj_item_id': wsj.get('id'),
+                    'wsj_title': wsj.get('title'),
+                    'wsj_link': wsj.get('link'),
+                    'source': article.get('source'),
+                    'title': article.get('title'),
+                    'resolved_url': article.get('resolved_url'),
+                    'resolved_domain': article.get('resolved_domain'),
+                    'embedding_score': article.get('embedding_score'),
+                    'crawl_status': 'pending',
+                }
+                try:
+                    # Insert only - skip if URL already exists
+                    supabase.table('wsj_crawl_results').insert(record).execute()
+                    saved_success += 1
+                except Exception as e:
+                    if 'duplicate' in str(e).lower() or '23505' in str(e):
+                        skipped += 1  # Already exists, skip
+                    else:
+                        print(f"  Error saving {article.get('resolved_url')}: {e}")
+
+            elif resolve_status in ('failed', 'skipped'):
+                # Failed resolution - track for domain blocking
+                original_url = article.get('link', '')
+                record = {
+                    'wsj_item_id': wsj.get('id'),
+                    'wsj_title': wsj.get('title'),
+                    'wsj_link': wsj.get('link'),
+                    'source': article.get('source'),
+                    'title': article.get('title'),
+                    'resolved_url': original_url,  # Use original URL as identifier
+                    'resolved_domain': extract_domain(original_url),
+                    'embedding_score': article.get('embedding_score'),
+                    'crawl_status': 'resolve_failed',
+                    'crawl_error': article.get('resolve_reason_code', 'UNKNOWN'),
+                }
+                try:
+                    # Insert only - skip if URL already exists
+                    supabase.table('wsj_crawl_results').insert(record).execute()
+                    saved_failed += 1
+                except Exception as e:
+                    if 'duplicate' in str(e).lower() or '23505' in str(e):
+                        skipped += 1  # Already exists, skip
+                    else:
+                        print(f"  Error saving resolve failure: {e}")
+
+    print(f"  Saved: {saved_success} pending, {saved_failed} resolve_failed (skipped {skipped} existing)")
 
 
 async def main():

@@ -597,7 +597,7 @@ def cmd_update_domain_status() -> None:
 
         if row.get('crawl_status') == 'success':
             domain_stats[domain]['success_count'] += 1
-        elif row.get('crawl_status') in ('failed', 'error'):
+        elif row.get('crawl_status') in ('failed', 'error', 'resolve_failed'):
             domain_stats[domain]['fail_count'] += 1
             domain_stats[domain]['last_error'] = row.get('crawl_error')
 
