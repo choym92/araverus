@@ -35,7 +35,7 @@ jobs:
   # ============================================================
   ingest-search:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 60
 
     steps:
       - name: Checkout
@@ -65,7 +65,7 @@ jobs:
         run: cd scripts && python wsj_ingest.py --export
 
       - name: 3. Google News Search
-        run: cd scripts && python wsj_to_google_news.py
+        run: cd scripts && python wsj_to_google_news.py --delay-item 0.5 --delay-query 0.3
         continue-on-error: true
 
       - name: 4. Mark items as searched
