@@ -640,9 +640,9 @@ def add_date_filter(query: str, after_date=None, date_mode: str = "3d") -> str:
         return query
 
     if after_date and date_mode == "3d":
-        # WSJ pubDate -1 day to +2 days (4-day window)
+        # WSJ pubDate -1 day to +3 days (5-day window)
         start = (after_date.date() - timedelta(days=1)).isoformat()
-        end = (after_date.date() + timedelta(days=2)).isoformat()
+        end = (after_date.date() + timedelta(days=4)).isoformat()  # +3 days needs before:+4
         return f"{query} after:{start} before:{end}"
     elif after_date and date_mode == "7d":
         # Wider window: -3 day to +4 days (7-day window)
@@ -740,7 +740,12 @@ async def search_multi_query(
 
             if after_date:
                 article_date = parse_rss_date(article['pubDate'])
-                if article_date is None or article_date.date() != after_date.date():
+                if article_date is None:
+                    continue
+                wsj_date = after_date.date()
+                article_dt = article_date.date()
+                # Allow -1 to +3 days from WSJ pub date
+                if article_dt < wsj_date - timedelta(days=1) or article_dt > wsj_date + timedelta(days=3):
                     continue
 
             all_articles.append(article)
@@ -792,8 +797,10 @@ async def search_multi_query(
                     article_date = parse_rss_date(article['pubDate'])
                     if article_date is None:
                         continue
-                    # Same day only
-                    if article_date.date() != after_date.date():
+                    wsj_date = after_date.date()
+                    article_dt = article_date.date()
+                    # Allow -1 to +3 days from WSJ pub date
+                    if article_dt < wsj_date - timedelta(days=1) or article_dt > wsj_date + timedelta(days=3):
                         continue
 
                 all_articles.append(article)

@@ -241,11 +241,11 @@ def insert_wsj_item(supabase: Client, item: WsjItem) -> bool:
         raise
 
 
-def get_unsearched_items(supabase: Client, limit: int = 500) -> list[dict]:
-    """Get WSJ items that haven't been searched on Google News yet."""
+def get_unprocessed_items(supabase: Client, limit: int = 500) -> list[dict]:
+    """Get WSJ items that haven't been successfully processed yet."""
     response = supabase.table('wsj_items') \
         .select('*') \
-        .eq('searched', False) \
+        .eq('processed', False) \
         .order('published_at', desc=True) \
         .limit(limit) \
         .execute()
@@ -433,7 +433,7 @@ def cmd_export(output_path: Optional[Path] = None) -> None:
     print("=" * 60)
 
     supabase = get_supabase_client()
-    items = get_unsearched_items(supabase)
+    items = get_unprocessed_items(supabase)
 
     if not items:
         print("No unsearched items to export.")
