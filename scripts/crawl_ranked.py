@@ -61,16 +61,103 @@ def compute_relevance_score(wsj_text: str, crawled_text: str) -> float:
     return score
 
 
+def is_garbage_content(text: str) -> tuple[bool, str | None]:
+    """Detect unusable crawled content (paywall, CSS/JS, repeated words).
+
+    Args:
+        text: Crawled markdown content
+
+    Returns:
+        Tuple of (is_garbage, reason) where reason is None if not garbage
+    """
+    if not text:
+        return True, "empty_content"
+
+    words = text.split()
+
+    # Check for repeated words pattern (e.g., "word word word...")
+    if len(words) > 50:
+        unique_ratio = len(set(words)) / len(words)
+        if unique_ratio < 0.1:
+            return True, "repeated_words"
+
+    # Check for CSS/JS code patterns
+    css_patterns = ['mask-image:url', '.f_', '{display:', '@media', 'font-family:', 'padding:']
+    first_2000 = text[:2000]
+    css_matches = sum(1 for p in css_patterns if p in first_2000)
+    if css_matches >= 3:
+        return True, "css_js_code"
+
+    # Check for paywall indicators
+    paywall_patterns = ['meterActive', 'meterExpired', 'piano', 'subscribe to continue', 'subscription required']
+    first_1000_lower = text[:1000].lower()
+    if any(p.lower() in first_1000_lower for p in paywall_patterns):
+        return True, "paywall"
+
+    return False, None
+
+
 def get_supabase_client():
     """Get Supabase client if credentials are available."""
-    supabase_url = os.getenv("SUPABASE_URL")
-    supabase_key = os.getenv("SUPABASE_KEY")
+    from dotenv import load_dotenv
+    load_dotenv(Path(__file__).parent.parent / '.env.local')
+
+    supabase_url = os.getenv("NEXT_PUBLIC_SUPABASE_URL") or os.getenv("SUPABASE_URL")
+    supabase_key = os.getenv("SUPABASE_SERVICE_ROLE_KEY") or os.getenv("SUPABASE_KEY")
 
     if not supabase_url or not supabase_key:
         return None
 
     from supabase import create_client
     return create_client(supabase_url, supabase_key)
+
+
+def get_pending_items_from_db(supabase) -> list[dict]:
+    """Get pending crawl items from database, grouped by WSJ item.
+
+    Returns list of dicts with 'wsj' info and 'ranked' list of pending articles.
+    """
+    if not supabase:
+        return []
+
+    # Query pending crawl results with WSJ item info
+    response = supabase.table('wsj_crawl_results') \
+        .select('*, wsj_items(id, title, description)') \
+        .eq('crawl_status', 'pending') \
+        .not_.is_('resolved_url', 'null') \
+        .order('created_at') \
+        .execute()
+
+    if not response.data:
+        return []
+
+    # Group by wsj_item_id
+    by_wsj: dict = {}
+    for row in response.data:
+        wsj_item = row.get('wsj_items') or {}
+        wsj_id = row.get('wsj_item_id')
+
+        if not wsj_id:
+            continue
+
+        if wsj_id not in by_wsj:
+            by_wsj[wsj_id] = {
+                'wsj': {
+                    'id': wsj_id,
+                    'title': wsj_item.get('title', ''),
+                    'description': wsj_item.get('description', ''),
+                },
+                'ranked': []
+            }
+
+        by_wsj[wsj_id]['ranked'].append({
+            'resolved_url': row.get('resolved_url'),
+            'resolved_domain': row.get('resolved_domain'),
+            'source': row.get('source'),
+            'bm25_rank': row.get('bm25_rank'),
+        })
+
+    return list(by_wsj.values())
 
 
 def save_crawl_result_to_db(supabase, article: dict, wsj: dict) -> bool:
@@ -131,6 +218,7 @@ async def main():
     # Parse arguments
     delay = 3.0
     update_db = False
+    from_db = False
     args = sys.argv[1:]
     i = 0
     while i < len(args):
@@ -140,27 +228,42 @@ async def main():
         elif args[i] == "--update-db":
             update_db = True
             i += 1
+        elif args[i] == "--from-db":
+            from_db = True
+            update_db = True  # --from-db implies --update-db
+            i += 1
         else:
             i += 1
 
-    # Initialize Supabase client if updating DB
-    supabase = get_supabase_client() if update_db else None
-    if update_db and not supabase:
-        print("Warning: --update-db specified but SUPABASE_URL/KEY not set")
-
-    # Load ranked results
-    input_path = Path(__file__).parent / "output" / "wsj_ranked_results.jsonl"
-    if not input_path.exists():
-        print(f"Error: Run embedding_rank.py and resolve_ranked.py first")
+    # Initialize Supabase client
+    supabase = get_supabase_client() if (update_db or from_db) else None
+    if (update_db or from_db) and not supabase:
+        print("Error: Database credentials not found in .env.local")
+        print("Required: NEXT_PUBLIC_SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY")
         return
 
-    # Read all data
-    all_data = []
-    with open(input_path) as f:
-        for line in f:
-            all_data.append(json.loads(line))
+    # Load data from DB or file
+    if from_db:
+        print("Loading pending items from database...")
+        all_data = get_pending_items_from_db(supabase)
+        if not all_data:
+            print("No pending items found in database.")
+            return
+        print(f"Loaded {len(all_data)} WSJ items with pending backups")
+    else:
+        # Load ranked results from file (default behavior for GitHub Actions)
+        input_path = Path(__file__).parent / "output" / "wsj_ranked_results.jsonl"
+        if not input_path.exists():
+            print(f"Error: Run embedding_rank.py and resolve_ranked.py first")
+            return
 
-    print(f"Loaded {len(all_data)} WSJ items")
+        # Read all data
+        all_data = []
+        with open(input_path) as f:
+            for line in f:
+                all_data.append(json.loads(line))
+
+        print(f"Loaded {len(all_data)} WSJ items from file")
     print(f"Strategy: 1 article per WSJ, fallback on failure")
     print(f"Crawl mode: {CRAWL_MODE} ({'CI detected' if IS_CI else 'local'})")
     print(f"Delay: {delay}s")
@@ -204,21 +307,56 @@ async def main():
                 result = await crawl_article(url, mode=CRAWL_MODE)
 
                 if result.get("success") and result.get("markdown_length", 0) > 500:
-                    # Success! Mark this article
-                    article["crawl_status"] = "success"
-                    article["crawl_title"] = result.get("title", "")
-                    article["crawl_markdown"] = result.get("markdown", "")
-                    article["crawl_length"] = result.get("markdown_length", 0)
-
-                    # Compute relevance score
                     crawled_content = result.get("markdown", "")
+
+                    # Step 1: Check for garbage content (paywall, CSS/JS, repeated words)
+                    is_garbage, garbage_reason = is_garbage_content(crawled_content)
+                    if is_garbage:
+                        article["crawl_status"] = "garbage"
+                        article["crawl_error"] = garbage_reason
+                        article["crawl_length"] = result.get("markdown_length", 0)
+                        print(f"✗ Garbage: {garbage_reason}")
+
+                        # Save garbage result to DB and try next backup
+                        if supabase:
+                            save_crawl_result_to_db(supabase, article, wsj)
+
+                        # Rate limit before next attempt
+                        if j < len(crawlable) - 1:
+                            await asyncio.sleep(delay)
+                        continue  # Try next backup article
+
+                    # Step 2: Check relevance score
                     relevance = compute_relevance_score(wsj_text, crawled_content)
                     article["relevance_score"] = round(relevance, 4)
-                    article["relevance_flag"] = "low" if relevance < RELEVANCE_THRESHOLD else "ok"
 
-                    # Output with relevance indicator
-                    rel_indicator = "⚠" if relevance < RELEVANCE_THRESHOLD else "✓"
-                    print(f"✓ {result.get('markdown_length', 0):,} chars | rel:{relevance:.2f} {rel_indicator}")
+                    if relevance < RELEVANCE_THRESHOLD:
+                        # Mark as success but with low relevance flag
+                        # This allows domain tracking while enabling backup retries
+                        article["crawl_status"] = "success"
+                        article["relevance_flag"] = "low"
+                        article["crawl_length"] = result.get("markdown_length", 0)
+                        article["crawl_markdown"] = crawled_content  # Save content for reference
+                        print(f"⚠ Low relevance: {relevance:.2f} - trying next backup")
+
+                        # Save low relevance result to DB and try next backup
+                        if supabase:
+                            save_crawl_result_to_db(supabase, article, wsj)
+
+                        # Rate limit before next attempt
+                        if j < len(crawlable) - 1:
+                            await asyncio.sleep(delay)
+                        continue  # Try next backup article
+
+                    # Step 3: All checks passed - mark as success
+                    article["crawl_status"] = "success"
+                    article["crawl_title"] = result.get("title", "")
+                    article["crawl_markdown"] = crawled_content
+                    article["crawl_length"] = result.get("markdown_length", 0)
+                    article["relevance_flag"] = "ok"
+
+                    # Output with success indicator
+                    print(f"✓ {result.get('markdown_length', 0):,} chars | rel:{relevance:.2f} ✓")
 
                     # Save to DB immediately
                     if supabase:
@@ -262,10 +400,11 @@ async def main():
         if i < len(all_data) - 1:
             await asyncio.sleep(delay)
 
-    # Write back to file
-    with open(input_path, "w") as f:
-        for data in all_data:
-            f.write(json.dumps(data, ensure_ascii=False) + "\n")
+    # Write back to file (only when reading from file, not --from-db)
+    if not from_db:
+        with open(input_path, "w") as f:
+            for data in all_data:
+                f.write(json.dumps(data, ensure_ascii=False) + "\n")
 
     # Summary
     print()
@@ -313,7 +452,10 @@ async def main():
                 flag = "⚠" if art.get("relevance_flag") == "low" else "✓"
                 print(f"  {flag} [{domain}] {length:,} chars, rel:{rel:.2f} - {wsj}...")
 
-    print(f"\nUpdated: {input_path}")
+    if from_db:
+        print(f"\nResults saved to database.")
+    else:
+        print(f"\nUpdated: {input_path}")
 
 
 if __name__ == "__main__":

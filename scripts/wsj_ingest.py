@@ -485,8 +485,11 @@ def cmd_mark_processed(file_path: Path) -> None:
 def cmd_mark_processed_from_db() -> None:
     """Mark WSJ items as processed by querying wsj_crawl_results table.
 
-    Finds all wsj_item_id values where crawl_status = 'success',
+    Finds all wsj_item_id values where crawl_status = 'success' AND relevance_flag = 'ok',
     then marks those items as processed in wsj_items table.
+
+    NOTE: Only marks items with good quality content. Items with low_relevance or
+    garbage status are NOT marked as processed so backups can be retried.
     """
     print("=" * 60)
     print("Mark Processed from DB (wsj_crawl_results)")
@@ -494,16 +497,17 @@ def cmd_mark_processed_from_db() -> None:
 
     supabase = get_supabase_client()
 
-    # Query wsj_crawl_results for successful crawls
-    print("Querying wsj_crawl_results for successful crawls...")
+    # Query wsj_crawl_results for successful crawls with good relevance
+    print("Querying wsj_crawl_results for quality crawls (success + ok relevance)...")
     response = supabase.table('wsj_crawl_results') \
         .select('wsj_item_id') \
         .eq('crawl_status', 'success') \
+        .eq('relevance_flag', 'ok') \
         .not_.is_('wsj_item_id', 'null') \
         .execute()
 
     if not response.data:
-        print("No successful crawls found in wsj_crawl_results.")
+        print("No quality crawls found in wsj_crawl_results.")
         return
 
     # Get unique wsj_item_ids
@@ -511,7 +515,7 @@ def cmd_mark_processed_from_db() -> None:
         row['wsj_item_id'] for row in response.data
         if row.get('wsj_item_id')
     ))
-    print(f"Found {len(wsj_ids)} unique WSJ items with successful crawls")
+    print(f"Found {len(wsj_ids)} unique WSJ items with quality crawls")
 
     if not wsj_ids:
         print("No valid wsj_item_id values found.")
@@ -563,6 +567,10 @@ def cmd_update_domain_status() -> None:
 
     Aggregates crawl results by domain and upserts to wsj_domain_status.
     Auto-blocks domains with: fail_count > 5 AND success_rate < 20%
+
+    NOTE: 'garbage' and 'low_relevance' crawl statuses count as failures
+    for domain quality assessment, since they indicate the domain
+    consistently returns unusable content.
     """
     print("=" * 60)
     print("Update Domain Status from Crawl Results")
@@ -573,7 +581,7 @@ def cmd_update_domain_status() -> None:
     # Query all crawl results with domain info
     print("Querying wsj_crawl_results...")
     response = supabase.table('wsj_crawl_results') \
-        .select('resolved_domain, crawl_status, crawl_error') \
+        .select('resolved_domain, crawl_status, crawl_error, relevance_flag') \
         .not_.is_('resolved_domain', 'null') \
         .execute()
 
@@ -582,6 +590,8 @@ def cmd_update_domain_status() -> None:
         return
 
     # Aggregate by domain
+    # NOTE: Only count as success if crawl_status='success' AND relevance_flag='ok'
+    # Count 'garbage', 'low_relevance', 'failed', 'error', 'resolve_failed' as failures
     domain_stats: dict = {}
     for row in response.data:
         domain = row.get('resolved_domain')
@@ -595,11 +605,19 @@ def cmd_update_domain_status() -> None:
                 'last_error': None,
             }
 
-        if row.get('crawl_status') == 'success':
+        crawl_status = row.get('crawl_status')
+        relevance_flag = row.get('relevance_flag')
+
+        # Only count as success if status='success' AND relevance='ok'
+        if crawl_status == 'success' and relevance_flag == 'ok':
             domain_stats[domain]['success_count'] += 1
-        elif row.get('crawl_status') in ('failed', 'error', 'resolve_failed'):
+        elif crawl_status in ('failed', 'error', 'resolve_failed', 'garbage', 'low_relevance'):
             domain_stats[domain]['fail_count'] += 1
-            domain_stats[domain]['last_error'] = row.get('crawl_error')
+            domain_stats[domain]['last_error'] = row.get('crawl_error') or crawl_status
+        elif crawl_status == 'success' and relevance_flag == 'low':
+            # Old data: success with low relevance also counts as failure
+            domain_stats[domain]['fail_count'] += 1
+            domain_stats[domain]['last_error'] = 'low_relevance'
 
     print(f"Found {len(domain_stats)} unique domains")
 
@@ -663,6 +681,122 @@ def cmd_update_domain_status() -> None:
                 print(f"  {domain}: {fail} fails, {rate:.0%} success")
 
 
+def cmd_retry_low_relevance() -> None:
+    """Reactivate backup articles for WSJ items with only low-relevance crawls.
+
+    This command:
+    1. Finds WSJ items that ONLY have low-relevance crawls (no good quality crawl)
+    2. Reactivates their skipped backup articles (skipped → pending)
+    3. Unmarks WSJ items as processed (so crawler will retry them)
+
+    Use this after updating crawl_ranked.py to continue trying backups on low relevance.
+    """
+    print("=" * 60)
+    print("Retry Low Relevance Items")
+    print("=" * 60)
+
+    supabase = get_supabase_client()
+
+    # Step 1: Find WSJ items with low-relevance success but NO good success
+    print("\n[1/4] Finding WSJ items with only low-relevance crawls...")
+
+    # Get all WSJ item IDs that have at least one 'success' + 'ok' relevance
+    good_response = supabase.table('wsj_crawl_results') \
+        .select('wsj_item_id') \
+        .eq('crawl_status', 'success') \
+        .eq('relevance_flag', 'ok') \
+        .not_.is_('wsj_item_id', 'null') \
+        .execute()
+
+    good_item_ids = set(
+        row['wsj_item_id'] for row in (good_response.data or [])
+        if row.get('wsj_item_id')
+    )
+    print(f"  WSJ items with good crawls: {len(good_item_ids)}")
+
+    # Get all WSJ item IDs that have low-relevance crawls (success + low, or old low_relevance status)
+    low_response = supabase.table('wsj_crawl_results') \
+        .select('wsj_item_id') \
+        .eq('crawl_status', 'success') \
+        .eq('relevance_flag', 'low') \
+        .not_.is_('wsj_item_id', 'null') \
+        .execute()
+
+    # Also check for old 'low_relevance' status records
+    old_low_response = supabase.table('wsj_crawl_results') \
+        .select('wsj_item_id') \
+        .eq('crawl_status', 'low_relevance') \
+        .not_.is_('wsj_item_id', 'null') \
+        .execute()
+
+    low_item_ids = set(
+        row['wsj_item_id'] for row in (low_response.data or [])
+        if row.get('wsj_item_id')
+    )
+    low_item_ids.update(
+        row['wsj_item_id'] for row in (old_low_response.data or [])
+        if row.get('wsj_item_id')
+    )
+    print(f"  WSJ items with low-relevance crawls: {len(low_item_ids)}")
+
+    # Items to retry = have low relevance but NOT good quality
+    items_to_retry = low_item_ids - good_item_ids
+    print(f"  WSJ items needing retry: {len(items_to_retry)}")
+
+    if not items_to_retry:
+        print("\nNo items need retry. All low-relevance items already have a good crawl.")
+        return
+
+    # Step 2: Reactivate skipped backup articles for these items
+    print(f"\n[2/4] Reactivating skipped backups for {len(items_to_retry)} items...")
+
+    # Process in batches to avoid query limits
+    items_list = list(items_to_retry)
+    batch_size = 100
+    total_reactivated = 0
+
+    for i in range(0, len(items_list), batch_size):
+        batch = items_list[i:i + batch_size]
+        try:
+            response = supabase.table('wsj_crawl_results') \
+                .update({'crawl_status': 'pending', 'crawl_error': None}) \
+                .eq('crawl_status', 'skipped') \
+                .in_('wsj_item_id', batch) \
+                .execute()
+            total_reactivated += len(response.data) if response.data else 0
+        except Exception as e:
+            print(f"  Error updating batch: {e}")
+
+    print(f"  Reactivated {total_reactivated} backup articles")
+
+    # Step 3: Unmark WSJ items as processed
+    print(f"\n[3/4] Unmarking {len(items_to_retry)} WSJ items as processed...")
+
+    total_unmarked = 0
+    for i in range(0, len(items_list), batch_size):
+        batch = items_list[i:i + batch_size]
+        try:
+            response = supabase.table('wsj_items') \
+                .update({'processed': False, 'processed_at': None}) \
+                .in_('id', batch) \
+                .execute()
+            total_unmarked += len(response.data) if response.data else 0
+        except Exception as e:
+            print(f"  Error updating batch: {e}")
+
+    print(f"  Unmarked {total_unmarked} WSJ items")
+
+    # Step 4: Summary
+    print("\n[4/4] Summary")
+    print("=" * 60)
+    print(f"WSJ items to retry: {len(items_to_retry)}")
+    print(f"Backup articles reactivated: {total_reactivated}")
+    print(f"WSJ items unmarked: {total_unmarked}")
+    print("\nNext steps:")
+    print("  1. Run: python scripts/crawl_ranked.py --update-db")
+    print("  2. Run: python scripts/wsj_ingest.py --update-domain-status")
+
+
 def cmd_stats() -> None:
     """Show current database statistics."""
     print("=" * 60)
@@ -697,6 +831,7 @@ def main():
         print("  --mark-processed FILE    Mark items in JSONL as processed")
         print("  --mark-processed-from-db Query wsj_crawl_results and mark processed")
         print("  --update-domain-status   Aggregate crawl results to wsj_domain_status")
+        print("  --retry-low-relevance    Reactivate backups for low-relevance items")
         print("  --stats                  Show database statistics")
         return
 
@@ -721,6 +856,8 @@ def main():
         cmd_mark_processed_from_db()
     elif args[0] == '--update-domain-status':
         cmd_update_domain_status()
+    elif args[0] == '--retry-low-relevance':
+        cmd_retry_low_relevance()
     elif args[0] == '--stats':
         cmd_stats()
     else:
