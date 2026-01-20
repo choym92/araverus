@@ -242,10 +242,17 @@ def insert_wsj_item(supabase: Client, item: WsjItem) -> bool:
 
 
 def get_unprocessed_items(supabase: Client, limit: int = 500) -> list[dict]:
-    """Get WSJ items that haven't been successfully processed yet."""
+    """Get WSJ items that need Google search.
+
+    Only returns items where:
+    - searched = false (not yet searched/resolved)
+
+    Items with searched=true are already in wsj_crawl_results
+    and only need crawling (use --from-db for that).
+    """
     response = supabase.table('wsj_items') \
         .select('*') \
-        .eq('processed', False) \
+        .eq('searched', False) \
         .order('published_at', desc=True) \
         .limit(limit) \
         .execute()

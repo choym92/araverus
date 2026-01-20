@@ -10,6 +10,11 @@ name: Finance Pipeline
 on:
   workflow_dispatch:
     inputs:
+      crawl_only:
+        description: 'Skip search/rank/resolve, crawl pending from DB only'
+        required: false
+        default: 'false'
+        type: boolean
       skip_crawl:
         description: 'Skip crawling step (faster test)'
         required: false
@@ -32,8 +37,10 @@ env:
 jobs:
   # ============================================================
   # Job 1: Ingest & Search (lightweight)
+  # Skip if crawl_only=true
   # ============================================================
   ingest-search:
+    if: ${{ inputs.crawl_only != true }}
     runs-on: ubuntu-latest
     timeout-minutes: 60
 
@@ -61,15 +68,14 @@ jobs:
       - name: 1. WSJ RSS Ingest
         run: cd scripts && python wsj_ingest.py
 
-      - name: 2. Export to JSONL
+      - name: 2. Export to JSONL (searched=false only)
         run: cd scripts && python wsj_ingest.py --export
 
       - name: 3. Google News Search
         run: cd scripts && python wsj_to_google_news.py --delay-item 0.5 --delay-query 0.3
         continue-on-error: true
 
-      - name: 4. Mark items as searched
-        run: cd scripts && python wsj_ingest.py --mark-searched output/wsj_items.jsonl
+      # NOTE: mark_items_searched moved to rank-resolve job (after DB save)
 
       - name: Upload search results
         uses: actions/upload-artifact@v4
@@ -82,9 +88,11 @@ jobs:
 
   # ============================================================
   # Job 2: Rank & Resolve (lightweight)
+  # Skip if crawl_only=true
   # ============================================================
   rank-resolve:
     needs: ingest-search
+    if: ${{ inputs.crawl_only != true }}
     runs-on: ubuntu-latest
     timeout-minutes: 45
 
@@ -120,14 +128,17 @@ jobs:
           name: search-results
           path: scripts/output
 
-      - name: 5. Embedding Ranking
+      - name: 4. Embedding Ranking
         run: cd scripts && python embedding_rank.py
 
-      - name: 6. Resolve URLs & Save to DB
+      - name: 5. Resolve URLs & Save to DB
         run: cd scripts && python resolve_ranked.py --delay 0.5 --update-db
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
+
+      - name: 6. Mark items as searched (after DB save)
+        run: cd scripts && python wsj_ingest.py --mark-searched output/wsj_items.jsonl
 
       - name: Upload ranked results
         uses: actions/upload-artifact@v4
@@ -138,10 +149,11 @@ jobs:
 
   # ============================================================
   # Job 3: Crawl (heavy - Playwright)
+  # When crawl_only=true: uses --from-db to crawl pending items
   # ============================================================
   crawl:
     needs: rank-resolve
-    if: ${{ inputs.skip_crawl != 'true' }}
+    if: ${{ inputs.skip_crawl != true && inputs.crawl_only != true }}
     runs-on: ubuntu-latest
     timeout-minutes: 180
 
@@ -188,6 +200,43 @@ jobs:
             scripts/output/wsj_ranked_results.jsonl
             scripts/output/articles/
           retention-days: 7
+
+  # ============================================================
+  # Job 3b: Crawl Only (from DB) - when crawl_only=true
+  # ============================================================
+  crawl-from-db:
+    if: ${{ inputs.crawl_only == true }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Set up uv (fast package manager)
+        uses: astral-sh/setup-uv@v4
+        with:
+          enable-cache: true
+          cache-dependency-glob: "scripts/requirements.txt"
+
+      - name: Install dependencies (uv)
+        run: uv pip install --system -r scripts/requirements.txt
+
+      # Playwright browser - always install fresh to avoid cache issues
+      - name: Install Playwright browsers
+        run: playwright install chromium --with-deps
+
+      - name: Crawl pending items from DB
+        run: cd scripts && python crawl_ranked.py --from-db --delay 2
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
+        continue-on-error: true
 
   # ============================================================
   # Job 4: Save to Supabase (persist results)
@@ -308,4 +357,43 @@ jobs:
             echo "- WSJ items processed: $TOTAL" >> $GITHUB_STEP_SUMMARY
           fi
 
+          echo "- Results saved to Supabase ✓" >> $GITHUB_STEP_SUMMARY
+
+  # ============================================================
+  # Job 4b: Post-process for crawl_only mode
+  # ============================================================
+  save-results-crawl-only:
+    needs: crawl-from-db
+    if: ${{ inputs.crawl_only == true }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Set up uv (fast package manager)
+        uses: astral-sh/setup-uv@v4
+        with:
+          enable-cache: true
+          cache-dependency-glob: "scripts/requirements.txt"
+
+      - name: Install dependencies (uv)
+        run: uv pip install --system -r scripts/requirements.txt
+
+      - name: Mark WSJ items as processed
+        run: cd scripts && python wsj_ingest.py --mark-processed-from-db
+
+      - name: Update domain status
+        run: cd scripts && python wsj_ingest.py --update-domain-status
+
+      - name: Summary
+        run: |
+          echo "## Pipeline Results (Crawl Only Mode)" >> $GITHUB_STEP_SUMMARY
+          echo "- Crawled pending items from database" >> $GITHUB_STEP_SUMMARY
           echo "- Results saved to Supabase ✓" >> $GITHUB_STEP_SUMMARY
