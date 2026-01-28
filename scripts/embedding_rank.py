@@ -130,7 +130,7 @@ def main():
         candidates = r['google_news']
 
         print("=" * 80)
-        print(f"[{i+1}] WSJ: {wsj.get('title', 'N/A')}")
+        print(f"[{i+1}/{len(results)}] WSJ: {wsj.get('title', 'N/A')}")
         print(f"    Candidates: {len(candidates)}")
 
         # Query = WSJ title + description
@@ -153,7 +153,7 @@ def main():
                 marker = "o"
             else:
                 marker = "-"
-            print(f"    {marker} [{j+1}] score={score:.3f}")
+            print(f"    {marker} [{j+1}/{len(ranked)}] score={score:.3f}")
             print(f"       {article.get('source', 'N/A')}: {article.get('title', 'N/A')[:60]}...")
 
         # Build output structure (compatible with resolve_ranked.py)

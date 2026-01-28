@@ -943,7 +943,7 @@ async def main():
     async with httpx.AsyncClient() as client:
         for i, wsj in enumerate(wsj_items):
             print("=" * 80)
-            print(f"[{i+1}] WSJ: {wsj['title']}")
+            print(f"[{i+1}/{len(wsj_items)}] WSJ: {wsj['title']}")
             print(f"    {wsj['description'][:100]}...")
 
             # Date filter: only articles from same day as WSJ publish date

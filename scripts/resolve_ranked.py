@@ -188,11 +188,11 @@ async def main():
 
     async with httpx.AsyncClient(timeout=30.0) as http_client:
         article_num = 0
-        for data in all_data:
+        for wsj_idx, data in enumerate(all_data):
             wsj_title = data.get("wsj", {}).get("title", "Unknown")
             articles = data.get("ranked", [])
 
-            print(f"\n[WSJ] {wsj_title[:60]}...")
+            print(f"\n[{wsj_idx+1}/{len(all_data)}] WSJ: {wsj_title[:60]}...")
 
             for article in articles:
                 article_num += 1
