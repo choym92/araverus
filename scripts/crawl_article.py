@@ -1,10 +1,12 @@
 #!/usr/bin/env python3
 """
-Crawl article content using crawl4ai with stealth/undetected mode.
+Crawl article content using hybrid approach: newspaper4k + crawl4ai fallback.
 
 Features:
+- HYBRID APPROACH: Try newspaper4k first (fast + metadata), fall back to browser
 - Google News URL resolution
-- crawl4ai fetch (basic/stealth/undetected)
+- newspaper4k: Fast HTTP fetch with author/date extraction
+- crawl4ai fetch (basic/stealth/undetected) for protected sites
 - HTML-first extraction via trafilatura (with crawl4ai fallback)
 - Quality metrics + reason codes for debugging
 - Section cutting to remove noise
@@ -17,6 +19,7 @@ Modes: basic, stealth, undetected (default: undetected)
 As a module:
     from crawl_article import crawl_article
     result = await crawl_article("https://...")
+    # result includes: extraction_method, authors, publish_date (when available)
 """
 import asyncio
 import base64
@@ -39,6 +42,14 @@ try:
 except ImportError:
     trafilatura = None
     HAS_TRAFILATURA = False
+
+# Optional: newspaper4k for fast extraction with metadata
+try:
+    import newspaper
+    HAS_NEWSPAPER4K = True
+except ImportError:
+    newspaper = None
+    HAS_NEWSPAPER4K = False
 
 
 # ============================================================================
@@ -562,15 +573,81 @@ def get_domain_config(url: str) -> dict | None:
     return None  # Unknown domain - will use fallback strategy
 
 
+# ============================================================================
+# Newspaper4k Fast Extraction (Hybrid Approach - Phase 1)
+# ============================================================================
+
+def _try_newspaper4k(url: str, domain: str, blocked_domains: set[str] = None, min_length: int = 300) -> dict | None:
+    """
+    Try fast extraction using newspaper4k.
+
+    Returns dict with content if successful, None if failed.
+    This is Phase 1 of the hybrid approach - fast HTTP fetch + extraction.
+
+    Args:
+        url: Article URL
+        domain: Domain string for checking blocked list
+        blocked_domains: Set of domains that require browser rendering (from DB)
+        min_length: Minimum content length to consider successful
+
+    Returns:
+        dict with keys: success, title, markdown, markdown_length, authors, publish_date, extraction_method
+        or None if extraction failed
+    """
+    if not HAS_NEWSPAPER4K:
+        return None
+
+    # Skip domains that require browser rendering (loaded from wsj_domain_status)
+    if blocked_domains:
+        from domain_utils import is_blocked_domain
+        if is_blocked_domain(domain, blocked_domains):
+            return None
+
+    try:
+        article = newspaper.article(url, timeout=15)
+        article.parse()
+
+        text = article.text
+        if not text or len(text) < min_length:
+            return None
+
+        # Apply section cutting to remove noise
+        text = _cut_at_section_markers(text)
+
+        # Check quality
+        metrics = _compute_quality(text)
+        if metrics.reason_code in ("TOO_SHORT", "MENU_HEAVY", "LINK_HEAVY"):
+            return None
+
+        return {
+            "success": True,
+            "title": article.title or "",
+            "markdown": text,
+            "markdown_length": len(text),
+            "authors": article.authors or [],
+            "publish_date": str(article.publish_date) if article.publish_date else None,
+            "top_image": article.top_image or None,
+            "extraction_method": "newspaper4k",
+            "quality": asdict(metrics),
+        }
+
+    except Exception:
+        # newspaper4k failed - will fall back to browser
+        return None
+
+
 async def crawl_article(
     url: str,
     mode: str = "undetected",
     use_domain_selector: bool = True,
     skip_blocked: bool = True,
     log_result: bool = True,
+    blocked_domains: set[str] = None,
 ) -> dict:
     """
     Crawl an article URL and extract content.
+
+    Uses hybrid approach: tries newspaper4k first (fast), falls back to browser.
 
     Args:
         url: The article URL to crawl
@@ -578,9 +655,11 @@ async def crawl_article(
         use_domain_selector: If True, use domain-specific CSS selectors when available
         skip_blocked: If True, skip domains known to be blocked
         log_result: If True, log success/failure to blocked_domains.json
+        blocked_domains: Set of domains to skip newspaper4k (from wsj_domain_status)
 
     Returns:
         dict with keys: success, status_code, title, markdown, markdown_length, domain, skipped, resolved_url
+        Also includes: extraction_method, authors, publish_date (when newspaper4k succeeds)
     """
     original_url = url
     resolved_url = None
@@ -621,6 +700,33 @@ async def crawl_article(
             "skip_reason": block_reason,
         }
 
+    # =========================================================================
+    # HYBRID APPROACH: Try newspaper4k first (fast), fall back to browser
+    # =========================================================================
+    np_result = _try_newspaper4k(url, domain, blocked_domains)
+    if np_result:
+        # newspaper4k succeeded - return result with standard fields
+        if log_result:
+            log_crawl_result(domain, True, 200, np_result["markdown_length"])
+
+        return {
+            "success": True,
+            "status_code": 200,
+            "title": np_result["title"],
+            "markdown": np_result["markdown"],
+            "markdown_length": np_result["markdown_length"],
+            "domain": domain,
+            "skipped": False,
+            "original_url": original_url,
+            "resolved_url": resolved_url,
+            "extraction_method": "newspaper4k",
+            "authors": np_result.get("authors", []),
+            "publish_date": np_result.get("publish_date"),
+            "top_image": np_result.get("top_image"),
+            "quality": np_result.get("quality"),
+        }
+
+    # newspaper4k failed or skipped - fall back to browser-based crawling
     domain_config = get_domain_config(url)
     is_known_domain = domain_config is not None
 

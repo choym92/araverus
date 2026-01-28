@@ -17,6 +17,10 @@ numpy>=1.24.0
 # Content extraction (for crawl_article.py)
 trafilatura>=1.6.0
 lxml>=4.9.0
+newspaper4k>=0.9.0  # Fast extraction with metadata (hybrid approach)
 
 # Web crawling (for crawl_article.py)
 crawl4ai>=0.4.0
+
+# OpenAI API (for llm_analysis.py)
+openai>=1.0.0
