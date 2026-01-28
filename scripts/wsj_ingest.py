@@ -2,7 +2,7 @@
 """
 WSJ RSS Feed Ingestion Pipeline.
 
-Fetches all 7 WSJ RSS feeds, saves to Supabase with deduplication,
+Fetches all 6 WSJ RSS feeds, saves to Supabase with deduplication,
 and exports unprocessed items to JSONL for the ML pipeline.
 
 Usage:
@@ -573,7 +573,9 @@ def cmd_update_domain_status() -> None:
     """Update wsj_domain_status table from wsj_crawl_results.
 
     Aggregates crawl results by domain and upserts to wsj_domain_status.
-    Auto-blocks domains with: fail_count > 5 AND success_rate < 20%
+    Auto-blocks domains with:
+    - fail_count > 5 AND success_rate < 20%, OR
+    - llm_fail_count >= 3 (LLM detected wrong content)
 
     NOTE: 'garbage' and 'low_relevance' crawl statuses count as failures
     for domain quality assessment, since they indicate the domain
@@ -588,7 +590,7 @@ def cmd_update_domain_status() -> None:
     # Query all crawl results with domain info
     print("Querying wsj_crawl_results...")
     response = supabase.table('wsj_crawl_results') \
-        .select('resolved_domain, crawl_status, crawl_error, relevance_flag') \
+        .select('resolved_domain, crawl_status, crawl_error, relevance_flag, relevance_score') \
         .not_.is_('resolved_domain', 'null') \
         .execute()
 
@@ -610,14 +612,19 @@ def cmd_update_domain_status() -> None:
                 'success_count': 0,
                 'fail_count': 0,
                 'last_error': None,
+                'relevance_scores': [],  # Track scores for avg calculation
             }
 
         crawl_status = row.get('crawl_status')
         relevance_flag = row.get('relevance_flag')
+        relevance_score = row.get('relevance_score')
 
         # Only count as success if status='success' AND relevance='ok'
         if crawl_status == 'success' and relevance_flag == 'ok':
             domain_stats[domain]['success_count'] += 1
+            # Track relevance score for weighted_score calculation
+            if relevance_score is not None:
+                domain_stats[domain]['relevance_scores'].append(relevance_score)
         elif crawl_status in ('failed', 'error', 'resolve_failed', 'garbage', 'low_relevance'):
             domain_stats[domain]['fail_count'] += 1
             domain_stats[domain]['last_error'] = row.get('crawl_error') or crawl_status
@@ -628,6 +635,21 @@ def cmd_update_domain_status() -> None:
 
     print(f"Found {len(domain_stats)} unique domains")
 
+    # Fetch existing llm_fail_count values
+    llm_fail_response = supabase.table('wsj_domain_status') \
+        .select('domain, llm_fail_count') \
+        .execute()
+    llm_fail_counts = {
+        row['domain']: row.get('llm_fail_count', 0) or 0
+        for row in llm_fail_response.data
+    } if llm_fail_response.data else {}
+
+    # Allowlist: domains that should never be auto-blocked
+    DOMAIN_ALLOWLIST = {
+        'finance.yahoo.com',
+        'livemint.com',
+    }
+
     # Upsert to wsj_domain_status
     now = datetime.utcnow().isoformat()
     updated = 0
@@ -637,14 +659,33 @@ def cmd_update_domain_status() -> None:
         success = stats['success_count']
         fail = stats['fail_count']
         total = success + fail
+        llm_fail = llm_fail_counts.get(domain, 0)
 
         # Calculate success rate
         success_rate = success / total if total > 0 else 0
 
-        # Determine status: auto-block if fail > 5 AND success_rate < 20%
-        should_block = fail > 5 and success_rate < 0.2
+        # Determine status: auto-block if:
+        # - fail > 5 AND success_rate < 20%, OR
+        # - llm_fail >= 10 AND success_count < llm_fail * 3 (LLM failure rate > 25%)
+        # This ensures high-volume domains with good success rates aren't blocked
+        # Allowlisted domains are never auto-blocked
+        crawl_block = fail > 5 and success_rate < 0.2
+        llm_block = llm_fail >= 10 and success < llm_fail * 3
+        should_block = (crawl_block or llm_block) and domain not in DOMAIN_ALLOWLIST
         status = 'blocked' if should_block else 'active'
-        block_reason = f"Auto-blocked: {fail} failures, {success_rate:.0%} success rate" if should_block else None
+
+        if crawl_block:
+            block_reason = f"Auto-blocked: {fail} failures, {success_rate:.0%} success rate"
+        elif llm_block:
+            llm_rate = llm_fail / (success + llm_fail) if (success + llm_fail) > 0 else 1
+            block_reason = f"Auto-blocked: {llm_fail} LLM failures vs {success} successes ({llm_rate:.0%} LLM fail rate)"
+        else:
+            block_reason = None
+
+        # Calculate weighted_score = avg_relevance_score * success_rate
+        relevance_scores = stats.get('relevance_scores', [])
+        avg_relevance = sum(relevance_scores) / len(relevance_scores) if relevance_scores else 0
+        weighted_score = avg_relevance * success_rate
 
         record = {
             'domain': domain,
@@ -653,6 +694,8 @@ def cmd_update_domain_status() -> None:
             'fail_count': fail,
             'failure_type': stats['last_error'][:100] if stats['last_error'] else None,
             'block_reason': block_reason,
+            'success_rate': round(success_rate, 4),
+            'weighted_score': round(weighted_score, 4),
             'updated_at': now,
         }
 
@@ -674,7 +717,7 @@ def cmd_update_domain_status() -> None:
             print(f"Error updating {domain}: {e}")
 
     print(f"\nUpdated {updated} domains in wsj_domain_status")
-    print(f"Auto-blocked {blocked} domains (fail > 5 AND success < 20%)")
+    print(f"Auto-blocked {blocked} domains (fail > 5 AND success < 20%, OR llm_fail >= 3)")
 
     # Show blocked domains
     if blocked > 0:
@@ -684,8 +727,10 @@ def cmd_update_domain_status() -> None:
             fail = stats['fail_count']
             total = success + fail
             rate = success / total if total > 0 else 0
-            if fail > 5 and rate < 0.2:
-                print(f"  {domain}: {fail} fails, {rate:.0%} success")
+            llm_fail = llm_fail_counts.get(domain, 0)
+            if (fail > 5 and rate < 0.2) or llm_fail >= 3:
+                reason = "LLM failures" if llm_fail >= 3 else "crawl failures"
+                print(f"  {domain}: {fail} fails, {rate:.0%} success, {llm_fail} llm_fail ({reason})")
 
 
 def cmd_retry_low_relevance() -> None:

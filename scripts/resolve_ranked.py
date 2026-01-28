@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Resolve Google News URLs for BM25 ranked results.
+Resolve Google News URLs for embedding-ranked results.
 
 Adds resolved_url, resolve_status, resolve_reason_code, resolve_strategy_used
 fields to each article in wsj_ranked_results.jsonl.
@@ -10,7 +10,7 @@ Usage:
 
 Options:
     --delay N     Delay between requests in seconds (default: 3.0)
-    --update-db   Update Supabase after resolution (requires SUPABASE_URL, SUPABASE_KEY)
+    --update-db   Update Supabase after resolution (requires NEXT_PUBLIC_SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY)
 """
 import asyncio
 import json
@@ -81,11 +81,11 @@ async def update_supabase(all_data: list) -> None:
 
     Uses INSERT with ignore_duplicates to preserve existing records.
     """
-    supabase_url = os.getenv("SUPABASE_URL")
-    supabase_key = os.getenv("SUPABASE_KEY")
+    supabase_url = os.getenv("NEXT_PUBLIC_SUPABASE_URL") or os.getenv("SUPABASE_URL")
+    supabase_key = os.getenv("SUPABASE_SERVICE_ROLE_KEY") or os.getenv("SUPABASE_KEY")
 
     if not supabase_url or not supabase_key:
-        print("\nSkipping Supabase update (missing SUPABASE_URL or SUPABASE_KEY)")
+        print("\nSkipping Supabase update (missing NEXT_PUBLIC_SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY)")
         return
 
     from supabase import create_client

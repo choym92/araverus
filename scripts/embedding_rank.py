@@ -3,7 +3,7 @@
 Embedding-based ranking for WSJ → Google News candidates.
 
 Uses sentence-transformers (all-MiniLM-L6-v2) for semantic similarity.
-Replaces BM25 ranking with better semantic understanding.
+Ranks backup articles by cosine similarity to WSJ title + description.
 
 Usage:
     python scripts/embedding_rank.py [--top-k 5] [--min-score 0.3]
@@ -16,30 +16,13 @@ from pathlib import Path
 import numpy as np
 from sentence_transformers import SentenceTransformer
 
+# Import shared domain utilities
+from domain_utils import load_preferred_domains, is_preferred_domain
+
 # Load model (downloads on first run, ~80MB)
 print("Loading embedding model...")
 MODEL = SentenceTransformer('all-MiniLM-L6-v2')
 print("Model loaded.\n")
-
-# Preferred domains - same as BM25
-PREFERRED_DOMAINS = [
-    'livemint.com',
-    'marketwatch.com',
-    'finance.yahoo.com',
-    'cnbc.com',
-    'finviz.com',
-    'hindustantimes.com',
-]
-
-
-def is_preferred_domain(source_domain: str) -> bool:
-    """Check if domain is in preferred list."""
-    if not source_domain:
-        return False
-    for pref in PREFERRED_DOMAINS:
-        if pref in source_domain or source_domain in pref:
-            return True
-    return False
 
 
 def normalize_title(title: str) -> str:
@@ -55,6 +38,7 @@ def cosine_similarity(a: np.ndarray, b: np.ndarray) -> float:
 def rank_candidates(
     query_text: str,
     candidates: list[dict],
+    preferred_domains: list[str],
     top_k: int = 10,
     min_score: float = 0.3,
 ) -> list[tuple[dict, float, bool]]:
@@ -64,6 +48,7 @@ def rank_candidates(
     Args:
         query_text: WSJ title + description
         candidates: List of article dicts
+        preferred_domains: List of preferred domains (used for score threshold bypass)
         top_k: Maximum results to return
         min_score: Minimum cosine similarity threshold
 
@@ -92,7 +77,7 @@ def rank_candidates(
     # Pair with scores and preferred status
     scored = []
     for c, score in zip(candidates, scores):
-        is_pref = is_preferred_domain(c.get('source_domain', ''))
+        is_pref = is_preferred_domain(c.get('source_domain', ''), preferred_domains)
         scored.append((c, float(score), is_pref))
 
     # Sort by score descending
@@ -130,6 +115,12 @@ def main():
             results.append(json.loads(line))
 
     print(f"Loaded {len(results)} WSJ items from {input_path.name}")
+
+    # Load preferred domains (base + top 10 from DB by weighted_score)
+    print("Loading preferred domains...")
+    preferred_domains = load_preferred_domains(top_n=10)
+    print(f"  Using {len(preferred_domains)} preferred domains")
+
     print(f"Ranking with top_k={top_k}, min_score={min_score}\n")
 
     ranked_results = []
@@ -146,7 +137,7 @@ def main():
         query_text = f"{wsj.get('title', '')} {wsj.get('description', '')}"
 
         # Rank with embeddings
-        ranked = rank_candidates(query_text, candidates, top_k=top_k, min_score=min_score)
+        ranked = rank_candidates(query_text, candidates, preferred_domains, top_k=top_k, min_score=min_score)
 
         top_score = ranked[0][1] if ranked else 0
         pref_count = sum(1 for _, _, is_pref in ranked if is_pref)
