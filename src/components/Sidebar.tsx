@@ -15,8 +15,10 @@ interface SidebarProps {
 // Nav Items
 const navItems = [
   { id: 'home', label: 'Home', href: '/' },
+  { id: 'news', label: 'News', href: '/news' },
   { id: 'blogs', label: 'Blog', href: '/blog' },
   { id: 'finance', label: 'Finance', href: '/finance' },
+  { id: 'resume', label: 'Resume', href: '/resume' },
   { id: 'contact', label: 'Contact' },
 ];
 

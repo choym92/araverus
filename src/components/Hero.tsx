@@ -45,30 +45,20 @@ export default function Hero() {
               Building AI systems, financial tools, and lifelong learning projects.
             </motion.p>
 
-            {/* CTAs */}
+            {/* CTA */}
             <motion.div
               initial={reduceMotion ? false : { opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.4, duration: 0.6 }}
-              className="flex flex-wrap gap-4"
             >
               <Link
-                href="/resume"
-                aria-label="View resume"
+                href="/news"
+                aria-label="Checkout AI Briefing"
                 className="inline-flex items-center justify-center rounded-full bg-neutral-900 px-8 py-3 text-sm font-medium text-white
                          transition hover:bg-neutral-800 active:scale-[0.98]
                          focus:outline-none focus-visible:ring-2 focus-visible:ring-neutral-900 focus-visible:ring-offset-2"
               >
-                My Resume
-              </Link>
-              <Link
-                href="/finance"
-                aria-label="Open finance tools"
-                className="inline-flex items-center justify-center rounded-full border border-neutral-300 bg-white px-8 py-3 text-sm font-medium text-neutral-900
-                         transition hover:bg-neutral-50 active:scale-[0.98]
-                         focus:outline-none focus-visible:ring-2 focus-visible:ring-neutral-900 focus-visible:ring-offset-2"
-              >
-                View Finance Tool
+                Checkout AI Briefing
               </Link>
             </motion.div>
           </div>

@@ -1,0 +1,129 @@
+---
+title: "The AI Bottleneck Shift: From Compute to Memory"
+date: "2025-01-28"
+category: "Analysis"
+tags: ["AI", "memory", "HBM", "semiconductors", "System 2", "reasoning", "AlphaFold", "market analysis"]
+draft: false
+excerpt: "The AI hardware constraint is quietly shifting from compute to memory. Here's what that means for the semiconductor landscape, System 2 reasoning, and the next phase of AI development."
+---
+
+The narrative around AI hardware has been dominated by GPUs and compute power. But a structural shift is underway: **the bottleneck is moving from compute to memory**.
+
+This has profound implications for semiconductor markets, AI architecture, and how we think about the next generation of intelligent systems.
+
+---
+
+## The Memory Wall
+
+For years, Moore's Law kept compute scaling ahead of demand. But memory bandwidth hasn't kept pace. We've hit what researchers call the **"Memory Wall"**—a point where processors spend more time waiting for data than actually computing.
+
+In AI workloads, this is acute:
+
+- **LLMs are memory-bound.** The KV-cache for long contexts can consume hundreds of gigabytes. Attention mechanisms require constant memory access.
+- **Inference at scale is constrained by memory throughput**, not FLOPs. You can have all the compute in the world, but if you can't feed it data fast enough, it sits idle.
+- **Batch sizes are limited by memory capacity**, not compute utilization.
+
+The result: **HBM (High Bandwidth Memory) demand is exploding**, and SK Hynix, Samsung, and Micron are scrambling to expand capacity.
+
+---
+
+## HBM: The New Chokepoint
+
+HBM stacks DRAM dies vertically with through-silicon vias (TSVs), achieving bandwidth that's 5-10x higher than traditional GDDR. NVIDIA's H100 uses HBM3; the H200 and Blackwell architectures demand even more.
+
+But HBM supply is constrained:
+
+- **Yield rates are low.** Stacking dies is hard. Defects compound across layers.
+- **Capacity expansion takes time.** New fabs don't spin up overnight.
+- **Advanced packaging is a bottleneck itself.** CoWoS (Chip-on-Wafer-on-Substrate) capacity at TSMC is limited.
+
+This creates an interesting market dynamic: **GPU supply is no longer the only constraint. Memory and packaging are becoming equally critical.**
+
+For investors, this means looking beyond NVIDIA. SK Hynix, Samsung's memory division, and packaging specialists like ASE are part of the AI supply chain.
+
+---
+
+## System 2 Reasoning and Test-Time Compute
+
+There's a parallel shift happening in AI architecture. The industry is moving from pure "System 1" pattern matching to **"System 2" deliberative reasoning**.
+
+System 1 (fast, intuitive) is what current LLMs do well—instant responses based on learned patterns. But complex reasoning requires System 2 thinking: slow, deliberate, step-by-step.
+
+This is manifesting as **Test-Time Compute (TTC)**:
+
+- **Chain-of-thought prompting** extends the reasoning process.
+- **Search and planning** at inference time (see DeepMind's work on combining LLMs with MCTS).
+- **Iterative refinement** where models verify and correct their own outputs.
+
+The implication: **inference costs are going up, not down.** If models need to "think longer" to solve hard problems, you need more compute and memory per query—not less.
+
+This challenges the "inference will be cheap" narrative. For certain applications, inference may become the dominant cost, not training.
+
+---
+
+## ROI Skepticism and the AGI Timeline
+
+There's growing skepticism about near-term AGI ROI. The argument goes:
+
+1. **Scaling laws are hitting diminishing returns.** GPT-5 won't be 10x better than GPT-4 for 10x the cost.
+2. **Enterprise adoption is slower than expected.** Most companies are still figuring out how to use GPT-3.5 effectively.
+3. **The revenue gap is real.** NVIDIA is printing money, but downstream AI companies are struggling to monetize.
+
+This doesn't mean AI is overhyped—it means the investment thesis is shifting from "pure moonshot" to "where's the concrete value?"
+
+The winners will be:
+- **Infrastructure** (chips, cloud, memory) that gets paid regardless of which AI company succeeds.
+- **Vertical applications** that solve specific problems with measurable ROI.
+- **Picks and shovels** plays where the demand is clear.
+
+---
+
+## AlphaFold and the Sequence-to-Structure Paradigm
+
+One area where AI is delivering undeniable value: **biology**.
+
+AlphaFold 3 represents a paradigm shift. The problem it solves—predicting protein structure from amino acid sequences—was considered intractable for decades.
+
+The key insight: **sequence determines structure, and structure determines function.**
+
+This is now extending beyond proteins:
+- **RNA structure prediction**
+- **Protein-ligand interactions** (drug discovery)
+- **Molecular dynamics** at scale
+
+What makes this different from LLM hype:
+- **Ground truth exists.** You can verify predictions experimentally.
+- **The value chain is clear.** Faster drug discovery = measurable ROI.
+- **The moat is scientific**, not just scale.
+
+For investors, biotech AI is a different beast than general-purpose AI. The timelines are longer, but the applications are more concrete.
+
+---
+
+## Investment Implications
+
+Putting this together:
+
+| Theme | Implication | Watch |
+|-------|-------------|-------|
+| Memory bottleneck | HBM demand exceeds supply | SK Hynix, Samsung Memory, Micron |
+| Packaging constraints | CoWoS capacity is limiting | TSMC, ASE, Amkor |
+| System 2 reasoning | Inference costs rise | Cloud providers, NVIDIA |
+| ROI skepticism | Flight to proven value | Vertical AI, enterprise tools |
+| Bio AI | Tangible applications | AlphaFold ecosystem, biotech |
+
+The semiconductor supply chain is more complex than "just buy NVIDIA." Memory, packaging, and materials are all part of the story.
+
+---
+
+## The Bigger Picture
+
+We're in a transition period. The "throw more compute at it" era is maturing. The next phase will be about:
+
+- **Efficiency** (doing more with less memory bandwidth)
+- **Architecture** (moving beyond transformers for specific tasks)
+- **Application** (solving real problems, not demos)
+
+The companies that navigate this shift—both on the hardware and software side—will define the next decade of AI.
+
+For now, follow the bottlenecks. Today, that means memory.
