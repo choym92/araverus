@@ -60,14 +60,20 @@ export default function WaveGrid({ className }: WaveGridProps) {
     const points = new THREE.Points(geometry, material);
     scene.add(points);
 
-    // Mouse tracking - direct screen-to-world mapping
+    // Mouse tracking - calculate frustum dimensions for accurate mapping
     const mouse3D = { x: 9999, y: 9999 };
+    const fov = 60;
+    const cameraZ = 30;
+    // Calculate visible height at z=0: 2 * distance * tan(fov/2)
+    const visibleHeight = 2 * cameraZ * Math.tan((fov * Math.PI) / 360);
 
     const handleMouseMove = (event: MouseEvent) => {
       const rect = container.getBoundingClientRect();
-      // Map mouse to world coordinates (approximate)
-      const mouseX = ((event.clientX - rect.left) / width - 0.5) * 40;
-      const mouseY = -((event.clientY - rect.top) / height - 0.5) * 30;
+      const aspect = rect.width / rect.height;
+      const visibleWidth = visibleHeight * aspect;
+      // Map mouse to world coordinates using camera frustum
+      const mouseX = ((event.clientX - rect.left) / rect.width - 0.5) * visibleWidth;
+      const mouseY = -((event.clientY - rect.top) / rect.height - 0.5) * visibleHeight;
       mouse3D.x = mouseX;
       mouse3D.y = mouseY;
     };
