@@ -22,9 +22,11 @@ on:
         default: 'false'
         type: boolean
 
-  # Scheduled run (daily at 6 AM UTC = 3 PM KST)
-  # schedule:
-  #   - cron: '0 6 * * *'
+  # Scheduled run: daily at 6 AM US Eastern (year-round)
+  # Two crons to cover EST/EDT; a timezone check step skips the wrong one.
+  schedule:
+    - cron: '0 11 * * *'  # 6 AM EST (Nov–Mar)
+    - cron: '0 10 * * *'  # 6 AM EDT (Mar–Nov)
 
 env:
   NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
@@ -37,11 +39,41 @@ env:
 
 jobs:
   # ============================================================
+  # Guard: Skip duplicate scheduled run (EST/EDT dual-cron)
+  # Both crons fire daily; only the one matching 6 AM ET proceeds.
+  # Manual (workflow_dispatch) runs always pass.
+  # ============================================================
+  tz-guard:
+    runs-on: ubuntu-latest
+    timeout-minutes: 1
+    outputs:
+      should_run: ${{ steps.check.outputs.should_run }}
+    steps:
+      - name: Check if 6 AM Eastern
+        id: check
+        run: |
+          if [ "${{ github.event_name }}" != "schedule" ]; then
+            echo "should_run=true" >> "$GITHUB_OUTPUT"
+            echo "Manual trigger — always run"
+            exit 0
+          fi
+          EASTERN_HOUR=$(TZ='America/New_York' date +%H)
+          echo "Current Eastern hour: $EASTERN_HOUR"
+          if [ "$EASTERN_HOUR" = "06" ]; then
+            echo "should_run=true" >> "$GITHUB_OUTPUT"
+            echo "Correct schedule — 6 AM ET"
+          else
+            echo "should_run=false" >> "$GITHUB_OUTPUT"
+            echo "Wrong schedule — skipping (hour $EASTERN_HOUR)"
+          fi
+
+  # ============================================================
   # Job 1: Ingest & Search (lightweight)
   # Skip if crawl_only=true
   # ============================================================
   ingest-search:
-    if: ${{ inputs.crawl_only != true }}
+    needs: tz-guard
+    if: ${{ needs.tz-guard.outputs.should_run == 'true' && inputs.crawl_only != true }}
     runs-on: ubuntu-latest
     timeout-minutes: 60
 
@@ -207,7 +239,8 @@ jobs:
   # Job 3b: Crawl Only (from DB) - when crawl_only=true
   # ============================================================
   crawl-from-db:
-    if: ${{ inputs.crawl_only == true }}
+    needs: tz-guard
+    if: ${{ needs.tz-guard.outputs.should_run == 'true' && inputs.crawl_only == true }}
     runs-on: ubuntu-latest
     timeout-minutes: 180
 
