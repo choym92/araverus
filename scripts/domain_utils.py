@@ -11,14 +11,11 @@ import os
 from functools import lru_cache
 from pathlib import Path
 
-# Base preferred domains - manually verified as reliable
+# Base preferred domains - verified reliable sources for US finance news
 BASE_PREFERRED_DOMAINS = [
-    'livemint.com',
     'marketwatch.com',
-    'finance.yahoo.com',
     'cnbc.com',
-    'finviz.com',
-    'hindustantimes.com',
+    'finance.yahoo.com',
 ]
 
 
@@ -58,6 +55,8 @@ def load_top_domains_from_db(supabase, limit: int = 10) -> list[str]:
             .select('domain, weighted_score') \
             .eq('status', 'active') \
             .not_.is_('weighted_score', 'null') \
+            .gte('success_count', 3) \
+            .gte('success_rate', 0.3) \
             .order('weighted_score', desc=True) \
             .limit(limit) \
             .execute()

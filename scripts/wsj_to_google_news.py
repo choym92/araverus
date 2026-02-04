@@ -811,29 +811,25 @@ async def search_multi_query(
 
     if len(all_articles) >= PHASE1_SUFFICIENT_THRESHOLD:
         instrumentation['phase1_sufficient'] = True
-        print(f"    ✓ Phase 1 sufficient ({len(all_articles)} >= {PHASE1_SUFFICIENT_THRESHOLD}), skipping broad search")
-
-        # Sort by domain priority
-        all_articles.sort(key=lambda a: get_domain_priority(a.get('source_domain', ''), preferred_domains))
-        return all_articles, instrumentation
+        print(f"    Phase 1 found {len(all_articles)} articles, continuing to broad search")
 
     # ==========================================================================
-    # PHASE 2: Broad search (fallback)
+    # PHASE 2: Broad search (always runs)
     # ==========================================================================
-    print(f"    Phase 2: Broad search (Phase 1 found only {len(all_articles)} articles)...")
+    print(f"    Phase 2: Broad search ({len(all_articles)} articles from Phase 1)...")
 
     for i, query in enumerate(queries):
         # Add exclusions
         query_with_excl = format_query_with_exclusions(query)
 
         # Date filter strategy:
-        # Q1 (i=0): No date filter - full title, broadest recall
-        # Q2 (i=1): No date filter - keywords, catches lexical mismatches
-        # Q3+ (i>=2): Date filter - description keywords, more noise
+        # Q1 (i=0): 7-day window - full title, broad but recent
+        # Q2 (i=1): 7-day window - keywords, catches lexical mismatches
+        # Q3+ (i>=2): 3-day window - description keywords, tighter filter
         if i >= 2:
             filtered_query = add_date_filter(query_with_excl, after_date, date_mode="3d")
         else:
-            filtered_query = query_with_excl
+            filtered_query = add_date_filter(query_with_excl, after_date, date_mode="7d")
 
         t0 = time.perf_counter()
         articles = await search_google_news(filtered_query, client)
