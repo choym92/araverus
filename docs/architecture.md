@@ -1,54 +1,176 @@
-# Architecture (araverus)
+<!-- Updated: 2026-02-06 -->
+# Araverus — Project Architecture
 
-## 1) Stack (Pointer)
-- **Frontend**: Next.js 15 (App Router), React 19, TypeScript 5, Tailwind CSS 4
-- **Auth/DB/Storage**: Supabase (Postgres + Auth + Storage)
-- **Validation**: Zod
-- **Editor**: TipTap (ProseMirror)
-- **Animations**: Framer Motion
-
-> 상세 의존성은 `package.json` 참조. 신규 라이브러리는 CLAUDE.md의 **Over-engineering 금지** 원칙을 따름.
+Paul Cho's personal website, blog, and finance briefing platform.
 
 ---
 
-## 2) High-level Flow
-- **Server-first 원칙** (App Router): 데이터 패칭/보안은 서버에서 처리  
-- **Auth**: Supabase Auth (쿠키/세션), 서버에서 role 확인 (`user_profiles.role`)
-- **Service Layer**: DB 접근은 `BlogService` 등 서비스 레이어 통해 일관화
-- **Storage**: Supabase Storage (블로그 이미지 등)
-- **RLS/정책**: 읽기 공개 범위 최소화, 쓰기/관리 권한은 role 기반
+## Tech Stack
+
+| Layer | Technology |
+|-------|-----------|
+| Framework | Next.js 15 (App Router), React 19, TypeScript 5 |
+| Styling | Tailwind CSS 4 |
+| Auth/DB/Storage | Supabase (Postgres + Auth + Storage) |
+| Blog | MDX static generation (Git + Obsidian authoring) |
+| Animations | Framer Motion, tsParticles |
+| Finance Pipeline | Python scripts, GitHub Actions |
+| AI/LLM | OpenAI (GPT-4o-mini for analysis + briefing) |
+| CI/CD | Vercel (frontend), GitHub Actions (finance pipeline) |
+
+---
+
+## System Overview
 
 ```
-Client (mostly Server Components)
-└─ Next.js App Router (server actions / API routes)
-    ├─ Service Layer (e.g., BlogService)
-    ├─ Supabase (Postgres, Auth, Storage)
-    └─ RLS Policies (role-based access)
+┌─────────────────────────────────────────────────────────────────────┐
+│                           ARAVERUS                                   │
+├─────────────────┬──────────────────────┬────────────────────────────┤
+│   Website       │   Blog (MDX)         │   Finance Pipeline         │
+│   (Next.js)     │                      │   (Python + GH Actions)    │
+├─────────────────┼──────────────────────┼────────────────────────────┤
+│ Landing page    │ content/blog/        │ scripts/                   │
+│ /resume         │ ├── slug/index.mdx   │ ├── wsj_ingest.py          │
+│ /finance        │ └── public/blog/     │ ├── crawl_ranked.py        │
+│ /blog           │                      │ ├── llm_analysis.py        │
+│ /admin          │ Categories:          │ └── ...9 scripts total     │
+│ /login          │ Publication,Tutorial │                            │
+│ /news           │ Insight, Release     │ Daily at 6 AM ET           │
+├─────────────────┴──────────────────────┴────────────────────────────┤
+│                         Supabase                                     │
+│  Auth · Postgres · Storage                                           │
+│  Tables: user_profiles, blog_posts, blog_assets                      │
+│  Tables: wsj_items, wsj_crawl_results, wsj_domain_status,           │
+│          wsj_llm_analysis, briefs, audio_assets                      │
+└─────────────────────────────────────────────────────────────────────┘
 ```
 
 ---
 
-## 3) Folder Convention (summary)
-- `src/app` — routes/layouts (server 우선)
-- `src/components` — 재사용 UI (필요 시만 `'use client'`)
-- `src/hooks` — 커스텀 훅 (브라우저 상호작용 시)
-- `src/lib` — 서비스/유틸/클라이언트 생성기
-- `docs/` — 아키텍처/스키마/개발 노트
-- `PRPs/` — 기능별 제품 요구 프롬프트(가변)
+## Folder Structure
+
+```
+araverus/
+├── src/
+│   ├── app/                    # Next.js routes (server-first)
+│   │   ├── page.tsx            # Landing page (hero + particles)
+│   │   ├── blog/               # Blog list + [slug] pages
+│   │   ├── finance/            # Finance briefing page
+│   │   ├── resume/             # Resume viewer (PDF embed)
+│   │   ├── admin/              # Admin panel (role-gated)
+│   │   ├── login/              # Auth page
+│   │   ├── news/               # News page
+│   │   ├── api/                # API routes
+│   │   └── rss.xml/            # RSS feed generation
+│   ├── components/             # Reusable UI (client only when needed)
+│   │   ├── Hero.tsx            # Landing hero with particle bg
+│   │   ├── ParticleBackground.tsx  # tsParticles (dynamic import, ssr:false)
+│   │   ├── Sidebar.tsx         # Collapsible nav sidebar
+│   │   └── ...
+│   ├── hooks/                  # Custom React hooks
+│   └── lib/                    # Services, utils, clients
+│       ├── blog.service.ts     # Blog CRUD via Supabase
+│       ├── authz.ts            # Server-side auth guards
+│       └── finance/            # (Deprecated TS library, unused)
+├── content/blog/               # MDX blog posts (Git-managed)
+├── scripts/                    # Python finance pipeline
+├── .github/workflows/          # GitHub Actions
+├── supabase/migrations/        # DB migrations
+├── docs/                       # Project documentation
+└── public/                     # Static assets (images, resume.pdf, logo.svg)
+```
 
 ---
 
-## 4) Performance & Quality
-- **타입·린트·빌드**: `npm run lint`, `npm run build`는 작업마다 필수
-- **이미지/번들**: 불필요한 대형 의존성/이미지 금지
-- **접근성(a11y)**: ARIA/포커스/대비—경고 UI는 접근성 있게
+## Key Design Principles
+
+1. **Server-first**: App Router uses Server Components by default. Client only for interaction/state/DOM APIs.
+2. **Service layer**: DB logic goes through `BlogService` etc., never direct in components.
+3. **Role-based auth**: `user_profiles.role = 'admin'` (no hardcoded emails). Server-side guards via `authz.ts`.
+4. **Tailwind only**: No inline styles except justified utility overrides.
+5. **Edit over create**: Prefer modifying existing files over creating new ones.
 
 ---
 
-## 5) ADR Mini-template
-> 큰 결정은 간단 ADR로 기록 (`docs/adr/yyyymmdd-meaningful-title.md`)
+## Three Main Systems
 
-- Context: (문제/배경)
-- Options: (A/B/C 요약)
-- Decision: (선택 + 근거)
-- Consequences: (+ / −)
+### 1. Landing Page & Website
+
+- **Hero**: Particle constellation animation (tsParticles) with logo-shaped polygon mask
+- **Design**: Monochrome, Playfair Display serif headlines, Inter body text
+- **Pages**: /, /resume, /finance, /blog, /admin, /login, /news
+- **A11y**: `prefers-reduced-motion` respected, WCAG AA contrast, keyboard navigation
+
+### 2. Blog (MDX)
+
+- **Source**: `content/blog/<slug>/index.mdx` with frontmatter metadata
+- **Assets**: `public/blog/<slug>/` (images, covers)
+- **Categories**: Publication, Tutorial, Insight, Release
+- **Features**: Static generation, draft system, RSS feed at `/rss.xml`
+- **Authoring**: Git + Obsidian → Push → Vercel auto-deploy
+- **Guide**: See `docs/blog-writing-guide.md`
+
+### 3. Finance TTS Briefing Pipeline
+
+- **Purpose**: Collect WSJ news, find free alternative sources, crawl content, verify relevance, generate TTS briefing scripts
+- **Stack**: Python scripts → GitHub Actions (daily 6 AM ET) → Supabase
+- **Full docs**: See `docs/architecture-finance-pipeline.md`
+
+---
+
+## Auth Flow
+
+```
+User → Supabase Auth (cookie/session)
+  → Server Component → requireUser() or requireAdmin()
+  → user_profiles.role check
+  → Render or redirect
+```
+
+- `requireUser()`: Redirects to `/login` if not authenticated
+- `requireAdmin()`: Requires `role = 'admin'`, returns 404 otherwise
+- RLS policies enforce row-level access on blog_posts, blog_assets
+- Guide: See `docs/auth-migration-guide.md`
+
+---
+
+## Environment Variables
+
+```env
+# Supabase
+NEXT_PUBLIC_SUPABASE_URL=
+NEXT_PUBLIC_SUPABASE_ANON_KEY=
+SUPABASE_SERVICE_ROLE_KEY=       # Server only, never expose
+
+# Site
+NEXT_PUBLIC_SITE_URL=http://localhost:3000
+
+# Finance Pipeline (GitHub Actions secrets)
+SUPABASE_URL=
+SUPABASE_KEY=
+OPENAI_API_KEY=
+```
+
+---
+
+## Commands
+
+```bash
+npm run dev       # Dev server
+npm run build     # Production build (type check)
+npm run lint      # ESLint
+npm start         # Production server
+```
+
+---
+
+## Related Docs
+
+| Doc | Content |
+|-----|---------|
+| `docs/architecture-finance-pipeline.md` | Finance pipeline deep dive |
+| `docs/schema.md` | All database tables |
+| `docs/blog-writing-guide.md` | MDX blog authoring guide |
+| `docs/auth-migration-guide.md` | Auth migration reference |
+| `docs/project-history.md` | Project evolution timeline |
+| `CLAUDE.md` | Development rules and workflow |

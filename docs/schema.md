@@ -1,59 +1,161 @@
+<!-- Updated: 2026-02-06 -->
 # Database Schema (araverus)
-<!-- Updated: 2025-09-03 -->
 
-> 실제 스키마는 마이그레이션/DB를 기준으로 하며, 본 문서는 개념 요약입니다.
-
-**Note**: Finance-related tables (`trading_signals`, `stock_prices`) were removed in 2025-09-03 cleanup.
-
-## Tables
-
-### 1) user_profiles
-- `id` (uuid, pk)
-- `user_id` (uuid, unique, Supabase auth uid)
-- `email` (text, unique)
-- `role` (text, enum-like: 'admin' | 'user', default 'user')
-- `created_at` (timestamptz, default now())
-
-**Notes**
-- 관리자 판별은 **이메일 하드코드 금지**, 반드시 `role='admin'` 사용
-- 인덱스: `(user_id)`, `(email)`
+All Supabase/Postgres tables. Blog tables for the website, WSJ tables for the finance pipeline.
 
 ---
 
-### 2) blog_posts
-- `id` (uuid, pk)
-- `author_id` (uuid, fk → user_profiles.user_id)
-- `title` (text)
-- `slug` (text, unique)
-- `content_md` (text)  <!-- TipTap JSON을 쓰면 content_json(JSONB)로 대체 -->
-- `tags_csv` (text)    <!-- "tag1,tag2,tag3" -->
-- `status` (text, enum-like: 'draft' | 'published', default 'draft')
-- `published_at` (timestamptz, nullable)
-- `created_at` / `updated_at` (timestamptz)
+## Blog & Auth Tables
 
-**Notes**
-- 검색/목록 최적화: `(status)`, `(published_at desc)`, `(slug)` 인덱스 고려
+### `user_profiles`
+```sql
+id          UUID PRIMARY KEY
+user_id     UUID UNIQUE      -- Supabase auth uid
+email       TEXT UNIQUE
+role        TEXT DEFAULT 'user'  -- 'admin' | 'user'
+created_at  TIMESTAMPTZ
+```
+
+**Rules**: Admin determined by `role='admin'`, never by email. Index on `(user_id)`, `(email)`.
+
+### `blog_posts`
+```sql
+id            UUID PRIMARY KEY
+author_id     UUID FK → user_profiles.user_id
+title         TEXT
+slug          TEXT UNIQUE
+content_md    TEXT
+tags_csv      TEXT           -- "tag1,tag2,tag3"
+status        TEXT DEFAULT 'draft'  -- 'draft' | 'published'
+published_at  TIMESTAMPTZ
+created_at    TIMESTAMPTZ
+updated_at    TIMESTAMPTZ
+```
+
+**Note**: Blog is primarily MDX-based now (`content/blog/`). This table exists for admin/DB-backed features.
+
+### `blog_assets`
+```sql
+id          UUID PRIMARY KEY
+owner_id    UUID FK → user_profiles.user_id
+path        TEXT    -- Storage object path
+url         TEXT    -- Public URL
+created_at  TIMESTAMPTZ
+```
+
+### RLS Policies (Blog)
+
+- `blog_posts` SELECT: `status='published'` OR `author_id=auth.uid()` OR admin
+- `blog_posts` INSERT/UPDATE/DELETE: `author_id=auth.uid()` OR admin
+- `blog_assets`: Owner or admin only
 
 ---
 
-### 3) blog_assets
-- `id` (uuid, pk)
-- `owner_id` (uuid, fk → user_profiles.user_id)
-- `path` (text)    <!-- storage object path -->
-- `url` (text)     <!-- public URL if exposed -->
-- `created_at` (timestamptz)
+## Finance Pipeline Tables
 
-**Notes**
-- Storage 정책: 경로별 접근 권한 최소화
+### `wsj_items` — WSJ RSS Feed Articles
+```sql
+id            UUID PRIMARY KEY
+feed_name     TEXT          -- WORLD, BUSINESS, MARKETS, TECH, POLITICS, ECONOMY
+feed_url      TEXT
+title         TEXT
+description   TEXT
+link          TEXT
+creator       TEXT          -- Author
+url_hash      TEXT UNIQUE   -- SHA-256 of link (dedup)
+published_at  TIMESTAMPTZ
+searched      BOOLEAN       -- Google search completed
+searched_at   TIMESTAMPTZ
+processed     BOOLEAN       -- Successfully crawled with good relevance
+processed_at  TIMESTAMPTZ
+```
+
+### `wsj_crawl_results` — Crawled Backup Articles
+```sql
+id              UUID PRIMARY KEY
+wsj_item_id     UUID FK → wsj_items
+wsj_title       TEXT
+wsj_link        TEXT
+source          TEXT          -- Google News source name
+title           TEXT          -- Backup article title
+resolved_url    TEXT UNIQUE   -- Final URL after redirects
+resolved_domain TEXT          -- e.g., reuters.com
+embedding_score FLOAT         -- Similarity to WSJ article (0-1)
+crawl_status    TEXT          -- pending, success, failed, skipped, garbage
+crawl_error     TEXT
+crawl_length    INT           -- Character count
+content         TEXT          -- Crawled markdown
+crawled_at      TIMESTAMPTZ
+relevance_score FLOAT         -- Content similarity (0-1)
+relevance_flag  TEXT          -- 'ok' (>=0.25) or 'low' (<0.25)
+top_image       TEXT          -- Article hero image URL
+```
+
+### `wsj_domain_status` — Domain Quality Tracking
+```sql
+domain           TEXT PRIMARY KEY
+status           TEXT         -- active, blocked
+success_count    INT
+fail_count       INT
+failure_type     TEXT
+block_reason     TEXT
+llm_fail_count   INT
+last_success     TIMESTAMPTZ
+last_failure     TIMESTAMPTZ
+last_llm_failure TIMESTAMPTZ
+```
+
+**Auto-block rule**: `fail_count > 5 AND success_rate < 20%` OR `llm_fail_count >= 3`
+
+### `wsj_llm_analysis` — LLM Analysis Results
+```sql
+id                UUID PRIMARY KEY
+crawl_result_id   UUID FK → wsj_crawl_results (UNIQUE)
+relevance_score   FLOAT          -- LLM score (1-10)
+is_same_event     BOOLEAN        -- Same news event as WSJ?
+event_type        TEXT           -- earnings, acquisition, regulation, product, etc.
+sentiment         TEXT           -- positive, negative, neutral, mixed
+content_quality   TEXT           -- article, list_page, paywall, garbage, opinion
+summary           TEXT           -- 1-2 sentence summary for TTS
+key_entities      JSONB          -- Companies, organizations
+key_numbers       JSONB          -- Dollar amounts, percentages
+tickers_mentioned TEXT[]         -- Stock tickers
+created_at        TIMESTAMPTZ
+```
+
+### `briefs` — Daily Briefing Scripts
+```sql
+id              UUID PRIMARY KEY
+brief_date      DATE
+ticker_group    TEXT DEFAULT 'default'  -- DAILY, MARKETS, TECH, etc.
+tickers         TEXT[]
+top_cluster_ids UUID[]
+script_text     TEXT                    -- Generated TTS script
+created_at      TIMESTAMPTZ
+UNIQUE(brief_date, ticker_group)
+```
+
+### `audio_assets` — TTS Audio (Phase 3, future)
+```sql
+brief_id      UUID PRIMARY KEY FK → briefs
+storage_path  TEXT
+duration_sec  INT
+tts_provider  TEXT
+voice         TEXT
+created_at    TIMESTAMPTZ
+```
 
 ---
 
-## RLS (개략)
-- `blog_posts`
-  - SELECT: `status='published'` OR (`author_id = auth.uid()` OR role admin)
-  - INSERT/UPDATE/DELETE: `author_id = auth.uid()` OR role admin
-- `blog_assets`
-  - SELECT: 소유자 또는 게시물 공개 범위에 한해 노출
-  - INSERT/UPDATE/DELETE: `owner_id = auth.uid()` OR role admin
+## Table Relationships
 
-> 실제 정책은 프로젝트의 보안 요구에 맞게 작성/검증하세요.
+```
+user_profiles ──1:N──▶ blog_posts
+user_profiles ──1:N──▶ blog_assets
+
+wsj_items ──1:N──▶ wsj_crawl_results ──1:1──▶ wsj_llm_analysis
+
+wsj_domain_status (independent, updated by crawl pipeline)
+
+briefs ──1:1──▶ audio_assets (future)
+```
