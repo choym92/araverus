@@ -1,0 +1,1879 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LG.com Session Segmentation Dashboard</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Inter', sans-serif; background: #f1f5f9; }
+        .animate-in { animation: fadeSlide 0.3s ease-out; }
+        @keyframes fadeSlide { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        .tab-active { border-bottom: 2px solid currentColor; }
+        .insight-card { border-left: 4px solid #f59e0b; }
+    </style>
+</head>
+<body>
+<div id="root"></div>
+<script type="text/babel">
+const { useState } = React;
+
+// ============================================
+// SEGMENT CONFIG
+// ============================================
+const segmentConfig = {
+    purchaser: { name: "Purchasers", icon: "🛒", color: "emerald", bgColor: "bg-emerald-600", lightBg: "bg-emerald-50", textColor: "text-emerald-700", borderColor: "border-emerald-500" },
+    cart_abandoner: { name: "Cart Abandoners", icon: "🛑", color: "amber", bgColor: "bg-amber-500", lightBg: "bg-amber-50", textColor: "text-amber-700", borderColor: "border-amber-500" },
+    browser: { name: "Browsers", icon: "🔍", color: "blue", bgColor: "bg-blue-600", lightBg: "bg-blue-50", textColor: "text-blue-700", borderColor: "border-blue-500" },
+    support: { name: "Support Seekers", icon: "🔧", color: "violet", bgColor: "bg-violet-600", lightBg: "bg-violet-50", textColor: "text-violet-700", borderColor: "border-violet-500" },
+    bot: { name: "Bots", icon: "🤖", color: "slate", bgColor: "bg-slate-500", lightBg: "bg-slate-100", textColor: "text-slate-600", borderColor: "border-slate-400" },
+    bouncer: { name: "Bouncers", icon: "🚪", color: "gray", bgColor: "bg-gray-400", lightBg: "bg-gray-100", textColor: "text-gray-600", borderColor: "border-gray-400" },
+};
+
+const segmentSummary = {
+    purchaser: { sessions: 5183, share: "0.4%", value: "$2.98M Revenue", clusters: 11 },
+    cart_abandoner: { sessions: 17433, share: "1.2%", value: "$23.6M Abandoned", clusters: 10 },
+    browser: { sessions: 337389, share: "22.9%", value: "4.2 min Avg", clusters: 8 },
+    support: { sessions: 68807, share: "4.7%", value: "Support Seekers", clusters: 8 },
+    bot: { sessions: 118, share: "~0%", value: "Filtered", clusters: 0 },
+    bouncer: { sessions: 1045544, share: "70.9%", value: "< 20s", clusters: 6 },
+};
+
+// ============================================
+// SEGMENT CLASSIFICATION LOGIC
+// ============================================
+const segmentLogic = {
+    bot: {
+        rule: "Very short session + unnaturally fast clicking",
+        criteria: ["Session ≤ 10 seconds", "Events ≥ fast threshold"],
+        priority: 1
+    },
+    purchaser: {
+        rule: "Completed a purchase",
+        criteria: ["Purchase completed"],
+        priority: 2
+    },
+    cart_abandoner: {
+        rule: "Added to cart but didn't buy",
+        criteria: ["Added item to cart", "No purchase completed"],
+        priority: 3
+    },
+    support: {
+        rule: "High support activity without buying",
+        criteria: ["More than equal to 2 Support events", "OR support ratio being 25% of total events", "No cart / No purchase"],
+        priority: 4
+    },
+    browser: {
+        rule: "Engaged browsing without cart action",
+        criteria: ["Session more than 20 seconds long", "More than equal to 3 events"],
+        priority: 5
+    },
+    bouncer: {
+        rule: "Quick exit - doesn't fit other segments",
+        criteria: ["Less than 3 events", "Stayed Under 20 seconds"],
+        priority: 6
+    }
+};
+
+// ============================================
+// AI SEGMENT ANALYSIS
+// ============================================
+const segmentAnalysis = {
+    purchaser: {
+        summary: `The purchaser segment reveals a critical tension: your highest-value customers are fighting through significant friction to convert.
+
+Cluster C9 ("Friction Fighters") shows 2.77 checkout regressions on average—meaning users are going back from checkout nearly 3 times before completing purchase. Despite this friction, they still convert at $1,307 AOV, suggesting these are motivated buyers who would convert faster (and possibly buy more) with a smoother checkout.
+
+The ThinQ App ecosystem (C7) represents a strategic lock-in opportunity: 18.6% of all purchases come through app users, with 90% buying accessories. This isn't just a channel—it's a recurring revenue engine for consumables and add-ons.
+
+Most concerning: 65-77% of top clusters are "promo hunting," indicating your base has been trained to expect discounts. This erodes margin and creates purchase timing dependency around promotional periods.`,
+        highlights: [
+            { type: "leak", label: "Revenue Leak", metric: "Checkout Regression", value: "2.77x", cluster: "C9", insight: "Users go back from checkout 2.77 times on average. At $1,307 AOV, even a 10% drop-off from friction = ~$60K lost from this cluster alone." },
+            { type: "driver", label: "Key Driver", metric: "ThinQ Ecosystem", value: "18.6%", cluster: "C7", insight: "App users drive recurring accessory revenue (90% accessory focus). Expanding app adoption could significantly increase LTV." },
+            { type: "opportunity", label: "Opportunity", metric: "Promo Dependency", value: "77%", cluster: "C9", insight: "High-value buyers conditioned to wait for promos. Test value-adds (free install, extended warranty) vs. pure discounts." },
+        ]
+    },
+    cart_abandoner: {
+        summary: `$24.7M sits abandoned in carts—but not all abandonment is equal. The data reveals two distinct behavioral patterns requiring different interventions.
+
+Pattern 1: "Quick Drop" (C7, C8) - Users add to cart then leave within seconds. C7 alone holds $5M in abandoned value. These aren't window shoppers—47% are returning visitors who added high-ticket items ($2,847 avg cart). Hypothesis: price shock at cart, or using cart as a "save for later" function.
+
+Pattern 2: "Checkout Strugglers" (C5, C4) - These users WANT to buy but can't. C5 shows 2.91 checkout regressions with 72% experiencing payment flow issues. They've already committed mentally; technical friction is the only barrier.
+
+The sleeper issue: 29% of C1 ("High-Value Checkout Starters") encountered out-of-stock after building $1,482 carts. They did everything right—your inventory visibility failed them.`,
+        highlights: [
+            { type: "leak", label: "Revenue Leak", metric: "Quick-Drop Value", value: "$5M", cluster: "C7", insight: "Single cluster = 20% of all abandoned value. 47% returning visitors suggests intent exists—need cart recovery or save-for-later UX." },
+            { type: "driver", label: "Key Driver", metric: "Payment Friction", value: "2.91x", cluster: "C5", insight: "Checkout regression nearly 3x. 72% hit payment issues. This is a technical/UX fix, not a marketing problem." },
+            { type: "opportunity", label: "Opportunity", metric: "OOS Prevention", value: "29%", cluster: "C1", insight: "High-intent users seeing OOS late in funnel. Earlier stock signals could save $1,482 avg cart value." },
+        ]
+    },
+    browser: {
+        summary: `337K browser sessions represent your largest addressable conversion opportunity—but they're not a monolith. The segmentation reveals specific conversion blockers for each behavior type.
+
+The "Research Obsessed" (C2) cluster is your highest-intent non-buyer: 99.6% engage with reviews, spending 8+ minutes per session. But 32% encounter out-of-stock items, killing their purchase journey. These aren't casual browsers—they're doing due diligence before a major purchase. Fix OOS visibility and this cluster converts.
+
+"Promo Hunters" (C4) show 100% promo page engagement with 25% login rate—the highest of any browser cluster. They're not browsing; they're waiting for the right deal. The 25% login rate means you have their email. This is a retargeting goldmine if timed with promotions.
+
+The concerning pattern: "Quick Scanners" (C8) represent 31% of browser traffic but leave in under 2.5 minutes with minimal engagement. 68% are new visitors arriving via Direct—likely brand-aware but finding nothing compelling. Landing page optimization could capture this traffic.`,
+        highlights: [
+            { type: "leak", label: "Revenue Leak", metric: "Research → OOS Block", value: "32%", cluster: "C2", insight: "Your most engaged researchers (8min avg, 99.6% review read) hitting OOS wall. High intent wasted." },
+            { type: "driver", label: "Key Driver", metric: "Review Engagement", value: "99.6%", cluster: "C2", insight: "Deep product research = high purchase intent. Reviews are the conversion driver for considered purchases." },
+            { type: "opportunity", label: "Opportunity", metric: "Promo Retargeting", value: "25% login", cluster: "C4", insight: "100% promo intent + logged in = email captured. Trigger campaigns when promos launch for instant conversion." },
+        ]
+    },
+    support: {
+        summary: `Support traffic tells the post-purchase story: 10.7K sessions are primarily existing customers seeking help—but the data reveals both cost centers and hidden revenue opportunities.
+
+The red flag: C8 ("Repair Heavy") shows 69% repair intent with a 19% escalation rate. That means 1 in 5 users couldn't self-serve and needed human intervention. At scale, this is a significant support cost driver. The fix: better troubleshooting content, clearer repair booking flow, or proactive outreach for known issues.
+
+The hidden opportunity: C6 ("Parts Shoppers") shows 33% parts purchase intent, but cart addition rates are near zero across all support clusters. Users are researching parts but not buying—likely due to part identification friction or lack of clear "add to cart" paths from support pages.
+
+The loyalty signal: C1 ("Warranty Seekers") at 66% of traffic indicates a large base of warranty-active customers. These are your most engaged owners—ideal for extended warranty upsells, accessory recommendations, or loyalty program enrollment.`,
+        highlights: [
+            { type: "leak", label: "Revenue Leak", metric: "Escalation Rate", value: "19%", cluster: "C8", insight: "1 in 5 repair-seekers need human support. At ~$15-25 per contact, self-service improvements directly cut costs." },
+            { type: "driver", label: "Key Driver", metric: "Repair Intent", value: "69%", cluster: "C8", insight: "Primary support driver is product issues. Proactive outreach for known defects could reduce inbound volume." },
+            { type: "opportunity", label: "Opportunity", metric: "Parts Cross-sell", value: "33%", cluster: "C6", insight: "Parts intent is high but conversion is zero. Add clear purchase paths from support content → parts store." },
+        ]
+    },
+};
+
+// ============================================
+// PURCHASER DATA (FULL) - 11 Clusters
+// ============================================
+const purchaserData = {
+    3: {
+        name: "Promo-Driven Appliance Buyer", highlight: "70.5% Promo Hunting + 43% Large Appliance",
+        analysis: "High-value buyers driven by promotions. Strong preference for large appliances (TVs, washers, refrigerators). Desktop-heavy with balanced HE/HA mix. High checkout completion despite promo dependency.",
+        sessions: 584, pct: 11.3, avg_revenue: 1292, median_revenue: 1081, total_revenue: 754628,
+        avg_purchase_qty: 1.2, avg_purchase_unique_items: 1.1, large_appliance_pct: 43.2, accessory_pct: 1.2, refrigerator_pct: 11.1,
+        avg_cart_items: 1.1, avg_cart_value: 1246, avg_cart_priced_items: 1.1, avg_cart_unpriced_items: 0, cart_price_coverage_pct: 100,
+        avg_cart_drop_ratio_pct: 0.1, avg_cart_drop_value_pct: 0.4, pct_removed_items: 7.4,
+        avg_in_stock_items: 18.6, avg_out_of_stock_items: 0.1, pct_saw_out_of_stock: 5.1, pct_checked_stock: 100, avg_open_box_ineligible: 18.23,
+        avg_duration_sec: 962, avg_events: 40, avg_unique_events: 16.2, avg_engagement_duration_sec: 690,
+        avg_exploration_events: 15.7, avg_commerce_events: 23.4, avg_support_events: 0.3,
+        exploration_pct: 38.5, commerce_pct: 59.5, support_pct: 0.6,
+        avg_exploration_time_sec: 405, avg_commerce_time_sec: 531, avg_support_time_sec: 10,
+        avg_distinct_viewed_items: 1, avg_product_revisit_ratio: 1.16, avg_category_diversity: 1, avg_intent_signal_count: 0.4, avg_view_item_count: 1.4,
+        avg_session_price: 1497, median_session_price: 1195, avg_viewed_product_rating: 4.04,
+        avg_review_event_count: 0.22, avg_review_dwell_sec: 10, avg_review_interaction_count: 0.22, pct_viewed_reviews: 21.2,
+        promo_hunting_pct: 70.5, promo_interaction_pct: 61.1, avg_promo_code_attempts: 0.94, avg_promo_attempt_events: 0.94, price_filter_pct: 1.4,
+        avg_financing_events: 0, pct_financing_interest: 0, avg_policy_pv: 0.25, pct_promo_interest: 70.5,
+        avg_shipping_pv: 0, pct_shipping_concern: 0, avg_zipcode_checks: 11.46, avg_zipcode_distinct: 1.76, pct_zipcode_concern: 100,
+        avg_payment_method_checks: 10.01, pct_payment_concern: 100,
+        avg_checkout_regression: 0.75, pct_with_regression: 34.9, avg_post_cart_hesitation: 17, avg_post_cart_events: 28.9,
+        avg_add_to_cart_count: 1, avg_remove_from_cart_count: 0.08, avg_view_cart_count: 3.2,
+        pct_used_search: 18.8, avg_site_search_events: 0.6,
+        avg_sessions_per_user: 3.3, avg_max_session_number: 7.8, pct_multi_session_users: 67.6,
+        avg_time_to_cart_sec: 272, avg_time_to_checkout_sec: 449, avg_cart_to_purchase_sec: 599, avg_checkout_to_purchase_sec: 417,
+        price_q1_pct: 24.8, price_q2_pct: 33.2, price_q3_pct: 26, price_q4_pct: 15.9,
+        device_desktop_pct: 54.5, device_mobile_pct: 44.2, device_tablet_pct: 1.4,
+        time_morning_pct: 5.5, time_afternoon_pct: 29.1, time_evening_pct: 33.2, time_night_pct: 32.2,
+        logged_in_pct: 15.2, new_visitor_pct: 25.3,
+        bu_he_pct: 44.5, bu_ha_pct: 45.5, bu_he_ha_pct: 1.4, bu_other_pct: 8.6, he_session_pct: 45.9, ha_session_pct: 46.9,
+        sup_warranty_pct: 0, sup_parts_pct: 0.5, sup_manuals_pct: 0.2, pct_had_support_intent: 17.5, avg_support_pv_total: 0.3,
+        media_channel_1: "Paid-Search", media_channel_2: "Direct", media_channel_3: "Organic-Search",
+        top_purchase_cat_1: "tvs", top_purchase_cat_1_pct: 29.6, top_purchase_cat_2: "washers & dryers", top_purchase_cat_2_pct: 24.2, top_purchase_cat_3: "refrigerators", top_purchase_cat_3_pct: 12.2,
+        top_session_cat_1: "tvs", top_session_cat_1_pct: 32.7, top_session_cat_2: "washers & dryers", top_session_cat_2_pct: 22.2, top_session_cat_3: "monitors", top_session_cat_3_pct: 12.1,
+        top_state_1: "California", top_state_2: "Texas", top_state_3: "New York",
+        top_metro_1: "New York NY", top_metro_2: "Los Angeles CA", top_metro_3: "Washington DC (Hagerstown MD)"
+    },
+    2: {
+        name: "Multi-Item Power Shopper", highlight: "54% Cart Removal + 2.9 Qty per Order",
+        analysis: "High-engagement buyers purchasing multiple items per order. Significant cart editing behavior (54% removal) indicates careful comparison shopping. Strong conversion despite complex cart journeys. Washer/dryer and accessories focus.",
+        sessions: 384, pct: 7.4, avg_revenue: 1253, median_revenue: 1077, total_revenue: 481063,
+        avg_purchase_qty: 2.9, avg_purchase_unique_items: 1.7, large_appliance_pct: 35.7, accessory_pct: 28.9, refrigerator_pct: 3.4,
+        avg_cart_items: 1.9, avg_cart_value: 1286, avg_cart_priced_items: 1.9, avg_cart_unpriced_items: 0, cart_price_coverage_pct: 100,
+        avg_cart_drop_ratio_pct: 1.3, avg_cart_drop_value_pct: 2.8, pct_removed_items: 53.9,
+        avg_in_stock_items: 53.3, avg_out_of_stock_items: 0.1, pct_saw_out_of_stock: 4.4, pct_checked_stock: 100, avg_open_box_ineligible: 52.11,
+        avg_duration_sec: 1303, avg_events: 65.6, avg_unique_events: 19.2, avg_engagement_duration_sec: 993,
+        avg_exploration_events: 28.2, avg_commerce_events: 35.8, avg_support_events: 0.6,
+        exploration_pct: 41.8, commerce_pct: 55.8, support_pct: 0.9,
+        avg_exploration_time_sec: 675, avg_commerce_time_sec: 597, avg_support_time_sec: 10,
+        avg_distinct_viewed_items: 1.7, avg_product_revisit_ratio: 1.49, avg_category_diversity: 1.2, avg_intent_signal_count: 0.7, avg_view_item_count: 2.5,
+        avg_session_price: 817, median_session_price: 676, avg_viewed_product_rating: 3.82,
+        avg_review_event_count: 0.46, avg_review_dwell_sec: 24.7, avg_review_interaction_count: 0.46, pct_viewed_reviews: 33.9,
+        promo_hunting_pct: 68.5, promo_interaction_pct: 50.5, avg_promo_code_attempts: 1.1, avg_promo_attempt_events: 1.1, price_filter_pct: 0.5,
+        avg_financing_events: 0.01, pct_financing_interest: 0.3, avg_policy_pv: 0.35, pct_promo_interest: 68.5,
+        avg_shipping_pv: 0.02, pct_shipping_concern: 2.1, avg_zipcode_checks: 19.5, avg_zipcode_distinct: 1.83, pct_zipcode_concern: 100,
+        avg_payment_method_checks: 11.86, pct_payment_concern: 100,
+        avg_checkout_regression: 2.59, pct_with_regression: 58.1, avg_post_cart_hesitation: 35.2, avg_post_cart_events: 50,
+        avg_add_to_cart_count: 1.7, avg_remove_from_cart_count: 0.94, avg_view_cart_count: 6.3,
+        pct_used_search: 44.3, avg_site_search_events: 2.1,
+        avg_sessions_per_user: 3.4, avg_max_session_number: 7.6, pct_multi_session_users: 62.5,
+        avg_time_to_cart_sec: 310, avg_time_to_checkout_sec: 632, avg_cart_to_purchase_sec: 831, avg_checkout_to_purchase_sec: 496,
+        price_q1_pct: 56.5, price_q2_pct: 22.4, price_q3_pct: 16.4, price_q4_pct: 4.7,
+        device_desktop_pct: 54.7, device_mobile_pct: 44, device_tablet_pct: 1.3,
+        time_morning_pct: 4.2, time_afternoon_pct: 28.1, time_evening_pct: 35.7, time_night_pct: 32,
+        logged_in_pct: 35.7, new_visitor_pct: 31,
+        bu_he_pct: 27.1, bu_ha_pct: 66.1, bu_he_ha_pct: 2.1, bu_other_pct: 4.7, he_session_pct: 29.2, ha_session_pct: 68.2,
+        sup_warranty_pct: 0, sup_parts_pct: 3.1, sup_manuals_pct: 0.5, pct_had_support_intent: 31, avg_support_pv_total: 0.8,
+        media_channel_1: "Paid-Search", media_channel_2: "Direct", media_channel_3: "Organic-Search",
+        top_purchase_cat_1: "washers & dryers", top_purchase_cat_1_pct: 31.9, top_purchase_cat_2: "appliances accessories", top_purchase_cat_2_pct: 28.5, top_purchase_cat_3: "monitors", top_purchase_cat_3_pct: 15.3,
+        top_session_cat_1: "washers & dryers", top_session_cat_1_pct: 34.1, top_session_cat_2: "appliances accessories", top_session_cat_2_pct: 25.5, top_session_cat_3: "monitors", top_session_cat_3_pct: 14.9,
+        top_state_1: "California", top_state_2: "New York", top_state_3: "Texas",
+        top_metro_1: "New York NY", top_metro_2: "Los Angeles CA", top_metro_3: "Chicago IL"
+    },
+    8: {
+        name: "Direct Checkout Buyer", highlight: "No Cart Data + Direct Channel",
+        analysis: "Streamlined buyers who skip cart entirely, going direct to checkout. Strong accessory and appliance mix (32% each). High logged-in rate (35%) suggests returning customers with saved payment. Direct channel dominant.",
+        sessions: 465, pct: 9, avg_revenue: 905, median_revenue: 650, total_revenue: 420785,
+        avg_purchase_qty: 1.6, avg_purchase_unique_items: 1.3, large_appliance_pct: 32.7, accessory_pct: 32.3, refrigerator_pct: 5.4,
+        avg_cart_items: 0, avg_cart_value: 0, avg_cart_priced_items: 0, avg_cart_unpriced_items: 0, cart_price_coverage_pct: null,
+        avg_cart_drop_ratio_pct: 0, avg_cart_drop_value_pct: null, pct_removed_items: 18.5,
+        avg_in_stock_items: 27.5, avg_out_of_stock_items: 0.1, pct_saw_out_of_stock: 5.8, pct_checked_stock: 100, avg_open_box_ineligible: 27.39,
+        avg_duration_sec: 1080, avg_events: 42, avg_unique_events: 14.3, avg_engagement_duration_sec: 1080,
+        avg_exploration_events: 18.7, avg_commerce_events: 22.3, avg_support_events: 0.6,
+        exploration_pct: 43.7, commerce_pct: 53.8, support_pct: 1.5,
+        avg_exploration_time_sec: 625, avg_commerce_time_sec: 424, avg_support_time_sec: 20,
+        avg_distinct_viewed_items: 0.6, avg_product_revisit_ratio: 0.62, avg_category_diversity: 0.7, avg_intent_signal_count: 0.5, avg_view_item_count: 0.8,
+        avg_session_price: 819, median_session_price: 672, avg_viewed_product_rating: 3.71,
+        avg_review_event_count: 0.25, avg_review_dwell_sec: 17.8, avg_review_interaction_count: 0.25, pct_viewed_reviews: 18.1,
+        promo_hunting_pct: 46.9, promo_interaction_pct: 31.4, avg_promo_code_attempts: 0.55, avg_promo_attempt_events: 0.55, price_filter_pct: 0.9,
+        avg_financing_events: 0, pct_financing_interest: 0, avg_policy_pv: 0.37, pct_promo_interest: 46.9,
+        avg_shipping_pv: 0.03, pct_shipping_concern: 3, avg_zipcode_checks: 12.4, avg_zipcode_distinct: 1.57, pct_zipcode_concern: 99.8,
+        avg_payment_method_checks: 10.55, pct_payment_concern: 100,
+        avg_checkout_regression: 1.48, pct_with_regression: 49, avg_post_cart_hesitation: 0, avg_post_cart_events: 0,
+        avg_add_to_cart_count: 0, avg_remove_from_cart_count: 0.31, avg_view_cart_count: 3.6,
+        pct_used_search: 34.8, avg_site_search_events: 1.3,
+        avg_sessions_per_user: 3.3, avg_max_session_number: 5.8, pct_multi_session_users: 63,
+        avg_time_to_cart_sec: null, avg_time_to_checkout_sec: 485, avg_cart_to_purchase_sec: null, avg_checkout_to_purchase_sec: 460,
+        price_q1_pct: 55.7, price_q2_pct: 24.7, price_q3_pct: 14, price_q4_pct: 5.6,
+        device_desktop_pct: 61.5, device_mobile_pct: 37.2, device_tablet_pct: 1.3,
+        time_morning_pct: 4.1, time_afternoon_pct: 28, time_evening_pct: 37, time_night_pct: 31,
+        logged_in_pct: 34.6, new_visitor_pct: 29.9,
+        bu_he_pct: 16.8, bu_ha_pct: 41.5, bu_he_ha_pct: 1.5, bu_other_pct: 40.2, he_session_pct: 18.3, ha_session_pct: 43,
+        sup_warranty_pct: 1.1, sup_parts_pct: 1.9, sup_manuals_pct: 0.9, pct_had_support_intent: 34.8, avg_support_pv_total: 0.9,
+        media_channel_1: "Direct", media_channel_2: "Paid-Search", media_channel_3: "Organic-Search",
+        top_purchase_cat_1: "appliances accessories", top_purchase_cat_1_pct: 34, top_purchase_cat_2: "washers & dryers", top_purchase_cat_2_pct: 23.6, top_purchase_cat_3: "monitors", top_purchase_cat_3_pct: 13.4,
+        top_session_cat_1: "appliances accessories", top_session_cat_1_pct: 27, top_session_cat_2: "washers & dryers", top_session_cat_2_pct: 20.7, top_session_cat_3: "tvs", top_session_cat_3_pct: 13.7,
+        top_state_1: "California", top_state_2: "Texas", top_state_3: "Florida",
+        top_metro_1: "New York NY", top_metro_2: "Los Angeles CA", top_metro_3: "San Francisco-Oakland-San Jose CA"
+    },
+    11: {
+        name: "Quick Accessory Buyer", highlight: "92% Other BU + Fast Sessions",
+        analysis: "Fastest purchasing cluster (396s sessions) with minimal browsing. 92% Other BU suggests B2B or specialized channel. No cart usage, direct to checkout. Low engagement but efficient conversion path.",
+        sessions: 455, pct: 8.8, avg_revenue: 693, median_revenue: 234, total_revenue: 315428,
+        avg_purchase_qty: 1.3, avg_purchase_unique_items: 1.2, large_appliance_pct: 21.8, accessory_pct: 34.7, refrigerator_pct: 3.1,
+        avg_cart_items: 0, avg_cart_value: 0, avg_cart_priced_items: 0, avg_cart_unpriced_items: 0, cart_price_coverage_pct: null,
+        avg_cart_drop_ratio_pct: 0, avg_cart_drop_value_pct: null, pct_removed_items: 4,
+        avg_in_stock_items: 11.9, avg_out_of_stock_items: 0, pct_saw_out_of_stock: 0.4, pct_checked_stock: 100, avg_open_box_ineligible: 11.75,
+        avg_duration_sec: 396, avg_events: 18.7, avg_unique_events: 8.8, avg_engagement_duration_sec: 396,
+        avg_exploration_events: 6.4, avg_commerce_events: 12, avg_support_events: 0.2,
+        exploration_pct: 33, commerce_pct: 65.7, support_pct: 0.9,
+        avg_exploration_time_sec: 133, avg_commerce_time_sec: 258, avg_support_time_sec: 2,
+        avg_distinct_viewed_items: 0.1, avg_product_revisit_ratio: 0.05, avg_category_diversity: 0.1, avg_intent_signal_count: 0, avg_view_item_count: 0.1,
+        avg_session_price: 570, median_session_price: 539, avg_viewed_product_rating: 3.95,
+        avg_review_event_count: 0.03, avg_review_dwell_sec: 2.2, avg_review_interaction_count: 0.03, pct_viewed_reviews: 2.9,
+        promo_hunting_pct: 23.1, promo_interaction_pct: 15.2, avg_promo_code_attempts: 0.19, avg_promo_attempt_events: 0.19, price_filter_pct: 0,
+        avg_financing_events: 0.01, pct_financing_interest: 0.4, avg_policy_pv: 0.1, pct_promo_interest: 23.1,
+        avg_shipping_pv: 0, pct_shipping_concern: 0.2, avg_zipcode_checks: 5.7, avg_zipcode_distinct: 1.27, pct_zipcode_concern: 90.3,
+        avg_payment_method_checks: 7.82, pct_payment_concern: 100,
+        avg_checkout_regression: 0.15, pct_with_regression: 9.7, avg_post_cart_hesitation: 0, avg_post_cart_events: 0,
+        avg_add_to_cart_count: 0, avg_remove_from_cart_count: 0.04, avg_view_cart_count: 1.3,
+        pct_used_search: 14.1, avg_site_search_events: 0.4,
+        avg_sessions_per_user: 3.3, avg_max_session_number: 6.6, pct_multi_session_users: 65.5,
+        avg_time_to_cart_sec: null, avg_time_to_checkout_sec: 100, avg_cart_to_purchase_sec: null, avg_checkout_to_purchase_sec: 241,
+        price_q1_pct: 70.3, price_q2_pct: 17.4, price_q3_pct: 10.1, price_q4_pct: 2.2,
+        device_desktop_pct: 52.5, device_mobile_pct: 45.1, device_tablet_pct: 2.4,
+        time_morning_pct: 7.7, time_afternoon_pct: 26.8, time_evening_pct: 34.7, time_night_pct: 30.8,
+        logged_in_pct: 15.4, new_visitor_pct: 31.2,
+        bu_he_pct: 4, bu_ha_pct: 4.2, bu_he_ha_pct: 0, bu_other_pct: 91.9, he_session_pct: 4, ha_session_pct: 4.2,
+        sup_warranty_pct: 0, sup_parts_pct: 0.4, sup_manuals_pct: 0.4, pct_had_support_intent: 11, avg_support_pv_total: 0.2,
+        media_channel_1: "Direct", media_channel_2: "Paid-Search", media_channel_3: "Organic-Search",
+        top_purchase_cat_1: "appliances accessories", top_purchase_cat_1_pct: 34.4, top_purchase_cat_2: "monitors", top_purchase_cat_2_pct: 25.4, top_purchase_cat_3: "washers & dryers", top_purchase_cat_3_pct: 15.1,
+        top_session_cat_1: "appliances accessories", top_session_cat_1_pct: 28.2, top_session_cat_2: "monitors", top_session_cat_2_pct: 23.1, top_session_cat_3: "tvs", top_session_cat_3_pct: 12.8,
+        top_state_1: "California", top_state_2: "Texas", top_state_3: "Florida",
+        top_metro_1: "Los Angeles CA", top_metro_2: "San Francisco-Oakland-San Jose CA", top_metro_3: "San Francisco-Oakland-San Jose CA"
+    },
+    9: {
+        name: "Monitor Specialist", highlight: "84% Monitors + 88% HE Focus",
+        analysis: "Monitor-focused buyers with 69% monitor purchases. Highest HE concentration (88%) with low promo dependency (13%). Fast efficient sessions with minimal cart usage. Strong repeat customer base.",
+        sessions: 703, pct: 13.6, avg_revenue: 418, median_revenue: 235, total_revenue: 294072,
+        avg_purchase_qty: 1.1, avg_purchase_unique_items: 1, large_appliance_pct: 3.8, accessory_pct: 12.1, refrigerator_pct: 0.4,
+        avg_cart_items: 1, avg_cart_value: 377, avg_cart_priced_items: 1, avg_cart_unpriced_items: 0, cart_price_coverage_pct: 100,
+        avg_cart_drop_ratio_pct: 0.1, avg_cart_drop_value_pct: 0.2, pct_removed_items: 3.6,
+        avg_in_stock_items: 14.6, avg_out_of_stock_items: 0, pct_saw_out_of_stock: 0.7, pct_checked_stock: 100, avg_open_box_ineligible: 14.52,
+        avg_duration_sec: 446, avg_events: 25.3, avg_unique_events: 12.4, avg_engagement_duration_sec: 323,
+        avg_exploration_events: 8.1, avg_commerce_events: 16.8, avg_support_events: 0,
+        exploration_pct: 31.9, commerce_pct: 67, support_pct: 0.2,
+        avg_exploration_time_sec: 142, avg_commerce_time_sec: 298, avg_support_time_sec: 0,
+        avg_distinct_viewed_items: 1, avg_product_revisit_ratio: 1.13, avg_category_diversity: 1, avg_intent_signal_count: 0.3, avg_view_item_count: 1.2,
+        avg_session_price: 408, median_session_price: 370, avg_viewed_product_rating: 4.18,
+        avg_review_event_count: 0.25, avg_review_dwell_sec: 11.4, avg_review_interaction_count: 0.25, pct_viewed_reviews: 24.8,
+        promo_hunting_pct: 12.9, promo_interaction_pct: 6.5, avg_promo_code_attempts: 0.07, avg_promo_attempt_events: 0.07, price_filter_pct: 0.1,
+        avg_financing_events: 0, pct_financing_interest: 0, avg_policy_pv: 0.05, pct_promo_interest: 12.9,
+        avg_shipping_pv: 0, pct_shipping_concern: 0.1, avg_zipcode_checks: 8.35, avg_zipcode_distinct: 1.76, pct_zipcode_concern: 100,
+        avg_payment_method_checks: 8.68, pct_payment_concern: 100,
+        avg_checkout_regression: 0.31, pct_with_regression: 18.8, avg_post_cart_hesitation: 9.1, avg_post_cart_events: 19.2,
+        avg_add_to_cart_count: 1, avg_remove_from_cart_count: 0.04, avg_view_cart_count: 1.7,
+        pct_used_search: 2.4, avg_site_search_events: 0,
+        avg_sessions_per_user: 2.1, avg_max_session_number: 2.7, pct_multi_session_users: 52.1,
+        avg_time_to_cart_sec: 122, avg_time_to_checkout_sec: 178, avg_cart_to_purchase_sec: 271, avg_checkout_to_purchase_sec: 215,
+        price_q1_pct: 83.8, price_q2_pct: 10.7, price_q3_pct: 4.4, price_q4_pct: 1.1,
+        device_desktop_pct: 37.4, device_mobile_pct: 61.5, device_tablet_pct: 1.1,
+        time_morning_pct: 5.8, time_afternoon_pct: 27.5, time_evening_pct: 31.9, time_night_pct: 34.9,
+        logged_in_pct: 1.3, new_visitor_pct: 40.4,
+        bu_he_pct: 87.9, bu_ha_pct: 5.7, bu_he_ha_pct: 0.1, bu_other_pct: 6.3, he_session_pct: 88.1, ha_session_pct: 5.8,
+        sup_warranty_pct: 0, sup_parts_pct: 0.1, sup_manuals_pct: 0.1, pct_had_support_intent: 7, avg_support_pv_total: 0.1,
+        media_channel_1: "Paid-Search", media_channel_2: "Direct", media_channel_3: "Organic-Search",
+        top_purchase_cat_1: "monitors", top_purchase_cat_1_pct: 69.3, top_purchase_cat_2: "tv & home theater accessories", top_purchase_cat_2_pct: 11.6, top_purchase_cat_3: "tvs", top_purchase_cat_3_pct: 7.6,
+        top_session_cat_1: "monitors", top_session_cat_1_pct: 70.2, top_session_cat_2: "tv & home theater accessories", top_session_cat_2_pct: 11.6, top_session_cat_3: "tvs", top_session_cat_3_pct: 8.3,
+        top_state_1: "California", top_state_2: "Texas", top_state_3: "New York",
+        top_metro_1: "Los Angeles CA", top_metro_2: "New York NY", top_metro_3: "Chicago IL"
+    },
+    12: {
+        name: "Deep Researcher", highlight: "98.6% Reviews + 143s Review Dwell",
+        analysis: "Highest review engagement (98.6%) with extensive 143s dwell time. Quality-focused buyers who research thoroughly before purchase. Mobile-heavy (61%) with balanced HE/HA interest. Moderate promo sensitivity.",
+        sessions: 496, pct: 9.6, avg_revenue: 520, median_revenue: 238, total_revenue: 257970,
+        avg_purchase_qty: 1.2, avg_purchase_unique_items: 1.1, large_appliance_pct: 14.3, accessory_pct: 29.6, refrigerator_pct: 1.2,
+        avg_cart_items: 1.1, avg_cart_value: 519, avg_cart_priced_items: 1.1, avg_cart_unpriced_items: 0, cart_price_coverage_pct: 100,
+        avg_cart_drop_ratio_pct: 0.6, avg_cart_drop_value_pct: 1.5, pct_removed_items: 12.3,
+        avg_in_stock_items: 19, avg_out_of_stock_items: 0.3, pct_saw_out_of_stock: 21, pct_checked_stock: 100, avg_open_box_ineligible: 18.79,
+        avg_duration_sec: 1215, avg_events: 49.7, avg_unique_events: 17.6, avg_engagement_duration_sec: 618,
+        avg_exploration_events: 26.2, avg_commerce_events: 22, avg_support_events: 0.4,
+        exploration_pct: 51.1, commerce_pct: 46.1, support_pct: 0.8,
+        avg_exploration_time_sec: 789, avg_commerce_time_sec: 389, avg_support_time_sec: 15,
+        avg_distinct_viewed_items: 2, avg_product_revisit_ratio: 1.87, avg_category_diversity: 1.3, avg_intent_signal_count: 2.6, avg_view_item_count: 3.4,
+        avg_session_price: 681, median_session_price: 513, avg_viewed_product_rating: 3.7,
+        avg_review_event_count: 1.86, avg_review_dwell_sec: 142.7, avg_review_interaction_count: 1.86, pct_viewed_reviews: 98.6,
+        promo_hunting_pct: 33.9, promo_interaction_pct: 19.8, avg_promo_code_attempts: 0.25, avg_promo_attempt_events: 0.25, price_filter_pct: 3.2,
+        avg_financing_events: 0, pct_financing_interest: 0, avg_policy_pv: 0.23, pct_promo_interest: 33.9,
+        avg_shipping_pv: 0.01, pct_shipping_concern: 1, avg_zipcode_checks: 12.61, avg_zipcode_distinct: 1.61, pct_zipcode_concern: 100,
+        avg_payment_method_checks: 8.63, pct_payment_concern: 100,
+        avg_checkout_regression: 0.87, pct_with_regression: 36.7, avg_post_cart_hesitation: 18.2, avg_post_cart_events: 28.7,
+        avg_add_to_cart_count: 1.1, avg_remove_from_cart_count: 0.14, avg_view_cart_count: 2.7,
+        pct_used_search: 38.7, avg_site_search_events: 2.1,
+        avg_sessions_per_user: 2.3, avg_max_session_number: 3, pct_multi_session_users: 53.2,
+        avg_time_to_cart_sec: 599, avg_time_to_checkout_sec: 821, avg_cart_to_purchase_sec: 495, avg_checkout_to_purchase_sec: 275,
+        price_q1_pct: 65.5, price_q2_pct: 19, price_q3_pct: 10.1, price_q4_pct: 5.4,
+        device_desktop_pct: 36.5, device_mobile_pct: 61.3, device_tablet_pct: 2.2,
+        time_morning_pct: 6, time_afternoon_pct: 27.8, time_evening_pct: 32.5, time_night_pct: 33.7,
+        logged_in_pct: 13.7, new_visitor_pct: 40.5,
+        bu_he_pct: 50.2, bu_ha_pct: 46, bu_he_ha_pct: 2.6, bu_other_pct: 1.2, he_session_pct: 52.8, ha_session_pct: 48.6,
+        sup_warranty_pct: 0.2, sup_parts_pct: 4, sup_manuals_pct: 2.8, pct_had_support_intent: 25.2, avg_support_pv_total: 0.5,
+        media_channel_1: "Paid-Search", media_channel_2: "Organic-Search", media_channel_3: "Direct",
+        top_purchase_cat_1: "monitors", top_purchase_cat_1_pct: 27.6, top_purchase_cat_2: "appliances accessories", top_purchase_cat_2_pct: 22.8, top_purchase_cat_3: "washers & dryers", top_purchase_cat_3_pct: 10.6,
+        top_session_cat_1: "monitors", top_session_cat_1_pct: 27, top_session_cat_2: "appliances accessories", top_session_cat_2_pct: 22.4, top_session_cat_3: "tvs", top_session_cat_3_pct: 10.7,
+        top_state_1: "California", top_state_2: "Texas", top_state_3: "Florida",
+        top_metro_1: "New York NY", top_metro_2: "Los Angeles CA", top_metro_3: "Chicago IL"
+    },
+    7: {
+        name: "Loyal Accessory Buyer", highlight: "89% Search Usage + 56% New Visitors",
+        analysis: "Search-heavy accessory buyers (89% used search). Moderate support intent (23%) with returning customer behavior. Accessory-focused (54%) through Direct channel. Lower AOV ($311) but consistent purchasing pattern.",
+        sessions: 420, pct: 8.1, avg_revenue: 311, median_revenue: 130, total_revenue: 130718,
+        avg_purchase_qty: 1.2, avg_purchase_unique_items: 1.1, large_appliance_pct: 6.4, accessory_pct: 53.6, refrigerator_pct: 0.2,
+        avg_cart_items: 1.1, avg_cart_value: 292, avg_cart_priced_items: 1.1, avg_cart_unpriced_items: 0, cart_price_coverage_pct: 100,
+        avg_cart_drop_ratio_pct: 0.2, avg_cart_drop_value_pct: 1.2, pct_removed_items: 9.5,
+        avg_in_stock_items: 16.2, avg_out_of_stock_items: 0, pct_saw_out_of_stock: 1, pct_checked_stock: 100, avg_open_box_ineligible: 15.29,
+        avg_duration_sec: 708, avg_events: 36.9, avg_unique_events: 16.7, avg_engagement_duration_sec: 446,
+        avg_exploration_events: 18.2, avg_commerce_events: 18.1, avg_support_events: 0.1,
+        exploration_pct: 48.8, commerce_pct: 49.5, support_pct: 0.3,
+        avg_exploration_time_sec: 410, avg_commerce_time_sec: 289, avg_support_time_sec: 1,
+        avg_distinct_viewed_items: 0.7, avg_product_revisit_ratio: 0.65, avg_category_diversity: 1, avg_intent_signal_count: 0.2, avg_view_item_count: 0.8,
+        avg_session_price: 509, median_session_price: 357, avg_viewed_product_rating: 3.24,
+        avg_review_event_count: 0.12, avg_review_dwell_sec: 2, avg_review_interaction_count: 0.12, pct_viewed_reviews: 11.9,
+        promo_hunting_pct: 43.1, promo_interaction_pct: 26.4, avg_promo_code_attempts: 0.37, avg_promo_attempt_events: 0.37, price_filter_pct: 2.9,
+        avg_financing_events: 0.04, pct_financing_interest: 1.2, avg_policy_pv: 0.14, pct_promo_interest: 43.1,
+        avg_shipping_pv: 0, pct_shipping_concern: 0.2, avg_zipcode_checks: 9.66, avg_zipcode_distinct: 1.48, pct_zipcode_concern: 100,
+        avg_payment_method_checks: 8.18, pct_payment_concern: 100,
+        avg_checkout_regression: 0.37, pct_with_regression: 19, avg_post_cart_hesitation: 12.5, avg_post_cart_events: 22.9,
+        avg_add_to_cart_count: 1.1, avg_remove_from_cart_count: 0.11, avg_view_cart_count: 2.2,
+        pct_used_search: 89.3, avg_site_search_events: 3.4,
+        avg_sessions_per_user: 1.8, avg_max_session_number: 2.4, pct_multi_session_users: 35.5,
+        avg_time_to_cart_sec: 261, avg_time_to_checkout_sec: 373, avg_cart_to_purchase_sec: 378, avg_checkout_to_purchase_sec: 264,
+        price_q1_pct: 71.7, price_q2_pct: 18.6, price_q3_pct: 8.1, price_q4_pct: 1.7,
+        device_desktop_pct: 47.4, device_mobile_pct: 50.7, device_tablet_pct: 1.9,
+        time_morning_pct: 5.7, time_afternoon_pct: 30.5, time_evening_pct: 32.9, time_night_pct: 31,
+        logged_in_pct: 8.6, new_visitor_pct: 55.7,
+        bu_he_pct: 20.7, bu_ha_pct: 51.4, bu_he_ha_pct: 3.6, bu_other_pct: 24.3, he_session_pct: 24.3, ha_session_pct: 55,
+        sup_warranty_pct: 0, sup_parts_pct: 2.1, sup_manuals_pct: 0.5, pct_had_support_intent: 22.9, avg_support_pv_total: 0.4,
+        media_channel_1: "Direct", media_channel_2: "Paid-Search", media_channel_3: "Organic-Search",
+        top_purchase_cat_1: "appliances accessories", top_purchase_cat_1_pct: 55.2, top_purchase_cat_2: "monitors", top_purchase_cat_2_pct: 16.5, top_purchase_cat_3: "tv & home theater accessories", top_purchase_cat_3_pct: 7.8,
+        top_session_cat_1: "appliances accessories", top_session_cat_1_pct: 43.3, top_session_cat_2: "monitors", top_session_cat_2_pct: 16.6, top_session_cat_3: "washers & dryers", top_session_cat_3_pct: 11.3,
+        top_state_1: "California", top_state_2: "Florida", top_state_3: "New York",
+        top_metro_1: "New York NY", top_metro_2: "Los Angeles CA", top_metro_3: "Washington DC (Hagerstown MD)"
+    },
+    6: {
+        name: "ThinQ Cart Adjuster", highlight: "85% Cart Removal + 48% Drop Ratio",
+        analysis: "Highest cart adjustment behavior with 85% item removal and 48% cart drop ratio. ThinQ channel presence indicates existing appliance owners. Heavy cart editing suggests comparison shopping before final purchase decision.",
+        sessions: 326, pct: 6.3, avg_revenue: 395, median_revenue: 128, total_revenue: 128681,
+        avg_purchase_qty: 1.4, avg_purchase_unique_items: 1.3, large_appliance_pct: 8, accessory_pct: 58.3, refrigerator_pct: 0.6,
+        avg_cart_items: 2.7, avg_cart_value: 901, avg_cart_priced_items: 2.7, avg_cart_unpriced_items: 0, cart_price_coverage_pct: 100,
+        avg_cart_drop_ratio_pct: 48.1, avg_cart_drop_value_pct: 51.6, pct_removed_items: 85.3,
+        avg_in_stock_items: 34, avg_out_of_stock_items: 0, pct_saw_out_of_stock: 3.4, pct_checked_stock: 100, avg_open_box_ineligible: 32.96,
+        avg_duration_sec: 1152, avg_events: 63.7, avg_unique_events: 18.2, avg_engagement_duration_sec: 912,
+        avg_exploration_events: 28, avg_commerce_events: 33.8, avg_support_events: 0.8,
+        exploration_pct: 42.8, commerce_pct: 54.2, support_pct: 1.2,
+        avg_exploration_time_sec: 674, avg_commerce_time_sec: 436, avg_support_time_sec: 23,
+        avg_distinct_viewed_items: 1.7, avg_product_revisit_ratio: 2, avg_category_diversity: 1.1, avg_intent_signal_count: 0.7, avg_view_item_count: 3.3,
+        avg_session_price: 530, median_session_price: 358, avg_viewed_product_rating: 3.85,
+        avg_review_event_count: 0.59, avg_review_dwell_sec: 27.4, avg_review_interaction_count: 0.59, pct_viewed_reviews: 36.5,
+        promo_hunting_pct: 48.8, promo_interaction_pct: 37.1, avg_promo_code_attempts: 0.89, avg_promo_attempt_events: 0.89, price_filter_pct: 0.6,
+        avg_financing_events: 0.01, pct_financing_interest: 0.3, avg_policy_pv: 0.26, pct_promo_interest: 48.8,
+        avg_shipping_pv: 0.02, pct_shipping_concern: 1.8, avg_zipcode_checks: 19.75, avg_zipcode_distinct: 1.67, pct_zipcode_concern: 100,
+        avg_payment_method_checks: 9.69, pct_payment_concern: 100,
+        avg_checkout_regression: 2.37, pct_with_regression: 49.4, avg_post_cart_hesitation: 39.2, avg_post_cart_events: 51.8,
+        avg_add_to_cart_count: 2.5, avg_remove_from_cart_count: 1.43, avg_view_cart_count: 6.7,
+        pct_used_search: 43.6, avg_site_search_events: 2,
+        avg_sessions_per_user: 2.1, avg_max_session_number: 2.9, pct_multi_session_users: 43.3,
+        avg_time_to_cart_sec: 240, avg_time_to_checkout_sec: 666, avg_cart_to_purchase_sec: 836, avg_checkout_to_purchase_sec: 410,
+        price_q1_pct: 77.6, price_q2_pct: 11, price_q3_pct: 5.8, price_q4_pct: 5.5,
+        device_desktop_pct: 34.7, device_mobile_pct: 63.2, device_tablet_pct: 2.1,
+        time_morning_pct: 6.1, time_afternoon_pct: 31.9, time_evening_pct: 35.3, time_night_pct: 26.7,
+        logged_in_pct: 25.2, new_visitor_pct: 46.6,
+        bu_he_pct: 23.6, bu_ha_pct: 72.7, bu_he_ha_pct: 2.1, bu_other_pct: 1.5, he_session_pct: 25.8, ha_session_pct: 74.8,
+        sup_warranty_pct: 0.9, sup_parts_pct: 11, sup_manuals_pct: 1.5, pct_had_support_intent: 34, avg_support_pv_total: 1,
+        media_channel_1: "Paid-Search", media_channel_2: "Direct", media_channel_3: "ThinQ",
+        top_purchase_cat_1: "appliances accessories", top_purchase_cat_1_pct: 63.7, top_purchase_cat_2: "monitors", top_purchase_cat_2_pct: 10.9, top_purchase_cat_3: "tvs", top_purchase_cat_3_pct: 8.8,
+        top_session_cat_1: "appliances accessories", top_session_cat_1_pct: 60.4, top_session_cat_2: "monitors", top_session_cat_2_pct: 11.5, top_session_cat_3: "tvs", top_session_cat_3_pct: 9.3,
+        top_state_1: "California", top_state_2: "Texas", top_state_3: "Florida",
+        top_metro_1: "New York NY", top_metro_2: "Los Angeles CA", top_metro_3: "San Francisco-Oakland-San Jose CA"
+    },
+    1: {
+        name: "ThinQ Accessory Buyer", highlight: "97% Accessory + ThinQ/Direct Channel",
+        analysis: "Largest cluster (15.1%) buying almost exclusively accessories (97%). ThinQ and Direct channels indicate existing appliance owners replenishing filters and parts. Lowest AOV ($99) with highest return rate.",
+        sessions: 784, pct: 15.1, avg_revenue: 99, median_revenue: 89, total_revenue: 77764,
+        avg_purchase_qty: 1.2, avg_purchase_unique_items: 1.1, large_appliance_pct: 0.1, accessory_pct: 90.7, refrigerator_pct: 0,
+        avg_cart_items: 1.1, avg_cart_value: 94, avg_cart_priced_items: 1.1, avg_cart_unpriced_items: 0, cart_price_coverage_pct: 100,
+        avg_cart_drop_ratio_pct: 0.4, avg_cart_drop_value_pct: 5.8, pct_removed_items: 6,
+        avg_in_stock_items: 15.4, avg_out_of_stock_items: 0, pct_saw_out_of_stock: 0.4, pct_checked_stock: 100, avg_open_box_ineligible: 15.27,
+        avg_duration_sec: 456, avg_events: 28.7, avg_unique_events: 13.2, avg_engagement_duration_sec: 311,
+        avg_exploration_events: 10.1, avg_commerce_events: 18, avg_support_events: 0.2,
+        exploration_pct: 34.7, commerce_pct: 63.3, support_pct: 0.6,
+        avg_exploration_time_sec: 186, avg_commerce_time_sec: 253, avg_support_time_sec: 6,
+        avg_distinct_viewed_items: 1.1, avg_product_revisit_ratio: 1.1, avg_category_diversity: 1, avg_intent_signal_count: 0.2, avg_view_item_count: 1.3,
+        avg_session_price: 96, median_session_price: 84, avg_viewed_product_rating: 3.75,
+        avg_review_event_count: 0.22, avg_review_dwell_sec: 7.9, avg_review_interaction_count: 0.22, pct_viewed_reviews: 20,
+        promo_hunting_pct: 31.6, promo_interaction_pct: 29.2, avg_promo_code_attempts: 0.37, avg_promo_attempt_events: 0.37, price_filter_pct: 0.1,
+        avg_financing_events: 0, pct_financing_interest: 0, avg_policy_pv: 0.06, pct_promo_interest: 31.6,
+        avg_shipping_pv: 0, pct_shipping_concern: 0.1, avg_zipcode_checks: 9.03, avg_zipcode_distinct: 1.65, pct_zipcode_concern: 100,
+        avg_payment_method_checks: 8.43, pct_payment_concern: 100,
+        avg_checkout_regression: 0.23, pct_with_regression: 11.7, avg_post_cart_hesitation: 10.7, avg_post_cart_events: 20.5,
+        avg_add_to_cart_count: 1.1, avg_remove_from_cart_count: 0.07, avg_view_cart_count: 2.2,
+        pct_used_search: 9.4, avg_site_search_events: 0.1,
+        avg_sessions_per_user: 1.7, avg_max_session_number: 2.5, pct_multi_session_users: 33.2,
+        avg_time_to_cart_sec: 145, avg_time_to_checkout_sec: 235, avg_cart_to_purchase_sec: 278, avg_checkout_to_purchase_sec: 186,
+        price_q1_pct: 99.1, price_q2_pct: 0.8, price_q3_pct: 0.1, price_q4_pct: 0,
+        device_desktop_pct: 31.5, device_mobile_pct: 67.7, device_tablet_pct: 0.8,
+        time_morning_pct: 3.4, time_afternoon_pct: 32.1, time_evening_pct: 33.8, time_night_pct: 30.6,
+        logged_in_pct: 5.5, new_visitor_pct: 57.7,
+        bu_he_pct: 0.3, bu_ha_pct: 97.8, bu_he_ha_pct: 0.4, bu_other_pct: 1.5, he_session_pct: 0.6, ha_session_pct: 98.2,
+        sup_warranty_pct: 0.1, sup_parts_pct: 8.2, sup_manuals_pct: 0.1, pct_had_support_intent: 20.3, avg_support_pv_total: 0.3,
+        media_channel_1: "Direct", media_channel_2: "ThinQ", media_channel_3: "Organic-Search",
+        top_purchase_cat_1: "appliances accessories", top_purchase_cat_1_pct: 97.1, top_purchase_cat_2: "microwaves", top_purchase_cat_2_pct: 1.8, top_purchase_cat_3: "vacuums", top_purchase_cat_3_pct: 0.3,
+        top_session_cat_1: "appliances accessories", top_session_cat_1_pct: 95.9, top_session_cat_2: "microwaves", top_session_cat_2_pct: 2.1, top_session_cat_3: "washers & dryers", top_session_cat_3_pct: 0.5,
+        top_state_1: "California", top_state_2: "Texas", top_state_3: "Florida",
+        top_metro_1: "Los Angeles CA", top_metro_2: "New York NY", top_metro_3: "Atlanta GA"
+    },
+    10: {
+        name: "Support-Aware Buyer", highlight: "77% Promo + 100% Shipping Concern",
+        analysis: "Smallest cluster (1.8%) with highest promo hunting (77%) and extreme shipping concern (100%). Higher AOV ($752) with appliance/accessory mix. Support-focused with repair service interest. Needs proactive shipping communication.",
+        sessions: 91, pct: 1.8, avg_revenue: 752, median_revenue: 170, total_revenue: 68445,
+        avg_purchase_qty: 1.6, avg_purchase_unique_items: 1.4, large_appliance_pct: 24.2, accessory_pct: 45.1, refrigerator_pct: 2.2,
+        avg_cart_items: 1.5, avg_cart_value: 845, avg_cart_priced_items: 1.5, avg_cart_unpriced_items: 0, cart_price_coverage_pct: 100,
+        avg_cart_drop_ratio_pct: 3.2, avg_cart_drop_value_pct: 5.5, pct_removed_items: 19.8,
+        avg_in_stock_items: 27.8, avg_out_of_stock_items: 0.1, pct_saw_out_of_stock: 3.3, pct_checked_stock: 100, avg_open_box_ineligible: 26.4,
+        avg_duration_sec: 931, avg_events: 50.7, avg_unique_events: 17.7, avg_engagement_duration_sec: 593,
+        avg_exploration_events: 23.3, avg_commerce_events: 25.3, avg_support_events: 1.2,
+        exploration_pct: 45.1, commerce_pct: 51, support_pct: 2.2,
+        avg_exploration_time_sec: 494, avg_commerce_time_sec: 394, avg_support_time_sec: 29,
+        avg_distinct_viewed_items: 1.3, avg_product_revisit_ratio: 1.11, avg_category_diversity: 1.2, avg_intent_signal_count: 0.8, avg_view_item_count: 1.8,
+        avg_session_price: 657, median_session_price: 624, avg_viewed_product_rating: 2.83,
+        avg_review_event_count: 0.62, avg_review_dwell_sec: 24.7, avg_review_interaction_count: 0.62, pct_viewed_reviews: 42.9,
+        promo_hunting_pct: 76.9, promo_interaction_pct: 37.4, avg_promo_code_attempts: 0.59, avg_promo_attempt_events: 0.59, price_filter_pct: 1.1,
+        avg_financing_events: 0, pct_financing_interest: 0, avg_policy_pv: 0.84, pct_promo_interest: 76.9,
+        avg_shipping_pv: 1.45, pct_shipping_concern: 100, avg_zipcode_checks: 13.33, avg_zipcode_distinct: 1.66, pct_zipcode_concern: 100,
+        avg_payment_method_checks: 10.08, pct_payment_concern: 100,
+        avg_checkout_regression: 0.95, pct_with_regression: 38.5, avg_post_cart_hesitation: 21.2, avg_post_cart_events: 33.2,
+        avg_add_to_cart_count: 1.4, avg_remove_from_cart_count: 0.33, avg_view_cart_count: 3.6,
+        pct_used_search: 36.3, avg_site_search_events: 1.2,
+        avg_sessions_per_user: 2.3, avg_max_session_number: 3.1, pct_multi_session_users: 49.5,
+        avg_time_to_cart_sec: 341, avg_time_to_checkout_sec: 551, avg_cart_to_purchase_sec: 540, avg_checkout_to_purchase_sec: 308,
+        price_q1_pct: 64.8, price_q2_pct: 16.5, price_q3_pct: 15.4, price_q4_pct: 3.3,
+        device_desktop_pct: 49.5, device_mobile_pct: 49.5, device_tablet_pct: 1.1,
+        time_morning_pct: 2.2, time_afternoon_pct: 27.5, time_evening_pct: 40.7, time_night_pct: 29.7,
+        logged_in_pct: 26.4, new_visitor_pct: 45.1,
+        bu_he_pct: 11, bu_ha_pct: 80.2, bu_he_ha_pct: 3.3, bu_other_pct: 5.5, he_session_pct: 14.3, ha_session_pct: 83.5,
+        sup_warranty_pct: 2.2, sup_parts_pct: 6.6, sup_manuals_pct: 3.3, pct_had_support_intent: 39.6, avg_support_pv_total: 1.3,
+        media_channel_1: "Paid-Search", media_channel_2: "Direct", media_channel_3: "Organic-Search",
+        top_purchase_cat_1: "appliances accessories", top_purchase_cat_1_pct: 53.4, top_purchase_cat_2: "washers & dryers", top_purchase_cat_2_pct: 23.3, top_purchase_cat_3: "tvs", top_purchase_cat_3_pct: 5.5,
+        top_session_cat_1: "appliances accessories", top_session_cat_1_pct: 45.3, top_session_cat_2: "washers & dryers", top_session_cat_2_pct: 27.9, top_session_cat_3: "tvs", top_session_cat_3_pct: 5.8,
+        top_state_1: "California", top_state_2: "Florida", top_state_3: "Florida",
+        top_metro_1: "New York NY", top_metro_2: "Los Angeles CA", top_metro_3: "San Francisco-Oakland-San Jose CA"
+    },
+    5: {
+        name: "Parts & Accessory Seeker", highlight: "70% Support Intent + 30% Parts Focus",
+        analysis: "Support-driven accessory buyers with highest support intent (70%) and 30% parts interest. Longest sessions (989s) indicate research-heavy support seekers. 40% logged in suggests existing customers needing parts/filters.",
+        sessions: 474, pct: 9.1, avg_revenue: 113, median_revenue: 75, total_revenue: 53760,
+        avg_purchase_qty: 1.4, avg_purchase_unique_items: 1.3, large_appliance_pct: 1.1, accessory_pct: 89.9, refrigerator_pct: 0,
+        avg_cart_items: 1.3, avg_cart_value: 114, avg_cart_priced_items: 1.3, avg_cart_unpriced_items: 0, cart_price_coverage_pct: 100,
+        avg_cart_drop_ratio_pct: 0, avg_cart_drop_value_pct: 7.7, pct_removed_items: 11.4,
+        avg_in_stock_items: 21, avg_out_of_stock_items: 0, pct_saw_out_of_stock: 2.1, pct_checked_stock: 100, avg_open_box_ineligible: 20.8,
+        avg_duration_sec: 989, avg_events: 46.5, avg_unique_events: 16.6, avg_engagement_duration_sec: 552,
+        avg_exploration_events: 21, avg_commerce_events: 22.3, avg_support_events: 2.1,
+        exploration_pct: 44.1, commerce_pct: 49.1, support_pct: 4.5,
+        avg_exploration_time_sec: 564, avg_commerce_time_sec: 315, avg_support_time_sec: 84,
+        avg_distinct_viewed_items: 1.4, avg_product_revisit_ratio: 1.26, avg_category_diversity: 1.1, avg_intent_signal_count: 0.4, avg_view_item_count: 1.9,
+        avg_session_price: 197, median_session_price: 124, avg_viewed_product_rating: 3.72,
+        avg_review_event_count: 0.27, avg_review_dwell_sec: 16.8, avg_review_interaction_count: 0.27, pct_viewed_reviews: 24.1,
+        promo_hunting_pct: 27.4, promo_interaction_pct: 20.9, avg_promo_code_attempts: 0.32, avg_promo_attempt_events: 0.32, price_filter_pct: 0,
+        avg_financing_events: 0, pct_financing_interest: 0, avg_policy_pv: 0.39, pct_promo_interest: 27.4,
+        avg_shipping_pv: 0, pct_shipping_concern: 0.2, avg_zipcode_checks: 11.39, avg_zipcode_distinct: 1.45, pct_zipcode_concern: 100,
+        avg_payment_method_checks: 9.34, pct_payment_concern: 100,
+        avg_checkout_regression: 0.41, pct_with_regression: 23.2, avg_post_cart_hesitation: 18.2, avg_post_cart_events: 29.3,
+        avg_add_to_cart_count: 1.3, avg_remove_from_cart_count: 0.13, avg_view_cart_count: 3,
+        pct_used_search: 47.9, avg_site_search_events: 1.2,
+        avg_sessions_per_user: 1.6, avg_max_session_number: 2.1, pct_multi_session_users: 33.8,
+        avg_time_to_cart_sec: 437, avg_time_to_checkout_sec: 655, avg_cart_to_purchase_sec: 448, avg_checkout_to_purchase_sec: 230,
+        price_q1_pct: 90.9, price_q2_pct: 6.8, price_q3_pct: 1.7, price_q4_pct: 0.6,
+        device_desktop_pct: 41.1, device_mobile_pct: 57.6, device_tablet_pct: 1.3,
+        time_morning_pct: 3.4, time_afternoon_pct: 34, time_evening_pct: 36.1, time_night_pct: 26.6,
+        logged_in_pct: 39.9, new_visitor_pct: 57,
+        bu_he_pct: 5.3, bu_ha_pct: 91.4, bu_he_ha_pct: 2.1, bu_other_pct: 1.3, he_session_pct: 7.4, ha_session_pct: 93.5,
+        sup_warranty_pct: 2.1, sup_parts_pct: 30, sup_manuals_pct: 2.5, pct_had_support_intent: 70.3, avg_support_pv_total: 2,
+        media_channel_1: "Direct", media_channel_2: "Paid-Search", media_channel_3: "Organic-Search",
+        top_purchase_cat_1: "appliances accessories", top_purchase_cat_1_pct: 93.2, top_purchase_cat_2: "tv & home theater accessories", top_purchase_cat_2_pct: 2.5, top_purchase_cat_3: "monitors", top_purchase_cat_3_pct: 1.4,
+        top_session_cat_1: "appliances accessories", top_session_cat_1_pct: 86.6, top_session_cat_2: "washers & dryers", top_session_cat_2_pct: 3, top_session_cat_3: "monitors", top_session_cat_3_pct: 2.3,
+        top_state_1: "California", top_state_2: "Texas", top_state_3: "Florida",
+        top_metro_1: "New York NY", top_metro_2: "Atlanta GA", top_metro_3: "San Francisco-Oakland-San Jose CA"
+    }
+};
+
+// ============================================
+// CART ABANDONER DATA (FULL)
+// ============================================
+const cartAbandonerData = {
+    7: {
+        name: "High-Value Cart Droppers", highlight: "100% Cart Drop + $5M Abandoned",
+        analysis: "Largest abandonment value cluster at $5M. 99.9% abandon at cart stage before checkout. High promo hunting (57%) but low engagement time (544s) suggests price shock. Mobile-heavy (53%) with TVs as top category.",
+        sessions: 3543, pct: 19.7, abandon_at_cart_pct: 99.9, abandon_at_checkout_pct: 0.1, avg_funnel_depth: 2.0,
+        avg_cart_value: 1432, median_cart_value: 1158, total_cart_value_abandoned: 5074360, avg_cart_items: 1.2, avg_price: 1788,
+        avg_cart_priced_items: 1.2, avg_cart_unpriced_items: 0.0, cart_price_coverage_pct: 100.0,
+        avg_cart_drop_ratio_pct: 100.0, avg_cart_drop_value_pct: 100.0, pct_removed_items: 17.6,
+        avg_in_stock_items: 6.2, avg_out_of_stock_items: 0.1, pct_saw_out_of_stock: 7.5, pct_checked_stock: 100.0, avg_open_box_ineligible: 5.74,
+        avg_duration_sec: 544, avg_events: 20.8, avg_unique_events: 10.1, avg_engagement_duration_sec: 296,
+        avg_exploration_events: 12.0, avg_commerce_events: 8.3, avg_support_events: 0.0,
+        exploration_pct: 56.1, commerce_pct: 41.4, support_pct: 0.2,
+        avg_exploration_time_sec: 403, avg_commerce_time_sec: 130, avg_support_time_sec: 0,
+        avg_distinct_viewed_items: 1.2, avg_product_revisit_ratio: 1.21, avg_category_diversity: 1.1, avg_intent_signal_count: 0.3, avg_view_item_count: 1.6,
+        avg_viewed_product_rating: 3.99, avg_review_event_count: 0.21, avg_review_dwell_sec: 6.3, avg_review_interaction_count: 0.21, pct_viewed_reviews: 20.0,
+        promo_hunting_pct: 57.1, promo_interaction_pct: 31.4, avg_promo_code_attempts: 0.62, avg_promo_attempt_events: 0.62, price_filter_pct: 1.0,
+        avg_financing_events: 0.0, pct_financing_interest: 0.1, avg_policy_pv: 0.1, pct_price_sensitive: 57.1,
+        avg_shipping_pv: 0.04, pct_shipping_concern: 2.5, avg_zipcode_checks: 4.55, avg_zipcode_distinct: 1.16, pct_zipcode_concern: 99.9,
+        avg_payment_method_checks: 0.0, pct_payment_concern: 0.0,
+        checkout_error_pct: 40.4, avg_checkout_regression: 0.0, pct_with_regression: 0.0,
+        avg_post_cart_hesitation: 10.2, avg_post_cart_events: 10.2, pct_high_hesitation: 80.8,
+        avg_add_to_cart_count: 1.2, avg_remove_from_cart_count: 0.22, avg_view_cart_count: 2.2,
+        pct_used_search: 24.4, avg_site_search_events: 0.9,
+        avg_sessions_per_user: 3.2, avg_max_session_number: 6.8, pct_multi_session_users: 55.7,
+        avg_time_to_cart_sec: 247, avg_cart_to_end_sec: 296, avg_time_to_checkout_sec: 69, avg_cart_to_outcome_sec: 296,
+        price_q1_pct: 30.0, price_q2_pct: 23.9, price_q3_pct: 27.7, price_q4_pct: 18.4,
+        device_desktop_pct: 44.0, device_mobile_pct: 53.3, device_tablet_pct: 2.7,
+        time_morning_pct: 8.5, time_afternoon_pct: 26.3, time_evening_pct: 33.4, time_night_pct: 31.8,
+        logged_in_pct: 3.6, new_visitor_pct: 35.5,
+        bu_he_pct: 47.9, bu_ha_pct: 43.0, bu_he_ha_pct: 2.5, bu_other_pct: 6.7, he_session_pct: 50.4, ha_session_pct: 45.5,
+        sup_checkout_help_pct: 0.0, sup_returns_pct: 0.4, sup_order_tracking_pct: 2.2, pct_had_support_intent: 9.8,
+        avg_support_pv_total: 0.2, avg_checkout_payment_help_pv: 0.0, avg_returns_rma_pv: 0.02, pct_shipping_in_support: 0.1,
+        media_channel_1: "Paid-Search", media_channel_2: "Direct", media_channel_3: "Organic-Search",
+        top_session_cat_1: "tvs", top_session_cat_1_pct: 27.5, top_session_cat_2: "monitors", top_session_cat_2_pct: 20.2, top_session_cat_3: "washers & dryers", top_session_cat_3_pct: 19.7,
+        top_support_intent_1: "troubleshooting_help_library", top_support_intent_1_pct: 41.0,
+        top_state_1: "California", top_state_2: "Texas", top_state_3: "New York",
+        top_metro_1: "New York NY", top_metro_2: "Los Angeles CA", top_metro_3: "San Francisco-Oakland-San Jose CA"
+    },
+    6: {
+        name: "Multi-Item Hesitators", highlight: "3.1 Cart Items + 66% Removed Items",
+        analysis: "Highest cart complexity with 3.1 items averaging $3,261. 66% item removal rate indicates comparison shopping and indecision. 11% reach checkout but abandon - potential payment/shipping friction. Heavy appliance focus (47% washers).",
+        sessions: 1522, pct: 8.5, abandon_at_cart_pct: 88.7, abandon_at_checkout_pct: 11.3, avg_funnel_depth: 2.2,
+        avg_cart_value: 3261, median_cart_value: 2641, total_cart_value_abandoned: 4963950, avg_cart_items: 3.1, avg_price: 1474,
+        avg_cart_priced_items: 3.1, avg_cart_unpriced_items: 0.0, cart_price_coverage_pct: 100.0,
+        avg_cart_drop_ratio_pct: 100.0, avg_cart_drop_value_pct: 100.0, pct_removed_items: 66.8,
+        avg_in_stock_items: 22.5, avg_out_of_stock_items: 0.2, pct_saw_out_of_stock: 16.0, pct_checked_stock: 100.0, avg_open_box_ineligible: 20.77,
+        avg_duration_sec: 1019, avg_events: 50.8, avg_unique_events: 14.6, avg_engagement_duration_sec: 676,
+        avg_exploration_events: 29.6, avg_commerce_events: 20.1, avg_support_events: 0.2,
+        exploration_pct: 56.9, commerce_pct: 40.8, support_pct: 0.3,
+        avg_exploration_time_sec: 758, avg_commerce_time_sec: 239, avg_support_time_sec: 3,
+        avg_distinct_viewed_items: 2.6, avg_product_revisit_ratio: 1.52, avg_category_diversity: 1.6, avg_intent_signal_count: 1.1, avg_view_item_count: 3.8,
+        avg_viewed_product_rating: 3.82, avg_review_event_count: 0.78, avg_review_dwell_sec: 32.5, avg_review_interaction_count: 0.78, pct_viewed_reviews: 44.4,
+        promo_hunting_pct: 65.3, promo_interaction_pct: 29.2, avg_promo_code_attempts: 0.61, avg_promo_attempt_events: 0.61, price_filter_pct: 1.7,
+        avg_financing_events: 0.0, pct_financing_interest: 0.1, avg_policy_pv: 0.16, pct_price_sensitive: 65.4,
+        avg_shipping_pv: 0.14, pct_shipping_concern: 8.4, avg_zipcode_checks: 12.98, avg_zipcode_distinct: 1.26, pct_zipcode_concern: 99.8,
+        avg_payment_method_checks: 0.07, pct_payment_concern: 3.7,
+        checkout_error_pct: 45.8, avg_checkout_regression: 0.24, pct_with_regression: 4.5,
+        avg_post_cart_hesitation: 34.0, avg_post_cart_events: 34.5, pct_high_hesitation: 99.9,
+        avg_add_to_cart_count: 2.6, avg_remove_from_cart_count: 1.43, avg_view_cart_count: 5.8,
+        pct_used_search: 46.3, avg_site_search_events: 2.9,
+        avg_sessions_per_user: 3.6, avg_max_session_number: 8.0, pct_multi_session_users: 64.8,
+        avg_time_to_cart_sec: 343, avg_cart_to_end_sec: 676, avg_time_to_checkout_sec: 721, avg_cart_to_outcome_sec: 676,
+        price_q1_pct: 21.2, price_q2_pct: 32.8, price_q3_pct: 33.0, price_q4_pct: 12.9,
+        device_desktop_pct: 49.3, device_mobile_pct: 48.2, device_tablet_pct: 2.5,
+        time_morning_pct: 9.1, time_afternoon_pct: 25.6, time_evening_pct: 32.6, time_night_pct: 32.7,
+        logged_in_pct: 9.2, new_visitor_pct: 27.4,
+        bu_he_pct: 18.9, bu_ha_pct: 73.0, bu_he_ha_pct: 6.2, bu_other_pct: 1.8, he_session_pct: 25.2, ha_session_pct: 79.2,
+        sup_checkout_help_pct: 0.0, sup_returns_pct: 0.5, sup_order_tracking_pct: 3.9, pct_had_support_intent: 12.9,
+        avg_support_pv_total: 0.3, avg_checkout_payment_help_pv: 0.0, avg_returns_rma_pv: 0.04, pct_shipping_in_support: 1.4,
+        media_channel_1: "Paid-Search", media_channel_2: "Direct", media_channel_3: "Organic-Search",
+        top_session_cat_1: "washers & dryers", top_session_cat_1_pct: 46.8, top_session_cat_2: "tvs", top_session_cat_2_pct: 15.1, top_session_cat_3: "refrigerators", top_session_cat_3_pct: 10.7,
+        top_support_intent_1: "order_tracking", top_support_intent_1_pct: 30.5,
+        top_state_1: "Texas", top_state_2: "California", top_state_3: "Florida",
+        top_metro_1: "New York NY", top_metro_2: "Los Angeles CA", top_metro_3: "Chicago IL"
+    },
+    5: {
+        name: "Checkout Friction", highlight: "99% Abandon at Checkout + 2.91 Regression",
+        analysis: "Critical checkout failure cluster. 99% reach checkout but don't convert with 2.91 average regressions (going back). 72.6% experience payment regression - clear payment flow issue. 66% promo hunting indicates price sensitivity at final step.",
+        sessions: 2024, pct: 11.2, abandon_at_cart_pct: 1.1, abandon_at_checkout_pct: 98.9, avg_funnel_depth: 4.0,
+        avg_cart_value: 1631, median_cart_value: 1299, total_cart_value_abandoned: 3301728, avg_cart_items: 1.6, avg_price: 1412,
+        avg_cart_priced_items: 1.6, avg_cart_unpriced_items: 0.0, cart_price_coverage_pct: 100.0,
+        avg_cart_drop_ratio_pct: 100.0, avg_cart_drop_value_pct: 100.0, pct_removed_items: 44.5,
+        avg_in_stock_items: 26.1, avg_out_of_stock_items: 0.2, pct_saw_out_of_stock: 12.1, pct_checked_stock: 100.0, avg_open_box_ineligible: 25.39,
+        avg_duration_sec: 1084, avg_events: 50.5, avg_unique_events: 17.1, avg_engagement_duration_sec: 758,
+        avg_exploration_events: 24.6, avg_commerce_events: 24.6, avg_support_events: 0.4,
+        exploration_pct: 47.9, commerce_pct: 49.6, support_pct: 0.8,
+        avg_exploration_time_sec: 690, avg_commerce_time_sec: 370, avg_support_time_sec: 8,
+        avg_distinct_viewed_items: 1.6, avg_product_revisit_ratio: 1.49, avg_category_diversity: 1.2, avg_intent_signal_count: 1.0, avg_view_item_count: 2.5,
+        avg_viewed_product_rating: 3.96, avg_review_event_count: 0.72, avg_review_dwell_sec: 41.2, avg_review_interaction_count: 0.72, pct_viewed_reviews: 45.8,
+        promo_hunting_pct: 66.3, promo_interaction_pct: 47.1, avg_promo_code_attempts: 0.99, avg_promo_attempt_events: 0.99, price_filter_pct: 2.1,
+        avg_financing_events: 0.0, pct_financing_interest: 0.2, avg_policy_pv: 0.21, pct_price_sensitive: 66.4,
+        avg_shipping_pv: 0.1, pct_shipping_concern: 6.3, avg_zipcode_checks: 15.53, avg_zipcode_distinct: 1.62, pct_zipcode_concern: 100.0,
+        avg_payment_method_checks: 3.58, pct_payment_concern: 77.6,
+        checkout_error_pct: 49.6, avg_checkout_regression: 2.91, pct_with_regression: 72.6,
+        avg_post_cart_hesitation: 27.3, avg_post_cart_events: 35.2, pct_high_hesitation: 99.9,
+        avg_add_to_cart_count: 1.5, avg_remove_from_cart_count: 0.75, avg_view_cart_count: 5.2,
+        pct_used_search: 40.6, avg_site_search_events: 1.9,
+        avg_sessions_per_user: 3.6, avg_max_session_number: 6.3, pct_multi_session_users: 65.6,
+        avg_time_to_cart_sec: 326, avg_cart_to_end_sec: 758, avg_time_to_checkout_sec: 529, avg_cart_to_outcome_sec: 758,
+        price_q1_pct: 33.3, price_q2_pct: 27.0, price_q3_pct: 23.9, price_q4_pct: 15.9,
+        device_desktop_pct: 37.8, device_mobile_pct: 59.9, device_tablet_pct: 2.3,
+        time_morning_pct: 9.6, time_afternoon_pct: 23.8, time_evening_pct: 30.8, time_night_pct: 35.8,
+        logged_in_pct: 27.6, new_visitor_pct: 27.7,
+        bu_he_pct: 38.3, bu_ha_pct: 53.1, bu_he_ha_pct: 4.1, bu_other_pct: 4.5, he_session_pct: 42.4, ha_session_pct: 57.1,
+        sup_checkout_help_pct: 0.0, sup_returns_pct: 0.3, sup_order_tracking_pct: 4.4, pct_had_support_intent: 20.6,
+        avg_support_pv_total: 0.4, avg_checkout_payment_help_pv: 0.0, avg_returns_rma_pv: 0.04, pct_shipping_in_support: 2.5,
+        media_channel_1: "Paid-Search", media_channel_2: "Direct", media_channel_3: "Organic-Search",
+        top_session_cat_1: "washers & dryers", top_session_cat_1_pct: 26.6, top_session_cat_2: "tvs", top_session_cat_2_pct: 24.8, top_session_cat_3: "monitors", top_session_cat_3_pct: 12.7,
+        top_support_intent_1: "troubleshooting_help_library", top_support_intent_1_pct: 36.3,
+        top_state_1: "California", top_state_2: "Texas", top_state_3: "New York",
+        top_metro_1: "New York NY", top_metro_2: "Los Angeles CA", top_metro_3: "San Francisco-Oakland-San Jose CA"
+    },
+    4: {
+        name: "Mobile Quick Abandon", highlight: "99.9% Checkout Abandon + 66% Mobile",
+        analysis: "Mobile-heavy checkout abandoners with 66% on mobile devices. Quick sessions (414s) suggest mobile UX friction. Low promo hunting (34%) indicates non-price abandonment - likely form/payment issues on mobile.",
+        sessions: 3129, pct: 17.4, abandon_at_cart_pct: 0.1, abandon_at_checkout_pct: 99.9, avg_funnel_depth: 4.0,
+        avg_cart_value: 1008, median_cart_value: 729, total_cart_value_abandoned: 3155194, avg_cart_items: 1.1, avg_price: 1226,
+        avg_cart_priced_items: 1.1, avg_cart_unpriced_items: 0.0, cart_price_coverage_pct: 100.0,
+        avg_cart_drop_ratio_pct: 100.0, avg_cart_drop_value_pct: 100.0, pct_removed_items: 7.7,
+        avg_in_stock_items: 10.0, avg_out_of_stock_items: 0.0, pct_saw_out_of_stock: 3.5, pct_checked_stock: 100.0, avg_open_box_ineligible: 9.64,
+        avg_duration_sec: 414, avg_events: 22.5, avg_unique_events: 12.1, avg_engagement_duration_sec: 228,
+        avg_exploration_events: 10.3, avg_commerce_events: 11.8, avg_support_events: 0.1,
+        exploration_pct: 44.8, commerce_pct: 53.3, support_pct: 0.2,
+        avg_exploration_time_sec: 225, avg_commerce_time_sec: 181, avg_support_time_sec: 1,
+        avg_distinct_viewed_items: 1.0, avg_product_revisit_ratio: 1.03, avg_category_diversity: 1.0, avg_intent_signal_count: 0.4, avg_view_item_count: 1.2,
+        avg_viewed_product_rating: 3.97, avg_review_event_count: 0.31, avg_review_dwell_sec: 13.2, avg_review_interaction_count: 0.31, pct_viewed_reviews: 28.1,
+        promo_hunting_pct: 34.0, promo_interaction_pct: 17.6, avg_promo_code_attempts: 0.22, avg_promo_attempt_events: 0.22, price_filter_pct: 1.0,
+        avg_financing_events: 0.0, pct_financing_interest: 0.2, avg_policy_pv: 0.1, pct_price_sensitive: 34.1,
+        avg_shipping_pv: 0.02, pct_shipping_concern: 2.3, avg_zipcode_checks: 7.34, avg_zipcode_distinct: 1.42, pct_zipcode_concern: 100.0,
+        avg_payment_method_checks: 1.6, pct_payment_concern: 53.1,
+        checkout_error_pct: 48.3, avg_checkout_regression: 0.47, pct_with_regression: 30.9,
+        avg_post_cart_hesitation: 9.0, avg_post_cart_events: 13.5, pct_high_hesitation: 80.9,
+        avg_add_to_cart_count: 1.0, avg_remove_from_cart_count: 0.09, avg_view_cart_count: 2.0,
+        pct_used_search: 16.9, avg_site_search_events: 0.5,
+        avg_sessions_per_user: 2.5, avg_max_session_number: 4.5, pct_multi_session_users: 50.1,
+        avg_time_to_cart_sec: 185, avg_cart_to_end_sec: 228, avg_time_to_checkout_sec: 265, avg_cart_to_outcome_sec: 228,
+        price_q1_pct: 46.5, price_q2_pct: 23.0, price_q3_pct: 19.6, price_q4_pct: 10.9,
+        device_desktop_pct: 32.3, device_mobile_pct: 66.2, device_tablet_pct: 1.5,
+        time_morning_pct: 8.5, time_afternoon_pct: 25.2, time_evening_pct: 31.4, time_night_pct: 35.0,
+        logged_in_pct: 2.8, new_visitor_pct: 41.9,
+        bu_he_pct: 51.4, bu_ha_pct: 39.4, bu_he_ha_pct: 1.0, bu_other_pct: 8.3, he_session_pct: 52.3, ha_session_pct: 40.4,
+        sup_checkout_help_pct: 0.0, sup_returns_pct: 0.1, sup_order_tracking_pct: 1.0, pct_had_support_intent: 8.2,
+        avg_support_pv_total: 0.1, avg_checkout_payment_help_pv: 0.0, avg_returns_rma_pv: 0.01, pct_shipping_in_support: 0.1,
+        media_channel_1: "Paid-Search", media_channel_2: "Direct", media_channel_3: "Organic-Search",
+        top_session_cat_1: "monitors", top_session_cat_1_pct: 26.9, top_session_cat_2: "tvs", top_session_cat_2_pct: 24.5, top_session_cat_3: "washers & dryers", top_session_cat_3_pct: 15.3,
+        top_support_intent_1: "troubleshooting_help_library", top_support_intent_1_pct: 58.6,
+        top_state_1: "California", top_state_2: "Texas", top_state_3: "New York",
+        top_metro_1: "New York NY", top_metro_2: "Los Angeles CA", top_metro_3: "Chicago IL"
+    },
+    1: {
+        name: "Review Browsers", highlight: "95% Viewed Reviews + 29% Saw OOS",
+        analysis: "High-engagement researchers with 95% review viewing and 117s review dwell time. 29% saw out-of-stock - highest in segment. Likely abandoned due to inventory issues after thorough research. Mobile-heavy (67%).",
+        sessions: 2228, pct: 12.4, abandon_at_cart_pct: 90.9, abandon_at_checkout_pct: 9.1, avg_funnel_depth: 2.2,
+        avg_cart_value: 1233, median_cart_value: 949, total_cart_value_abandoned: 2746360, avg_cart_items: 1.2, avg_price: 1488,
+        avg_cart_priced_items: 1.2, avg_cart_unpriced_items: 0.0, cart_price_coverage_pct: 100.0,
+        avg_cart_drop_ratio_pct: 100.0, avg_cart_drop_value_pct: 100.0, pct_removed_items: 11.1,
+        avg_in_stock_items: 7.7, avg_out_of_stock_items: 0.5, pct_saw_out_of_stock: 29.1, pct_checked_stock: 100.0, avg_open_box_ineligible: 7.55,
+        avg_duration_sec: 956, avg_events: 35.7, avg_unique_events: 13.0, avg_engagement_duration_sec: 403,
+        avg_exploration_events: 24.8, avg_commerce_events: 9.7, avg_support_events: 0.1,
+        exploration_pct: 68.2, commerce_pct: 28.5, support_pct: 0.3,
+        avg_exploration_time_sec: 813, avg_commerce_time_sec: 128, avg_support_time_sec: 1,
+        avg_distinct_viewed_items: 2.4, avg_product_revisit_ratio: 1.69, avg_category_diversity: 1.4, avg_intent_signal_count: 2.6, avg_view_item_count: 3.7,
+        avg_viewed_product_rating: 3.78, avg_review_event_count: 1.88, avg_review_dwell_sec: 116.9, avg_review_interaction_count: 1.88, pct_viewed_reviews: 95.3,
+        promo_hunting_pct: 43.9, promo_interaction_pct: 8.7, avg_promo_code_attempts: 0.12, avg_promo_attempt_events: 0.12, price_filter_pct: 3.2,
+        avg_financing_events: 0.0, pct_financing_interest: 0.1, avg_policy_pv: 0.14, pct_price_sensitive: 43.9,
+        avg_shipping_pv: 0.08, pct_shipping_concern: 5.3, avg_zipcode_checks: 6.77, avg_zipcode_distinct: 1.2, pct_zipcode_concern: 99.8,
+        avg_payment_method_checks: 0.04, pct_payment_concern: 2.5,
+        checkout_error_pct: 51.1, avg_checkout_regression: 0.08, pct_with_regression: 3.9,
+        avg_post_cart_hesitation: 15.3, avg_post_cart_events: 15.6, pct_high_hesitation: 81.6,
+        avg_add_to_cart_count: 1.1, avg_remove_from_cart_count: 0.14, avg_view_cart_count: 1.8,
+        pct_used_search: 41.3, avg_site_search_events: 2.3,
+        avg_sessions_per_user: 2.8, avg_max_session_number: 5.0, pct_multi_session_users: 57.2,
+        avg_time_to_cart_sec: 552, avg_cart_to_end_sec: 403, avg_time_to_checkout_sec: 816, avg_cart_to_outcome_sec: 403,
+        price_q1_pct: 30.7, price_q2_pct: 24.9, price_q3_pct: 29.9, price_q4_pct: 14.5,
+        device_desktop_pct: 30.2, device_mobile_pct: 66.9, device_tablet_pct: 2.9,
+        time_morning_pct: 8.7, time_afternoon_pct: 25.1, time_evening_pct: 30.9, time_night_pct: 35.3,
+        logged_in_pct: 4.3, new_visitor_pct: 35.1,
+        bu_he_pct: 34.6, bu_ha_pct: 59.2, bu_he_ha_pct: 3.9, bu_other_pct: 2.3, he_session_pct: 38.5, ha_session_pct: 63.1,
+        sup_checkout_help_pct: 0.0, sup_returns_pct: 0.1, sup_order_tracking_pct: 1.9, pct_had_support_intent: 13.2,
+        avg_support_pv_total: 0.2, avg_checkout_payment_help_pv: 0.0, avg_returns_rma_pv: 0.02, pct_shipping_in_support: 0.4,
+        media_channel_1: "Paid-Search", media_channel_2: "Organic-Search", media_channel_3: "Direct",
+        top_session_cat_1: "washers & dryers", top_session_cat_1_pct: 26.5, top_session_cat_2: "monitors", top_session_cat_2_pct: 15.9, top_session_cat_3: "tvs", top_session_cat_3_pct: 15.5,
+        top_support_intent_1: "troubleshooting_help_library", top_support_intent_1_pct: 36.9,
+        top_state_1: "California", top_state_2: "New York", top_state_3: "Texas",
+        top_metro_1: "New York NY", top_metro_2: "Los Angeles CA", top_metro_3: "Chicago IL"
+    },
+    8: {
+        name: "Quick Bounce", highlight: "Shortest Duration (119s) + 72% Mobile",
+        analysis: "Fastest abandoners at just 119s average session. 72% mobile with minimal engagement (9.6 events). Low promo hunting (16%) suggests impulse add-to-cart followed by immediate exit. Likely mobile browsing without purchase intent.",
+        sessions: 3168, pct: 17.6, abandon_at_cart_pct: 98.2, abandon_at_checkout_pct: 1.8, avg_funnel_depth: 2.0,
+        avg_cart_value: 828, median_cart_value: 600, total_cart_value_abandoned: 2622646, avg_cart_items: 1.0, avg_price: 883,
+        avg_cart_priced_items: 1.0, avg_cart_unpriced_items: 0.0, cart_price_coverage_pct: 100.0,
+        avg_cart_drop_ratio_pct: 100.0, avg_cart_drop_value_pct: 100.0, pct_removed_items: 2.7,
+        avg_in_stock_items: 3.5, avg_out_of_stock_items: 0.0, pct_saw_out_of_stock: 2.7, pct_checked_stock: 100.0, avg_open_box_ineligible: 3.39,
+        avg_duration_sec: 119, avg_events: 9.6, avg_unique_events: 6.8, avg_engagement_duration_sec: 18,
+        avg_exploration_events: 4.5, avg_commerce_events: 4.8, avg_support_events: 0.0,
+        exploration_pct: 46.3, commerce_pct: 51.5, support_pct: 0.2,
+        avg_exploration_time_sec: 53, avg_commerce_time_sec: 63, avg_support_time_sec: 0,
+        avg_distinct_viewed_items: 1.0, avg_product_revisit_ratio: 1.1, avg_category_diversity: 1.0, avg_intent_signal_count: 0.4, avg_view_item_count: 1.2,
+        avg_viewed_product_rating: 3.9, avg_review_event_count: 0.32, avg_review_dwell_sec: 10.4, avg_review_interaction_count: 0.32, pct_viewed_reviews: 29.7,
+        promo_hunting_pct: 15.7, promo_interaction_pct: 5.0, avg_promo_code_attempts: 0.06, avg_promo_attempt_events: 0.06, price_filter_pct: 0.1,
+        avg_financing_events: 0.0, pct_financing_interest: 0.0, avg_policy_pv: 0.02, pct_price_sensitive: 15.7,
+        avg_shipping_pv: 0.02, pct_shipping_concern: 1.4, avg_zipcode_checks: 2.59, avg_zipcode_distinct: 1.18, pct_zipcode_concern: 99.6,
+        avg_payment_method_checks: 0.0, pct_payment_concern: 0.1,
+        checkout_error_pct: 56.9, avg_checkout_regression: 0.0, pct_with_regression: 0.1,
+        avg_post_cart_hesitation: 3.4, avg_post_cart_events: 3.5, pct_high_hesitation: 15.3,
+        avg_add_to_cart_count: 1.0, avg_remove_from_cart_count: 0.03, avg_view_cart_count: 1.1,
+        pct_used_search: 3.0, avg_site_search_events: 0.1,
+        avg_sessions_per_user: 2.0, avg_max_session_number: 3.7, pct_multi_session_users: 36.6,
+        avg_time_to_cart_sec: 101, avg_cart_to_end_sec: 18, avg_time_to_checkout_sec: 38, avg_cart_to_outcome_sec: 18,
+        price_q1_pct: 57.6, price_q2_pct: 21.4, price_q3_pct: 15.7, price_q4_pct: 5.3,
+        device_desktop_pct: 26.0, device_mobile_pct: 72.2, device_tablet_pct: 1.8,
+        time_morning_pct: 10.4, time_afternoon_pct: 26.3, time_evening_pct: 28.6, time_night_pct: 34.7,
+        logged_in_pct: 0.3, new_visitor_pct: 55.4,
+        bu_he_pct: 49.8, bu_ha_pct: 45.5, bu_he_ha_pct: 0.3, bu_other_pct: 4.4, he_session_pct: 50.1, ha_session_pct: 45.8,
+        sup_checkout_help_pct: 0.0, sup_returns_pct: 0.0, sup_order_tracking_pct: 0.2, pct_had_support_intent: 2.9,
+        avg_support_pv_total: 0.0, avg_checkout_payment_help_pv: 0.0, avg_returns_rma_pv: 0.0, pct_shipping_in_support: 0.0,
+        media_channel_1: "Paid-Search", media_channel_2: "Paid-Social", media_channel_3: "Direct",
+        top_session_cat_1: "monitors", top_session_cat_1_pct: 32.2, top_session_cat_2: "appliances accessories", top_session_cat_2_pct: 19.4, top_session_cat_3: "tvs", top_session_cat_3_pct: 15.6,
+        top_support_intent_1: "troubleshooting_help_library", top_support_intent_1_pct: 53.8,
+        top_state_1: "California", top_state_2: "New York", top_state_3: "Texas",
+        top_metro_1: "New York NY", top_metro_2: "Los Angeles CA", top_metro_3: "Chicago IL"
+    },
+    9: {
+        name: "Premium Window Shoppers", highlight: "High Price ($2,292) + Low Intent",
+        analysis: "Highest average price viewed ($2,292) but lowest engagement. Short sessions (229s) with minimal review activity. 55% promo hunting on premium items suggests price barrier. Aspirational browsers not ready to commit.",
+        sessions: 1500, pct: 8.3, abandon_at_cart_pct: 99.1, abandon_at_checkout_pct: 0.9, avg_funnel_depth: 2.0,
+        avg_cart_value: 1469, median_cart_value: 1000, total_cart_value_abandoned: 2203933, avg_cart_items: 1.1, avg_price: 2292,
+        avg_cart_priced_items: 1.1, avg_cart_unpriced_items: 0.0, cart_price_coverage_pct: 100.0,
+        avg_cart_drop_ratio_pct: 100.0, avg_cart_drop_value_pct: 100.0, pct_removed_items: 1.3,
+        avg_in_stock_items: 3.1, avg_out_of_stock_items: 0.0, pct_saw_out_of_stock: 2.7, pct_checked_stock: 100.0, avg_open_box_ineligible: 2.08,
+        avg_duration_sec: 229, avg_events: 12.1, avg_unique_events: 7.4, avg_engagement_duration_sec: 61,
+        avg_exploration_events: 9.3, avg_commerce_events: 2.4, avg_support_events: 0.0,
+        exploration_pct: 75.6, commerce_pct: 21.4, support_pct: 0.1,
+        avg_exploration_time_sec: 212, avg_commerce_time_sec: 12, avg_support_time_sec: 0,
+        avg_distinct_viewed_items: 0.3, avg_product_revisit_ratio: 0.33, avg_category_diversity: 0.8, avg_intent_signal_count: 0.2, avg_view_item_count: 0.4,
+        avg_viewed_product_rating: 3.84, avg_review_event_count: 0.11, avg_review_dwell_sec: 3.5, avg_review_interaction_count: 0.11, pct_viewed_reviews: 10.5,
+        promo_hunting_pct: 54.9, promo_interaction_pct: 1.6, avg_promo_code_attempts: 0.02, avg_promo_attempt_events: 0.02, price_filter_pct: 2.3,
+        avg_financing_events: 0.0, pct_financing_interest: 0.1, avg_policy_pv: 0.12, pct_price_sensitive: 54.9,
+        avg_shipping_pv: 0.09, pct_shipping_concern: 8.3, avg_zipcode_checks: 1.17, avg_zipcode_distinct: 0.63, pct_zipcode_concern: 67.5,
+        avg_payment_method_checks: 0.0, pct_payment_concern: 0.1,
+        checkout_error_pct: 10.4, avg_checkout_regression: 0.0, pct_with_regression: 0.0,
+        avg_post_cart_hesitation: 2.9, avg_post_cart_events: 2.9, pct_high_hesitation: 14.2,
+        avg_add_to_cart_count: 1.1, avg_remove_from_cart_count: 0.01, avg_view_cart_count: 0.5,
+        pct_used_search: 28.3, avg_site_search_events: 1.1,
+        avg_sessions_per_user: 2.2, avg_max_session_number: 6.0, pct_multi_session_users: 42.4,
+        avg_time_to_cart_sec: 168, avg_cart_to_end_sec: 61, avg_time_to_checkout_sec: 117, avg_cart_to_outcome_sec: 61,
+        price_q1_pct: 30.3, price_q2_pct: 15.0, price_q3_pct: 27.6, price_q4_pct: 27.1,
+        device_desktop_pct: 26.9, device_mobile_pct: 70.0, device_tablet_pct: 3.1,
+        time_morning_pct: 8.3, time_afternoon_pct: 22.1, time_evening_pct: 35.3, time_night_pct: 34.3,
+        logged_in_pct: 0.4, new_visitor_pct: 45.1,
+        bu_he_pct: 32.3, bu_ha_pct: 37.5, bu_he_ha_pct: 1.1, bu_other_pct: 29.1, he_session_pct: 33.5, ha_session_pct: 38.6,
+        sup_checkout_help_pct: 0.0, sup_returns_pct: 0.3, sup_order_tracking_pct: 0.5, pct_had_support_intent: 5.1,
+        avg_support_pv_total: 0.1, avg_checkout_payment_help_pv: 0.0, avg_returns_rma_pv: 0.01, pct_shipping_in_support: 0.1,
+        media_channel_1: "Paid-Search", media_channel_2: "Direct", media_channel_3: "Paid-Social",
+        top_session_cat_1: "tvs", top_session_cat_1_pct: 35.5, top_session_cat_2: "appliances accessories", top_session_cat_2_pct: 19.0, top_session_cat_3: "washers & dryers", top_session_cat_3_pct: 16.6,
+        top_support_intent_1: "troubleshooting_help_library", top_support_intent_1_pct: 23.7,
+        top_state_1: "California", top_state_2: "New York", top_state_3: "Texas",
+        top_metro_1: "New York NY", top_metro_2: "Los Angeles CA", top_metro_3: "Chicago IL"
+    },
+    10: {
+        name: "Support-Driven Abandoners", highlight: "57% Support Intent + Parts Focus",
+        analysis: "Existing owners abandoning parts/accessories. 57% had support intent with 30% visiting parts pages. Highest support time (100s) in segment. May need better support-to-purchase flow or clearer parts compatibility info.",
+        sessions: 847, pct: 4.7, abandon_at_cart_pct: 80.0, abandon_at_checkout_pct: 20.0, avg_funnel_depth: 2.4,
+        avg_cart_value: 745, median_cart_value: 285, total_cart_value_abandoned: 630722, avg_cart_items: 1.2, avg_price: 901,
+        avg_cart_priced_items: 1.2, avg_cart_unpriced_items: 0.0, cart_price_coverage_pct: 100.0,
+        avg_cart_drop_ratio_pct: 100.0, avg_cart_drop_value_pct: 100.0, pct_removed_items: 12.2,
+        avg_in_stock_items: 6.9, avg_out_of_stock_items: 0.2, pct_saw_out_of_stock: 10.7, pct_checked_stock: 99.9, avg_open_box_ineligible: 6.64,
+        avg_duration_sec: 818, avg_events: 29.4, avg_unique_events: 12.3, avg_engagement_duration_sec: 328,
+        avg_exploration_events: 17.2, avg_commerce_events: 9.1, avg_support_events: 2.4,
+        exploration_pct: 56.4, commerce_pct: 32.8, support_pct: 8.4,
+        avg_exploration_time_sec: 590, avg_commerce_time_sec: 115, avg_support_time_sec: 100,
+        avg_distinct_viewed_items: 1.4, avg_product_revisit_ratio: 1.38, avg_category_diversity: 1.1, avg_intent_signal_count: 0.9, avg_view_item_count: 2.1,
+        avg_viewed_product_rating: 3.7, avg_review_event_count: 0.67, avg_review_dwell_sec: 32.9, avg_review_interaction_count: 0.67, pct_viewed_reviews: 46.9,
+        promo_hunting_pct: 30.5, promo_interaction_pct: 12.3, avg_promo_code_attempts: 0.2, avg_promo_attempt_events: 0.2, price_filter_pct: 1.3,
+        avg_financing_events: 0.0, pct_financing_interest: 0.1, avg_policy_pv: 0.55, pct_price_sensitive: 30.5,
+        avg_shipping_pv: 0.1, pct_shipping_concern: 6.8, avg_zipcode_checks: 5.49, avg_zipcode_distinct: 1.22, pct_zipcode_concern: 99.1,
+        avg_payment_method_checks: 0.22, pct_payment_concern: 9.4,
+        checkout_error_pct: 54.1, avg_checkout_regression: 0.16, pct_with_regression: 8.4,
+        avg_post_cart_hesitation: 12.3, avg_post_cart_events: 13.1, pct_high_hesitation: 72.6,
+        avg_add_to_cart_count: 1.1, avg_remove_from_cart_count: 0.15, avg_view_cart_count: 2.0,
+        pct_used_search: 44.7, avg_site_search_events: 1.6,
+        avg_sessions_per_user: 2.6, avg_max_session_number: 4.6, pct_multi_session_users: 52.3,
+        avg_time_to_cart_sec: 490, avg_cart_to_end_sec: 328, avg_time_to_checkout_sec: 591, avg_cart_to_outcome_sec: 328,
+        price_q1_pct: 59.1, price_q2_pct: 15.5, price_q3_pct: 18.1, price_q4_pct: 7.3,
+        device_desktop_pct: 37.9, device_mobile_pct: 58.9, device_tablet_pct: 3.2,
+        time_morning_pct: 5.2, time_afternoon_pct: 27.7, time_evening_pct: 35.1, time_night_pct: 32.0,
+        logged_in_pct: 11.2, new_visitor_pct: 40.3,
+        bu_he_pct: 23.1, bu_ha_pct: 70.2, bu_he_ha_pct: 2.2, bu_other_pct: 4.4, he_session_pct: 25.4, ha_session_pct: 72.5,
+        sup_checkout_help_pct: 0.2, sup_returns_pct: 0.9, sup_order_tracking_pct: 3.2, pct_had_support_intent: 56.8,
+        avg_support_pv_total: 1.8, avg_checkout_payment_help_pv: 0.0, avg_returns_rma_pv: 0.08, pct_shipping_in_support: 6.8,
+        media_channel_1: "Paid-Search", media_channel_2: "Direct", media_channel_3: "Organic-Search",
+        top_session_cat_1: "appliances accessories", top_session_cat_1_pct: 40.0, top_session_cat_2: "washers & dryers", top_session_cat_2_pct: 15.3, top_session_cat_3: "monitors", top_session_cat_3_pct: 11.1,
+        top_support_intent_1: "parts_filters_accessories", top_support_intent_1_pct: 29.7,
+        top_state_1: "California", top_state_2: "Texas", top_state_3: "New York",
+        top_metro_1: "New York NY", top_metro_2: "Los Angeles CA", top_metro_3: "Chicago IL"
+    },
+    2: {
+        name: "Financing Seekers", highlight: "100% Financing Interest + Mobile Heavy",
+        analysis: "Small but distinct cluster seeking financing options. 100% financing interest with 64.5% abandoning at checkout - likely financing rejection or complexity. 93.5% mobile suggests need for better mobile financing UX.",
+        sessions: 31, pct: 0.2, abandon_at_cart_pct: 35.5, abandon_at_checkout_pct: 64.5, avg_funnel_depth: 3.3,
+        avg_cart_value: 1118, median_cart_value: 800, total_cart_value_abandoned: 34658, avg_cart_items: 1.3, avg_price: 1118,
+        avg_cart_priced_items: 1.3, avg_cart_unpriced_items: 0.0, cart_price_coverage_pct: 100.0,
+        avg_cart_drop_ratio_pct: 100.0, avg_cart_drop_value_pct: 100.0, pct_removed_items: 6.5,
+        avg_in_stock_items: 13.7, avg_out_of_stock_items: 0.1, pct_saw_out_of_stock: 9.7, pct_checked_stock: 100.0, avg_open_box_ineligible: 12.74,
+        avg_duration_sec: 601, avg_events: 33.9, avg_unique_events: 13.8, avg_engagement_duration_sec: 376,
+        avg_exploration_events: 17.7, avg_commerce_events: 15.2, avg_support_events: 0.1,
+        exploration_pct: 54.7, commerce_pct: 42.0, support_pct: 0.3,
+        avg_exploration_time_sec: 407, avg_commerce_time_sec: 182, avg_support_time_sec: 1,
+        avg_distinct_viewed_items: 1.0, avg_product_revisit_ratio: 0.88, avg_category_diversity: 0.9, avg_intent_signal_count: 0.5, avg_view_item_count: 1.3,
+        avg_viewed_product_rating: 3.98, avg_review_event_count: 0.52, avg_review_dwell_sec: 19.6, avg_review_interaction_count: 0.52, pct_viewed_reviews: 25.8,
+        promo_hunting_pct: 38.7, promo_interaction_pct: 29.0, avg_promo_code_attempts: 0.32, avg_promo_attempt_events: 0.32, price_filter_pct: 0.0,
+        avg_financing_events: 3.84, pct_financing_interest: 100.0, avg_policy_pv: 0.13, pct_price_sensitive: 100.0,
+        avg_shipping_pv: 0.0, pct_shipping_concern: 0.0, avg_zipcode_checks: 9.87, avg_zipcode_distinct: 1.32, pct_zipcode_concern: 96.8,
+        avg_payment_method_checks: 3.19, pct_payment_concern: 54.8,
+        checkout_error_pct: 32.3, avg_checkout_regression: 1.16, pct_with_regression: 38.7,
+        avg_post_cart_hesitation: 12.5, avg_post_cart_events: 19.0, pct_high_hesitation: 83.9,
+        avg_add_to_cart_count: 1.2, avg_remove_from_cart_count: 0.06, avg_view_cart_count: 2.9,
+        pct_used_search: 67.7, avg_site_search_events: 2.5,
+        avg_sessions_per_user: 1.8, avg_max_session_number: 3.8, pct_multi_session_users: 45.2,
+        avg_time_to_cart_sec: 225, avg_cart_to_end_sec: 376, avg_time_to_checkout_sec: 222, avg_cart_to_outcome_sec: 376,
+        price_q1_pct: 51.6, price_q2_pct: 6.5, price_q3_pct: 35.5, price_q4_pct: 6.5,
+        device_desktop_pct: 3.2, device_mobile_pct: 93.5, device_tablet_pct: 3.2,
+        time_morning_pct: 6.5, time_afternoon_pct: 29.0, time_evening_pct: 29.0, time_night_pct: 35.5,
+        logged_in_pct: 3.2, new_visitor_pct: 48.4,
+        bu_he_pct: 51.6, bu_ha_pct: 16.1, bu_he_ha_pct: 0.0, bu_other_pct: 32.3, he_session_pct: 51.6, ha_session_pct: 16.1,
+        sup_checkout_help_pct: 0.0, sup_returns_pct: 0.0, sup_order_tracking_pct: 0.0, pct_had_support_intent: 3.2,
+        avg_support_pv_total: 0.0, avg_checkout_payment_help_pv: 0.0, avg_returns_rma_pv: 0.0, pct_shipping_in_support: 0.0,
+        media_channel_1: "Paid-Search", media_channel_2: "Direct", media_channel_3: "Other",
+        top_session_cat_1: "monitors", top_session_cat_1_pct: 34.8, top_session_cat_2: "tvs", top_session_cat_2_pct: 26.1, top_session_cat_3: "washers & dryers", top_session_cat_3_pct: 8.7,
+        top_support_intent_1: "troubleshooting_help_library", top_support_intent_1_pct: 100.0,
+        top_state_1: "California", top_state_2: "Arizona", top_state_3: "Ohio",
+        top_metro_1: "Phoenix AZ", top_metro_2: "New York NY", top_metro_3: "New York NY"
+    },
+    3: {
+        name: "High-Cart Outliers", highlight: "4 Items + $4,297 Cart Value",
+        analysis: "Extremely small cluster (2 sessions) with highest cart value. 4 items averaging $4,297 with 100% desktop and 100% checkout abandon. Likely requires specialized handling or indicates data edge case.",
+        sessions: 2, pct: 0.0, abandon_at_cart_pct: 0.0, abandon_at_checkout_pct: 100.0, avg_funnel_depth: 4.0,
+        avg_cart_value: 4297, median_cart_value: 1599, total_cart_value_abandoned: 8594, avg_cart_items: 4.0, avg_price: 1555,
+        avg_cart_priced_items: 3.0, avg_cart_unpriced_items: 1.0, cart_price_coverage_pct: 66.7,
+        avg_cart_drop_ratio_pct: 100.0, avg_cart_drop_value_pct: 100.0, pct_removed_items: 0.0,
+        avg_in_stock_items: 20.0, avg_out_of_stock_items: 0.0, pct_saw_out_of_stock: 0.0, pct_checked_stock: 100.0, avg_open_box_ineligible: 17.5,
+        avg_duration_sec: 1131, avg_events: 41.5, avg_unique_events: 14.5, avg_engagement_duration_sec: 263,
+        avg_exploration_events: 28.5, avg_commerce_events: 12.5, avg_support_events: 0.0,
+        exploration_pct: 65.1, commerce_pct: 34.1, support_pct: 0.0,
+        avg_exploration_time_sec: 862, avg_commerce_time_sec: 253, avg_support_time_sec: 0,
+        avg_distinct_viewed_items: 1.0, avg_product_revisit_ratio: 2.0, avg_category_diversity: 2.5, avg_intent_signal_count: 0.0, avg_view_item_count: 2.0,
+        avg_viewed_product_rating: 4.04, avg_review_event_count: 0.0, avg_review_dwell_sec: 0.0, avg_review_interaction_count: 0.0, pct_viewed_reviews: 0.0,
+        promo_hunting_pct: 0.0, promo_interaction_pct: 0.0, avg_promo_code_attempts: 0.0, avg_promo_attempt_events: 0.0, price_filter_pct: 0.0,
+        avg_financing_events: 0.0, pct_financing_interest: 0.0, avg_policy_pv: 0.0, pct_price_sensitive: 0.0,
+        avg_shipping_pv: 0.0, pct_shipping_concern: 0.0, avg_zipcode_checks: 6.5, avg_zipcode_distinct: 1.0, pct_zipcode_concern: 100.0,
+        avg_payment_method_checks: 0.5, pct_payment_concern: 50.0,
+        checkout_error_pct: 0.0, avg_checkout_regression: 1.5, pct_with_regression: 50.0,
+        avg_post_cart_hesitation: 18.0, avg_post_cart_events: 22.0, pct_high_hesitation: 100.0,
+        avg_add_to_cart_count: 4.0, avg_remove_from_cart_count: 0.0, avg_view_cart_count: 1.5,
+        pct_used_search: 50.0, avg_site_search_events: 1.5,
+        avg_sessions_per_user: 4.0, avg_max_session_number: 4.0, pct_multi_session_users: 100.0,
+        avg_time_to_cart_sec: 868, avg_cart_to_end_sec: 263, avg_time_to_checkout_sec: 940, avg_cart_to_outcome_sec: 263,
+        price_q1_pct: 0.0, price_q2_pct: 0.0, price_q3_pct: 100.0, price_q4_pct: 0.0,
+        device_desktop_pct: 100.0, device_mobile_pct: 0.0, device_tablet_pct: 0.0,
+        time_morning_pct: 0.0, time_afternoon_pct: 0.0, time_evening_pct: 100.0, time_night_pct: 0.0,
+        logged_in_pct: 0.0, new_visitor_pct: 0.0,
+        bu_he_pct: 0.0, bu_ha_pct: 50.0, bu_he_ha_pct: 50.0, bu_other_pct: 0.0, he_session_pct: 50.0, ha_session_pct: 100.0,
+        sup_checkout_help_pct: 0.0, sup_returns_pct: 0.0, sup_order_tracking_pct: 0.0, pct_had_support_intent: 0.0,
+        avg_support_pv_total: 0.0, avg_checkout_payment_help_pv: 0.0, avg_returns_rma_pv: 0.0, pct_shipping_in_support: 0.0,
+        media_channel_1: "Paid-Search", media_channel_2: "Organic-Search", media_channel_3: "",
+        top_session_cat_1: "refrigerators", top_session_cat_1_pct: 50.0, top_session_cat_2: "washers & dryers", top_session_cat_2_pct: 50.0, top_session_cat_3: "", top_session_cat_3_pct: 0,
+        top_support_intent_1: "", top_support_intent_1_pct: 0,
+        top_state_1: "Massachusetts", top_state_2: "Florida", top_state_3: "",
+        top_metro_1: "Boston MA-Manchester NH", top_metro_2: "Orlando-Daytona Beach-Melbourne FL", top_metro_3: ""
+    }
+};
+
+// ============================================
+// BROWSER DATA (FULL)
+// ============================================
+const browserData = {
+    8: {
+        name: "Quick Glancers", highlight: "31% of Browsers + 147s Duration",
+        analysis: "Largest browser cluster with minimal engagement. 147s average duration and 8.4 events. 68% new visitors arriving via Direct channel - likely brand-aware but not ready to engage. High bounce risk segment.",
+        sessions: 105865, pct: 31.4, avg_duration_sec: 147, median_duration_sec: 64, avg_events: 8.4, avg_unique_events: 5.1, avg_page_views: 2.4,
+        avg_view_item_count: 1.3, avg_engagement_duration_sec: 147,
+        avg_exploration_events: 6.3, avg_commerce_events: 1.9, avg_support_events: 0.0,
+        exploration_pct: 76.1, commerce_pct: 21.8, support_pct: 0.2,
+        avg_exploration_time_sec: 136, avg_commerce_time_sec: 10, avg_support_time_sec: 1,
+        avg_distinct_viewed_items: 1.1, avg_product_revisit_ratio: 1.13, avg_category_diversity: 1.0, avg_intent_signal_count: 0.5, pct_has_intent_signal: 35.5,
+        avg_session_price: 1879, median_session_price: 1472, avg_viewed_product_rating: 4.03,
+        avg_review_event_count: 0.34, avg_review_dwell_sec: 4.8, avg_review_interaction_count: 0.34, pct_viewed_reviews: 33.5,
+        price_filter_pct: 0.2, promo_hunting_pct: 13.8, promo_interaction_pct: 0.0, avg_promo_attempt_events: 0.0,
+        avg_financing_events: 0.0, pct_financing_interest: 0.0, avg_policy_pv: 0.04, pct_viewed_policy: 3.5, pct_promo_interest: 13.8,
+        avg_shipping_pv: 0.05, pct_shipping_concern: 4.1, avg_zipcode_checks: 1.6, avg_zipcode_distinct: 0.98, pct_zipcode_concern: 94.7,
+        avg_in_stock_items: 1.6, avg_out_of_stock_items: 0.1, pct_saw_out_of_stock: 11.0, pct_checked_stock: 95.1, avg_open_box_ineligible: 1.69, pct_saw_open_box_ineligible: 98.9,
+        pct_used_search: 7.7, avg_site_search_events: 0.2,
+        avg_sessions_per_user: 1.6, avg_max_session_number: 2.9, pct_multi_session_users: 24.0,
+        price_q1_pct: 26.4, price_q2_pct: 24.3, price_q3_pct: 32.4, price_q4_pct: 16.9,
+        device_desktop_pct: 53.2, device_mobile_pct: 44.5, device_tablet_pct: 2.2,
+        time_morning_pct: 12.9, time_afternoon_pct: 25.8, time_evening_pct: 28.3, time_night_pct: 33.1,
+        logged_in_pct: 0.2, new_visitor_pct: 68.4,
+        bu_he_pct: 46.4, bu_ha_pct: 50.8, bu_he_ha_pct: 0.6, bu_other_pct: 2.1, he_session_pct: 47.1, ha_session_pct: 51.4,
+        sup_troubleshooting_pct: 0.4, sup_manuals_pct: 1.7, sup_parts_pct: 0.4, sup_warranty_pct: 0.1, sup_repair_pct: 0.0,
+        pct_had_support_intent: 4.1, avg_support_pv_total: 0.1,
+        media_channel_1: "Direct", media_channel_2: "Paid-Search", media_channel_3: "Organic-Search",
+        top_session_cat_1: "tvs", top_session_cat_1_pct: 28.7, top_session_cat_2: "washers & dryers", top_session_cat_2_pct: 18.2, top_session_cat_3: "monitors", top_session_cat_3_pct: 15.5,
+        top_support_intent_1: "manuals_documents", top_support_intent_1_pct: 41.1,
+        top_state_1: "California", top_state_2: "Virginia", top_state_3: "New York",
+        top_metro_1: "Washington DC (Hagerstown MD)", top_metro_2: "New York NY", top_metro_3: "Los Angeles CA"
+    },
+    7: {
+        name: "Category Explorers", highlight: "97% Exploration + 46% Promo Hunt",
+        analysis: "Pure exploration behavior with 97% exploration events. 46% promo hunting without product engagement suggests deal-seeking window shoppers. High new visitor rate (73%) via Direct - likely checking prices without purchase intent.",
+        sessions: 57415, pct: 17.0, avg_duration_sec: 218, median_duration_sec: 87, avg_events: 7.8, avg_unique_events: 3.9, avg_page_views: 3.0,
+        avg_view_item_count: 0.0, avg_engagement_duration_sec: 218,
+        avg_exploration_events: 7.5, avg_commerce_events: 0.1, avg_support_events: 0.0,
+        exploration_pct: 96.8, commerce_pct: 0.7, support_pct: 0.3,
+        avg_exploration_time_sec: 215, avg_commerce_time_sec: 0, avg_support_time_sec: 0,
+        avg_distinct_viewed_items: 0.0, avg_product_revisit_ratio: 0.01, avg_category_diversity: 0.7, avg_intent_signal_count: 0.0, pct_has_intent_signal: 2.1,
+        avg_session_price: 3078, median_session_price: 1825, avg_viewed_product_rating: 3.06,
+        avg_review_event_count: 0.0, avg_review_dwell_sec: 0.0, avg_review_interaction_count: 0.0, pct_viewed_reviews: 0.1,
+        price_filter_pct: 11.5, promo_hunting_pct: 46.4, promo_interaction_pct: 0.0, avg_promo_attempt_events: 0.0,
+        avg_financing_events: 0.0, pct_financing_interest: 0.1, avg_policy_pv: 0.08, pct_viewed_policy: 6.1, pct_promo_interest: 46.4,
+        avg_shipping_pv: 0.1, pct_shipping_concern: 6.3, avg_zipcode_checks: 0.1, avg_zipcode_distinct: 0.09, pct_zipcode_concern: 9.4,
+        avg_in_stock_items: 0.0, avg_out_of_stock_items: 0.0, pct_saw_out_of_stock: 0.7, pct_checked_stock: 1.0, avg_open_box_ineligible: 0.02, pct_saw_open_box_ineligible: 1.5,
+        pct_used_search: 12.1, avg_site_search_events: 0.3,
+        avg_sessions_per_user: 1.5, avg_max_session_number: 2.9, pct_multi_session_users: 20.5,
+        price_q1_pct: 12.6, price_q2_pct: 17.9, price_q3_pct: 31.6, price_q4_pct: 37.6,
+        device_desktop_pct: 49.5, device_mobile_pct: 48.0, device_tablet_pct: 2.5,
+        time_morning_pct: 13.3, time_afternoon_pct: 25.2, time_evening_pct: 29.1, time_night_pct: 32.4,
+        logged_in_pct: 0.1, new_visitor_pct: 72.9,
+        bu_he_pct: 37.4, bu_ha_pct: 29.3, bu_he_ha_pct: 1.0, bu_other_pct: 32.4, he_session_pct: 38.4, ha_session_pct: 30.2,
+        sup_troubleshooting_pct: 0.6, sup_manuals_pct: 1.2, sup_parts_pct: 0.3, sup_warranty_pct: 0.3, sup_repair_pct: 0.2,
+        pct_had_support_intent: 5.6, avg_support_pv_total: 0.1,
+        media_channel_1: "Direct", media_channel_2: "Paid-Search", media_channel_3: "Organic-Search",
+        top_session_cat_1: "tvs", top_session_cat_1_pct: 48.0, top_session_cat_2: "washers & dryers", top_session_cat_2_pct: 19.5, top_session_cat_3: "refrigerators", top_session_cat_3_pct: 6.0,
+        top_support_intent_1: "manuals_documents", top_support_intent_1_pct: 21.1,
+        top_state_1: "California", top_state_2: "Virginia", top_state_3: "Texas",
+        top_metro_1: "Washington DC (Hagerstown MD)", top_metro_2: "New York NY", top_metro_3: "Los Angeles CA"
+    },
+    6: {
+        name: "Policy Readers", highlight: "51% Viewed Policy + 63% Support Intent",
+        analysis: "Pre-purchase or post-purchase policy researchers. 51% viewed policy pages with 63% support intent. 97% in 'Other' BU indicates existing owners researching returns/warranty. Organic search heavy (first channel) suggests problem-solving behavior.",
+        sessions: 43794, pct: 13.0, avg_duration_sec: 272, median_duration_sec: 95, avg_events: 7.7, avg_unique_events: 3.6, avg_page_views: 3.1,
+        avg_view_item_count: 0.0, avg_engagement_duration_sec: 272,
+        avg_exploration_events: 6.9, avg_commerce_events: 0.5, avg_support_events: 0.1,
+        exploration_pct: 91.6, commerce_pct: 5.2, support_pct: 1.3,
+        avg_exploration_time_sec: 265, avg_commerce_time_sec: 3, avg_support_time_sec: 1,
+        avg_distinct_viewed_items: 0.0, avg_product_revisit_ratio: 0.0, avg_category_diversity: 0.1, avg_intent_signal_count: 0.0, pct_has_intent_signal: 1.0,
+        avg_session_price: 158, median_session_price: 112, avg_viewed_product_rating: 3.57,
+        avg_review_event_count: 0.0, avg_review_dwell_sec: 0.2, avg_review_interaction_count: 0.0, pct_viewed_reviews: 0.3,
+        price_filter_pct: 0.2, promo_hunting_pct: 23.1, promo_interaction_pct: 0.0, avg_promo_attempt_events: 0.0,
+        avg_financing_events: 0.0, pct_financing_interest: 0.0, avg_policy_pv: 0.75, pct_viewed_policy: 51.2, pct_promo_interest: 23.1,
+        avg_shipping_pv: 0.09, pct_shipping_concern: 5.1, avg_zipcode_checks: 0.18, avg_zipcode_distinct: 0.13, pct_zipcode_concern: 13.4,
+        avg_in_stock_items: 0.0, avg_out_of_stock_items: 0.0, pct_saw_out_of_stock: 0.2, pct_checked_stock: 0.5, avg_open_box_ineligible: 0.0, pct_saw_open_box_ineligible: 0.4,
+        pct_used_search: 17.3, avg_site_search_events: 0.6,
+        avg_sessions_per_user: 2.3, avg_max_session_number: 5.3, pct_multi_session_users: 37.9,
+        price_q1_pct: 2.7, price_q2_pct: 0.1, price_q3_pct: 0.1, price_q4_pct: 0.0,
+        device_desktop_pct: 47.4, device_mobile_pct: 50.6, device_tablet_pct: 2.0,
+        time_morning_pct: 7.6, time_afternoon_pct: 27.8, time_evening_pct: 34.4, time_night_pct: 30.2,
+        logged_in_pct: 0.6, new_visitor_pct: 53.6,
+        bu_he_pct: 2.2, bu_ha_pct: 3.6, bu_he_ha_pct: 0.0, bu_other_pct: 94.1, he_session_pct: 2.2, ha_session_pct: 3.6,
+        sup_troubleshooting_pct: 5.5, sup_manuals_pct: 33.6, sup_parts_pct: 0.5, sup_warranty_pct: 1.1, sup_repair_pct: 0.9,
+        pct_had_support_intent: 63.0, avg_support_pv_total: 1.3,
+        media_channel_1: "Organic-Search", media_channel_2: "Direct", media_channel_3: "Paid-Search",
+        top_session_cat_1: "monitors", top_session_cat_1_pct: 24.1, top_session_cat_2: "refrigerators", top_session_cat_2_pct: 12.2, top_session_cat_3: "appliances accessories", top_session_cat_3_pct: 12.0,
+        top_support_intent_1: "manuals_documents", top_support_intent_1_pct: 53.3,
+        top_state_1: "California", top_state_2: "Texas", top_state_3: "Florida",
+        top_metro_1: "New York NY", top_metro_2: "Los Angeles CA", top_metro_3: "Washington DC (Hagerstown MD)"
+    },
+    2: {
+        name: "High-Intent Researchers", highlight: "99.6% Viewed Reviews + 729s Duration",
+        analysis: "Deepest engagement with 99.6% review viewing and 125s review dwell. 729s session duration indicates serious research. 32% saw OOS - inventory blocking conversion. Strong conversion potential if stock issues resolved.",
+        sessions: 36219, pct: 10.7, avg_duration_sec: 729, median_duration_sec: 526, avg_events: 21.3, avg_unique_events: 8.0, avg_page_views: 6.0,
+        avg_view_item_count: 3.0, avg_engagement_duration_sec: 729,
+        avg_exploration_events: 16.9, avg_commerce_events: 3.5, avg_support_events: 0.2,
+        exploration_pct: 78.2, commerce_pct: 17.9, support_pct: 0.9,
+        avg_exploration_time_sec: 688, avg_commerce_time_sec: 25, avg_support_time_sec: 7,
+        avg_distinct_viewed_items: 2.2, avg_product_revisit_ratio: 1.48, avg_category_diversity: 1.2, avg_intent_signal_count: 2.5, pct_has_intent_signal: 99.8,
+        avg_session_price: 1644, median_session_price: 1357, avg_viewed_product_rating: 3.75,
+        avg_review_event_count: 1.71, avg_review_dwell_sec: 125.1, avg_review_interaction_count: 1.71, pct_viewed_reviews: 99.6,
+        price_filter_pct: 1.5, promo_hunting_pct: 20.5, promo_interaction_pct: 0.0, avg_promo_attempt_events: 0.0,
+        avg_financing_events: 0.0, pct_financing_interest: 0.0, avg_policy_pv: 0.21, pct_viewed_policy: 13.7, pct_promo_interest: 20.5,
+        avg_shipping_pv: 0.08, pct_shipping_concern: 5.3, avg_zipcode_checks: 3.05, avg_zipcode_distinct: 1.02, pct_zipcode_concern: 94.1,
+        avg_in_stock_items: 2.5, avg_out_of_stock_items: 0.6, pct_saw_out_of_stock: 32.1, pct_checked_stock: 95.5, avg_open_box_ineligible: 3.0, pct_saw_open_box_ineligible: 99.6,
+        pct_used_search: 18.9, avg_site_search_events: 0.9,
+        avg_sessions_per_user: 2.2, avg_max_session_number: 4.1, pct_multi_session_users: 45.1,
+        price_q1_pct: 27.4, price_q2_pct: 23.5, price_q3_pct: 33.1, price_q4_pct: 15.7,
+        device_desktop_pct: 37.1, device_mobile_pct: 59.8, device_tablet_pct: 3.1,
+        time_morning_pct: 7.8, time_afternoon_pct: 25.5, time_evening_pct: 31.5, time_night_pct: 35.2,
+        logged_in_pct: 0.4, new_visitor_pct: 45.2,
+        bu_he_pct: 34.2, bu_ha_pct: 61.8, bu_he_ha_pct: 2.1, bu_other_pct: 1.9, he_session_pct: 36.3, ha_session_pct: 63.9,
+        sup_troubleshooting_pct: 1.5, sup_manuals_pct: 9.9, sup_parts_pct: 1.0, sup_warranty_pct: 0.3, sup_repair_pct: 0.3,
+        pct_had_support_intent: 17.7, avg_support_pv_total: 0.4,
+        media_channel_1: "Paid-Search", media_channel_2: "Organic-Search", media_channel_3: "Direct",
+        top_session_cat_1: "washers & dryers", top_session_cat_1_pct: 22.0, top_session_cat_2: "refrigerators", top_session_cat_2_pct: 16.8, top_session_cat_3: "monitors", top_session_cat_3_pct: 15.7,
+        top_support_intent_1: "manuals_documents", top_support_intent_1_pct: 56.3,
+        top_state_1: "California", top_state_2: "Texas", top_state_3: "New York",
+        top_metro_1: "New York NY", top_metro_2: "Los Angeles CA", top_metro_3: "San Francisco-Oakland-San Jose CA"
+    },
+    3: {
+        name: "Support Seekers", highlight: "24% Support Events + 99.8% Support Intent",
+        analysis: "Browser segment with strong support needs. 24% of time in support with 99.8% support intent. 'Other' BU dominance (89%) indicates existing owners seeking help. May represent conversion opportunity for parts/accessories.",
+        sessions: 34759, pct: 10.3, avg_duration_sec: 618, median_duration_sec: 422, avg_events: 15.8, avg_unique_events: 5.6, avg_page_views: 6.2,
+        avg_view_item_count: 0.0, avg_engagement_duration_sec: 618,
+        avg_exploration_events: 10.4, avg_commerce_events: 1.3, avg_support_events: 3.7,
+        exploration_pct: 67.0, commerce_pct: 6.0, support_pct: 24.4,
+        avg_exploration_time_sec: 486, avg_commerce_time_sec: 9, avg_support_time_sec: 110,
+        avg_distinct_viewed_items: 0.0, avg_product_revisit_ratio: 0.02, avg_category_diversity: 0.1, avg_intent_signal_count: 0.0, pct_has_intent_signal: 1.1,
+        avg_session_price: 1703, median_session_price: 1400, avg_viewed_product_rating: 3.61,
+        avg_review_event_count: 0.01, avg_review_dwell_sec: 0.3, avg_review_interaction_count: 0.01, pct_viewed_reviews: 1.0,
+        price_filter_pct: 0.1, promo_hunting_pct: 9.6, promo_interaction_pct: 0.0, avg_promo_attempt_events: 0.0,
+        avg_financing_events: 0.0, pct_financing_interest: 0.0, avg_policy_pv: 1.39, pct_viewed_policy: 63.2, pct_promo_interest: 9.6,
+        avg_shipping_pv: 0.38, pct_shipping_concern: 20.4, avg_zipcode_checks: 0.18, avg_zipcode_distinct: 0.12, pct_zipcode_concern: 13.1,
+        avg_in_stock_items: 0.0, avg_out_of_stock_items: 0.0, pct_saw_out_of_stock: 1.0, pct_checked_stock: 1.4, avg_open_box_ineligible: 0.03, pct_saw_open_box_ineligible: 2.3,
+        pct_used_search: 17.8, avg_site_search_events: 0.6,
+        avg_sessions_per_user: 2.5, avg_max_session_number: 4.4, pct_multi_session_users: 49.3,
+        price_q1_pct: 2.1, price_q2_pct: 1.9, price_q3_pct: 3.4, price_q4_pct: 1.5,
+        device_desktop_pct: 40.0, device_mobile_pct: 58.2, device_tablet_pct: 1.7,
+        time_morning_pct: 4.3, time_afternoon_pct: 30.7, time_evening_pct: 35.8, time_night_pct: 29.2,
+        logged_in_pct: 0.6, new_visitor_pct: 41.7,
+        bu_he_pct: 3.4, bu_ha_pct: 7.6, bu_he_ha_pct: 0.1, bu_other_pct: 88.9, he_session_pct: 3.5, ha_session_pct: 7.7,
+        sup_troubleshooting_pct: 5.6, sup_manuals_pct: 21.5, sup_parts_pct: 1.8, sup_warranty_pct: 9.0, sup_repair_pct: 9.3,
+        pct_had_support_intent: 99.8, avg_support_pv_total: 4.5,
+        media_channel_1: "Direct", media_channel_2: "Organic-Search", media_channel_3: "Paid-Search",
+        top_session_cat_1: "washers & dryers", top_session_cat_1_pct: 19.9, top_session_cat_2: "tvs", top_session_cat_2_pct: 17.5, top_session_cat_3: "refrigerators", top_session_cat_3_pct: 15.8,
+        top_support_intent_1: "other_support", top_support_intent_1_pct: 23.0,
+        top_state_1: "California", top_state_2: "Texas", top_state_3: "Florida",
+        top_metro_1: "New York NY", top_metro_2: "Los Angeles CA", top_metro_3: "San Francisco-Oakland-San Jose CA"
+    },
+    5: {
+        name: "Active Browsers", highlight: "49% Used Search + High Engagement",
+        analysis: "Highest search usage (49%) indicating active product discovery. 600s duration with balanced exploration/commerce mix. 23% saw OOS - inventory may be blocking. Strong intent signals (33%) suggest conversion potential.",
+        sessions: 33173, pct: 9.8, avg_duration_sec: 600, median_duration_sec: 377, avg_events: 19.3, avg_unique_events: 8.2, avg_page_views: 6.2,
+        avg_view_item_count: 1.8, avg_engagement_duration_sec: 600,
+        avg_exploration_events: 15.7, avg_commerce_events: 2.7, avg_support_events: 0.3,
+        exploration_pct: 81.6, commerce_pct: 14.1, support_pct: 1.3,
+        avg_exploration_time_sec: 562, avg_commerce_time_sec: 20, avg_support_time_sec: 8,
+        avg_distinct_viewed_items: 1.5, avg_product_revisit_ratio: 1.13, avg_category_diversity: 1.2, avg_intent_signal_count: 0.5, pct_has_intent_signal: 33.4,
+        avg_session_price: 1912, median_session_price: 1510, avg_viewed_product_rating: 3.79,
+        avg_review_event_count: 0.24, avg_review_dwell_sec: 3.2, avg_review_interaction_count: 0.24, pct_viewed_reviews: 24.0,
+        price_filter_pct: 2.3, promo_hunting_pct: 32.5, promo_interaction_pct: 0.0, avg_promo_attempt_events: 0.0,
+        avg_financing_events: 0.0, pct_financing_interest: 0.1, avg_policy_pv: 0.25, pct_viewed_policy: 14.7, pct_promo_interest: 32.5,
+        avg_shipping_pv: 0.09, pct_shipping_concern: 6.2, avg_zipcode_checks: 2.55, avg_zipcode_distinct: 0.97, pct_zipcode_concern: 95.5,
+        avg_in_stock_items: 2.0, avg_out_of_stock_items: 0.3, pct_saw_out_of_stock: 23.2, pct_checked_stock: 86.3, avg_open_box_ineligible: 2.15, pct_saw_open_box_ineligible: 93.7,
+        pct_used_search: 48.7, avg_site_search_events: 2.2,
+        avg_sessions_per_user: 3.0, avg_max_session_number: 9.5, pct_multi_session_users: 51.0,
+        price_q1_pct: 21.1, price_q2_pct: 23.1, price_q3_pct: 33.2, price_q4_pct: 21.4,
+        device_desktop_pct: 51.0, device_mobile_pct: 46.6, device_tablet_pct: 2.5,
+        time_morning_pct: 6.7, time_afternoon_pct: 27.5, time_evening_pct: 34.7, time_night_pct: 31.0,
+        logged_in_pct: 1.5, new_visitor_pct: 38.7,
+        bu_he_pct: 33.6, bu_ha_pct: 58.2, bu_he_ha_pct: 3.9, bu_other_pct: 4.4, he_session_pct: 37.4, ha_session_pct: 62.1,
+        sup_troubleshooting_pct: 1.8, sup_manuals_pct: 6.3, sup_parts_pct: 1.3, sup_warranty_pct: 0.5, sup_repair_pct: 0.3,
+        pct_had_support_intent: 21.1, avg_support_pv_total: 0.6,
+        media_channel_1: "Paid-Search", media_channel_2: "Organic-Search", media_channel_3: "Direct",
+        top_session_cat_1: "washers & dryers", top_session_cat_1_pct: 23.4, top_session_cat_2: "tvs", top_session_cat_2_pct: 19.7, top_session_cat_3: "refrigerators", top_session_cat_3_pct: 14.4,
+        top_support_intent_1: "manuals_documents", top_support_intent_1_pct: 30.1,
+        top_state_1: "California", top_state_2: "Texas", top_state_3: "Florida",
+        top_metro_1: "New York NY", top_metro_2: "Los Angeles CA", top_metro_3: "San Francisco-Oakland-San Jose CA"
+    },
+    1: {
+        name: "OOS Frustrated", highlight: "90% Saw OOS + 83% Viewed Reviews",
+        analysis: "Highest OOS exposure at 90% - clear inventory barrier. 83% review engagement shows genuine purchase intent blocked by availability. Organic search primary channel suggests specific product searches leading to OOS disappointment.",
+        sessions: 25646, pct: 7.6, avg_duration_sec: 310, median_duration_sec: 144, avg_events: 8.6, avg_unique_events: 5.1, avg_page_views: 2.7,
+        avg_view_item_count: 1.5, avg_engagement_duration_sec: 310,
+        avg_exploration_events: 7.9, avg_commerce_events: 0.2, avg_support_events: 0.1,
+        exploration_pct: 93.4, commerce_pct: 3.0, support_pct: 1.3,
+        avg_exploration_time_sec: 304, avg_commerce_time_sec: 1, avg_support_time_sec: 3,
+        avg_distinct_viewed_items: 1.2, avg_product_revisit_ratio: 1.27, avg_category_diversity: 1.0, avg_intent_signal_count: 1.5, pct_has_intent_signal: 85.0,
+        avg_session_price: 2172, median_session_price: 1741, avg_viewed_product_rating: 3.91,
+        avg_review_event_count: 1.02, avg_review_dwell_sec: 50.2, avg_review_interaction_count: 1.02, pct_viewed_reviews: 83.2,
+        price_filter_pct: 0.9, promo_hunting_pct: 6.5, promo_interaction_pct: 0.0, avg_promo_attempt_events: 0.0,
+        avg_financing_events: 0.0, pct_financing_interest: 0.0, avg_policy_pv: 0.23, pct_viewed_policy: 18.4, pct_promo_interest: 6.5,
+        avg_shipping_pv: 0.01, pct_shipping_concern: 1.0, avg_zipcode_checks: 0.22, avg_zipcode_distinct: 0.17, pct_zipcode_concern: 19.6,
+        avg_in_stock_items: 0.2, avg_out_of_stock_items: 1.3, pct_saw_out_of_stock: 89.9, pct_checked_stock: 18.5, avg_open_box_ineligible: 1.48, pct_saw_open_box_ineligible: 99.8,
+        pct_used_search: 7.0, avg_site_search_events: 0.2,
+        avg_sessions_per_user: 1.7, avg_max_session_number: 3.2, pct_multi_session_users: 31.4,
+        price_q1_pct: 30.5, price_q2_pct: 14.6, price_q3_pct: 16.8, price_q4_pct: 15.3,
+        device_desktop_pct: 39.6, device_mobile_pct: 58.4, device_tablet_pct: 2.1,
+        time_morning_pct: 7.7, time_afternoon_pct: 24.8, time_evening_pct: 32.6, time_night_pct: 34.9,
+        logged_in_pct: 0.0, new_visitor_pct: 59.4,
+        bu_he_pct: 64.3, bu_ha_pct: 28.7, bu_he_ha_pct: 0.5, bu_other_pct: 6.5, he_session_pct: 64.8, ha_session_pct: 29.2,
+        sup_troubleshooting_pct: 2.3, sup_manuals_pct: 17.0, sup_parts_pct: 0.6, sup_warranty_pct: 0.3, sup_repair_pct: 0.4,
+        pct_had_support_intent: 22.9, avg_support_pv_total: 0.4,
+        media_channel_1: "Organic-Search", media_channel_2: "Paid-Search", media_channel_3: "Direct",
+        top_session_cat_1: "tvs", top_session_cat_1_pct: 34.7, top_session_cat_2: "monitors", top_session_cat_2_pct: 18.0, top_session_cat_3: "washers & dryers", top_session_cat_3_pct: 9.5,
+        top_support_intent_1: "manuals_documents", top_support_intent_1_pct: 74.4,
+        top_state_1: "California", top_state_2: "Texas", top_state_3: "New York",
+        top_metro_1: "Los Angeles CA", top_metro_2: "New York NY", top_metro_3: "San Francisco-Oakland-San Jose CA"
+    },
+    4: {
+        name: "Promo Hunters", highlight: "100% Promo Hunting + 25% Logged In",
+        analysis: "Smallest cluster with 100% promo hunting behavior. Highest logged-in rate (25%) in browsers suggests loyalty members seeking deals. 13% new visitor rate indicates repeat visitors. Strong retargeting opportunity.",
+        sessions: 518, pct: 0.2, avg_duration_sec: 758, median_duration_sec: 509, avg_events: 26.4, avg_unique_events: 10.5, avg_page_views: 6.6,
+        avg_view_item_count: 0.8, avg_engagement_duration_sec: 758,
+        avg_exploration_events: 13.0, avg_commerce_events: 12.7, avg_support_events: 0.4,
+        exploration_pct: 48.8, commerce_pct: 48.6, support_pct: 1.3,
+        avg_exploration_time_sec: 529, avg_commerce_time_sec: 215, avg_support_time_sec: 7,
+        avg_distinct_viewed_items: 0.7, avg_product_revisit_ratio: 0.57, avg_category_diversity: 0.7, avg_intent_signal_count: 0.3, pct_has_intent_signal: 19.7,
+        avg_session_price: 1320, median_session_price: 1094, avg_viewed_product_rating: 3.96,
+        avg_review_event_count: 0.18, avg_review_dwell_sec: 10.5, avg_review_interaction_count: 0.18, pct_viewed_reviews: 12.9,
+        price_filter_pct: 0.6, promo_hunting_pct: 100.0, promo_interaction_pct: 100.0, avg_promo_attempt_events: 1.89,
+        avg_financing_events: 0.01, pct_financing_interest: 0.4, avg_policy_pv: 0.17, pct_viewed_policy: 12.4, pct_promo_interest: 100.0,
+        avg_shipping_pv: 0.03, pct_shipping_concern: 2.3, avg_zipcode_checks: 7.76, avg_zipcode_distinct: 1.23, pct_zipcode_concern: 99.6,
+        avg_in_stock_items: 13.1, avg_out_of_stock_items: 0.1, pct_saw_out_of_stock: 8.5, pct_checked_stock: 99.6, avg_open_box_ineligible: 13.09, pct_saw_open_box_ineligible: 99.4,
+        pct_used_search: 29.3, avg_site_search_events: 1.2,
+        avg_sessions_per_user: 5.1, avg_max_session_number: 13.0, pct_multi_session_users: 80.3,
+        price_q1_pct: 35.1, price_q2_pct: 27.6, price_q3_pct: 24.9, price_q4_pct: 12.2,
+        device_desktop_pct: 56.4, device_mobile_pct: 42.5, device_tablet_pct: 1.2,
+        time_morning_pct: 8.3, time_afternoon_pct: 29.2, time_evening_pct: 30.7, time_night_pct: 31.9,
+        logged_in_pct: 24.9, new_visitor_pct: 13.3,
+        bu_he_pct: 26.3, bu_ha_pct: 26.6, bu_he_ha_pct: 2.1, bu_other_pct: 45.0, he_session_pct: 28.4, ha_session_pct: 28.8,
+        sup_troubleshooting_pct: 4.6, sup_manuals_pct: 0.6, sup_parts_pct: 1.0, sup_warranty_pct: 0.4, sup_repair_pct: 0.2,
+        pct_had_support_intent: 16.4, avg_support_pv_total: 0.3,
+        media_channel_1: "Direct", media_channel_2: "Paid-Search", media_channel_3: "Organic-Search",
+        top_session_cat_1: "tvs", top_session_cat_1_pct: 23.8, top_session_cat_2: "monitors", top_session_cat_2_pct: 17.9, top_session_cat_3: "washers & dryers", top_session_cat_3_pct: 14.8,
+        top_support_intent_1: "order_tracking", top_support_intent_1_pct: 32.9,
+        top_state_1: "Texas", top_state_2: "California", top_state_3: "New York",
+        top_metro_1: "New York NY", top_metro_2: "Los Angeles CA", top_metro_3: "San Francisco-Oakland-San Jose CA"
+    }
+};
+
+// ============================================
+// SUPPORT DATA (FULL)
+// ============================================
+const supportData = {
+    1: {
+        name: "Warranty & Repair Seekers", highlight: "29% Warranty + 19% Repair Intent",
+        analysis: "Dominant support cluster at 66.6%. Primary focus on warranty registration (29%) and repair services (19%). Very short sessions (317s) on mobile (75%) suggest quick lookup behavior. Low escalation (8.3%) indicates self-service success.",
+        sessions: 7139, pct: 66.6,
+        intent_troubleshooting_pct: 11.0, intent_manuals_pct: 2.5, intent_parts_pct: 0.0, intent_warranty_pct: 29.2, intent_repair_pct: 18.7, intent_contact_pct: 5.7, intent_returns_pct: 0.7, intent_order_tracking_pct: 0.0, intent_mylg_pct: 0.4,
+        avg_support_pv_total: 2.3, avg_troubleshooting_pv: 0.28, avg_manuals_pv: 0.04, avg_parts_pv: 0.0, avg_warranty_pv: 0.57, avg_repair_pv: 0.41, avg_contact_pv: 0.13, avg_returns_pv: 0.05, avg_order_tracking_pv: 0.0, avg_mylg_pv: 0.03,
+        pct_visited_troubleshooting: 17.9, pct_visited_manuals: 3.9, pct_visited_parts: 0.0, pct_visited_warranty: 31.1, pct_visited_repair: 21.9, pct_visited_contact: 8.3, pct_visited_returns: 4.3, pct_visited_order_tracking: 0.0,
+        pct_escalation_attempt: 8.3, pct_multiple_escalation: 3.3,
+        avg_view_item_count: 0.0, avg_distinct_viewed_items: 0.0, pct_viewed_items: 0.0, avg_add_to_cart_count: 0.0, pct_added_to_cart: 0.0,
+        avg_cart_items: 0.0, avg_cart_value: 0.0, pct_has_cart: 0.0, avg_session_price: 1423,
+        avg_in_stock_items: 0.0, avg_out_of_stock_items: 0.0, pct_saw_out_of_stock: 0.0,
+        avg_duration_sec: 317, median_duration_sec: 133, avg_events: 8.0, avg_unique_events: 3.7, avg_page_views: 2.4, avg_engagement_duration_sec: 317,
+        avg_exploration_events: 2.7, avg_commerce_events: 0.0, avg_support_events: 5.2,
+        exploration_pct: 35.0, commerce_pct: 0.2, support_pct: 64.7,
+        avg_exploration_time_sec: 114, avg_commerce_time_sec: 0, avg_support_time_sec: 203,
+        pct_used_search: 0.0, avg_site_search_events: 0.0,
+        avg_product_revisit_ratio: 0.0, avg_category_diversity: 0.0,
+        avg_review_event_count: 0.0, avg_review_dwell_sec: 0.0, pct_viewed_reviews: 0.0,
+        avg_sessions_per_user: 2.5, avg_max_session_number: 8.2, pct_multi_session_users: 45.9,
+        device_desktop_pct: 23.4, device_mobile_pct: 75.2, device_tablet_pct: 1.5,
+        time_morning_pct: 4.1, time_afternoon_pct: 31.1, time_evening_pct: 36.5, time_night_pct: 28.4,
+        logged_in_pct: 0.1, not_logged_in_pct: 99.9, new_visitor_pct: 47.4,
+        bu_he_pct: 0.0, bu_ha_pct: 0.0, bu_he_ha_pct: 0.0, bu_other_pct: 100.0, he_session_pct: 0.0, ha_session_pct: 0.0,
+        media_channel_1: "Direct", media_channel_2: "Organic-Search", media_channel_3: "Other",
+        top_product_cat_1: "monitors", top_product_cat_1_pct: 25.0, top_product_cat_2: "monitors", top_product_cat_2_pct: 25.0, top_product_cat_3: "tvs", top_product_cat_3_pct: 25.0,
+        top_support_intent_1: "registration_warranty_pop", top_support_intent_1_pct: 29.2, top_support_intent_2: "repair_service", top_support_intent_2_pct: 18.7, top_support_intent_3: "other_support", top_support_intent_3_pct: 17.0,
+        top_state_1: "California", top_state_2: "Texas", top_state_3: "Florida",
+        top_metro_1: "New York NY", top_metro_2: "Los Angeles CA", top_metro_3: "San Francisco-Oakland-San Jose CA"
+    },
+    8: {
+        name: "Repair Heavy", highlight: "69% Repair Intent + 19% Escalation",
+        analysis: "Heavy repair focus with 69% repair intent and highest escalation rate (19%). Longer sessions (862s) indicate complex issue resolution. 78.6% visited repair pages - may indicate product quality issues or aging appliances needing service.",
+        sessions: 2688, pct: 25.1,
+        intent_troubleshooting_pct: 11.4, intent_manuals_pct: 2.5, intent_parts_pct: 0.0, intent_warranty_pct: 4.9, intent_repair_pct: 69.2, intent_contact_pct: 4.0, intent_returns_pct: 0.0, intent_order_tracking_pct: 0.0, intent_mylg_pct: 1.0,
+        avg_support_pv_total: 5.1, avg_troubleshooting_pv: 0.64, avg_manuals_pv: 0.21, avg_parts_pv: 0.0, avg_warranty_pv: 0.25, avg_repair_pv: 2.91, avg_contact_pv: 0.3, avg_returns_pv: 0.01, avg_order_tracking_pv: 0.0, avg_mylg_pv: 0.11,
+        pct_visited_troubleshooting: 28.2, pct_visited_manuals: 16.5, pct_visited_parts: 0.0, pct_visited_warranty: 11.1, pct_visited_repair: 78.6, pct_visited_contact: 19.3, pct_visited_returns: 0.3, pct_visited_order_tracking: 0.0,
+        pct_escalation_attempt: 19.3, pct_multiple_escalation: 6.3,
+        avg_view_item_count: 0.0, avg_distinct_viewed_items: 0.0, pct_viewed_items: 0.0, avg_add_to_cart_count: 0.0, pct_added_to_cart: 0.0,
+        avg_cart_items: 0.0, avg_cart_value: 0.0, pct_has_cart: 0.0, avg_session_price: 2042,
+        avg_in_stock_items: 0.0, avg_out_of_stock_items: 0.0, pct_saw_out_of_stock: 0.0,
+        avg_duration_sec: 862, median_duration_sec: 687, avg_events: 22.4, avg_unique_events: 7.0, avg_page_views: 5.5, avg_engagement_duration_sec: 862,
+        avg_exploration_events: 6.6, avg_commerce_events: 1.0, avg_support_events: 14.7,
+        exploration_pct: 30.7, commerce_pct: 4.1, support_pct: 64.7,
+        avg_exploration_time_sec: 424, avg_commerce_time_sec: 11, avg_support_time_sec: 423,
+        pct_used_search: 0.0, avg_site_search_events: 0.0,
+        avg_product_revisit_ratio: 0.0, avg_category_diversity: 0.0,
+        avg_review_event_count: 0.0, avg_review_dwell_sec: 0.0, pct_viewed_reviews: 0.0,
+        avg_sessions_per_user: 2.4, avg_max_session_number: 15.4, pct_multi_session_users: 55.2,
+        device_desktop_pct: 42.2, device_mobile_pct: 56.3, device_tablet_pct: 1.5,
+        time_morning_pct: 3.5, time_afternoon_pct: 31.4, time_evening_pct: 37.8, time_night_pct: 27.3,
+        logged_in_pct: 5.7, not_logged_in_pct: 94.3, new_visitor_pct: 38.1,
+        bu_he_pct: 0.0, bu_ha_pct: 0.4, bu_he_ha_pct: 0.0, bu_other_pct: 99.6, he_session_pct: 0.0, ha_session_pct: 0.4,
+        media_channel_1: "Direct", media_channel_2: "Organic-Search", media_channel_3: "Paid-Search",
+        top_product_cat_1: "refrigerators", top_product_cat_1_pct: 26.7, top_product_cat_2: "dishwashers", top_product_cat_2_pct: 20.0, top_product_cat_3: "washers & dryers", top_product_cat_3_pct: 13.3,
+        top_support_intent_1: "repair_service", top_support_intent_1_pct: 69.2, top_support_intent_2: "troubleshooting_help_library", top_support_intent_2_pct: 11.4, top_support_intent_3: "support_landing", top_support_intent_3_pct: 5.1,
+        top_state_1: "California", top_state_2: "Texas", top_state_3: "Florida",
+        top_metro_1: "Los Angeles CA", top_metro_2: "New York NY", top_metro_3: "Chicago IL"
+    },
+    6: {
+        name: "Parts Shoppers", highlight: "33% Parts Intent + 46% Visited Parts",
+        analysis: "Unique cluster with 33% parts intent - highest in segment. 46% visited parts pages indicating accessory/replacement needs. Repair (19%) and troubleshooting (16%) suggest DIY repair audience. Cross-sell opportunity for parts commerce.",
+        sessions: 369, pct: 3.4,
+        intent_troubleshooting_pct: 16.3, intent_manuals_pct: 3.0, intent_parts_pct: 32.8, intent_warranty_pct: 11.1, intent_repair_pct: 18.7, intent_contact_pct: 2.7, intent_returns_pct: 0.0, intent_order_tracking_pct: 0.0, intent_mylg_pct: 0.0,
+        avg_support_pv_total: 3.4, avg_troubleshooting_pv: 0.69, avg_manuals_pv: 0.09, avg_parts_pv: 0.7, avg_warranty_pv: 0.41, avg_repair_pv: 0.73, avg_contact_pv: 0.09, avg_returns_pv: 0.0, avg_order_tracking_pv: 0.0, avg_mylg_pv: 0.01,
+        pct_visited_troubleshooting: 32.2, pct_visited_manuals: 7.9, pct_visited_parts: 46.1, pct_visited_warranty: 27.6, pct_visited_repair: 22.2, pct_visited_contact: 7.6, pct_visited_returns: 0.3, pct_visited_order_tracking: 0.0,
+        pct_escalation_attempt: 7.6, pct_multiple_escalation: 1.4,
+        avg_view_item_count: 0.0, avg_distinct_viewed_items: 0.0, pct_viewed_items: 0.0, avg_add_to_cart_count: 0.0, pct_added_to_cart: 0.0,
+        avg_cart_items: 0.0, avg_cart_value: 0.0, pct_has_cart: 0.0, avg_session_price: 1628,
+        avg_in_stock_items: 0.0, avg_out_of_stock_items: 0.0, pct_saw_out_of_stock: 0.0,
+        avg_duration_sec: 497, median_duration_sec: 283, avg_events: 16.9, avg_unique_events: 5.0, avg_page_views: 4.4, avg_engagement_duration_sec: 497,
+        avg_exploration_events: 5.9, avg_commerce_events: 0.1, avg_support_events: 10.8,
+        exploration_pct: 38.0, commerce_pct: 0.4, support_pct: 61.3,
+        avg_exploration_time_sec: 279, avg_commerce_time_sec: 0, avg_support_time_sec: 217,
+        pct_used_search: 3.0, avg_site_search_events: 0.0,
+        avg_product_revisit_ratio: 0.0, avg_category_diversity: 0.6,
+        avg_review_event_count: 0.0, avg_review_dwell_sec: 0.0, pct_viewed_reviews: 0.0,
+        avg_sessions_per_user: 1.8, avg_max_session_number: 2.2, pct_multi_session_users: 35.8,
+        device_desktop_pct: 39.8, device_mobile_pct: 58.5, device_tablet_pct: 1.6,
+        time_morning_pct: 5.1, time_afternoon_pct: 31.7, time_evening_pct: 36.0, time_night_pct: 27.1,
+        logged_in_pct: 0.0, not_logged_in_pct: 100.0, new_visitor_pct: 58.5,
+        bu_he_pct: 11.1, bu_ha_pct: 48.5, bu_he_ha_pct: 0.3, bu_other_pct: 40.1, he_session_pct: 11.4, ha_session_pct: 48.8,
+        media_channel_1: "Paid-Search", media_channel_2: "Other", media_channel_3: "Organic-Search",
+        top_product_cat_1: "washers & dryers", top_product_cat_1_pct: 25.1, top_product_cat_2: "refrigerators", top_product_cat_2_pct: 19.7, top_product_cat_3: "tvs", top_product_cat_3_pct: 14.3,
+        top_support_intent_1: "parts_filters_accessories", top_support_intent_1_pct: 32.8, top_support_intent_2: "repair_service", top_support_intent_2_pct: 18.7, top_support_intent_3: "troubleshooting_help_library", top_support_intent_3_pct: 16.3,
+        top_state_1: "California", top_state_2: "Florida", top_state_3: "Texas",
+        top_metro_1: "Los Angeles CA", top_metro_2: "New York NY", top_metro_3: "Chicago IL"
+    },
+    4: {
+        name: "Troubleshooters", highlight: "27% Troubleshooting + 54% Visited",
+        analysis: "Self-service troubleshooting focus with 27% intent and 54% page visits. 100% used search suggesting specific problem lookup. Longer engagement (634s) indicates working through issues. Low escalation (7.6%) shows effective self-service.",
+        sessions: 367, pct: 3.4,
+        intent_troubleshooting_pct: 26.7, intent_manuals_pct: 6.3, intent_parts_pct: 0.0, intent_warranty_pct: 6.3, intent_repair_pct: 13.1, intent_contact_pct: 1.9, intent_returns_pct: 0.0, intent_order_tracking_pct: 0.0, intent_mylg_pct: 0.5,
+        avg_support_pv_total: 4.6, avg_troubleshooting_pv: 1.31, avg_manuals_pv: 0.31, avg_parts_pv: 0.02, avg_warranty_pv: 0.26, avg_repair_pv: 0.7, avg_contact_pv: 0.1, avg_returns_pv: 0.0, avg_order_tracking_pv: 0.0, avg_mylg_pv: 0.03,
+        pct_visited_troubleshooting: 54.0, pct_visited_manuals: 19.6, pct_visited_parts: 1.4, pct_visited_warranty: 12.8, pct_visited_repair: 19.9, pct_visited_contact: 7.6, pct_visited_returns: 0.0, pct_visited_order_tracking: 0.0,
+        pct_escalation_attempt: 7.6, pct_multiple_escalation: 1.9,
+        avg_view_item_count: 0.0, avg_distinct_viewed_items: 0.0, pct_viewed_items: 0.0, avg_add_to_cart_count: 0.0, pct_added_to_cart: 0.0,
+        avg_cart_items: 0.0, avg_cart_value: 0.0, pct_has_cart: 0.0, avg_session_price: 1841,
+        avg_in_stock_items: 0.0, avg_out_of_stock_items: 0.0, pct_saw_out_of_stock: 0.0,
+        avg_duration_sec: 634, median_duration_sec: 429, avg_events: 24.6, avg_unique_events: 6.3, avg_page_views: 5.5, avg_engagement_duration_sec: 634,
+        avg_exploration_events: 9.1, avg_commerce_events: 0.2, avg_support_events: 15.1,
+        exploration_pct: 39.5, commerce_pct: 0.5, support_pct: 59.6,
+        avg_exploration_time_sec: 410, avg_commerce_time_sec: 2, avg_support_time_sec: 221,
+        pct_used_search: 100.0, avg_site_search_events: 2.0,
+        avg_product_revisit_ratio: 0.0, avg_category_diversity: 0.1,
+        avg_review_event_count: 0.0, avg_review_dwell_sec: 0.0, pct_viewed_reviews: 0.3,
+        avg_sessions_per_user: 1.7, avg_max_session_number: 1.9, pct_multi_session_users: 38.1,
+        device_desktop_pct: 28.1, device_mobile_pct: 69.2, device_tablet_pct: 2.7,
+        time_morning_pct: 4.4, time_afternoon_pct: 23.4, time_evening_pct: 39.8, time_night_pct: 32.4,
+        logged_in_pct: 0.0, not_logged_in_pct: 100.0, new_visitor_pct: 56.7,
+        bu_he_pct: 1.9, bu_ha_pct: 7.1, bu_he_ha_pct: 0.3, bu_other_pct: 90.7, he_session_pct: 2.2, ha_session_pct: 7.4,
+        media_channel_1: "Direct", media_channel_2: "Organic-Search", media_channel_3: "Paid-Search",
+        top_product_cat_1: "refrigerators", top_product_cat_1_pct: 25.0, top_product_cat_2: "refrigerators", top_product_cat_2_pct: 25.0, top_product_cat_3: "tvs", top_product_cat_3_pct: 16.7,
+        top_support_intent_1: "support_landing", top_support_intent_1_pct: 31.1, top_support_intent_2: "troubleshooting_help_library", top_support_intent_2_pct: 26.7, top_support_intent_3: "other_support", top_support_intent_3_pct: 13.6,
+        top_state_1: "California", top_state_2: "Florida", top_state_3: "Texas",
+        top_metro_1: "New York NY", top_metro_2: "Los Angeles CA", top_metro_3: "Dallas-Ft. Worth TX"
+    },
+    5: {
+        name: "Product Viewers", highlight: "100% Viewed Items + 30% Saw OOS",
+        analysis: "Unique support cluster with 100% product viewing - support users browsing products. 30% saw OOS suggests parts availability issues. Mix of troubleshooting (27%) and repair (25%) intent with product interest indicates potential cross-sell.",
+        sessions: 64, pct: 0.6,
+        intent_troubleshooting_pct: 26.6, intent_manuals_pct: 3.1, intent_parts_pct: 1.6, intent_warranty_pct: 1.6, intent_repair_pct: 25.0, intent_contact_pct: 1.6, intent_returns_pct: 0.0, intent_order_tracking_pct: 0.0, intent_mylg_pct: 0.0,
+        avg_support_pv_total: 3.3, avg_troubleshooting_pv: 0.97, avg_manuals_pv: 0.2, avg_parts_pv: 0.02, avg_warranty_pv: 0.09, avg_repair_pv: 0.94, avg_contact_pv: 0.17, avg_returns_pv: 0.02, avg_order_tracking_pv: 0.0, avg_mylg_pv: 0.0,
+        pct_visited_troubleshooting: 43.8, pct_visited_manuals: 14.1, pct_visited_parts: 1.6, pct_visited_warranty: 6.3, pct_visited_repair: 28.1, pct_visited_contact: 12.5, pct_visited_returns: 1.6, pct_visited_order_tracking: 0.0,
+        pct_escalation_attempt: 12.5, pct_multiple_escalation: 3.1,
+        avg_view_item_count: 1.1, avg_distinct_viewed_items: 1.1, pct_viewed_items: 100.0, avg_add_to_cart_count: 0.0, pct_added_to_cart: 0.0,
+        avg_cart_items: 0.0, avg_cart_value: 0.0, pct_has_cart: 0.0, avg_session_price: 1300,
+        avg_in_stock_items: 0.9, avg_out_of_stock_items: 0.3, pct_saw_out_of_stock: 29.7,
+        avg_duration_sec: 791, median_duration_sec: 521, avg_events: 25.2, avg_unique_events: 7.1, avg_page_views: 5.0, avg_engagement_duration_sec: 791,
+        avg_exploration_events: 8.3, avg_commerce_events: 1.1, avg_support_events: 15.7,
+        exploration_pct: 35.1, commerce_pct: 6.0, support_pct: 58.4,
+        avg_exploration_time_sec: 459, avg_commerce_time_sec: 29, avg_support_time_sec: 300,
+        pct_used_search: 20.3, avg_site_search_events: 0.7,
+        avg_product_revisit_ratio: 1.02, avg_category_diversity: 1.0,
+        avg_review_event_count: 0.02, avg_review_dwell_sec: 0.0, pct_viewed_reviews: 1.6,
+        avg_sessions_per_user: 2.6, avg_max_session_number: 6.0, pct_multi_session_users: 51.6,
+        device_desktop_pct: 54.7, device_mobile_pct: 40.6, device_tablet_pct: 4.7,
+        time_morning_pct: 1.6, time_afternoon_pct: 25.0, time_evening_pct: 37.5, time_night_pct: 35.9,
+        logged_in_pct: 3.1, not_logged_in_pct: 96.9, new_visitor_pct: 39.1,
+        bu_he_pct: 31.3, bu_ha_pct: 64.1, bu_he_ha_pct: 1.6, bu_other_pct: 3.1, he_session_pct: 32.8, ha_session_pct: 65.6,
+        media_channel_1: "Direct", media_channel_2: "Paid-Search", media_channel_3: "Organic-Search",
+        top_product_cat_1: "washers & dryers", top_product_cat_1_pct: 20.3, top_product_cat_2: "washers & dryers", top_product_cat_2_pct: 20.3, top_product_cat_3: "refrigerators", top_product_cat_3_pct: 15.6,
+        top_support_intent_1: "troubleshooting_help_library", top_support_intent_1_pct: 26.6, top_support_intent_2: "repair_service", top_support_intent_2_pct: 25.0, top_support_intent_3: "support_landing", top_support_intent_3_pct: 20.3,
+        top_state_1: "Texas", top_state_2: "Florida", top_state_3: "Florida",
+        top_metro_1: "New York NY", top_metro_2: "New York NY", top_metro_3: "Seattle-Tacoma WA"
+    },
+    7: {
+        name: "Review Readers", highlight: "100% Viewed Reviews + 54% Troubleshooting",
+        analysis: "Support users who also read reviews (100%). High troubleshooting intent (54%) combined with review reading suggests problem validation behavior. May be researching known issues or validating repair decisions.",
+        sessions: 52, pct: 0.5,
+        intent_troubleshooting_pct: 53.8, intent_manuals_pct: 11.5, intent_parts_pct: 1.9, intent_warranty_pct: 1.9, intent_repair_pct: 17.3, intent_contact_pct: 0.0, intent_returns_pct: 0.0, intent_order_tracking_pct: 0.0, intent_mylg_pct: 0.0,
+        avg_support_pv_total: 3.4, avg_troubleshooting_pv: 1.44, avg_manuals_pv: 0.33, avg_parts_pv: 0.06, avg_warranty_pv: 0.17, avg_repair_pv: 0.79, avg_contact_pv: 0.02, avg_returns_pv: 0.0, avg_order_tracking_pv: 0.0, avg_mylg_pv: 0.02,
+        pct_visited_troubleshooting: 76.9, pct_visited_manuals: 25.0, pct_visited_parts: 3.8, pct_visited_warranty: 11.5, pct_visited_repair: 23.1, pct_visited_contact: 1.9, pct_visited_returns: 0.0, pct_visited_order_tracking: 0.0,
+        pct_escalation_attempt: 1.9, pct_multiple_escalation: 0.0,
+        avg_view_item_count: 1.2, avg_distinct_viewed_items: 1.0, pct_viewed_items: 100.0, avg_add_to_cart_count: 0.0, pct_added_to_cart: 0.0,
+        avg_cart_items: 0.0, avg_cart_value: 0.0, pct_has_cart: 0.0, avg_session_price: 1549,
+        avg_in_stock_items: 0.0, avg_out_of_stock_items: 1.2, pct_saw_out_of_stock: 100.0,
+        avg_duration_sec: 593, median_duration_sec: 437, avg_events: 28.7, avg_unique_events: 8.3, avg_page_views: 5.0, avg_engagement_duration_sec: 593,
+        avg_exploration_events: 10.4, avg_commerce_events: 0.2, avg_support_events: 17.7,
+        exploration_pct: 37.8, commerce_pct: 0.6, support_pct: 60.7,
+        avg_exploration_time_sec: 452, avg_commerce_time_sec: 2, avg_support_time_sec: 136,
+        pct_used_search: 51.9, avg_site_search_events: 0.7,
+        avg_product_revisit_ratio: 1.17, avg_category_diversity: 1.0,
+        avg_review_event_count: 1.19, avg_review_dwell_sec: 61.0, pct_viewed_reviews: 100.0,
+        avg_sessions_per_user: 1.5, avg_max_session_number: 2.0, pct_multi_session_users: 28.8,
+        device_desktop_pct: 36.5, device_mobile_pct: 57.7, device_tablet_pct: 5.8,
+        time_morning_pct: 5.8, time_afternoon_pct: 28.8, time_evening_pct: 15.4, time_night_pct: 50.0,
+        logged_in_pct: 0.0, not_logged_in_pct: 100.0, new_visitor_pct: 61.5,
+        bu_he_pct: 42.3, bu_ha_pct: 46.2, bu_he_ha_pct: 0.0, bu_other_pct: 11.5, he_session_pct: 42.3, ha_session_pct: 46.2,
+        media_channel_1: "Organic-Search", media_channel_2: "Direct", media_channel_3: "Other",
+        top_product_cat_1: "tvs", top_product_cat_1_pct: 35.3, top_product_cat_2: "refrigerators", top_product_cat_2_pct: 27.5, top_product_cat_3: "washers & dryers", top_product_cat_3_pct: 11.8,
+        top_support_intent_1: "troubleshooting_help_library", top_support_intent_1_pct: 53.8, top_support_intent_2: "repair_service", top_support_intent_2_pct: 17.3, top_support_intent_3: "support_landing", top_support_intent_3_pct: 11.5,
+        top_state_1: "California", top_state_2: "Texas", top_state_3: "Florida",
+        top_metro_1: "San Francisco-Oakland-San Jose CA", top_metro_2: "Dallas-Ft. Worth TX", top_metro_3: "Los Angeles CA"
+    },
+    3: {
+        name: "Heavy Researchers", highlight: "100% Reviews + Longest Duration (852s)",
+        analysis: "Most engaged support cluster with 852s duration and 100% review engagement. High troubleshooting (36%) and manual (18%) intent with 96% HA focus suggests appliance owners doing deep research before service decisions.",
+        sessions: 28, pct: 0.3,
+        intent_troubleshooting_pct: 35.7, intent_manuals_pct: 17.9, intent_parts_pct: 3.6, intent_warranty_pct: 0.0, intent_repair_pct: 17.9, intent_contact_pct: 7.1, intent_returns_pct: 0.0, intent_order_tracking_pct: 0.0, intent_mylg_pct: 0.0,
+        avg_support_pv_total: 3.7, avg_troubleshooting_pv: 1.32, avg_manuals_pv: 0.5, avg_parts_pv: 0.07, avg_warranty_pv: 0.04, avg_repair_pv: 1.11, avg_contact_pv: 0.11, avg_returns_pv: 0.0, avg_order_tracking_pv: 0.0, avg_mylg_pv: 0.04,
+        pct_visited_troubleshooting: 67.9, pct_visited_manuals: 39.3, pct_visited_parts: 7.1, pct_visited_warranty: 3.6, pct_visited_repair: 25.0, pct_visited_contact: 7.1, pct_visited_returns: 0.0, pct_visited_order_tracking: 0.0,
+        pct_escalation_attempt: 7.1, pct_multiple_escalation: 3.6,
+        avg_view_item_count: 1.5, avg_distinct_viewed_items: 1.3, pct_viewed_items: 100.0, avg_add_to_cart_count: 0.0, pct_added_to_cart: 0.0,
+        avg_cart_items: 0.0, avg_cart_value: 0.0, pct_has_cart: 0.0, avg_session_price: 1092,
+        avg_in_stock_items: 1.4, avg_out_of_stock_items: 0.1, pct_saw_out_of_stock: 7.1,
+        avg_duration_sec: 852, median_duration_sec: 664, avg_events: 37.1, avg_unique_events: 9.5, avg_page_views: 6.4, avg_engagement_duration_sec: 852,
+        avg_exploration_events: 13.5, avg_commerce_events: 2.3, avg_support_events: 21.1,
+        exploration_pct: 35.9, commerce_pct: 7.0, support_pct: 56.5,
+        avg_exploration_time_sec: 534, avg_commerce_time_sec: 5, avg_support_time_sec: 300,
+        pct_used_search: 35.7, avg_site_search_events: 0.7,
+        avg_product_revisit_ratio: 1.18, avg_category_diversity: 1.3,
+        avg_review_event_count: 1.25, avg_review_dwell_sec: 63.5, pct_viewed_reviews: 100.0,
+        avg_sessions_per_user: 1.6, avg_max_session_number: 3.3, pct_multi_session_users: 32.1,
+        device_desktop_pct: 46.4, device_mobile_pct: 42.9, device_tablet_pct: 10.7,
+        time_morning_pct: 7.1, time_afternoon_pct: 21.4, time_evening_pct: 28.6, time_night_pct: 42.9,
+        logged_in_pct: 0.0, not_logged_in_pct: 100.0, new_visitor_pct: 50.0,
+        bu_he_pct: 3.6, bu_ha_pct: 96.4, bu_he_ha_pct: 0.0, bu_other_pct: 0.0, he_session_pct: 3.6, ha_session_pct: 96.4,
+        media_channel_1: "Paid-Search", media_channel_2: "Direct", media_channel_3: "Organic-Search",
+        top_product_cat_1: "washers & dryers", top_product_cat_1_pct: 32.1, top_product_cat_2: "refrigerators", top_product_cat_2_pct: 25.0, top_product_cat_3: "appliances accessories", top_product_cat_3_pct: 14.3,
+        top_support_intent_1: "troubleshooting_help_library", top_support_intent_1_pct: 35.7, top_support_intent_2: "repair_service", top_support_intent_2_pct: 17.9, top_support_intent_3: "repair_service", top_support_intent_3_pct: 17.9,
+        top_state_1: "Florida", top_state_2: "Washington", top_state_3: "Massachusetts",
+        top_metro_1: "Boston MA-Manchester NH", top_metro_2: "New York NY", top_metro_3: "Los Angeles CA"
+    },
+    2: {
+        name: "Order Trackers", highlight: "100% Order Tracking + Longest Support PV",
+        analysis: "Post-purchase focus with 100% order tracking visits. Highest support PV (9.1) and duration (1138s) indicates complex order issues. 53% repair intent suggests tracking repair orders. High escalation potential (18%).",
+        sessions: 17, pct: 0.2,
+        intent_troubleshooting_pct: 17.6, intent_manuals_pct: 0.0, intent_parts_pct: 0.0, intent_warranty_pct: 0.0, intent_repair_pct: 52.9, intent_contact_pct: 5.9, intent_returns_pct: 0.0, intent_order_tracking_pct: 17.6, intent_mylg_pct: 0.0,
+        avg_support_pv_total: 9.1, avg_troubleshooting_pv: 0.94, avg_manuals_pv: 0.29, avg_parts_pv: 0.0, avg_warranty_pv: 0.06, avg_repair_pv: 3.94, avg_contact_pv: 0.18, avg_returns_pv: 0.24, avg_order_tracking_pv: 1.35, avg_mylg_pv: 0.53,
+        pct_visited_troubleshooting: 35.3, pct_visited_manuals: 23.5, pct_visited_parts: 0.0, pct_visited_warranty: 5.9, pct_visited_repair: 64.7, pct_visited_contact: 17.6, pct_visited_returns: 23.5, pct_visited_order_tracking: 100.0,
+        pct_escalation_attempt: 17.6, pct_multiple_escalation: 0.0,
+        avg_view_item_count: 0.1, avg_distinct_viewed_items: 0.1, pct_viewed_items: 5.9, avg_add_to_cart_count: 0.0, pct_added_to_cart: 0.0,
+        avg_cart_items: 0.0, avg_cart_value: 0.0, pct_has_cart: 0.0, avg_session_price: 1076,
+        avg_in_stock_items: 0.1, avg_out_of_stock_items: 0.0, pct_saw_out_of_stock: 0.0,
+        avg_duration_sec: 1138, median_duration_sec: 1094, avg_events: 40.5, avg_unique_events: 8.8, avg_page_views: 10.8, avg_engagement_duration_sec: 1138,
+        avg_exploration_events: 13.4, avg_commerce_events: 4.8, avg_support_events: 21.9,
+        exploration_pct: 33.4, commerce_pct: 10.0, support_pct: 55.8,
+        avg_exploration_time_sec: 638, avg_commerce_time_sec: 22, avg_support_time_sec: 475,
+        pct_used_search: 0.0, avg_site_search_events: 0.0,
+        avg_product_revisit_ratio: 0.06, avg_category_diversity: 0.2,
+        avg_review_event_count: 0.0, avg_review_dwell_sec: 0.0, pct_viewed_reviews: 0.0,
+        avg_sessions_per_user: 3.1, avg_max_session_number: 5.0, pct_multi_session_users: 64.7,
+        device_desktop_pct: 58.8, device_mobile_pct: 41.2, device_tablet_pct: 0.0,
+        time_morning_pct: 0.0, time_afternoon_pct: 35.3, time_evening_pct: 35.3, time_night_pct: 29.4,
+        logged_in_pct: 5.9, not_logged_in_pct: 94.1, new_visitor_pct: 23.5,
+        bu_he_pct: 5.9, bu_ha_pct: 11.8, bu_he_ha_pct: 0.0, bu_other_pct: 82.4, he_session_pct: 5.9, ha_session_pct: 11.8,
+        media_channel_1: "Direct", media_channel_2: "Organic-Search", media_channel_3: "Paid-Search",
+        top_product_cat_1: "dishwashers", top_product_cat_1_pct: 33.3, top_product_cat_2: "refrigerators", top_product_cat_2_pct: 33.3, top_product_cat_3: "dishwashers", top_product_cat_3_pct: 33.3,
+        top_support_intent_1: "repair_service", top_support_intent_1_pct: 52.9, top_support_intent_2: "order_tracking", top_support_intent_2_pct: 17.6, top_support_intent_3: "order_tracking", top_support_intent_3_pct: 17.6,
+        top_state_1: "Ohio", top_state_2: "Pennsylvania", top_state_3: "New York",
+        top_metro_1: "New York NY", top_metro_2: "Dallas-Ft. Worth TX", top_metro_3: "Philadelphia PA"
+    }
+};
+
+// ============================================
+// METRIC SECTIONS CONFIG
+// ============================================
+const purchaserMetricSections = [
+    { title: "💰 Revenue & Purchase", color: "emerald", keys: ["avg_revenue", "median_revenue", "total_revenue", "avg_purchase_qty", "avg_purchase_unique_items", "large_appliance_pct", "accessory_pct", "refrigerator_pct"] },
+    { title: "🛒 Cart Behavior", color: "amber", keys: ["avg_cart_items", "avg_cart_value", "avg_cart_drop_ratio_pct", "pct_removed_items", "avg_add_to_cart_count", "avg_remove_from_cart_count", "avg_view_cart_count"] },
+    { title: "📦 Stock & Inventory", color: "red", keys: ["avg_in_stock_items", "avg_out_of_stock_items", "pct_saw_out_of_stock", "pct_checked_stock", "avg_open_box_ineligible"] },
+    { title: "⚡ Engagement", color: "blue", keys: ["avg_duration_sec", "avg_events", "avg_unique_events", "avg_engagement_duration_sec", "exploration_pct", "commerce_pct", "support_pct"] },
+    { title: "🔍 Research", color: "indigo", keys: ["avg_distinct_viewed_items", "avg_product_revisit_ratio", "avg_category_diversity", "pct_viewed_reviews", "avg_review_dwell_sec", "pct_used_search"] },
+    { title: "💵 Price Sensitivity", color: "orange", keys: ["promo_hunting_pct", "promo_interaction_pct", "avg_promo_code_attempts", "price_filter_pct", "pct_financing_interest", "avg_session_price"] },
+    { title: "🚚 Shipping & Payment", color: "cyan", keys: ["pct_shipping_concern", "avg_zipcode_checks", "pct_zipcode_concern", "avg_payment_method_checks", "pct_payment_concern"] },
+    { title: "⚠️ Friction", color: "rose", keys: ["avg_checkout_regression", "pct_with_regression", "avg_post_cart_hesitation", "avg_post_cart_events"] },
+    { title: "⏱️ Funnel Timing", color: "teal", keys: ["avg_time_to_cart_sec", "avg_time_to_checkout_sec", "avg_cart_to_purchase_sec", "avg_checkout_to_purchase_sec"] },
+    { title: "📱 Device & Time", color: "slate", keys: ["device_desktop_pct", "device_mobile_pct", "device_tablet_pct", "time_morning_pct", "time_afternoon_pct", "time_evening_pct", "time_night_pct"] },
+    { title: "👤 User Profile", color: "violet", keys: ["logged_in_pct", "new_visitor_pct", "avg_sessions_per_user", "pct_multi_session_users"] },
+    { title: "🏢 Business Unit", color: "gray", keys: ["bu_he_pct", "bu_ha_pct", "bu_he_ha_pct", "bu_other_pct", "pct_had_support_intent"] },
+];
+
+const cartAbandonerMetricSections = [
+    { title: "🛑 Abandonment", color: "amber", keys: ["abandon_at_cart_pct", "abandon_at_checkout_pct", "avg_funnel_depth", "avg_cart_value", "median_cart_value", "total_cart_value_abandoned"] },
+    { title: "🛒 Cart Details", color: "orange", keys: ["avg_cart_items", "avg_price", "avg_cart_drop_ratio_pct", "pct_removed_items", "avg_add_to_cart_count", "avg_remove_from_cart_count", "avg_view_cart_count"] },
+    { title: "📦 Stock Issues", color: "red", keys: ["avg_in_stock_items", "avg_out_of_stock_items", "pct_saw_out_of_stock", "pct_checked_stock"] },
+    { title: "⚠️ Checkout Friction", color: "rose", keys: ["checkout_error_pct", "avg_checkout_regression", "pct_with_regression", "avg_post_cart_hesitation", "pct_high_hesitation"] },
+    { title: "💵 Price Sensitivity", color: "yellow", keys: ["promo_hunting_pct", "promo_interaction_pct", "avg_promo_code_attempts", "price_filter_pct", "pct_financing_interest", "pct_price_sensitive"] },
+    { title: "🚚 Shipping & Payment", color: "cyan", keys: ["pct_shipping_concern", "avg_zipcode_checks", "pct_zipcode_concern", "avg_payment_method_checks", "pct_payment_concern"] },
+    { title: "⚡ Engagement", color: "blue", keys: ["avg_duration_sec", "avg_events", "avg_unique_events", "exploration_pct", "commerce_pct", "support_pct"] },
+    { title: "🔍 Research", color: "indigo", keys: ["avg_distinct_viewed_items", "avg_product_revisit_ratio", "pct_viewed_reviews", "avg_review_dwell_sec", "pct_used_search"] },
+    { title: "⏱️ Funnel Timing", color: "teal", keys: ["avg_time_to_cart_sec", "avg_cart_to_end_sec", "avg_time_to_checkout_sec"] },
+    { title: "📱 Device & Time", color: "slate", keys: ["device_desktop_pct", "device_mobile_pct", "device_tablet_pct", "time_morning_pct", "time_afternoon_pct", "time_evening_pct", "time_night_pct"] },
+    { title: "👤 User Profile", color: "violet", keys: ["logged_in_pct", "new_visitor_pct", "avg_sessions_per_user", "pct_multi_session_users"] },
+    { title: "🏢 Business Unit", color: "gray", keys: ["bu_he_pct", "bu_ha_pct", "pct_had_support_intent"] },
+];
+
+const browserMetricSections = [
+    { title: "📊 Engagement", color: "blue", keys: ["avg_duration_sec", "median_duration_sec", "avg_events", "avg_unique_events", "avg_page_views", "avg_engagement_duration_sec"] },
+    { title: "🔍 Product Research", color: "indigo", keys: ["avg_view_item_count", "avg_distinct_viewed_items", "avg_product_revisit_ratio", "avg_category_diversity", "pct_has_intent_signal"] },
+    { title: "⭐ Reviews", color: "yellow", keys: ["pct_viewed_reviews", "avg_review_event_count", "avg_review_dwell_sec", "avg_viewed_product_rating"] },
+    { title: "💵 Price Behavior", color: "orange", keys: ["promo_hunting_pct", "promo_interaction_pct", "price_filter_pct", "avg_session_price", "median_session_price"] },
+    { title: "📦 Stock Visibility", color: "red", keys: ["pct_saw_out_of_stock", "pct_checked_stock", "avg_in_stock_items", "avg_out_of_stock_items"] },
+    { title: "🎯 Behavior Mix", color: "purple", keys: ["exploration_pct", "commerce_pct", "support_pct", "avg_exploration_time_sec", "avg_commerce_time_sec", "avg_support_time_sec"] },
+    { title: "🔎 Search", color: "teal", keys: ["pct_used_search", "avg_site_search_events"] },
+    { title: "📱 Device & Time", color: "slate", keys: ["device_desktop_pct", "device_mobile_pct", "device_tablet_pct", "time_morning_pct", "time_afternoon_pct", "time_evening_pct", "time_night_pct"] },
+    { title: "👤 User Profile", color: "violet", keys: ["logged_in_pct", "new_visitor_pct", "avg_sessions_per_user", "pct_multi_session_users"] },
+    { title: "🔧 Support Intent", color: "amber", keys: ["pct_had_support_intent", "sup_troubleshooting_pct", "sup_manuals_pct", "sup_parts_pct", "sup_warranty_pct", "sup_repair_pct"] },
+    { title: "🏢 Business Unit", color: "gray", keys: ["bu_he_pct", "bu_ha_pct", "bu_other_pct"] },
+];
+
+const supportMetricSections = [
+    { title: "🎯 Support Intent", color: "violet", keys: ["intent_troubleshooting_pct", "intent_manuals_pct", "intent_parts_pct", "intent_warranty_pct", "intent_repair_pct", "intent_contact_pct", "intent_order_tracking_pct"] },
+    { title: "📄 Page Visits", color: "indigo", keys: ["avg_support_pv_total", "avg_troubleshooting_pv", "avg_manuals_pv", "avg_parts_pv", "avg_warranty_pv", "avg_repair_pv", "avg_contact_pv"] },
+    { title: "✅ Visit Rates", color: "teal", keys: ["pct_visited_troubleshooting", "pct_visited_manuals", "pct_visited_parts", "pct_visited_warranty", "pct_visited_repair", "pct_visited_contact"] },
+    { title: "⚠️ Escalation", color: "rose", keys: ["pct_escalation_attempt", "pct_multiple_escalation"] },
+    { title: "🛒 Commerce Potential", color: "emerald", keys: ["avg_view_item_count", "pct_viewed_items", "pct_added_to_cart", "avg_session_price", "pct_saw_out_of_stock"] },
+    { title: "⚡ Engagement", color: "blue", keys: ["avg_duration_sec", "median_duration_sec", "avg_events", "avg_unique_events", "avg_page_views"] },
+    { title: "🎯 Behavior Mix", color: "purple", keys: ["exploration_pct", "commerce_pct", "support_pct", "avg_exploration_time_sec", "avg_support_time_sec"] },
+    { title: "📱 Device & Time", color: "slate", keys: ["device_desktop_pct", "device_mobile_pct", "device_tablet_pct", "time_morning_pct", "time_afternoon_pct", "time_evening_pct", "time_night_pct"] },
+    { title: "👤 User Profile", color: "violet", keys: ["logged_in_pct", "new_visitor_pct", "avg_sessions_per_user", "pct_multi_session_users"] },
+    { title: "🏢 Business Unit", color: "gray", keys: ["bu_he_pct", "bu_ha_pct", "bu_other_pct"] },
+];
+
+// ============================================
+// SEGMENT-SPECIFIC TAB CONFIGURATION
+// ============================================
+const segmentTabConfig = {
+    purchaser: {
+        tabs: ["Overview", "Purchase Journey", "Friction Points", "Demographics"],
+        // Overview: Revenue, Cart, Stock
+        // Purchase Journey: Engagement, Research, Price, Shipping
+        // Friction Points: Checkout Friction, Funnel Timing
+        // Demographics: Device, User, BU
+        slices: [[0, 3], [3, 7], [7, 9], [9, 12]]
+    },
+    cart_abandoner: {
+        tabs: ["Overview", "Cart Analysis", "Drop-off Friction", "Demographics"],
+        // Overview: Abandonment overview, Cart Details, Stock Issues
+        // Cart Analysis: Checkout Friction, Price Sensitivity, Shipping
+        // Drop-off Friction: Engagement, Research, Timing
+        // Demographics: Device, User, BU
+        slices: [[0, 3], [3, 6], [6, 9], [9, 12]]
+    },
+    browser: {
+        tabs: ["Overview", "Research Depth", "Purchase Intent", "Demographics"],
+        // Overview: Engagement, Product Research, Reviews
+        // Research Depth: Price Behavior, Stock Visibility, Behavior Mix
+        // Purchase Intent: Search, Support Intent
+        // Demographics: Device, User, BU
+        slices: [[0, 3], [3, 6], [6, 8], [8, 11]]
+    },
+    support: {
+        tabs: ["Overview", "Support Journey", "Escalation Risk", "Demographics"],
+        // Overview: Support Intent, Page Visits, Visit Rates
+        // Support Journey: Escalation, Commerce Potential, Engagement
+        // Escalation Risk: Behavior Mix
+        // Demographics: Device, User, BU
+        slices: [[0, 3], [3, 6], [6, 7], [7, 10]]
+    }
+};
+
+// ============================================
+// HELPER FUNCTIONS
+// ============================================
+const formatValue = (val, key) => {
+    if (val === null || val === undefined) return "—";
+    if (key.includes("revenue") || key.includes("value") || key.includes("price") || key === "avg_price") {
+        return `$${Math.round(val).toLocaleString()}`;
+    }
+    if (key.includes("pct") || key.includes("_pct")) return `${val}%`;
+    if (key.includes("_sec")) return `${Math.round(val)}s`;
+    return typeof val === 'number' ? (val % 1 === 0 ? val.toLocaleString() : val.toFixed(2)) : val;
+};
+
+const MetricCard = ({ label, value, keyName, isHighlight }) => (
+    <div className={`bg-white border rounded-lg p-3 transition-all ${isHighlight ? 'border-amber-400 bg-amber-50 ring-2 ring-amber-200' : 'border-slate-200 hover:shadow-sm'}`}>
+        <div className="flex items-center gap-1">
+            {isHighlight && <span className="text-amber-500">⚡</span>}
+            <span className="text-xs text-slate-500 truncate">{label.replace(/_/g, ' ')}</span>
+        </div>
+        <div className={`text-lg font-bold ${isHighlight ? 'text-amber-700' : 'text-slate-800'}`}>{formatValue(value, keyName)}</div>
+    </div>
+);
+
+const MetricSection = ({ section, data, highlightKeys = [] }) => {
+    const colorMap = {
+        emerald: "bg-emerald-50 border-emerald-200", amber: "bg-amber-50 border-amber-200", red: "bg-red-50 border-red-200",
+        blue: "bg-blue-50 border-blue-200", purple: "bg-purple-50 border-purple-200", indigo: "bg-indigo-50 border-indigo-200",
+        orange: "bg-orange-50 border-orange-200", cyan: "bg-cyan-50 border-cyan-200", rose: "bg-rose-50 border-rose-200",
+        teal: "bg-teal-50 border-teal-200", slate: "bg-slate-50 border-slate-200", violet: "bg-violet-50 border-violet-200",
+        gray: "bg-gray-50 border-gray-200", yellow: "bg-yellow-50 border-yellow-200",
+    };
+    return (
+        <div className={`rounded-xl border p-4 ${colorMap[section.color] || colorMap.slate}`}>
+            <h3 className="font-bold text-slate-700 mb-3">{section.title}</h3>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+                {section.keys.map(key => (
+                    <MetricCard key={key} label={key} value={data[key]} keyName={key} isHighlight={highlightKeys.includes(key)} />
+                ))}
+            </div>
+        </div>
+    );
+};
+
+const AnalysisCard = ({ analysis, highlights }) => (
+    <div className="bg-gradient-to-r from-amber-50 to-orange-50 border border-amber-200 rounded-xl p-4 mb-4">
+        <div className="flex items-start gap-3">
+            <span className="text-2xl">🤖</span>
+            <div className="flex-1">
+                <h4 className="font-bold text-amber-800 mb-2">AI Analysis</h4>
+                <p className="text-slate-700 text-sm leading-relaxed">{analysis}</p>
+            </div>
+        </div>
+    </div>
+);
+
+const CategoryInfo = ({ data }) => (
+    <div className="bg-white rounded-xl border border-slate-200 p-4">
+        <h3 className="font-bold text-slate-700 mb-3">🏷️ Top Categories & Channels</h3>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div>
+                <div className="text-xs text-slate-500 mb-2">Top Categories</div>
+                {(data.top_session_cat_1 || data.top_purchase_cat_1 || data.top_product_cat_1) && (
+                    <div className="space-y-1 text-sm">
+                        <div><span className="font-medium">{data.top_session_cat_1 || data.top_purchase_cat_1 || data.top_product_cat_1}</span></div>
+                        <div><span className="font-medium">{data.top_session_cat_2 || data.top_purchase_cat_2 || data.top_product_cat_2}</span></div>
+                        <div><span className="font-medium">{data.top_session_cat_3 || data.top_purchase_cat_3 || data.top_product_cat_3}</span></div>
+                    </div>
+                )}
+            </div>
+            <div>
+                <div className="text-xs text-slate-500 mb-2">Media Channels</div>
+                <div className="space-y-1 text-sm">
+                    <div className="font-medium">1. {data.media_channel_1}</div>
+                    {data.media_channel_2 && <div className="font-medium">2. {data.media_channel_2}</div>}
+                    {data.media_channel_3 && <div className="font-medium">3. {data.media_channel_3}</div>}
+                </div>
+            </div>
+            <div>
+                <div className="text-xs text-slate-500 mb-2">Top Metros</div>
+                <div className="space-y-1 text-sm">
+                    <div className="font-medium">1. {data.top_metro_1}</div>
+                    {data.top_metro_2 && <div className="font-medium">2. {data.top_metro_2}</div>}
+                    {data.top_metro_3 && <div className="font-medium">3. {data.top_metro_3}</div>}
+                </div>
+            </div>
+        </div>
+    </div>
+);
+
+// ============================================
+// CLUSTER DETAIL VIEW
+// ============================================
+const ClusterDetail = ({ segment, clusterId, data, onBack }) => {
+    const config = segmentConfig[segment];
+    const [activeTab, setActiveTab] = useState(0);
+
+    const getMetricSections = () => {
+        if (segment === 'purchaser') return purchaserMetricSections;
+        if (segment === 'cart_abandoner') return cartAbandonerMetricSections;
+        if (segment === 'browser') return browserMetricSections;
+        if (segment === 'support') return supportMetricSections;
+        return [];
+    };
+
+    const sections = getMetricSections();
+    const tabConfig = segmentTabConfig[segment] || { tabs: ["Overview", "Details"], slices: [[0, 5], [5, 10]] };
+    const tabs = tabConfig.tabs;
+    const tabSections = tabConfig.slices.map(([start, end]) => sections.slice(start, end));
+
+    const highlightKeys = data.highlight ? data.highlight.toLowerCase().split(/[\s+%]+/).filter(k => k.length > 3) : [];
+
+    return (
+        <div className="animate-in">
+            <div className={`${config.bgColor} text-white p-6 rounded-t-xl`}>
+                <button onClick={onBack} className="flex items-center gap-2 text-white/70 hover:text-white mb-4 text-sm">← Back to Clusters</button>
+                <div className="flex items-center gap-4">
+                    <div className="text-4xl font-black">C{clusterId}</div>
+                    <div>
+                        <h1 className="text-2xl font-bold">{data.name}</h1>
+                        <p className="text-white/80 flex items-center gap-2">
+                            <span className="bg-white/20 px-2 py-0.5 rounded text-xs">⚡ KEY</span>
+                            {data.highlight}
+                        </p>
+                    </div>
+                </div>
+                <div className="flex gap-6 mt-4">
+                    <div><span className="text-white/60 text-sm">Sessions</span><div className="text-xl font-bold">{data.sessions.toLocaleString()}</div></div>
+                    <div><span className="text-white/60 text-sm">Share</span><div className="text-xl font-bold">{data.pct}%</div></div>
+                    {data.total_revenue && <div><span className="text-white/60 text-sm">Revenue</span><div className="text-xl font-bold">${data.total_revenue.toLocaleString()}</div></div>}
+                    {data.total_cart_value_abandoned && <div><span className="text-white/60 text-sm">Abandoned</span><div className="text-xl font-bold">${data.total_cart_value_abandoned.toLocaleString()}</div></div>}
+                </div>
+            </div>
+
+            <div className="bg-white border-b border-slate-200 px-6 flex gap-6 overflow-x-auto">
+                {tabs.map((tab, i) => (
+                    <button key={tab} onClick={() => setActiveTab(i)}
+                        className={`py-3 text-sm font-medium whitespace-nowrap ${activeTab === i ? `tab-active ${config.textColor}` : 'text-slate-500 hover:text-slate-700'}`}>
+                        {tab}
+                    </button>
+                ))}
+            </div>
+
+            <div className="p-6 space-y-4 bg-slate-50 rounded-b-xl max-h-[60vh] overflow-y-auto">
+                {data.analysis && <AnalysisCard analysis={data.analysis} />}
+                <CategoryInfo data={data} />
+                {tabSections[activeTab].map((section, idx) => (
+                    <MetricSection key={idx} section={section} data={data} highlightKeys={highlightKeys} />
+                ))}
+            </div>
+        </div>
+    );
+};
+
+// ============================================
+// SEGMENT DETAIL VIEW
+// ============================================
+const SegmentDetail = ({ segment, onBack, onSelectCluster }) => {
+    const config = segmentConfig[segment];
+    const summary = segmentSummary[segment];
+    const analysis = segmentAnalysis[segment];
+    
+    const getData = () => {
+        if (segment === 'purchaser') return purchaserData;
+        if (segment === 'cart_abandoner') return cartAbandonerData;
+        if (segment === 'browser') return browserData;
+        if (segment === 'support') return supportData;
+        return {};
+    };
+    
+    const data = getData();
+    const clusterIds = Object.keys(data).sort((a, b) => data[b].sessions - data[a].sessions);
+
+    return (
+        <div className="animate-in">
+            <div className={`${config.bgColor} text-white p-6 rounded-t-xl`}>
+                <button onClick={onBack} className="flex items-center gap-2 text-white/70 hover:text-white mb-4 text-sm">← Back to Overview</button>
+                <div className="flex items-center gap-4">
+                    <span className="text-4xl">{config.icon}</span>
+                    <div>
+                        <h1 className="text-3xl font-bold">{config.name}</h1>
+                        <p className="text-white/80">{summary.clusters} Clusters • {summary.sessions.toLocaleString()} Sessions • {summary.value}</p>
+                    </div>
+                </div>
+            </div>
+            
+            <div className="p-6 bg-slate-50 rounded-b-xl">
+                {analysis && (
+                    <div className="bg-white border border-slate-200 rounded-xl p-5 mb-6 shadow-sm">
+                        <div className="flex items-center gap-2 mb-4">
+                            <span className="text-xl">💡</span>
+                            <h4 className="font-bold text-slate-800">Key Insights</h4>
+                        </div>
+                        <div className="text-slate-600 text-sm leading-relaxed mb-5 whitespace-pre-line">{analysis.summary}</div>
+
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                            {analysis.highlights.map((h, i) => {
+                                const typeConfig = {
+                                    leak: { icon: "💸", labelBg: "bg-red-100", labelText: "text-red-700", border: "border-red-200", valueBg: "bg-red-50" },
+                                    driver: { icon: "🔑", labelBg: "bg-blue-100", labelText: "text-blue-700", border: "border-blue-200", valueBg: "bg-blue-50" },
+                                    opportunity: { icon: "🎯", labelBg: "bg-emerald-100", labelText: "text-emerald-700", border: "border-emerald-200", valueBg: "bg-emerald-50" }
+                                };
+                                const tc = typeConfig[h.type] || typeConfig.driver;
+
+                                return (
+                                    <div key={i} className={`rounded-xl p-4 border ${tc.border} ${tc.valueBg}`}>
+                                        <div className="flex items-center gap-2 mb-2">
+                                            <span>{tc.icon}</span>
+                                            <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${tc.labelBg} ${tc.labelText}`}>{h.label}</span>
+                                        </div>
+                                        <div className="flex items-baseline gap-2 mb-1">
+                                            <span className="text-xs text-slate-500">{h.metric}</span>
+                                            <span className="text-xs bg-slate-200 px-1.5 py-0.5 rounded">{h.cluster}</span>
+                                        </div>
+                                        <div className="text-2xl font-bold text-slate-800 mb-2">{h.value}</div>
+                                        <div className="text-xs text-slate-600 leading-relaxed">{h.insight}</div>
+                                    </div>
+                                );
+                            })}
+                        </div>
+                    </div>
+                )}
+                
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    {clusterIds.map(id => {
+                        const cluster = data[id];
+                        return (
+                            <div key={id} onClick={() => onSelectCluster(id)}
+                                className="bg-white rounded-xl border border-slate-200 p-4 cursor-pointer hover:shadow-lg hover:border-slate-300 transition-all group">
+                                <div className="flex items-center justify-between mb-2">
+                                    <div className="flex items-center gap-2">
+                                        <span className={`${config.bgColor} text-white text-xs font-bold px-2 py-1 rounded`}>C{id}</span>
+                                        <span className="font-bold text-slate-800 text-sm">{cluster.name}</span>
+                                    </div>
+                                    <span className="text-slate-400 group-hover:text-slate-600 text-sm">→</span>
+                                </div>
+                                <p className="text-xs text-slate-500 mb-3 flex items-center gap-1">
+                                    <span className="text-amber-500">⚡</span>{cluster.highlight}
+                                </p>
+                                <div className="flex gap-2">
+                                    <div className="flex-1 bg-slate-50 rounded p-2 text-center">
+                                        <div className="text-xs text-slate-400">Sessions</div>
+                                        <div className="font-bold text-sm">{cluster.sessions.toLocaleString()}</div>
+                                    </div>
+                                    <div className="flex-1 bg-slate-50 rounded p-2 text-center">
+                                        <div className="text-xs text-slate-400">Share</div>
+                                        <div className="font-bold text-sm">{cluster.pct}%</div>
+                                    </div>
+                                </div>
+                            </div>
+                        );
+                    })}
+                </div>
+            </div>
+        </div>
+    );
+};
+
+// ============================================
+// TREE OVERVIEW
+// ============================================
+const TreeOverview = ({ onSelectSegment }) => {
+    const segments = ['bot', 'purchaser', 'cart_abandoner', 'browser', 'support', 'bouncer'];
+    
+    return (
+        <div className="animate-in">
+            <div className="text-center mb-8">
+                <h1 className="text-3xl font-extrabold text-slate-900 mb-2">LG.com Visitor Segmentation</h1>
+                <p className="text-slate-500">K-means v13 • 1.5M Sessions Analyzed</p>
+            </div>
+            
+            <div className="flex flex-col items-center">
+                <div className="bg-slate-900 text-white px-10 py-5 rounded-2xl shadow-xl flex items-center gap-4">
+                    <span className="text-3xl">🌐</span>
+                    <div>
+                        <div className="text-xs text-slate-400 uppercase">Total Traffic</div>
+                        <div className="font-bold text-2xl">1,474,474</div>
+                    </div>
+                </div>
+                <div className="h-10 w-0.5 bg-slate-300"></div>
+                <div className="w-full max-w-5xl h-0.5 bg-slate-300"></div>
+            </div>
+            
+            <div className="flex justify-center gap-4 mt-0 flex-wrap">
+                {segments.map(seg => {
+                    const config = segmentConfig[seg];
+                    const summary = segmentSummary[seg];
+                    const logic = segmentLogic[seg];
+                    const isClickable = summary.clusters > 0;
+
+                    return (
+                        <div key={seg} className="flex flex-col items-center" style={{ width: '160px' }}>
+                            <div className="h-8 w-0.5 bg-slate-300"></div>
+                            <div className="relative group">
+                                <div onClick={() => isClickable && onSelectSegment(seg)}
+                                    className={`w-full bg-white rounded-xl shadow-sm border-b-4 ${config.borderColor} p-4 flex flex-col items-center gap-2 transition-all ${isClickable ? 'cursor-pointer hover:-translate-y-1 hover:shadow-lg' : 'opacity-60'}`}
+                                    style={{ width: '160px' }}>
+                                    <div className={`p-2 rounded-full ${config.lightBg}`}>
+                                        <span className="text-2xl">{config.icon}</span>
+                                    </div>
+                                    <div className="text-center w-full">
+                                        <div className="font-bold text-slate-800 text-sm">{config.name}</div>
+                                        <div className="text-xs text-slate-400 mt-1">{summary.share}</div>
+                                    </div>
+                                </div>
+                                {/* Hover Tooltip */}
+                                <div className="absolute left-1/2 -translate-x-1/2 bottom-full mb-2 w-64 bg-slate-900 text-white rounded-lg shadow-xl p-3 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-50 pointer-events-none">
+                                    <div className="text-xs font-semibold text-slate-300 uppercase mb-1">Classification Logic</div>
+                                    <div className="text-sm font-medium mb-2">{logic.rule}</div>
+                                    <div className="space-y-1">
+                                        {logic.criteria.map((c, i) => (
+                                            <div key={i} className="flex items-center gap-1.5 text-xs text-slate-300">
+                                                <span className="text-emerald-400">•</span>
+                                                <span>{c}</span>
+                                            </div>
+                                        ))}
+                                    </div>
+                                    <div className="mt-2 pt-2 border-t border-slate-700 text-xs text-slate-400">
+                                        Priority: #{logic.priority} in evaluation order
+                                    </div>
+                                    {/* Arrow */}
+                                    <div className="absolute left-1/2 -translate-x-1/2 top-full w-0 h-0 border-l-8 border-r-8 border-t-8 border-transparent border-t-slate-900"></div>
+                                </div>
+                            </div>
+                            <div className={`mt-2 px-2 py-1 rounded text-xs font-bold ${config.lightBg} ${config.textColor}`}>
+                                {summary.sessions.toLocaleString()}
+                            </div>
+                            {isClickable && <div className="text-xs text-slate-400 mt-1">{summary.clusters} clusters →</div>}
+                        </div>
+                    );
+                })}
+            </div>
+            
+            <div className="text-center text-slate-400 text-sm mt-12">
+                Click Purchasers, Cart Abandoners, Browsers, or Support to explore clusters
+            </div>
+        </div>
+    );
+};
+
+// ============================================
+// MAIN APP
+// ============================================
+const App = () => {
+    const [view, setView] = useState('overview');
+    const [selectedSegment, setSelectedSegment] = useState(null);
+    const [selectedCluster, setSelectedCluster] = useState(null);
+
+    const handleSelectSegment = (seg) => { setSelectedSegment(seg); setView('segment'); };
+    const handleSelectCluster = (clusterId) => { setSelectedCluster(clusterId); setView('cluster'); };
+    const handleBackToOverview = () => { setView('overview'); setSelectedSegment(null); setSelectedCluster(null); };
+    const handleBackToSegment = () => { setView('segment'); setSelectedCluster(null); };
+
+    const getClusterData = () => {
+        if (selectedSegment === 'purchaser') return purchaserData[selectedCluster];
+        if (selectedSegment === 'cart_abandoner') return cartAbandonerData[selectedCluster];
+        if (selectedSegment === 'browser') return browserData[selectedCluster];
+        if (selectedSegment === 'support') return supportData[selectedCluster];
+        return null;
+    };
+
+    return (
+        <div className="min-h-screen bg-slate-100 p-6">
+            <div className="max-w-6xl mx-auto">
+                {view === 'overview' && <TreeOverview onSelectSegment={handleSelectSegment} />}
+                {view === 'segment' && <SegmentDetail segment={selectedSegment} onBack={handleBackToOverview} onSelectCluster={handleSelectCluster} />}
+                {view === 'cluster' && <ClusterDetail segment={selectedSegment} clusterId={selectedCluster} data={getClusterData()} onBack={handleBackToSegment} />}
+            </div>
+        </div>
+    );
+};
+
+const root = ReactDOM.createRoot(document.getElementById('root'));
+root.render(<App />);
+</script>
+</body>
+</html>
