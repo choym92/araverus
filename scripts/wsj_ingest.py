@@ -150,6 +150,11 @@ def parse_wsj_rss(xml_text: str, feed_name: str, feed_url: str) -> list[WsjItem]
         if title.startswith('Opinion |'):
             continue
 
+        # Skip low-value categories (poor crawl success rates)
+        SKIP_CATEGORIES = ['/lifestyle/', '/real-estate/', '/arts/']
+        if any(cat in link for cat in SKIP_CATEGORIES):
+            continue
+
         # Extract dc:creator (author)
         creator_el = item.find('dc:creator', namespaces)
         creator = safe_text(creator_el) if creator_el is not None else None
@@ -275,20 +280,24 @@ def mark_items_searched(supabase: Client, ids: list[str]) -> int:
     return len(response.data) if response.data else 0
 
 
-def mark_items_processed(supabase: Client, ids: list[str]) -> int:
-    """Mark items as processed. Returns count of updated items."""
+def mark_items_processed(supabase: Client, ids: list[str], batch_size: int = 100) -> int:
+    """Mark items as processed in batches to avoid PostgREST URL length limits."""
     if not ids:
         return 0
 
-    response = supabase.table('wsj_items') \
-        .update({
-            'processed': True,
-            'processed_at': datetime.utcnow().isoformat(),
-        }) \
-        .in_('id', ids) \
-        .execute()
+    total_updated = 0
+    for i in range(0, len(ids), batch_size):
+        batch = ids[i:i + batch_size]
+        response = supabase.table('wsj_items') \
+            .update({
+                'processed': True,
+                'processed_at': datetime.utcnow().isoformat(),
+            }) \
+            .in_('id', batch) \
+            .execute()
+        total_updated += len(response.data) if response.data else 0
 
-    return len(response.data) if response.data else 0
+    return total_updated
 
 
 def get_stats(supabase: Client) -> dict:
