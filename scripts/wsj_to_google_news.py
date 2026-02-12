@@ -507,23 +507,12 @@ def parse_rss_date(date_str: str):
         return None
 
 
-# Feed priority for deduplication (higher = keep)
-FEED_PRIORITY = {
-    'MARKETS': 7,
-    'ECONOMY': 6,
-    'TECH': 5,
-    'BUSINESS': 4,
-    'WORLD': 3,
-    'POLITICS': 2,
-    'OPINION': 1,
-}
-
-
 def load_wsj_jsonl(jsonl_path: str, today_only: bool = False) -> list[dict]:
     """Load WSJ items from JSONL file (exported from Supabase).
 
-    Deduplicates by title, keeping the item from the highest priority feed.
-    Priority: MARKETS > ECONOMY > TECH > BUSINESS > WORLD > POLITICS > OPINION
+    Deduplicates by title using least-count category balancing: when a
+    duplicate is found, it is assigned to whichever category currently has
+    fewer articles.
 
     Args:
         jsonl_path: Path to JSONL file
@@ -532,11 +521,12 @@ def load_wsj_jsonl(jsonl_path: str, today_only: bool = False) -> list[dict]:
     Note: Date filtering for Google News results happens via add_date_filter(),
     which uses WSJ pubDate to create an appropriate date range for search results.
     """
+    from collections import Counter
     from datetime import date
 
     today = date.today()
 
-    # First pass: collect all items, grouped by title
+    category_counts: Counter = Counter()
     items_by_title: dict[str, dict] = {}
 
     with open(jsonl_path) as f:
@@ -555,19 +545,21 @@ def load_wsj_jsonl(jsonl_path: str, today_only: bool = False) -> list[dict]:
                     continue
 
             feed_name = item.get('feed_name', '')
-            priority = FEED_PRIORITY.get(feed_name, 0)
 
-            # Keep item with highest priority feed
             if title_lower not in items_by_title:
-                items_by_title[title_lower] = (priority, item)
+                items_by_title[title_lower] = item
+                category_counts[feed_name] += 1
             else:
-                existing_priority, _ = items_by_title[title_lower]
-                if priority > existing_priority:
-                    items_by_title[title_lower] = (priority, item)
+                existing = items_by_title[title_lower]
+                existing_feed = existing.get('feed_name', '')
+                if category_counts[feed_name] < category_counts[existing_feed]:
+                    category_counts[existing_feed] -= 1
+                    items_by_title[title_lower] = item
+                    category_counts[feed_name] += 1
 
-    # Second pass: build result list
+    # Build result list
     items = []
-    for _, (_, item) in items_by_title.items():
+    for item in items_by_title.values():
         items.append({
             'id': item.get('id'),
             'title': item.get('title', ''),
@@ -576,6 +568,7 @@ def load_wsj_jsonl(jsonl_path: str, today_only: bool = False) -> list[dict]:
             'pubDate': item.get('pubDate', ''),
             'creator': item.get('creator'),
             'feed_name': item.get('feed_name'),
+            'subcategory': item.get('subcategory'),
         })
 
     return items

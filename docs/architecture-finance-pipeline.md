@@ -1,4 +1,4 @@
-<!-- Updated: 2026-02-06 -->
+<!-- Updated: 2026-02-11 -->
 # Finance TTS Briefing Pipeline
 
 Single source of truth. Covers every script, flag, threshold, table column, and workflow detail.
@@ -44,12 +44,19 @@ RSS ingestion, export, lifecycle management, domain status.
 | `--stats` | Show database statistics (total/unprocessed/processed by feed) |
 
 **Constants:**
-- 6 WSJ Feeds: WORLD, BUSINESS, MARKETS, TECH, POLITICS, ECONOMY
+- 6 WSJ Feeds (2 merged): BUSINESS_MARKETS (Business + Markets), WORLD, TECH, ECONOMY, POLITICS
 - `FETCH_DELAY = 0.5s` between feed fetches
-- `SKIP_CATEGORIES`: `/lifestyle/`, `/real-estate/`, `/arts/` (poor crawl success)
-- `FEED_PRIORITY`: MARKETS(7) > ECONOMY(6) > TECH(5) > BUSINESS(4) > WORLD(3) > POLITICS(2) > OPINION(1) — for dedup when same article appears in multiple feeds
+- `SKIP_CATEGORIES`: `/lifestyle/`, `/real-estate/`, `/arts/`, `/health/`, `/style/`, `/livecoverage/`, `/arts-culture/` (poor crawl success)
+- **Dedup**: Title-based with least-count category balancing — duplicates assigned to whichever category has fewer articles
 - `DOMAIN_ALLOWLIST`: `finance.yahoo.com`, `livemint.com` — never auto-blocked
 - Skips titles starting with `"Opinion |"`
+
+**URL-Based Category Extraction:**
+- `extract_category_from_url(link)` parses the WSJ article URL to get accurate `(category, subcategory)`
+- URL path → category mapping: `tech→TECH`, `finance/business/markets→BUSINESS_MARKETS`, `economy→ECONOMY`, `politics→POLITICS`, `world→WORLD`
+- Ambiguous paths (`articles`, `buyside`, `us-news`) → falls back to RSS `feed_name`
+- Overrides RSS `feed_name` when URL category is available (~95% accuracy vs ~60% from RSS)
+- `subcategory` extracted from second URL segment (e.g., `wsj.com/tech/ai/...` → subcategory=`ai`)
 
 **Domain Auto-Block Logic (`--update-domain-status`):**
 - Success = `crawl_status='success' AND relevance_flag='ok'`
@@ -292,13 +299,14 @@ Backfill LLM analysis for existing articles.
 ### `wsj_items` — WSJ RSS Feed Articles
 ```sql
 id              UUID PRIMARY KEY
-feed_name       TEXT        -- WORLD, BUSINESS, MARKETS, TECH, POLITICS, ECONOMY
+feed_name       TEXT        -- BUSINESS_MARKETS, WORLD, TECH, ECONOMY, POLITICS
 feed_url        TEXT
 title           TEXT
 description     TEXT
 link            TEXT
 creator         TEXT        -- author
 url_hash        TEXT UNIQUE -- SHA-256 of link (dedup)
+subcategory     TEXT        -- URL-derived (e.g., 'ai', 'trade', 'cybersecurity')
 published_at    TIMESTAMPTZ
 searched        BOOLEAN     -- Google search completed
 searched_at     TIMESTAMPTZ
@@ -581,9 +589,8 @@ Generate daily TTS briefings from crawled articles using LLM synthesis.
 | Type | ticker_group | Articles | Length |
 |------|--------------|----------|--------|
 | Daily Highlights | `DAILY` | 5-6 top across all feeds | 400-500 words |
-| Markets | `MARKETS` | 3-5 | 250-350 words |
+| Business & Markets | `BUSINESS_MARKETS` | 3-5 | 250-350 words |
 | Tech | `TECH` | 3-5 | 250-350 words |
-| Business | `BUSINESS` | 3-5 | 250-350 words |
 | World | `WORLD` | 3-5 | 250-350 words |
 | Politics | `POLITICS` | 3-5 | 250-350 words |
 | Economy | `ECONOMY` | 3-5 | 250-350 words |
@@ -592,7 +599,7 @@ Generate daily TTS briefings from crawled articles using LLM synthesis.
 
 ```bash
 python generate_briefing.py --type DAILY --dry-run
-python generate_briefing.py --type MARKETS
+python generate_briefing.py --type BUSINESS_MARKETS
 python generate_briefing.py --all
 ```
 

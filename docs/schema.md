@@ -1,4 +1,4 @@
-<!-- Updated: 2026-02-06 -->
+<!-- Updated: 2026-02-11 -->
 # Database Schema (araverus)
 
 All Supabase/Postgres tables. Blog tables for the website, WSJ tables for the finance pipeline.
@@ -54,96 +54,155 @@ created_at  TIMESTAMPTZ
 ## Finance Pipeline Tables
 
 ### `wsj_items` — WSJ RSS Feed Articles
+**Written by**: `wsj_ingest.py` → `insert_wsj_item()`
+**Pipeline step**: Job 1 (ingest-search) — `python wsj_ingest.py`
+
 ```sql
-id            UUID PRIMARY KEY
-feed_name     TEXT          -- WORLD, BUSINESS, MARKETS, TECH, POLITICS, ECONOMY
-feed_url      TEXT
-title         TEXT
-description   TEXT
-link          TEXT
-creator       TEXT          -- Author
-url_hash      TEXT UNIQUE   -- SHA-256 of link (dedup)
-published_at  TIMESTAMPTZ
-searched      BOOLEAN       -- Google search completed
-searched_at   TIMESTAMPTZ
-processed     BOOLEAN       -- Successfully crawled with good relevance
-processed_at  TIMESTAMPTZ
+id            UUID PRIMARY KEY    -- auto-generated
+feed_name     TEXT          -- RSS feed category: BUSINESS_MARKETS, WORLD, TECH, ECONOMY, POLITICS
+feed_url      TEXT          -- source RSS URL
+title         TEXT          -- WSJ article headline (from <title> tag)
+description   TEXT          -- WSJ article snippet (from <description> tag, free/unpaywalled)
+link          TEXT          -- WSJ article URL (paywalled)
+creator       TEXT          -- author name (from <dc:creator> tag)
+url_hash      TEXT UNIQUE   -- sha256(link) for dedup, computed in parse_wsj_rss()
+subcategory   TEXT          -- URL-derived subcategory (e.g., 'ai', 'trade', 'cybersecurity')
+                            --   extracted from link path: wsj.com/{category}/{subcategory}/...
+                            --   NULL for ambiguous paths (articles, buyside, us-news)
+published_at  TIMESTAMPTZ   -- from <pubDate> tag
+fetched_at    TIMESTAMPTZ   -- when we ingested it (auto: now())
+searched      BOOLEAN       -- set true after Google News search completed
+searched_at   TIMESTAMPTZ   -- when searched was set true
+processed     BOOLEAN       -- set true when quality crawl result exists (relevance ok/good)
+processed_at  TIMESTAMPTZ   -- when processed was set true
+created_at    TIMESTAMPTZ   -- auto: now()
 ```
 
+**Lifecycle**: `insert → searched=true (after Google News) → processed=true (after quality crawl)`
+**Skip filter**: Opinion articles (`title.startswith('Opinion |')`) and low-value categories (`/lifestyle/`, `/real-estate/`, `/arts/`, `/health/`, `/style/`, `/livecoverage/`, `/arts-culture/`) are skipped at parse time.
+**Category override**: `feed_name` and `subcategory` are extracted from the article URL path when available (more accurate than RSS feed name). Ambiguous paths (`articles`, `buyside`, `us-news`) fall back to RSS feed_name.
+
 ### `wsj_crawl_results` — Crawled Backup Articles
+**Written by**: Two stages:
+1. `resolve_ranked.py` — creates initial record with `crawl_status='pending'`
+2. `crawl_ranked.py` → `save_crawl_result_to_db()` — updates with crawl data (upsert on `resolved_url`)
+
 ```sql
-id              UUID PRIMARY KEY
-wsj_item_id     UUID FK → wsj_items
-wsj_title       TEXT
-wsj_link        TEXT
-source          TEXT          -- Google News source name
-title           TEXT          -- Backup article title
-resolved_url    TEXT UNIQUE   -- Final URL after redirects
-resolved_domain TEXT          -- e.g., reuters.com
-embedding_score FLOAT         -- Similarity to WSJ article (0-1)
-crawl_status    TEXT          -- pending, success, failed, skipped, garbage
-crawl_error     TEXT
-crawl_length    INT           -- Character count
-content         TEXT          -- Crawled markdown
-crawled_at      TIMESTAMPTZ
-relevance_score FLOAT         -- Content similarity (0-1)
-relevance_flag  TEXT          -- 'ok' (>=0.25) or 'low' (<0.25)
-top_image       TEXT          -- Article hero image URL
+id              UUID PRIMARY KEY    -- auto-generated
+wsj_item_id     UUID FK → wsj_items -- which WSJ article this is a backup for
+wsj_title       TEXT          -- copied from wsj_items.title (denormalized for convenience)
+wsj_link        TEXT          -- copied from wsj_items.link
+source          TEXT          -- Google News source name (e.g., "Yahoo Finance", "CNBC")
+title           TEXT          -- backup article title from Google News RSS
+resolved_url    TEXT UNIQUE   -- final URL after following Google News redirects (resolve_ranked.py)
+resolved_domain TEXT          -- extracted domain from resolved_url (e.g., "finance.yahoo.com")
+embedding_score FLOAT         -- cosine similarity (0-1) between WSJ title+desc and backup title
+                              --   computed by embedding_rank.py using all-MiniLM-L6-v2
+                              --   >=0.5 high, >=0.4 medium, <0.4 low
+crawl_status    TEXT          -- pending → success | failed | skipped | resolve_failed
+crawl_error     TEXT          -- error message if crawl failed
+crawl_length    INT           -- character count of crawled markdown
+content         TEXT          -- full crawled article as markdown (via Playwright)
+crawled_at      TIMESTAMPTZ   -- when crawl completed
+relevance_score FLOAT         -- content similarity (0-1), computed by crawl_ranked.py
+relevance_flag  TEXT          -- 'ok' (passed LLM check) or 'low' (LLM rejected / score < 0.25)
+llm_same_event  BOOLEAN       -- from LLM analysis: is this the same news event as WSJ?
+llm_score       INT           -- from LLM analysis: relevance score 0-10
+top_image       TEXT          -- article hero image URL (extracted during crawl)
+created_at      TIMESTAMPTZ   -- auto: now()
+updated_at      TIMESTAMPTZ   -- auto: now()
+```
+
+**Crawl decision logic** (crawl_ranked.py):
+- LLM accept: `is_same_event=true` OR `(is_same_event=false AND llm_score >= 6)` → `relevance_flag='ok'`
+- LLM reject: `is_same_event=false AND llm_score < 6` → `relevance_flag='low'`, tries next backup article
+
+### `wsj_llm_analysis` — LLM Content Analysis
+**Written by**: `llm_analysis.py` → `save_analysis_to_db()`, called from `crawl_ranked.py` after each crawl
+**Model**: gpt-4o-mini (temperature=0, max_tokens=500, json_object mode)
+**Input**: WSJ title + WSJ description + first 800 chars of crawled content
+
+```sql
+id                UUID PRIMARY KEY    -- auto-generated
+crawl_result_id   UUID FK → wsj_crawl_results (UNIQUE, 1:1)
+relevance_score   INT           -- LLM score 0-10: how well crawled content matches WSJ headline
+                                --   9-10: exact same event, high quality
+                                --   7-8: same event, different angle
+                                --   5-6: related topic, different event
+                                --   3-4: tangentially related
+                                --   0-2: unrelated or garbage
+is_same_event     BOOLEAN       -- LLM judgment: same specific news event?
+confidence        TEXT          -- high | medium | low — LLM's confidence in its judgment
+event_type        TEXT          -- earnings | acquisition | merger | lawsuit | regulation |
+                                --   product | partnership | funding | ipo | bankruptcy |
+                                --   executive | layoffs | guidance | other
+content_quality   TEXT          -- article | list_page | profile | paywall | garbage | opinion
+key_entities      JSONB         -- company/org names extracted by LLM (e.g., ["Anthropic","Claude"])
+key_numbers       JSONB         -- dollar amounts, percentages (e.g., ["$1.25 billion","218-214"])
+tickers_mentioned JSONB         -- stock symbols if any (e.g., ["NVDA","GOOG"])
+people_mentioned  JSONB         -- person names (e.g., ["Elon Musk","Pascal Soriot"])
+sentiment         TEXT          -- positive | negative | neutral | mixed
+geographic_region TEXT          -- US | China | Europe | Asia | Global | Other
+time_horizon      TEXT          -- immediate | short_term | long_term
+summary           TEXT          -- 1-2 sentence LLM-generated summary of crawled article
+raw_response      JSONB         -- full LLM JSON response (for debugging)
+model_used        TEXT          -- "gpt-4o-mini"
+input_tokens      INT           -- prompt token count
+output_tokens     INT           -- completion token count
+created_at        TIMESTAMPTZ   -- auto: now()
 ```
 
 ### `wsj_domain_status` — Domain Quality Tracking
+**Written by**: `wsj_ingest.py` → `cmd_update_domain_status()` and `llm_analysis.py` → `update_domain_llm_failure()`
+**Pipeline step**: Job 4 (save-results) — `python wsj_ingest.py --update-domain-status`
+
 ```sql
-domain           TEXT PRIMARY KEY
-status           TEXT         -- active, blocked
-success_count    INT
-fail_count       INT
-failure_type     TEXT
-block_reason     TEXT
-llm_fail_count   INT
-last_success     TIMESTAMPTZ
+domain           TEXT PRIMARY KEY  -- e.g., "finance.yahoo.com"
+status           TEXT         -- active | blocked
+failure_type     TEXT         -- type of failure (crawl error category)
+fail_count       INT          -- total crawl failures
+success_count    INT          -- total crawl successes
 last_failure     TIMESTAMPTZ
+last_success     TIMESTAMPTZ
+block_reason     TEXT         -- e.g., "Auto-blocked: 25 failures, 0% success rate"
+llm_fail_count   INT          -- LLM is_same_event=false count (reset on success)
 last_llm_failure TIMESTAMPTZ
+success_rate     NUMERIC      -- computed: success_count / (success_count + fail_count)
+weighted_score   NUMERIC      -- quality score combining success rate and volume
+created_at       TIMESTAMPTZ
+updated_at       TIMESTAMPTZ
 ```
 
 **Auto-block rule**: `fail_count > 5 AND success_rate < 20%` OR `llm_fail_count >= 3`
+**LLM tracking**: `llm_fail_count` incremented when crawled content doesn't match WSJ event, reset to 0 on success.
 
-### `wsj_llm_analysis` — LLM Analysis Results
+### `wsj_briefings` — Daily Briefing Output (Phase 2)
+**Written by**: TBD (generate_briefing.py)
+
 ```sql
-id                UUID PRIMARY KEY
-crawl_result_id   UUID FK → wsj_crawl_results (UNIQUE)
-relevance_score   FLOAT          -- LLM score (1-10)
-is_same_event     BOOLEAN        -- Same news event as WSJ?
-event_type        TEXT           -- earnings, acquisition, regulation, product, etc.
-sentiment         TEXT           -- positive, negative, neutral, mixed
-content_quality   TEXT           -- article, list_page, paywall, garbage, opinion
-summary           TEXT           -- 1-2 sentence summary for TTS
-key_entities      JSONB          -- Companies, organizations
-key_numbers       JSONB          -- Dollar amounts, percentages
-tickers_mentioned TEXT[]         -- Stock tickers
-created_at        TIMESTAMPTZ
+id              UUID PRIMARY KEY    -- auto-generated
+date            DATE          -- briefing date (e.g., 2026-02-10)
+category        TEXT          -- 'ALL', 'BUSINESS_MARKETS', 'TECH', etc. Default 'ALL'
+briefing_text   TEXT          -- LLM-generated briefing narrative (~700-1400 words)
+audio_url       TEXT          -- Supabase Storage URL for TTS audio (Phase 3)
+audio_duration  INT           -- audio length in seconds (Phase 3)
+item_count      INT           -- number of articles included in this briefing
+model           TEXT          -- LLM model used for generation
+tts_provider    TEXT          -- TTS service used (Phase 3)
+created_at      TIMESTAMPTZ   -- auto: now()
+UNIQUE(date, category)        -- one briefing per day per category
 ```
 
-### `briefs` — Daily Briefing Scripts
+### `wsj_briefing_items` — Briefing ↔ Article Junction
+**Written by**: TBD (generate_briefing.py)
+
 ```sql
-id              UUID PRIMARY KEY
-brief_date      DATE
-ticker_group    TEXT DEFAULT 'default'  -- DAILY, MARKETS, TECH, etc.
-tickers         TEXT[]
-top_cluster_ids UUID[]
-script_text     TEXT                    -- Generated TTS script
-created_at      TIMESTAMPTZ
-UNIQUE(brief_date, ticker_group)
+briefing_id   UUID FK → wsj_briefings(id) ON DELETE CASCADE
+wsj_item_id   UUID FK → wsj_items(id) ON DELETE CASCADE
+PRIMARY KEY (briefing_id, wsj_item_id)
 ```
 
-### `audio_assets` — TTS Audio (Phase 3, future)
-```sql
-brief_id      UUID PRIMARY KEY FK → briefs
-storage_path  TEXT
-duration_sec  INT
-tts_provider  TEXT
-voice         TEXT
-created_at    TIMESTAMPTZ
-```
+**Purpose**: Tracks which articles were included in which briefing. N:N relationship — one article can appear in multiple briefings (e.g., ALL + TECH). Replaces the need for a `briefed` flag on `wsj_items`.
 
 ---
 
@@ -154,8 +213,33 @@ user_profiles ──1:N──▶ blog_posts
 user_profiles ──1:N──▶ blog_assets
 
 wsj_items ──1:N──▶ wsj_crawl_results ──1:1──▶ wsj_llm_analysis
+wsj_items ──N:N──▶ wsj_briefings (via wsj_briefing_items)
 
 wsj_domain_status (independent, updated by crawl pipeline)
+```
 
-briefs ──1:1──▶ audio_assets (future)
+## Pipeline Data Flow
+
+```
+Job 1: ingest-search
+  wsj_ingest.py          → wsj_items (insert)
+  wsj_ingest.py --export → JSONL file
+  wsj_to_google_news.py  → Google News search results JSONL
+
+Job 2: rank-resolve
+  embedding_rank.py      → ranked results JSONL (adds embedding_score)
+  resolve_ranked.py      → wsj_crawl_results (insert, crawl_status='pending')
+  wsj_ingest.py --mark-searched → wsj_items.searched=true
+
+Job 3: crawl
+  crawl_ranked.py        → wsj_crawl_results (upsert: content, crawl_status, relevance_flag)
+                         → wsj_llm_analysis (insert: LLM analysis per crawl)
+
+Job 4: save-results
+  wsj_ingest.py --mark-processed-from-db → wsj_items.processed=true
+  wsj_ingest.py --update-domain-status   → wsj_domain_status (update)
+
+Job 5: briefing (TBD)
+  generate_briefing.py   → wsj_briefings (insert)
+                         → wsj_briefing_items (insert)
 ```

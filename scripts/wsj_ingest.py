@@ -23,6 +23,7 @@ import hashlib
 import json
 import os
 import sys
+from collections import Counter
 import xml.etree.ElementTree as ET
 from dataclasses import dataclass
 from datetime import datetime
@@ -67,6 +68,7 @@ class WsjItem:
     creator: Optional[str]
     url_hash: str
     published_at: Optional[str]
+    subcategory: Optional[str] = None
 
 
 @dataclass
@@ -127,6 +129,56 @@ def safe_text(el) -> str:
     return (el.text or "").strip() if el is not None else ""
 
 
+# URL path → feed_name mapping (overrides RSS feed_name when URL is more specific)
+URL_CATEGORY_MAP = {
+    'tech': 'TECH',
+    'finance': 'BUSINESS_MARKETS',
+    'business': 'BUSINESS_MARKETS',
+    'markets': 'BUSINESS_MARKETS',
+    'economy': 'ECONOMY',
+    'politics': 'POLITICS',
+    'world': 'WORLD',
+}
+
+# URL paths that are ambiguous — don't override RSS feed_name
+AMBIGUOUS_PATHS = {'articles', 'buyside', 'us-news'}
+
+
+def extract_category_from_url(link: str) -> tuple[Optional[str], Optional[str]]:
+    """Extract (category, subcategory) from WSJ article URL path.
+
+    Examples:
+        wsj.com/tech/ai/article-slug → ('TECH', 'ai')
+        wsj.com/economy/trade/slug   → ('ECONOMY', 'trade')
+        wsj.com/articles/slug        → (None, None)  # ambiguous
+
+    Returns:
+        (mapped_category, subcategory) or (None, None) for ambiguous/unknown paths
+    """
+    try:
+        from urllib.parse import urlparse
+        path = urlparse(link).path.strip('/')
+        parts = path.split('/')
+        if not parts:
+            return None, None
+
+        top_path = parts[0].lower()
+
+        if top_path in AMBIGUOUS_PATHS:
+            return None, None
+
+        category = URL_CATEGORY_MAP.get(top_path)
+        if category is None:
+            return None, None
+
+        # Subcategory only exists when URL has 3+ segments: /category/subcategory/article-slug
+        # With only 2 segments (/category/article-slug), parts[1] is the article itself
+        subcategory = parts[1] if len(parts) >= 3 and parts[1] not in AMBIGUOUS_PATHS else None
+        return category, subcategory
+    except Exception:
+        return None, None
+
+
 def parse_wsj_rss(xml_text: str, feed_name: str, feed_url: str) -> list[WsjItem]:
     """Parse WSJ RSS XML into WsjItem objects."""
     try:
@@ -151,16 +203,20 @@ def parse_wsj_rss(xml_text: str, feed_name: str, feed_url: str) -> list[WsjItem]
             continue
 
         # Skip low-value categories (poor crawl success rates)
-        SKIP_CATEGORIES = ['/lifestyle/', '/real-estate/', '/arts/']
+        SKIP_CATEGORIES = ['/lifestyle/', '/real-estate/', '/arts/', '/health/', '/style/', '/livecoverage/', '/arts-culture/']
         if any(cat in link for cat in SKIP_CATEGORIES):
             continue
+
+        # Extract category/subcategory from URL (more accurate than RSS feed_name)
+        url_category, subcategory = extract_category_from_url(link)
+        item_feed_name = url_category if url_category else feed_name
 
         # Extract dc:creator (author)
         creator_el = item.find('dc:creator', namespaces)
         creator = safe_text(creator_el) if creator_el is not None else None
 
         items.append(WsjItem(
-            feed_name=feed_name,
+            feed_name=item_feed_name,
             feed_url=feed_url,
             title=title,
             description=safe_text(item.find('description')),
@@ -168,6 +224,7 @@ def parse_wsj_rss(xml_text: str, feed_name: str, feed_url: str) -> list[WsjItem]
             creator=creator,
             url_hash=generate_url_hash(link),
             published_at=parse_rss_date(safe_text(item.find('pubDate'))),
+            subcategory=subcategory,
         ))
 
     return items
@@ -237,6 +294,7 @@ def insert_wsj_item(supabase: Client, item: WsjItem) -> bool:
             'creator': item.creator,
             'url_hash': item.url_hash,
             'published_at': item.published_at,
+            'subcategory': item.subcategory,
         }).execute()
         return True
     except Exception as e:
@@ -345,6 +403,7 @@ def export_to_jsonl(items: list[dict], output_path: Path) -> None:
                 'pubDate': item['published_at'],
                 'feed_name': item['feed_name'],
                 'creator': item['creator'],
+                'subcategory': item.get('subcategory'),
             }
             f.write(json.dumps(export_item, ensure_ascii=False) + '\n')
 
@@ -379,6 +438,31 @@ def load_ids_from_file(file_path: Path) -> list[str]:
 # Main Commands
 # ============================================================
 
+def dedup_by_title(items: list[WsjItem]) -> list[WsjItem]:
+    """Deduplicate items by title with least-count category balancing.
+
+    WSJ cross-posts the same article across multiple RSS feeds (e.g. MARKETS,
+    BUSINESS, TECH). When a duplicate is found, the article is assigned to
+    whichever category currently has fewer articles, naturally balancing
+    the distribution across categories.
+    """
+    category_counts: dict[str, int] = Counter()
+    seen_titles: dict[str, WsjItem] = {}
+
+    for item in items:
+        if item.title not in seen_titles:
+            seen_titles[item.title] = item
+            category_counts[item.feed_name] += 1
+        else:
+            existing = seen_titles[item.title]
+            if category_counts[item.feed_name] < category_counts[existing.feed_name]:
+                category_counts[existing.feed_name] -= 1
+                seen_titles[item.title] = item
+                category_counts[item.feed_name] += 1
+
+    return list(seen_titles.values())
+
+
 def cmd_ingest() -> None:
     """Ingest all WSJ feeds to Supabase."""
     print("=" * 60)
@@ -386,7 +470,7 @@ def cmd_ingest() -> None:
     print("=" * 60)
 
     # Fetch all feeds
-    print("\n[1/2] Fetching RSS feeds...")
+    print("\n[1/4] Fetching RSS feeds...")
     items, fetch_errors = fetch_all_wsj_feeds()
     print(f"\nTotal items fetched: {len(items)}")
 
@@ -394,8 +478,25 @@ def cmd_ingest() -> None:
         print("No items to insert.")
         return
 
+    # Merge BUSINESS + MARKETS into BUSINESS_MARKETS
+    CATEGORY_MERGE = {'BUSINESS': 'BUSINESS_MARKETS', 'MARKETS': 'BUSINESS_MARKETS'}
+    print("\n[2/4] Merging categories...")
+    for item in items:
+        if item.feed_name in CATEGORY_MERGE:
+            item.feed_name = CATEGORY_MERGE[item.feed_name]
+    merged_counts = Counter(item.feed_name for item in items)
+    for cat, count in merged_counts.most_common():
+        print(f"  {cat}: {count}")
+
+    # Deduplicate by title (same article cross-posted to multiple feeds)
+    print("\n[3/4] Deduplicating by title...")
+    before = len(items)
+    items = dedup_by_title(items)
+    dupes = before - len(items)
+    print(f"  Removed {dupes} cross-feed duplicates ({before} → {len(items)})")
+
     # Insert to Supabase
-    print("\n[2/2] Inserting to Supabase...")
+    print("\n[4/4] Inserting to Supabase...")
     supabase = get_supabase_client()
 
     result = IngestResult()
