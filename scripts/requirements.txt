@@ -24,3 +24,7 @@ crawl4ai>=0.4.0
 
 # OpenAI API (for llm_analysis.py)
 openai>=1.0.0
+
+# Google AI (for generate_briefing.py)
+google-genai>=1.0.0
+google-cloud-texttospeech>=2.16.0

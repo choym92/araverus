@@ -1,4 +1,4 @@
-<!-- Updated: 2026-02-11 -->
+<!-- Updated: 2026-02-15 -->
 # Database Schema (araverus)
 
 All Supabase/Postgres tables. Blog tables for the website, WSJ tables for the finance pipeline.
@@ -75,10 +75,13 @@ searched      BOOLEAN       -- set true after Google News search completed
 searched_at   TIMESTAMPTZ   -- when searched was set true
 processed     BOOLEAN       -- set true when quality crawl result exists (relevance ok/good)
 processed_at  TIMESTAMPTZ   -- when processed was set true
+briefed       BOOLEAN       -- set true for all articles used as input to a briefing
+                            --   prevents re-briefing on previously seen articles
+briefed_at    TIMESTAMPTZ   -- when briefed was set true
 created_at    TIMESTAMPTZ   -- auto: now()
 ```
 
-**Lifecycle**: `insert → searched=true (after Google News) → processed=true (after quality crawl)`
+**Lifecycle**: `insert → searched=true (after Google News) → processed=true (after quality crawl) → briefed=true (all articles in briefing)`
 **Skip filter**: Opinion articles (`title.startswith('Opinion |')`) and low-value categories (`/lifestyle/`, `/real-estate/`, `/arts/`, `/health/`, `/style/`, `/livecoverage/`, `/arts-culture/`) are skipped at parse time.
 **Category override**: `feed_name` and `subcategory` are extracted from the article URL path when available (more accurate than RSS feed name). Ambiguous paths (`articles`, `buyside`, `us-news`) fall back to RSS feed_name.
 
@@ -239,7 +242,8 @@ Job 4: save-results
   wsj_ingest.py --mark-processed-from-db → wsj_items.processed=true
   wsj_ingest.py --update-domain-status   → wsj_domain_status (update)
 
-Job 5: briefing (TBD)
+Job 5: briefing
   generate_briefing.py   → wsj_briefings (insert)
                          → wsj_briefing_items (insert)
+                         → wsj_items.briefed=true (all articles in briefing)
 ```
