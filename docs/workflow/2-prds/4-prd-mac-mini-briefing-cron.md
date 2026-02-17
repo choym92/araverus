@@ -335,13 +335,14 @@ scripts/output/
   wsj_google_news_results.jsonl        # Phase 1: search results
   wsj_ranked_results.jsonl             # Phase 2: ranked candidates
   articles/                            # Phase 3: crawled content (debug)
-  briefings/
-    YYYY-MM-DD/
-      articles-input-YYYY-MM-DD.txt    # Phase 5: assembled articles
-      briefing-en-YYYY-MM-DD.txt       # Phase 5: EN briefing
-      briefing-ko-YYYY-MM-DD.txt       # Phase 5: KO briefing
-      audio-en-YYYY-MM-DD.mp3          # Phase 5: EN audio
-      audio-ko-YYYY-MM-DD.mp3          # Phase 5: KO audio
+
+~/Documents/Briefings/                 # Phase 5: briefing outputs (outside repo)
+  YYYY-MM-DD/
+    articles-input-YYYY-MM-DD.txt      # assembled articles
+    briefing-en-YYYY-MM-DD.txt         # EN briefing text
+    briefing-ko-YYYY-MM-DD.txt         # KO briefing text
+    audio-en-YYYY-MM-DD.mp3            # EN audio (~20MB)
+    audio-ko-YYYY-MM-DD.mp3            # KO audio (~20MB)
 
 logs/
   pipeline-YYYY-MM-DD.log             # Full pipeline log per day
@@ -464,6 +465,6 @@ If running untrusted AI agents on the same Mac Mini:
 
 ## Open Questions
 
-- **Supabase Storage for audio?** Currently MP3 saved locally only. Future: upload to Supabase Storage and save public URL in `wsj_briefings.audio_url` for the frontend to play.
+- **Supabase Storage for audio?** MP3 saved to `~/Documents/Briefings/`. Free tier = 1GB, at ~40MB/day fills in ~25 days. Not viable without Pro plan ($25/mo, 100GB). For now, local-only. Future: consider Pro plan or self-hosted storage.
 - **Notification on failure?** Simple options: macOS Notification Center via `osascript`, or a Discord/Slack webhook curl at the end of `run_pipeline.sh`.
 - **Auto-update?** Could add `git pull origin main` at the start of `run_pipeline.sh` to always run latest code. Risk: untested changes break the pipeline. Safer to deploy manually.

@@ -217,9 +217,9 @@ class Article:
     title: str
     description: str
     category: str
-    published_at: str = ""
     has_quality_crawl: bool
     is_curated: bool
+    published_at: str = ""
     content: str = ""
     key_entities: list[str] = field(default_factory=list)
     key_numbers: list[str] = field(default_factory=list)
