@@ -1,4 +1,4 @@
-<!-- Updated: 2026-02-16 -->
+<!-- Updated: 2026-02-17 -->
 # PRD: Full Finance Pipeline on Mac Mini (launchd)
 
 ## Overview
@@ -47,6 +47,11 @@ Mac Mini (launchd)
 │                  │                                               │
 │                  ├── Phase 5: Briefing               (~5 min)    │
 │                  │   └── generate_briefing.py                    │
+│                  │       ├── LLM curation + briefing gen (EN/KO) │
+│                  │       ├── [CHAPTER:] marker extraction → JSON │
+│                  │       ├── TTS audio (Chirp HD + Gemini TTS)   │
+│                  │       ├── Save text + chapters + meta → Supabase│
+│                  │       └── Upload latest audio → Supabase Storage│
 │                  │                                               │
 │                  └── Log summary + exit code                     │
 │                                                                  │
@@ -258,9 +263,7 @@ Create `~/Library/LaunchAgents/com.araverus.pipeline.plist`:
     <key>StandardErrorPath</key>
     <string>/Users/USER/Project/araverus/logs/launchd-stderr.log</string>
 
-    <!-- Run missed job when Mac wakes from sleep -->
-    <key>AbandonProcessGroup</key>
-    <false/>
+    <!-- Mac Mini is always-on; no sleep/wake handling needed -->
 </dict>
 </plist>
 ```
@@ -315,6 +318,129 @@ If the Mac is set to a different timezone, use the UTC offsets from the plist ab
 
 ---
 
+## Audio Storage Strategy
+
+Audio files are large (~3-5MB each) and the frontend needs to stream them. Strategy: **Supabase Storage for latest only, Mac Mini for full history.**
+
+```
+generate_briefing.py (Phase 5):
+  TTS 생성
+    → audio-en-YYYY-MM-DD.mp3  로컬 저장 (히스토리, Mac Mini)
+    → audio-ko-YYYY-MM-DD.mp3  로컬 저장
+    → briefing-en-latest.mp3   Supabase Storage 업로드 (덮어쓰기)
+    → briefing-ko-latest.mp3   Supabase Storage 업로드 (덮어쓰기)
+    → wsj_briefings.audio_url = Supabase Storage public URL
+```
+
+### Why this approach
+
+| Concern | Solution |
+|---|---|
+| Frontend needs audio | Supabase Storage public URL → CDN-backed, fast globally |
+| Storage cost | Only 2 files on Supabase at any time (~10MB total). Well within free tier |
+| History | Full archive on Mac Mini local disk. Free, unlimited |
+| Reliability | If Supabase Storage is down, audio unavailable but text still works |
+
+### Supabase Storage setup
+
+```sql
+-- Create storage bucket (run once in Supabase SQL editor)
+INSERT INTO storage.buckets (id, name, public) VALUES ('briefings', 'briefings', true);
+```
+
+Script uploads with fixed filenames — each day's upload overwrites the previous:
+- `briefings/briefing-en-latest.mp3`
+- `briefings/briefing-ko-latest.mp3`
+
+Frontend reads `audio_url` from `wsj_briefings` table. URL is stable (same filename every day).
+
+---
+
+## Data Storage Summary
+
+| Data | Where | Why |
+|---|---|---|
+| Briefing text (`briefing_text`) | Supabase `wsj_briefings` | Frontend queries it |
+| Chapters JSON (`chapters`) | Supabase `wsj_briefings` | Frontend renders chapter navigation |
+| Audio URL (`audio_url`) | Supabase `wsj_briefings` | Frontend reads URL |
+| Audio file (MP3) | Supabase Storage (latest) + Mac Mini (history) | CDN for speed, local for archive |
+| Pipeline metadata (junction, briefed flags) | Supabase | Pipeline logic depends on it |
+| Category | `'EN'` or `'KO'` per row (NOT `'ALL'`) | One briefing per language per day |
+
+---
+
+## DB Schema Changes
+
+### `wsj_briefings` — add `chapters` column
+
+```sql
+ALTER TABLE wsj_briefings ADD COLUMN chapters jsonb;
+```
+
+### Category convention
+
+Each briefing is stored with `category = 'EN'` or `category = 'KO'`. The unique constraint is `(date, category)`, so one EN and one KO briefing per day.
+
+Frontend queries both:
+```sql
+SELECT * FROM wsj_briefings WHERE date = '2026-02-17' AND category IN ('EN', 'KO');
+```
+
+---
+
+## generate_briefing.py Changes (Phase 5)
+
+### Chapter marker system
+
+1. **Prompt**: Instruct LLM to insert `[CHAPTER: title]` markers at topic transitions
+2. **Extract**: Regex parses markers → `chapters` JSON array with title + character position
+3. **Clean**: Remove markers from text before sending to TTS (prevents TTS reading "CHAPTER")
+4. **Save**: `chapters` JSON to `wsj_briefings.chapters` column
+
+### Supabase Storage upload
+
+After TTS generation:
+1. Save MP3 locally to `~/Documents/Briefings/YYYY-MM-DD/audio-{lang}-{date}.mp3`
+2. Upload to Supabase Storage as `briefing-{lang}-latest.mp3` (overwrite)
+3. Save public URL to `wsj_briefings.audio_url`
+
+---
+
+## Frontend Changes
+
+Current `page.tsx` reads local files via `fs/promises` (temporary hack for prototyping). Must be replaced with Supabase queries for production.
+
+### Remove
+```typescript
+// DELETE — local file reads
+import { readFile } from 'fs/promises'
+const text = await readFile('public/audio/...', 'utf-8')
+```
+
+### Replace with
+```typescript
+// Fetch from Supabase
+const { data: briefings } = await supabase
+  .from('wsj_briefings')
+  .select('briefing_text, chapters, audio_url, date, category')
+  .eq('date', targetDate)
+  .in('category', ['EN', 'KO'])
+
+// EN briefing
+const enBriefing = briefings.find(b => b.category === 'EN')
+// KO briefing
+const koBriefing = briefings.find(b => b.category === 'KO')
+
+// Audio player: <audio src={enBriefing.audio_url} />
+// Chapters: enBriefing.chapters (JSON array)
+// Text: enBriefing.briefing_text
+```
+
+### `news-service.ts` fix
+Change `getLatestBriefing()` from `.eq('category', 'ALL')` to `.in('category', ['EN', 'KO'])` to match the script's storage convention.
+
+---
+
 ## GitHub Actions: Decommission Plan
 
 Once the Mac Mini pipeline is verified (3+ successful days):
@@ -338,11 +464,17 @@ scripts/output/
 
 ~/Documents/Briefings/                 # Phase 5: briefing outputs (outside repo)
   YYYY-MM-DD/
-    articles-input-YYYY-MM-DD.txt      # assembled articles
+    articles-input-YYYY-MM-DD.txt      # assembled articles (debug/audit)
     briefing-en-YYYY-MM-DD.txt         # EN briefing text
     briefing-ko-YYYY-MM-DD.txt         # KO briefing text
-    audio-en-YYYY-MM-DD.mp3            # EN audio (~20MB)
-    audio-ko-YYYY-MM-DD.mp3            # KO audio (~20MB)
+    chapters-en-YYYY-MM-DD.json        # EN chapter markers (title + position)
+    chapters-ko-YYYY-MM-DD.json        # KO chapter markers
+    audio-en-YYYY-MM-DD.mp3            # EN audio (local archive)
+    audio-ko-YYYY-MM-DD.mp3            # KO audio (local archive)
+
+Supabase Storage (briefings bucket):     # Latest audio only (overwritten daily)
+  briefing-en-latest.mp3               # EN audio (CDN-backed, frontend uses this)
+  briefing-ko-latest.mp3               # KO audio
 
 logs/
   pipeline-YYYY-MM-DD.log             # Full pipeline log per day
@@ -438,33 +570,51 @@ If running untrusted AI agents on the same Mac Mini:
 
 ## Implementation Checklist
 
-### On MacBook (now)
-- [x] Write this PRD
-- [ ] Commit + push to `feature/news-frontend`
+### Phase A: DB + Schema (safe, non-breaking)
+- [x] Run migration: `ALTER TABLE wsj_briefings ADD COLUMN chapters jsonb`
+- [ ] Create Supabase Storage bucket: `INSERT INTO storage.buckets (id, name, public) VALUES ('briefings', 'briefings', true)`
 
-### On Mac Mini
+### Phase B: Mac Mini Environment Setup
 - [ ] `git pull` (or clone) + checkout branch
 - [ ] `brew install python@3.11 ffmpeg`
 - [ ] `python3 -m venv .venv && source .venv/bin/activate`
 - [ ] `pip install -r scripts/requirements.txt`
 - [ ] `playwright install chromium`
-- [ ] Create `.env` with 5 keys (copy from MacBook + add OPENAI_API_KEY)
+- [ ] Create `.env` with 5 keys (Supabase, OpenAI, Gemini, GCloud SA)
 - [ ] Place Google Cloud service account JSON at `~/credentials/araverus-tts-sa.json`
-- [ ] Verify: `python scripts/wsj_ingest.py` (Phase 1 only)
-- [ ] Verify: `python scripts/generate_briefing.py --dry-run` (Phase 5 only)
-- [ ] Verify: `bash scripts/run_pipeline.sh` (full pipeline, manual)
+
+### Phase C: Script Changes (`generate_briefing.py`)
+- [ ] Add `[CHAPTER:]` marker instructions to EN/KO prompts
+- [ ] Add chapter extraction logic (regex → JSON)
+- [ ] Add marker removal before TTS
+- [ ] Add `chapters` JSON to DB save
+- [ ] Add Supabase Storage upload (latest audio overwrite)
+- [ ] Add `audio_url` to DB save
+
+### Phase D: Verify Pipeline
+- [ ] `python scripts/generate_briefing.py --dry-run` (Phase 5 only)
+- [ ] `python scripts/generate_briefing.py --skip-tts --skip-db` (text only)
+- [ ] `python scripts/generate_briefing.py` (full run)
+- [ ] `bash scripts/run_pipeline.sh` (full pipeline, manual)
+
+### Phase E: launchd Setup
 - [ ] `chmod +x scripts/run_pipeline.sh`
-- [ ] `mkdir -p logs`
-- [ ] Add `logs/` to `.gitignore`
+- [ ] `mkdir -p logs` + add `logs/` to `.gitignore`
 - [ ] Create plist at `~/Library/LaunchAgents/com.araverus.pipeline.plist`
-- [ ] `launchctl load ~/Library/LaunchAgents/com.araverus.pipeline.plist`
-- [ ] `launchctl start com.araverus.pipeline` (manual test)
-- [ ] Check logs: `tail -f logs/pipeline-$(date +%Y-%m-%d).log`
-- [ ] Wait for next morning's automatic run — verify all 5 phases complete
-- [ ] After 3 successful days: disable GitHub Actions workflow
+- [ ] `launchctl load` + `launchctl start` (manual test)
+- [ ] Verify next morning's automatic run
+
+### Phase F: Frontend
+- [ ] Fix `news-service.ts`: `.eq('category', 'ALL')` → `.in('category', ['EN', 'KO'])`
+- [ ] Remove `fs/promises` local file reads from `page.tsx`
+- [ ] Replace with Supabase queries (`briefing_text`, `chapters`, `audio_url`)
+
+### Phase G: Decommission GitHub Actions
+- [ ] After 3 successful Mac Mini days: disable GitHub Actions workflow
+- [ ] After 30 days: delete workflow YAML + remove GitHub Secrets
 
 ## Open Questions
 
-- **Supabase Storage for audio?** MP3 saved to `~/Documents/Briefings/`. Free tier = 1GB, at ~40MB/day fills in ~25 days. Not viable without Pro plan ($25/mo, 100GB). For now, local-only. Future: consider Pro plan or self-hosted storage.
 - **Notification on failure?** Simple options: macOS Notification Center via `osascript`, or a Discord/Slack webhook curl at the end of `run_pipeline.sh`.
 - **Auto-update?** Could add `git pull origin main` at the start of `run_pipeline.sh` to always run latest code. Risk: untested changes break the pipeline. Safer to deploy manually.
+- **Historical audio access?** Currently only latest audio on Supabase. If we need to serve past briefings, options: (a) keep N days on Supabase Storage, (b) Cloudflare R2 for full archive, (c) serve from Mac Mini via Cloudflare Tunnel.
