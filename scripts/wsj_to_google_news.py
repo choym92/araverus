@@ -31,7 +31,7 @@ import re
 import sys
 import time
 import xml.etree.ElementTree as ET
-from datetime import datetime, timedelta
+from datetime import timedelta
 from email.utils import parsedate_to_datetime
 from functools import lru_cache
 from pathlib import Path
@@ -45,8 +45,6 @@ from sklearn.feature_extraction.text import ENGLISH_STOP_WORDS
 from domain_utils import (
     load_preferred_domains,
     get_domain_priority,
-    is_preferred_domain,
-    get_supabase_client,
 )
 
 # Load environment variables
@@ -766,7 +764,7 @@ async def search_multi_query(
     # ==========================================================================
     # PHASE 1: Preferred domain search (site: queries)
     # ==========================================================================
-    print(f"    Phase 1: Searching preferred domains...")
+    print("    Phase 1: Searching preferred domains...")
 
     # Use first query (clean title) for site: searches
     primary_query = queries[0] if queries else ""
@@ -905,7 +903,7 @@ async def main():
         jsonl_path = Path(__file__).parent / 'output' / 'wsj_items.jsonl'
         if not jsonl_path.exists():
             print(f"Error: JSONL export not found at {jsonl_path}")
-            print(f"Run 'python scripts/wsj_ingest.py --export' first, or use --xml for legacy mode.")
+            print("Run 'python scripts/wsj_ingest.py --export' first, or use --xml for legacy mode.")
             sys.exit(1)
         wsj_items = load_wsj_jsonl(jsonl_path)
         print(f"Loaded {len(wsj_items)} WSJ items from: {jsonl_path}")
@@ -956,7 +954,7 @@ async def main():
             if pref_with_hits:
                 print(f"    Preferred domains: {pref_with_hits}")
             else:
-                print(f"    Preferred domains: (none)")
+                print("    Preferred domains: (none)")
 
             # Show top 5
             for j, art in enumerate(articles[:5]):
@@ -1008,17 +1006,17 @@ async def main():
         else:
             phase2_needed_count += 1
 
-    print(f"\nDual-phase search stats:")
+    print("\nDual-phase search stats:")
     print(f"  Phase 1 sufficient (skipped broad): {phase1_sufficient_count}")
     print(f"  Phase 2 needed (broad fallback): {phase2_needed_count}")
 
-    print(f"\nPreferred domain coverage:")
+    print("\nPreferred domain coverage:")
     for domain, count in agg_pref_hits.items():
         marker = "✓" if count > 0 else "✗"
         print(f"  {marker} {domain}: {count} articles")
 
     if results_no_articles:
-        print(f"\nSkipped (0 articles):")
+        print("\nSkipped (0 articles):")
         for r in results_no_articles:
             print(f"  - {r['wsj']['title'][:70]}...")
 
@@ -1056,13 +1054,13 @@ async def main():
         with open(ids_path, 'w') as f:
             json.dump({'ids': processed_ids, 'count': len(processed_ids)}, f, indent=2)
 
-    print(f"\nResults saved to:")
+    print("\nResults saved to:")
     print(f"  {jsonl_path}")
     print(f"  {txt_path}")
     print(f"  {instr_path}")
     if processed_ids:
         print(f"  {ids_path}")
-        print(f"\nTo mark items as processed in Supabase:")
+        print("\nTo mark items as processed in Supabase:")
         print(f"  python scripts/wsj_ingest.py --mark-processed {jsonl_path}")
 
 

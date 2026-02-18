@@ -7,7 +7,6 @@ Usage:
     python scripts/backfill_embeddings.py --embed-only
     python scripts/backfill_embeddings.py --dry-run
 """
-import sys
 from embed_and_thread import main
 
 if __name__ == "__main__":

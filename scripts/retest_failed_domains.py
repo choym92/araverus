@@ -12,7 +12,7 @@ from datetime import datetime
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent))
-from crawl_article import crawl_article, get_domain
+from crawl_article import crawl_article
 from test_domain_crawl import validate_content
 
 # Popular failed domains to retest (excluding paywall sites)
@@ -58,7 +58,7 @@ async def test_single_url(domain: str, url: str) -> dict:
     }
 
     try:
-        print(f"  Crawling with improved settings...")
+        print("  Crawling with improved settings...")
         crawl_result = await crawl_article(
             url,
             mode="undetected",

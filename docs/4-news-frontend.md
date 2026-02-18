@@ -1,7 +1,9 @@
-<!-- Updated: 2026-02-17 -->
+<!-- Updated: 2026-02-18 -->
 # News Platform — Frontend
 
-Technical guide for the `/news` page. WSJ-inspired 3-column layout with bilingual audio briefing player, powered by the existing finance pipeline.
+Technical guide for the `/news` page. Thread-grouped layout with bilingual audio briefing player, keyword filtering, and heat-based ranking. Powered by the existing news pipeline.
+
+For backend pipeline & threading algorithm details, see `docs/4-news-backend.md` and `docs/4-news-threading.md`.
 
 ---
 
@@ -10,11 +12,13 @@ Technical guide for the `/news` page. WSJ-inspired 3-column layout with bilingua
 ```mermaid
 graph TB
     subgraph "Supabase (Data)"
-        DB_ITEMS[wsj_items<br/>title, feed_name, link, subcategory]
+        DB_ITEMS[wsj_items<br/>title, feed_name, link, subcategory,<br/>slug, importance, keywords, thread_id]
         DB_CRAWL[wsj_crawl_results<br/>top_image, source, relevance_flag]
-        DB_LLM[wsj_llm_analysis<br/>summary]
+        DB_LLM[wsj_llm_analysis<br/>summary, keywords]
         DB_BRIEF[wsj_briefings<br/>briefing_text, audio_url, date,<br/>chapters JSONB, sentences JSONB]
         DB_JUNC[wsj_briefing_items<br/>briefing_id ↔ wsj_item_id]
+        DB_THREADS[wsj_story_threads<br/>title, member_count, first_seen, last_seen]
+        DB_EMBED[wsj_embeddings<br/>vector(768), BAAI/bge-base-en-v1.5]
     end
 
     subgraph "Server Layer"
@@ -27,6 +31,8 @@ graph TB
         SHELL[NewsShell<br/>Header + Sidebar wrapper]
         PLAYER[BriefingPlayer<br/>HTML5 Audio + Framer Motion<br/>EN/KO toggle, chapters, transcript]
         CARDS[ArticleCard<br/>featured / standard / compact]
+        THREAD[ThreadSection<br/>Collapsible thread group]
+        KWPILLS[KeywordPills<br/>Filterable keyword tags]
     end
 
     DB_ITEMS --> SVC
@@ -34,12 +40,16 @@ graph TB
     DB_LLM --> SVC
     DB_BRIEF --> SVC
     DB_JUNC --> SVC
+    DB_THREADS --> SVC
+    DB_EMBED --> SVC
 
     SVC --> PAGE
     LOCAL -.->|temp hack| PAGE
     PAGE --> SHELL
     PAGE --> PLAYER
     PAGE --> CARDS
+    PAGE --> THREAD
+    PAGE --> KWPILLS
 ```
 
 ---
@@ -57,50 +67,97 @@ graph LR
         SHELL --> HEADER[Header<br/>shared component]
         SHELL --> SIDEBAR[Sidebar<br/>shared component]
 
-        PAGE --> NAV[Category Nav<br/>sticky tabs]
+        PAGE --> TABS[Tab Nav<br/>Today / Stories / Search]
+        PAGE --> CATS[Category Pills<br/>All / Markets / Tech / ...]
+        PAGE --> KW[KeywordPills<br/>Topic filter bar]
         PAGE --> BP[BriefingPlayer 🔊<br/>Client Component<br/>EN/KO + chapters + transcript]
-        PAGE --> LEFT[Left Column<br/>3/12 text stories]
-        PAGE --> CENTER[Center Column<br/>6/12 hero + grid]
-        PAGE --> RIGHT[Right Column<br/>3/12 compact list]
-        PAGE --> BELOW[Below Fold<br/>3-col grid]
+        PAGE --> TS[ThreadSection 📂<br/>Client Component<br/>Collapsible thread groups]
+        TS --> AC_STD[ArticleCard standard]
+        PAGE --> UNGROUPED[Other Stories<br/>Ungrouped articles grid]
+        PAGE --> FALLBACK[Fallback 3-col<br/>When no threads exist]
+    end
 
-        LEFT --> AC_STD[ArticleCard standard]
-        CENTER --> AC_FEAT[ArticleCard featured]
-        RIGHT --> AC_COMP[ArticleCard compact]
+    subgraph "news/[slug]/page.tsx (Server)"
+        DETAIL[ArticlePage] --> REL[RelatedSection]
+        DETAIL --> TL[TimelineSection]
+        DETAIL --> MLT[MoreLikeThisSection]
     end
 ```
 
 ---
 
-## Page Layout (WSJ 3-Column)
+## Page Layout
 
-```mermaid
-block-beta
-    columns 12
+### Primary: Thread-Grouped (when threads exist)
 
-    header["Header (shared) — Logo | Toggle | Search | Login"]:12
-    nav["All | Markets | Tech | Economy | World | Politics (sticky tabs)"]:12
+```
+┌───────────────────────────────────────────────────────────────────┐
+│ Header (shared) — Logo | Toggle | Search | Login                  │
+├───────────────────────────────────────────────────────────────────┤
+│ [Today]  [Stories (Soon)]  [Search (Soon)]                        │  ← tabs
+│ [All] [Markets] [Tech] [Economy] [World] [Politics]               │  ← category pills
+├───────────────────────────────────────────────────────────────────┤
+│ Topics: [Fed(5)] [AI(4)] [Tariff(3)] [Nvidia(3)] [...]           │  ← keyword filter
+├───────────────────────────────────────────────────────────────────┤
+│                                                                    │
+│  ┌─ Daily Briefing ── Feb 17, 2026 ──────── max-w-3xl mx-auto ─┐│
+│  │ EN|KO  ▶  30s  PLAY  30s  [ch1]---[ch2]---[ch3]             ││
+│  │ Transcript  Sources (12)  Download                            ││
+│  └───────────────────────────────────────────────────────────────┘│
+│                                                                    │
+│  ┌─ Fed Rate Decision & Housing (5 articles) ─── heat: 10.5 ────┐│
+│  │ ⭐ Lead article (must_read) — full card                       ││
+│  │ ▼ Show 4 more articles                                        ││
+│  └───────────────────────────────────────────────────────────────┘│
+│                                                                    │
+│  ┌─ AI Chip Race (4 articles) ─── heat: 7.2 ────────────────────┐│
+│  │ Lead article — full card                                      ││
+│  │ + 3 collapsed articles                                        ││
+│  └───────────────────────────────────────────────────────────────┘│
+│                                                                    │
+│  ── Other Stories ───────────────────────────────────────────────  │
+│  │ grid-cols-1 md:grid-cols-2 lg:grid-cols-3                     │
+│  │ Ungrouped articles (no thread_id)                             │
+│  └───────────────────────────────────────────────────────────────┘│
+│                                                                    │
+│  ── Footer disclaimer ───────────────────────────────────────────  │
+└───────────────────────────────────────────────────────────────────┘
+```
 
-    space:12
+### Fallback: WSJ 3-Column (when no threads exist)
 
-    block:left:3
-        s1["WORLD  13h ago<br/>Story headline...<br/>Summary text..."]
-        s2["ECONOMY  15h ago<br/>Story headline...<br/>Summary text..."]
-        s3["MARKETS  21h ago<br/>Story headline..."]
-    end
+```
+┌───────────────────────────────────────────────────────────────────┐
+│ Header + Tabs + Category pills (same as above)                    │
+├───────────────────────────────────────────────────────────────────┤
+│                                                                    │
+│  ┌─ Left 3/12 ──┐  ┌─ Center 6/12 ──────────┐  ┌─ Right 3/12 ─┐│
+│  │ standard      │  │ BriefingPlayer          │  │ Latest        ││
+│  │ cards         │  │ Featured hero card      │  │ compact list  ││
+│  │ (text only)   │  │ + below-fold grid       │  │ (no images)   ││
+│  └───────────────┘  └────────────────────────┘  └──────────────┘│
+│                                                                    │
+│  ── Below fold: 3-col grid of remaining stories ─────────────────  │
+└───────────────────────────────────────────────────────────────────┘
+```
 
-    block:center:6
-        player["Daily Briefing — Feb 17, 2026<br/>EN|KO  Transcript  Sources<br/>30s  PLAY  30s<br/>----[ch1]---[ch2]---[ch3]----<br/>0:01  1x  -10:44<br/>Vol ===  Download"]
-        hero["FEATURED HERO<br/>Large image + centered headline"]
-        sub["Standard Card | Standard Card"]
-    end
+### Mobile (planned, not yet implemented)
 
-    block:right:3
-        latest["Latest<br/>1. Compact headline<br/>2. Compact headline<br/>3. Compact headline<br/>4. Compact headline"]
-    end
-
-    space:12
-    below["Below fold: 3-column grid of remaining stories"]:12
+```
+Mobile (< 768px):
+┌──────────────────────────┐
+│ 🎧 ▶ 0:00 EN|KO [─●──]  │  ← compact sticky
+├──────────────────────────┤
+│ [Today] [Stories] [Search]│
+├──────────────────────────┤
+│ [All|Mkts|Tech|Econ|more▸]│  ← horizontal scroll
+│ [Fed(5)] [AI(4)] [more ▸] │  ← horizontal scroll
+├──────────────────────────┤
+│ ┌─ 🔴 Fed Rates (5) ──┐ │
+│ │ Lead article         │ │
+│ │ ▼ 4 more articles    │ │  ← accordion
+│ └──────────────────────┘ │
+└──────────────────────────┘
 ```
 
 ---
@@ -115,27 +172,37 @@ sequenceDiagram
     participant DB as Supabase
     participant FS as Local FS (temp)
 
-    Browser->>Page: GET /news?category=TECH
+    Browser->>Page: GET /news?category=TECH&keyword=Fed
 
-    par Parallel fetches
+    par Parallel fetches (batch 1)
         Page->>Svc: getLatestBriefings()
         Svc->>DB: SELECT * FROM wsj_briefings<br/>WHERE category IN ('EN','KO')<br/>ORDER BY date DESC LIMIT 2
         DB-->>Svc: { en: Briefing | null, ko: Briefing | null }
 
         Page->>Svc: getNewsItems({ category: 'TECH', limit: 30 })
-        Svc->>DB: SELECT wsj_items<br/>JOIN wsj_crawl_results (top_image, source)<br/>JOIN wsj_llm_analysis (summary)<br/>WHERE processed=true AND feed_name='TECH'
+        Svc->>DB: SELECT wsj_items<br/>JOIN wsj_crawl_results (top_image, source)<br/>JOIN wsj_llm_analysis (summary, keywords)<br/>WHERE processed=true AND feed_name='TECH'
         DB-->>Svc: NewsItem[]
     end
 
-    Page->>Svc: getBriefingSources(briefingId)
-    Svc->>DB: SELECT wsj_briefing_items<br/>JOIN wsj_items (title, feed_name, link)<br/>JOIN wsj_crawl_results (source)
-    DB-->>Svc: BriefingSource[]
+    Note over Page: groupByThread(items) → threaded Map + ungrouped[]<br/>aggregateKeywords(items) → keyword counts
 
-    Page->>FS: readFile(chapters-en/ko, sentences-en/ko, transcript-en/ko)
-    FS-->>Page: JSON/text (fallback data)
+    par Parallel fetches (batch 2)
+        Page->>Svc: getBriefingSources(briefingId)
+        Svc->>DB: SELECT wsj_briefing_items<br/>JOIN wsj_items JOIN wsj_crawl_results
+        DB-->>Svc: BriefingSource[]
 
-    Page-->>Browser: SSR HTML with NewsShell + Player + Cards
-    Note over Browser: Client hydrates NewsShell,<br/>BriefingPlayer with EN/KO toggle
+        Page->>Svc: getThreadsByIds(threadIds)
+        Svc->>DB: SELECT id, title, member_count<br/>FROM wsj_story_threads WHERE id IN (...)
+        DB-->>Svc: Map<string, StoryThread>
+
+        Page->>FS: readFile(chapters/sentences/transcript EN+KO)
+        FS-->>Page: JSON/text (local fallback data)
+    end
+
+    Note over Page: computeHeatScore() per thread<br/>Sort threads by heat descending
+
+    Page-->>Browser: SSR HTML with NewsShell + Player + ThreadSections + Cards
+    Note over Browser: Client hydrates NewsShell,<br/>BriefingPlayer, ThreadSection (expand/collapse)
 ```
 
 ---
@@ -145,16 +212,17 @@ sequenceDiagram
 | File | Type | Purpose |
 |------|------|---------|
 | `src/app/news/layout.tsx` | Server | Metadata only (`title`, `description`) |
-| `src/app/news/page.tsx` | Server | Data fetching, tabs, keyword filter, thread grouping, 3-col fallback layout |
+| `src/app/news/page.tsx` | Server | Data fetching, tabs, keyword filter, thread grouping, heat ranking, 3-col fallback |
 | `src/app/news/[slug]/page.tsx` | Server | Article detail page with metadata, related articles, story timeline |
-| `src/app/news/[slug]/_components/RelatedSection.tsx` | Server | Horizontal card grid for related articles |
+| `src/app/news/[slug]/_components/RelatedSection.tsx` | Server | Horizontal card grid for related articles (pgvector) |
 | `src/app/news/[slug]/_components/TimelineSection.tsx` | Server | Vertical timeline with date dots for story threads |
 | `src/app/news/[slug]/_components/MoreLikeThisSection.tsx` | Server | 90-day similarity cards (wraps RelatedSection) |
 | `src/app/news/_components/NewsShell.tsx` | Client | Header + Sidebar wrapper (sidebar starts closed, shifts content on open) |
 | `src/app/news/_components/BriefingPlayer.tsx` | Client | Bilingual audio player with chapters, transcript, volume, download |
 | `src/app/news/_components/ArticleCard.tsx` | Server | Article display with 3 variants + importance/keywords/slug support |
 | `src/app/news/_components/KeywordPills.tsx` | Server | Reusable keyword pills with optional link behavior + active state |
-| `src/lib/news-service.ts` | Server | `NewsService` class (Supabase queries, bilingual briefings, related articles) |
+| `src/app/news/_components/ThreadSection.tsx` | Client | Collapsible thread group with title + article count badge |
+| `src/lib/news-service.ts` | Server | `NewsService` class (Supabase queries, bilingual briefings, threads, related articles) |
 | `src/app/globals.css` | Shared | WSJ design tokens (`--color-news-*`) |
 | `next.config.ts` | Config | `remotePatterns` for external images |
 | `public/audio/` | Static | TTS audio files (WAV, served statically) |
@@ -162,44 +230,64 @@ sequenceDiagram
 
 ---
 
-## BriefingPlayer Features
+## Page Helper Functions
 
-```mermaid
-stateDiagram-v2
-    [*] --> Collapsed: Page load
+Defined in `src/app/news/page.tsx` (server-side, not exported):
 
-    Collapsed --> Playing: Click Play
-    Playing --> Paused: Click Pause
-    Paused --> Playing: Click Play
-    Playing --> Collapsed: Audio ends
+### `aggregateKeywords(items: NewsItem[])`
+Collects keywords from all articles, counts occurrences, returns top 20 sorted by frequency.
 
-    Collapsed --> Expanded: Click Sources chevron
-    Expanded --> Collapsed: Click Sources chevron
+### `groupByThread(items: NewsItem[])`
+Groups articles by `thread_id`. Returns `{ threaded: Map<string, { threadId, articles }>, ungrouped: NewsItem[] }`. Within each thread, articles are sorted by importance (must_read first) then by date descending.
 
-    Collapsed --> Transcript: Click Transcript icon
-    Transcript --> Collapsed: Click Transcript icon
+### `computeHeatScore(articles: NewsItem[])`
+Computes heat score for thread ranking. Formula:
+```
+heat = Σ (importance_weight × e^(-0.3 × days_old))
 
-    state Collapsed {
-        [*] --> ShowHeader: Icon + title + date + source count + duration
-        ShowHeader --> LangToggle: EN / KO toggle buttons
-        LangToggle --> ShowControls: Skip -30s | Play | Skip +30s
-        ShowControls --> ShowProgress: Seek bar with chapter dots
-        ShowProgress --> ShowTime: Current time + speed + remaining
-        ShowTime --> ShowVolume: Volume slider + mute + download
-    }
+importance_weight: must_read=3, worth_reading=2, optional=1
+time_decay half-life: ~2.3 days
+```
+See `docs/4-news-threading.md` for full algorithm details.
 
-    state Expanded {
-        [*] --> SourceList: Numbered article list (scrollable)
-        SourceList --> ClickSource: Link to original article
-    }
+---
 
-    state Transcript {
-        [*] --> SentenceView: Sentence-highlighted text
-        SentenceView --> AutoScroll: Active sentence scrolls into view
-    }
+## URL Parameters
+
+| Param | Example | Purpose |
+|-------|---------|---------|
+| `category` | `?category=TECH` | Filter articles by `feed_name` |
+| `tab` | `?tab=stories` | Switch tab (default: `today`) |
+| `keyword` | `?keyword=Fed` | Filter articles by keyword match |
+
+All parameters are combinable: `/news?category=TECH&keyword=AI&tab=today`
+
+### Tab Structure
+
+| Tab | Content | Status |
+|-----|---------|--------|
+| **Today** | Audio player + thread groups + keyword filter + category filter | Implemented |
+| **Stories** | Narrative timeline — story threads across days/weeks | Placeholder |
+| **Search** | Semantic search over all articles via pgvector | Placeholder |
+
+### Category Constants
+
+```typescript
+const CATEGORIES = [
+  { label: 'All', slug: '' },
+  { label: 'Markets', slug: 'BUSINESS_MARKETS' },
+  { label: 'Tech', slug: 'TECH' },
+  { label: 'Economy', slug: 'ECONOMY' },
+  { label: 'World', slug: 'WORLD' },
+  { label: 'Politics', slug: 'POLITICS' },
+]
 ```
 
-### Player Props
+---
+
+## Component Props
+
+### BriefingPlayer
 
 ```typescript
 interface BriefingPlayerProps {
@@ -238,7 +326,7 @@ interface BriefingSource {
 }
 ```
 
-### Controls
+#### Player Controls
 - **Play/Pause**: Large white circle button with scale animation
 - **Skip +/-30s**: RotateCcw / RotateCw buttons with "30" overlay
 - **Seek**: Click-to-seek gradient progress bar with hover dot and chapter markers
@@ -252,6 +340,92 @@ interface BriefingSource {
 - **Keyboard**: Space (play/pause), Arrow Left/Right (+/-30s), Arrow Up/Down (volume), M (mute)
 - **Resume**: Saves playback position to localStorage per audio URL
 
+```mermaid
+stateDiagram-v2
+    [*] --> Collapsed: Page load
+
+    Collapsed --> Playing: Click Play
+    Playing --> Paused: Click Pause
+    Paused --> Playing: Click Play
+    Playing --> Collapsed: Audio ends
+
+    Collapsed --> Expanded: Click Sources chevron
+    Expanded --> Collapsed: Click Sources chevron
+
+    Collapsed --> Transcript: Click Transcript icon
+    Transcript --> Collapsed: Click Transcript icon
+
+    state Collapsed {
+        [*] --> ShowHeader: Icon + title + date + source count + duration
+        ShowHeader --> LangToggle: EN / KO toggle buttons
+        LangToggle --> ShowControls: Skip -30s | Play | Skip +30s
+        ShowControls --> ShowProgress: Seek bar with chapter dots
+        ShowProgress --> ShowTime: Current time + speed + remaining
+        ShowTime --> ShowVolume: Volume slider + mute + download
+    }
+
+    state Expanded {
+        [*] --> SourceList: Numbered article list (scrollable)
+        SourceList --> ClickSource: Link to original article
+    }
+
+    state Transcript {
+        [*] --> SentenceView: Sentence-highlighted text
+        SentenceView --> AutoScroll: Active sentence scrolls into view
+    }
+```
+
+### ArticleCard
+
+```typescript
+interface ArticleCardProps {
+  headline: string
+  summary: string | null
+  source: string | null
+  category: string
+  timestamp: string
+  imageUrl: string | null
+  link: string
+  variant?: 'featured' | 'standard' | 'compact'
+  slug?: string | null       // links to /news/[slug] if present
+  importance?: string | null  // must_read / worth_reading / optional
+  keywords?: string[] | null
+  activeKeyword?: string | null
+  scoreDisplay?: 'visual' | 'numeric'
+}
+```
+
+- **featured**: Large image, centered headline, full summary
+- **standard**: Optional image, headline + summary + keywords + source
+- **compact**: Headline only, no image, minimal metadata
+- **ImportanceBadge**: Visual indicator for `must_read` articles
+
+### ThreadSection
+
+```typescript
+interface ThreadSectionProps {
+  title: string              // from wsj_story_threads.title
+  articleCount: number
+  defaultExpanded?: boolean  // first thread starts expanded
+  children: React.ReactNode  // ArticleCard children
+}
+```
+
+- Shows thread title + article count badge
+- Expand/collapse: initially shows first 2 articles
+- If thread has ≤2 articles: no collapse, shows all
+- "Show N more" / "Show less" toggle buttons
+
+### KeywordPills
+
+```typescript
+interface KeywordPillsProps {
+  keywords: string[]
+  activeKeyword?: string | null
+  linkable?: boolean  // when true, pills are links with ?keyword= param
+}
+```
+
 ---
 
 ## NewsService API
@@ -261,8 +435,14 @@ classDiagram
     class NewsService {
         -supabase: SupabaseClient
         +constructor(client: SupabaseClient)
-        +getLatestBriefings(): Promise~en: Briefing|null, ko: Briefing|null~
+        +getLatestBriefings(): Promise~en/ko Briefing|null~
         +getNewsItems(opts): Promise~NewsItem[]~
+        +getNewsItemBySlug(slug): Promise~NewsItem|null~
+        +getRelatedArticles(itemId, limit): Promise~RelatedArticle[]~
+        +getThreadTimeline(threadId): Promise~NewsItem[]~
+        +getMoreLikeThis(itemId, limit): Promise~RelatedArticle[]~
+        +getStoryThread(threadId): Promise~StoryThread|null~
+        +getThreadsByIds(threadIds): Promise~Map~string,StoryThread~~
         +getBriefingSources(briefingId): Promise~BriefingSource[]~
         +getCategories(): Promise~string[]~
     }
@@ -274,8 +454,8 @@ classDiagram
         briefing_text: string
         audio_url: string | null
         audio_duration: number | null
-        chapters: BriefingChapter[] | null  // JSONB
-        sentences: BriefingSentence[] | null  // JSONB
+        chapters: BriefingChapter[] | null
+        sentences: BriefingSentence[] | null
         item_count: number
         created_at: string
     }
@@ -299,8 +479,27 @@ classDiagram
         resolved_url: string | null
     }
 
+    class RelatedArticle {
+        id: string
+        title: string
+        feed_name: string
+        published_at: string
+        slug: string | null
+        similarity: number
+    }
+
+    class StoryThread {
+        id: string
+        title: string
+        member_count: number
+        first_seen: string
+        last_seen: string
+    }
+
     NewsService --> Briefing
     NewsService --> NewsItem
+    NewsService --> RelatedArticle
+    NewsService --> StoryThread
 ```
 
 ### Method Details
@@ -314,6 +513,7 @@ classDiagram
 | `getThreadTimeline(threadId)` | `wsj_items WHERE thread_id=? ORDER BY published_at ASC` | `NewsItem[]` |
 | `getMoreLikeThis(itemId, limit)` | `match_articles_wide` RPC (pgvector, 90 days) | `RelatedArticle[]` |
 | `getStoryThread(threadId)` | `wsj_story_threads WHERE id=?` | `StoryThread \| null` |
+| `getThreadsByIds(threadIds)` | `wsj_story_threads WHERE id IN (...)` | `Map<string, StoryThread>` |
 | `getBriefingSources(id)` | `wsj_briefing_items JOIN wsj_items JOIN wsj_crawl_results` | `BriefingSource[]` |
 | `getCategories()` | `SELECT DISTINCT feed_name FROM wsj_items WHERE processed=true` | `string[]` |
 
@@ -321,25 +521,63 @@ classDiagram
 
 ## Design Decisions
 
+### Layout & Navigation
+
 | Decision | Original Plan | Actual Implementation | Rationale |
 |----------|--------------|----------------------|-----------|
-| Layout | Standalone masthead | Shared Header + Sidebar via `NewsShell` | User wanted consistent site feel, not a separate entity |
+| Layout | Standalone masthead | Shared Header + Sidebar via `NewsShell` | User wanted consistent site feel |
+| Primary layout | WSJ 3-column (3/6/3) | Thread-grouped single column | Meaningful grouping > visual density; mobile-friendly |
+| 3-column fallback | N/A | Kept as fallback when no threads exist | Backward compat for sparse data |
 | Sidebar behavior | N/A | Starts closed on `/news`, shifts content on open | News content takes full width by default |
 | Header/Sidebar borders | Default borders | Removed `border-r` and `border-b` | Cleaner OpenAI-style look |
-| Audio player | Thin horizontal bar | Card player with expand/collapse sources | NotebookLM-inspired, richer UX |
-| Player placement | Top of page (full width) | Center column, above hero | WSJ-style visual hierarchy |
-| Audio fallback | Only show if `audio_url` exists | Always show with local file fallback | Audio pipeline not fully deployed yet |
-| 3-column layout | 8/4 (main + sidebar) | 3/6/3 (left text + center hero + right compact) | Matches actual WSJ homepage layout |
-| Image domains | HTTPS only | HTTPS + HTTP `remotePatterns` | Some crawled images use HTTP |
-| Category nav | Dark background bar | Inline tabs with active underline | Matches site's neutral style |
-| Briefing language | Single language | EN/KO bilingual with toggle | Pipeline generates both; let user choose |
-| Player props | `audioUrl` as single string | `en` / `ko` `BriefingLangData` objects | Encapsulates per-language audio, chapters, transcript, sentences |
-| Transcript | Not planned | Sentence-highlighted panel with auto-scroll | Accessibility + reading-along UX |
-| Chapter markers | Not planned | Dots on seek bar + pill buttons | Quick navigation within long briefings |
-| Volume control | Not planned | Slider + mute toggle + keyboard shortcuts | Standard audio player expectations |
-| Download button | Not planned | Downloads current language audio file | Users requested offline listening |
-| Resume playback | Not planned | localStorage per audio URL | Avoids losing position on page refresh |
-| Deployment | GitHub Actions only | Mac Mini with launchd + GitHub Actions | Local pipeline for TTS generation |
+| Tab structure | Single view | Today / Stories / Search tabs | Progressive feature rollout |
+
+### Filtering & Grouping
+
+| Decision | Choice | Rationale |
+|----------|--------|-----------|
+| Category + Keyword coexistence | Categories filter articles, keywords filter within | Single unified view, not separate modes |
+| Thread ranking | Heat score (importance × time decay) | Hot stories float up automatically |
+| Thread collapse | First thread expanded, rest collapsed (2 articles shown) | Reduces cognitive load; 30 → 8 scannable chunks |
+| Keyword filter | Top 20 keywords by frequency, clickable pills | Information scent — users spot topics instantly |
+| Thread titles | From `wsj_story_threads.title` (Gemini-generated) | More meaningful than "N Related Articles" |
+
+### Audio Player
+
+| Decision | Choice | Rationale |
+|----------|--------|-----------|
+| Player style | Card player with expand/collapse sources | NotebookLM-inspired, richer UX |
+| Player placement | Center of page (thread layout) or center column (3-col) | Visual hierarchy focal point |
+| Language | EN/KO bilingual with toggle | Pipeline generates both; let user choose |
+| Chapters | Dots on seek bar + pill buttons | Quick navigation within long briefings |
+| Transcript | Sentence-highlighted panel with auto-scroll | Accessibility + reading-along UX |
+| Volume/Download | Slider + mute + keyboard + download button | Standard audio player expectations |
+| Resume | localStorage per audio URL | Avoid losing position on page refresh |
+| Audio fallback | Always show with local file fallback | Audio pipeline not fully deployed yet |
+
+### Article Detail Page (`/news/[slug]`)
+
+| Decision | Choice | Rationale |
+|----------|--------|-----------|
+| URL scheme | Slug-based (`/news/fed-holds-rates`) | SEO-friendly, human-readable |
+| Sections order | Article → Related (today) → Timeline → More Like This (90d) | Progressive depth: same-day → story arc → historical |
+| External link | "Read original" secondary link | Keep users on-site, don't hide source |
+| Related articles | pgvector `match_articles` RPC (±1 day window) | Semantic similarity, not just same category |
+| More Like This | `match_articles_wide` RPC (90 day window) | Cross-time connections |
+
+### Why Not Graph View?
+
+The initial idea was an Obsidian-style graph view for article relationships. Rejected because:
+
+| Obsidian (works) | News site (doesn't work) |
+|-----------------|-------------------------|
+| Personal notes — user knows the content | First-time articles — user has no context |
+| Small corpus (tens to hundreds) | 30+ articles daily, changing every day |
+| Permanent — spatial memory forms over time | Ephemeral — position resets daily |
+| User-created links = meaningful connections | Auto-generated links = noise |
+| Exploration is the goal | Quick scanning is the goal |
+
+**Key insight**: The *value* of a graph view — discovering connections — is delivered through thread grouping + hub-spoke detail pages without the visual complexity.
 
 ---
 
@@ -349,34 +587,155 @@ These are workarounds that should be removed once the pipeline is fully deployed
 
 | Hack | Location | Description | Resolution |
 |------|----------|-------------|------------|
-| Local file reads | `src/app/news/page.tsx` lines 39-49 | Reads chapters, sentences, and transcript from `notebooks/tts_outputs/text/` via `fs/promises` | Remove once pipeline uploads to Supabase Storage and `wsj_briefings.chapters`/`sentences` are populated |
-| Hardcoded audio paths | `src/app/news/page.tsx` lines 138, 143 | Falls back to `/audio/chirp3-en-*.wav` and `/audio/gemini-tts-ko-*.wav` in `public/audio/` | Remove once `wsj_briefings.audio_url` is reliably populated |
-| Hardcoded date suffix | `src/app/news/page.tsx` lines 43-48 | Local filenames include `2026-02-16` date suffix | Will be dynamic once pipeline writes to Supabase |
-| `readFile` import | `src/app/news/page.tsx` line 7 | `fs/promises` imported in a Next.js page (server-only, works but non-standard) | Remove with the local file reads |
+| Local file reads | `page.tsx` lines 123-131 | Reads chapters, sentences, and transcript from `notebooks/tts_outputs/text/` via `fs/promises` | Remove once pipeline uploads to Supabase Storage and `wsj_briefings.chapters`/`sentences` are populated |
+| Hardcoded audio paths | `page.tsx` lines 294, 300 | Falls back to `/audio/chirp3-en-*.wav` and `/audio/gemini-tts-ko-*.wav` | Remove once `wsj_briefings.audio_url` is reliably populated |
+| Hardcoded date suffix | `page.tsx` lines 126-131 | Local filenames include `2026-02-16` date suffix | Will be dynamic once pipeline writes to Supabase |
+| `readFile` import | `page.tsx` line 10 | `fs/promises` imported in a Next.js page (server-only, works but non-standard) | Remove with the local file reads |
 
 ---
 
-## Pipeline Phase Status
+## Known Issues & TODOs
+
+### Frontend Issues
+
+| Issue | Description | Priority |
+|-------|-------------|----------|
+| Thread subset display | Today tab fetches 30 articles, but threads span days/weeks. A 17-article thread might show only 2 articles today, looking insignificant | Medium |
+| No "(2 of 17)" indicator | Users don't know how many total articles are in a thread | Medium |
+| Mobile responsiveness | Single-column collapse not yet implemented | High |
+| Sticky BriefingPlayer | Player should become compact sticky bar on scroll | Low |
+| Detail page components | RelatedSection, TimelineSection, MoreLikeThisSection exist but are minimal | Medium |
+
+### Backend TODOs (tracked separately)
+
+See `docs/4-news-threading.md` and `docs/workflow/1-ideas/4.2-idea-thread-grouping-rethink.md` for:
+- Summary re-backfill with improved prompts
+- Embedding re-generation with `title + summary`
+- Threading re-run with improved embeddings
+
+---
+
+## Future Frontend Plans
+
+### Article Detail Page Enhancements
+
+The `/news/[slug]` page has the route and basic layout, but these sections need fuller implementation:
+
+```
+┌─────────────────────────────────────────────────────────┐
+│  /news/[slug]                                   [← Back] │
+│                                                           │
+│  ┌─ Article ─────────────────────────────────────────┐  │
+│  │ Headline, summary, keywords, source link           │  │
+│  └───────────────────────────────────────────────────┘  │
+│                                                           │
+│  ┌─ Related (Today) ────────────────────────────────┐  │
+│  │ Hub-spoke: same day/cluster, embedding nearest    │  │
+│  │ (pgvector match_articles RPC exists, UI minimal)  │  │
+│  └───────────────────────────────────────────────────┘  │
+│                                                           │
+│  ┌─ Story Timeline (mini) ──────────────────────────┐  │
+│  │ This story across days (3-5 entries max)          │  │
+│  │ [View full timeline →] links to Stories tab       │  │
+│  │ (getThreadTimeline() exists, UI minimal)          │  │
+│  └───────────────────────────────────────────────────┘  │
+│                                                           │
+│  ┌─ More Like This (Historical) ────────────────────┐  │
+│  │ pgvector cross-time nearest neighbor (90 days)    │  │
+│  │ (match_articles_wide RPC exists, UI minimal)      │  │
+│  └───────────────────────────────────────────────────┘  │
+└─────────────────────────────────────────────────────────┘
+```
+
+### Stories Tab — Narrative Timeline
+
+Cross-day thread timeline view. Backend data exists (`wsj_story_threads` with lifecycle), frontend not built.
+
+```
+┌─────────────────────────────────────────────────────────────────────────┐
+│  🔴 Fed Rate Policy                              9 articles · 5 days   │
+│  ───────────────────────────────────────────────────────────────────    │
+│                                                                         │
+│  Mon 2/10        Tue 2/11        Wed 2/12        Thu 2/13    Fri 2/14  │
+│  ┌─────────┐    ┌─────────┐    ┌─────────┐                  ┌───────┐ │
+│  │ Fed      │    │ Markets  │    │ Mortgage │                  │ Jobs  │ │
+│  │ signals  │    │ react to │    │ rates    │    (no articles) │ report│ │
+│  │ rate     │    │ Fed tone │    │ climb on │                  │ adds  │ │
+│  │ pause    │    │          │    │ Fed hold │                  │ rate  │ │
+│  │ 3 articles│    │ 4 articles│    │ 2 articles│                  │ pres- │ │
+│  └─────────┘    └─────────┘    └─────────┘                  │ sure  │ │
+│       │              │              │                         └───────┘ │
+│       └──────────────┴──────────────┴────────────────────────────┘     │
+└─────────────────────────────────────────────────────────────────────────┘
+```
+
+### Search Tab — Semantic Search
+
+Embed user query → pgvector nearest neighbor → return matching articles. Model is already in place (BAAI/bge-base-en-v1.5), needs:
+- API route: `POST /api/news/search` (embed query + pgvector query)
+- Frontend: Search bar + results display on `/news?tab=search`
+
+### Other Future Ideas
+
+| Feature | Backend Ready? | Frontend Effort | Notes |
+|---------|---------------|-----------------|-------|
+| Sticky BriefingPlayer | N/A | Small | Hero → compact sticky bar on scroll |
+| Thread "(2 of 17)" indicator | `wsj_story_threads.member_count` exists | Small | Show total vs displayed count |
+| Trending badges | Heat score exists | Small | "🔥 Trending" badge on hot threads |
+| Personalized "For You" feed | Needs user reading history | Medium | Auth required; could start with localStorage |
+| RAG / Q&A | pgvector + embeddings exist | Large | LLM call per query, streaming UI needed |
+
+---
+
+## WSJ Design Reference
+
+Preserved from original design intent:
+
+- **Colors**: midnight `#111`, coal `#333`, smoke `#ebebeb`, blue `#0274b6`, red `#e10000`, gold `#816d4d`
+- **Typography**: 17px base, serif headlines (`font-serif`), sans-serif UI/meta
+- **Layout**: Full-width with `px-6 md:px-12 lg:px-16` padding
+- **Dividers**: `border-neutral-200` horizontal rules between sections
+- **Category pills**: Rounded full, neutral-100 bg, neutral-900 when active
+- **Thread sections**: `font-serif` title with `border-b-2 border-neutral-900`
+
+---
+
+## Implementation Phase Status
 
 ```mermaid
 graph LR
-    P1[Phase 1<br/>Ingest + Crawl] --> P2[Phase 2<br/>Briefing Text]
-    P2 --> P3[Phase 3<br/>TTS Audio]
-    P3 --> P4[Phase 4<br/>Frontend]
+    P1[Phase 1<br/>Keywords + Embeddings<br/>+ Threading] --> P2[Phase 2<br/>Article Detail Page]
+    P2 --> P3[Phase 3<br/>Thread UX<br/>title, collapse, heat]
+
+    P3 --> P4[Phase 4<br/>Detail page sections<br/>Related, Timeline, MLT]
+    P4 --> P5[Phase 5<br/>Stories tab<br/>Narrative timeline]
+    P5 --> P6[Phase 6<br/>Search tab<br/>Semantic search]
 
     style P1 fill:#22c55e,color:#fff
     style P2 fill:#22c55e,color:#fff
-    style P3 fill:#f59e0b,color:#fff
-    style P4 fill:#22c55e,color:#fff
+    style P3 fill:#22c55e,color:#fff
+    style P4 fill:#f59e0b,color:#fff
+    style P5 fill:#ef4444,color:#fff
+    style P6 fill:#ef4444,color:#fff
 ```
 
 | Phase | Status | Description |
 |-------|--------|-------------|
-| 1. Ingest + Crawl | Done | `wsj_items` + `wsj_crawl_results` + `wsj_llm_analysis` |
-| 2. Briefing Generation | Done | `wsj_briefings` (EN + KO) + `wsj_briefing_items` via `generate_briefing.py` |
-| 3. TTS Audio | Partial | Local generation works (Chirp3 EN, Gemini KO). Supabase Storage upload pending. Chapters/sentences generated locally. |
-| 4. News Frontend | Done | `/news` page with 3-col layout, bilingual player, chapters, transcript, category filtering |
-| 5. Deployment | In Progress | Mac Mini with launchd for pipeline cron (not just GitHub Actions) |
+| 1. Keywords + Embeddings + Threading | ✅ Done | Pipeline: keywords, bge-base embeddings, thread algorithm v3.3 |
+| 2. Article Detail Page | ✅ Done | `/news/[slug]` with metadata, basic related/timeline/MLT sections |
+| 3. Thread UX | ✅ Done | Thread titles, expand/collapse, heat score ranking |
+| 4. Detail Page Sections | 🔶 Partial | RelatedSection, TimelineSection, MoreLikeThisSection exist but need fuller UI |
+| 5. Stories Tab | ❌ Not started | Cross-day narrative timeline |
+| 6. Search Tab | ❌ Not started | Semantic search via pgvector |
+
+### Pipeline Phase Status
+
+| Phase | Status | Description |
+|-------|--------|-------------|
+| 1. Ingest + Crawl | ✅ Done | `wsj_items` + `wsj_crawl_results` + `wsj_llm_analysis` |
+| 2. Briefing Generation | ✅ Done | `wsj_briefings` (EN + KO) + `wsj_briefing_items` |
+| 3. TTS Audio | 🔶 Partial | Local generation works. Supabase Storage upload pending. |
+| 4. Deployment | 🔶 In Progress | Mac Mini with launchd for pipeline cron |
 
 ---
 
@@ -385,16 +744,24 @@ graph LR
 - [x] `npm run lint` — passes
 - [x] `npm run build` — compiles, `/news` route is dynamic
 - [x] Page renders with real data from Supabase
+- [x] Thread groups show with titles, sorted by heat score
+- [x] Thread expand/collapse works (first expanded, rest collapsed)
+- [x] Keyword filter bar shows top keywords, clicking filters articles
+- [x] Category pills filter articles by feed_name
+- [x] Tab navigation (Today active, Stories/Search placeholder)
 - [x] Audio player plays WAV files from `public/audio/`
 - [x] EN/KO language toggle switches audio and transcript
 - [x] Chapter markers appear on seek bar and as pill buttons
 - [x] Sentence-highlighted transcript with auto-scroll
 - [x] Volume control and mute toggle work
 - [x] Download button saves audio file
-- [x] Category filtering works via `?category=TECH`
 - [x] Sidebar starts closed, shifts content on toggle
 - [x] External images load from arbitrary domains
 - [x] Keyboard shortcuts (Space, arrows, M) work
+- [x] Article detail page loads at `/news/[slug]`
 - [ ] Mobile responsiveness (single-column collapse)
 - [ ] Supabase Storage audio URLs replace local files
 - [ ] Pipeline auto-uploads chapters/sentences JSONB to `wsj_briefings`
+- [ ] Detail page Related/Timeline/MLT sections fully built
+- [ ] Stories tab implementation
+- [ ] Search tab implementation

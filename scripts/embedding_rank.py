@@ -200,7 +200,7 @@ def main():
     # Score distribution
     all_scores = [a['embedding_score'] for r in ranked_results for a in r['ranked']]
     if all_scores:
-        print(f"Score distribution:")
+        print("Score distribution:")
         print(f"  Min: {min(all_scores):.3f}")
         print(f"  Max: {max(all_scores):.3f}")
         print(f"  Avg: {sum(all_scores)/len(all_scores):.3f}")
@@ -230,7 +230,7 @@ def main():
                 f.write(f"    {art.get('link', 'N/A')}\n")
             f.write("\n")
 
-    print(f"\nResults saved to:")
+    print("\nResults saved to:")
     print(f"  {jsonl_path}")
     print(f"  {txt_path}")
 

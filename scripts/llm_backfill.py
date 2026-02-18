@@ -18,7 +18,6 @@ Example:
     python scripts/llm_backfill.py --limit 50
 """
 import argparse
-import json
 import os
 import sys
 import time

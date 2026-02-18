@@ -428,7 +428,6 @@ def fetch_llm_map(sb, crawl_ids: list[str]) -> dict[str, dict]:
 
 def _try_curation(gemini, model: str, config, curation_input: str, label: str):
     """Attempt curation with given model. Returns (raw_text, response) or (None, None)."""
-    from google.genai import types  # noqa: F811
 
     try:
         resp = gemini.models.generate_content(

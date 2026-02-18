@@ -312,7 +312,7 @@ async def main():
         # Load ranked results from file (default behavior for GitHub Actions)
         input_path = Path(__file__).parent / "output" / "wsj_ranked_results.jsonl"
         if not input_path.exists():
-            print(f"Error: Run embedding_rank.py and resolve_ranked.py first")
+            print("Error: Run embedding_rank.py and resolve_ranked.py first")
             return
 
         # Read all data
@@ -322,7 +322,7 @@ async def main():
                 all_data.append(json.loads(line))
 
         print(f"Loaded {len(all_data)} WSJ items from file")
-    print(f"Strategy: 1 article per WSJ, fallback on failure")
+    print("Strategy: 1 article per WSJ, fallback on failure")
     print(f"Crawl mode: {CRAWL_MODE} ({'CI detected' if IS_CI else 'local'})")
     print(f"Delay: {delay}s")
     print("=" * 80)
@@ -356,7 +356,7 @@ async def main():
         print(f"  Candidates: {len(crawlable)} (sorted by weighted score)")
 
         if not crawlable:
-            print(f"  ✗ No resolved URLs")
+            print("  ✗ No resolved URLs")
             wsj_failed += 1
             continue
 
@@ -425,7 +425,7 @@ async def main():
                     llm_analysis = None
 
                     if LLM_ENABLED and supabase:
-                        print(f"    → LLM verification...", end=" ")
+                        print("    → LLM verification...", end=" ")
                         llm_analysis = analyze_content(
                             wsj_title=wsj.get("title", ""),
                             wsj_description=wsj.get("description", ""),
@@ -527,7 +527,7 @@ async def main():
                 await asyncio.sleep(delay)
 
         if not success:
-            print(f"  → All candidates failed")
+            print("  → All candidates failed")
             wsj_failed += 1
 
         # Rate limit between WSJ items
@@ -563,14 +563,14 @@ async def main():
                     low_relevance.append((wsj_title, art.get("resolved_domain", ""), score))
 
     if relevance_scores:
-        print(f"\nRelevance scores:")
+        print("\nRelevance scores:")
         print(f"  Min: {min(relevance_scores):.3f}")
         print(f"  Max: {max(relevance_scores):.3f}")
         print(f"  Avg: {sum(relevance_scores)/len(relevance_scores):.3f}")
         print(f"  Low relevance (<{RELEVANCE_THRESHOLD}): {len(low_relevance)}")
 
     if low_relevance:
-        print(f"\n⚠ Low relevance articles:")
+        print("\n⚠ Low relevance articles:")
         for wsj, domain, score in low_relevance:
             print(f"  [{score:.2f}] {domain} - {wsj}...")
 
@@ -587,7 +587,7 @@ async def main():
                 print(f"  {flag} [{domain}] {length:,} chars, rel:{rel:.2f} - {wsj}...")
 
     if from_db:
-        print(f"\nResults saved to database.")
+        print("\nResults saved to database.")
     else:
         print(f"\nUpdated: {input_path}")
 

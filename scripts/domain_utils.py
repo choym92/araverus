@@ -8,7 +8,6 @@ Provides:
 - Domain matching utilities
 """
 import os
-from functools import lru_cache
 from pathlib import Path
 
 # Preferred domains are now fully DB-driven (top N by weighted_score).

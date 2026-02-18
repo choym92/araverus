@@ -95,8 +95,8 @@ def run_query(dsn: str, sql: str, *, allow_write: bool, dry_run: bool, limit: in
 
     if classification == 'dangerous':
         return {
-            'error': f'BLOCKED: Query classified as dangerous. '
-                     f'DDL operations (DROP, TRUNCATE, ALTER, etc.) are not allowed.',
+            'error': 'BLOCKED: Query classified as dangerous. '
+                     'DDL operations (DROP, TRUNCATE, ALTER, etc.) are not allowed.',
             'columns': [],
             'rows': [],
             'row_count': 0,

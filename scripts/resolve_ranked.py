@@ -28,7 +28,6 @@ from google_news_resolver import (
     extract_domain,
     ResolveResult,
     ReasonCode,
-    Strategy,
 )
 
 
