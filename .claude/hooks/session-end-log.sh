@@ -20,6 +20,12 @@ if [ -d "$CWD/docs/cc" ]; then
       echo "" >> "$LOG_FILE"
     fi
 
+    # Skip if these commits are already logged (prevents duplicates from multiple instances)
+    FIRST_HASH=$(echo "$COMMITS" | head -1 | cut -d' ' -f1)
+    if grep -q "$FIRST_HASH" "$LOG_FILE" 2>/dev/null; then
+      exit 0
+    fi
+
     echo "" >> "$LOG_FILE"
     echo "---" >> "$LOG_FILE"
     echo "## Git Activity (auto-logged)" >> "$LOG_FILE"

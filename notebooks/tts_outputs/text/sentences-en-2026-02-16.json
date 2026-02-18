@@ -1,0 +1,382 @@
+[
+  {
+    "text": "Good morning and welcome to the show.",
+    "start": 0.0,
+    "end": 1.84
+  },
+  {
+    "text": "It's Monday, February 16th, 2026.",
+    "start": 2.3,
+    "end": 5.32
+  },
+  {
+    "text": "Hope you had a great weekend.",
+    "start": 6.0,
+    "end": 7.12
+  },
+  {
+    "text": "Here in the US, it's President's Day, so markets are quiet, but the new cycle, as always, is not.",
+    "start": 7.7,
+    "end": 12.98
+  },
+  {
+    "text": "Today, we're looking at some fresh inflation numbers that are making economists whisper that magic phrase, soft landing, again.",
+    "start": 13.82,
+    "end": 20.88
+  },
+  {
+    "text": "We'll also dive into a wild new AI video tool from TikTok's parent company that has Hollywood in an absolute panic.",
+    "start": 21.72,
+    "end": 28.76
+  },
+  {
+    "text": "And we'll unpack the shifting alliances on display at a major global security conference in Munich.",
+    "start": 30.0,
+    "end": 34.32
+  },
+  {
+    "text": "So let's start with the big economic picture.",
+    "start": 34.86,
+    "end": 36.88
+  },
+  {
+    "text": "For months, the question has been whether the Fed can tame inflation without triggering a recession.",
+    "start": 37.52,
+    "end": 42.56
+  },
+  {
+    "text": "Well, the latest data is given the optimist some fresh ammunition.",
+    "start": 43.3,
+    "end": 47.16
+  },
+  {
+    "text": "A report on Friday showed core prices that S, when you strip out the volatile food and energy costs, rose 2.5% in January from a year earlier.",
+    "start": 47.94,
+    "end": 57.44
+  },
+  {
+    "text": "That's the lowest reading since the whole pandemic price surge kicked off back in 2021.",
+    "start": 58.24,
+    "end": 63.44
+  },
+  {
+    "text": "At the same time, the labor market is still holding up.",
+    "start": 64.28,
+    "end": 67.18
+  },
+  {
+    "text": "The unemployment rate ticked down to 4.3% in January with employers adding a respectable 130,000 jobs.",
+    "start": 68.32,
+    "end": 75.36
+  },
+  {
+    "text": "One economist quoted in the journal noted, the worst calamity that everyone had in mind didn't happen.",
+    "start": 76.18,
+    "end": 80.92
+  },
+  {
+    "text": "So are we there yet?",
+    "start": 81.72,
+    "end": 82.72
+  },
+  {
+    "text": "Is the soft landing secured?",
+    "start": 83.22,
+    "end": 84.42
+  },
+  {
+    "text": "Not so fast.",
+    "start": 85.1,
+    "end": 85.98
+  },
+  {
+    "text": "Fed officials are still cautious, with one saying they won't declare victory until inflation is actually at their 2% target.",
+    "start": 86.92,
+    "end": 94.16
+  },
+  {
+    "text": "And there are some conflicting signals out there.",
+    "start": 94.78,
+    "end": 97.04
+  },
+  {
+    "text": "A separate report from a company called Open Brand, which tracks prices on over a million different products, found that prices for durable goods, think appliances, TVs, that kind of thing, actually jumped 0.75% month over month in January.",
+    "start": 97.76,
+    "end": 112.42
+  },
+  {
+    "text": "That asked the biggest gain in a year.",
+    "start": 113.0,
+    "end": 114.96
+  },
+  {
+    "text": "Their chief economist suggests this could be retailers finally passing along some of the tariff costs from 2025.",
+    "start": 115.52,
+    "end": 122.02
+  },
+  {
+    "text": "This shows how underneath the headline numbers, there are still some inflationary pressures lurking.",
+    "start": 122.58,
+    "end": 127.62
+  },
+  {
+    "text": "It seems some companies that absorbed tariff costs last year are now passing them on to buyers.",
+    "start": 128.22,
+    "end": 133.8
+  },
+  {
+    "text": "Looking across the pond, the picture is a bit more mixed.",
+    "start": 134.6,
+    "end": 137.76
+  },
+  {
+    "text": "The latest numbers show Eurozone industrial production fell 1.4% in December, snapping a three-month streak of gains with a decline in Germany being a key driver.",
+    "start": 138.7,
+    "end": 148.7
+  },
+  {
+    "text": "However, the Swiss economy managed to swing back to growth, expanding 0.2% in the final quarter of 2025.",
+    "start": 149.3,
+    "end": 156.34
+  },
+  {
+    "text": "And in a significant policy move, the European Central Bank announced plans to widen access to its Euro liquidity backstop, making it globally available.",
+    "start": 157.26,
+    "end": 166.14
+  },
+  {
+    "text": "ECB President Christine Lagarde said this reinforces the Euro's international role and boosts confidence for global investors to trade in the currency.",
+    "start": 167.28,
+    "end": 176.24
+  },
+  {
+    "text": "But the real economic surprise this morning comes out of Asia.",
+    "start": 176.96,
+    "end": 179.9
+  },
+  {
+    "text": "Japan's economy barely grew in the final quarter of last year, expanding just 0.1% quarter on quarter, which is about 0.2% on an annualized basis.",
+    "start": 181.08,
+    "end": 190.84
+  },
+  {
+    "text": "That was a huge miss.",
+    "start": 191.58,
+    "end": 192.68
+  },
+  {
+    "text": "Analysts were expecting something closer to 1.6% annualized.",
+    "start": 193.82,
+    "end": 197.54
+  },
+  {
+    "text": "This puts new Prime Minister Senna Takaiichi in the Bank of Japan in a tough spot, as they try to navigate stubborn inflation and a week yen without stalling out the recovery.",
+    "start": 198.14,
+    "end": 207.6
+  },
+  {
+    "text": "It is a reminder that even as the US economy shows resilience, the global picture is still incredibly fragile.",
+    "start": 208.8,
+    "end": 215.0
+  },
+  {
+    "text": "Speaking of things that could upand economic forecasts, let's talk about artificial intelligence, because a story that broke over the weekend is a perfect example of the chaos and opportunity it's creating.",
+    "start": 216.2,
+    "end": 226.26
+  },
+  {
+    "text": "TikTok's Chinese parent company, Bite Dance, has a new AI video generator called Sea Dance.",
+    "start": 227.54,
+    "end": 232.48
+  },
+  {
+    "text": "And the clips it's producing are so photorealistic that Hollywood is to put it mildly, freaking out.",
+    "start": 233.18,
+    "end": 239.5
+  },
+  {
+    "text": "We're talking viral clips of Brad Pitt and Tom Cruise in a fight scene on a bridge, or Kanye West in a dramatic Mandarin language movie.",
+    "start": 240.34,
+    "end": 247.84
+  },
+  {
+    "text": "One screenwriter for the movie Deadpool, lamented on X that it S likely over for us.",
+    "start": 248.5,
+    "end": 253.52
+  },
+  {
+    "text": "The Motion Picture Association or MPA was outraged.",
+    "start": 253.74,
+    "end": 257.12
+  },
+  {
+    "text": "Releasing a statement accusing Bite Dance of engaging in unauthorized use of US copyrighted works on a massive scale.",
+    "start": 257.54,
+    "end": 264.56
+  },
+  {
+    "text": "They're demanding the company cease its infringing activity immediately.",
+    "start": 264.82,
+    "end": 267.78
+  },
+  {
+    "text": "For its part, Bite Dance says it has stopped the ability to generate clips of real people, but the genie is kind of out of the bottle.",
+    "start": 268.42,
+    "end": 274.82
+  },
+  {
+    "text": "This highlights that massive, contentious battle over copyright that's defining this phase of the AI boom.",
+    "start": 275.36,
+    "end": 281.08
+  },
+  {
+    "text": "And it's not the only AI-related scrutiny we're seeing.",
+    "start": 281.92,
+    "end": 284.5
+  },
+  {
+    "text": "Ireland's data protection watchdog has also opened an inquiry into X over concerns its Grock AI could be breaching EU privacy rules.",
+    "start": 284.5,
+    "end": 292.48
+  },
+  {
+    "text": "It seems the regulators are starting to catch up to the tech.",
+    "start": 292.9,
+    "end": 295.62
+  },
+  {
+    "text": "And it's not just a western story.",
+    "start": 296.22,
+    "end": 297.74
+  },
+  {
+    "text": "India is also looking at how it can become an AI power with a more frugal strategy, offering a potential blueprint for the developing world.",
+    "start": 298.14,
+    "end": 305.16
+  },
+  {
+    "text": "Of course, you can't talk about transformative tech without mentioning the billionaires.",
+    "start": 305.62,
+    "end": 309.56
+  },
+  {
+    "text": "The space race between Jeff Bezos and Elon Musk is heating up again.",
+    "start": 310.08,
+    "end": 313.5
+  },
+  {
+    "text": "This time with a shared destination.",
+    "start": 313.5,
+    "end": 315.46
+  },
+  {
+    "text": "After years of focusing on Mars, Musk announced that SpaceX is now pivoting to build a self-growing city on the moon.",
+    "start": 316.5,
+    "end": 323.16
+  },
+  {
+    "text": "This puts him in direct competition with Bezos' blue origin, which has long seen a lunar base as its primary goal.",
+    "start": 323.72,
+    "end": 329.78
+  },
+  {
+    "text": "This fight over technology and intellectual property is just one front in a much bigger global realignment.",
+    "start": 330.34,
+    "end": 336.48
+  },
+  {
+    "text": "And that was on full display this weekend at the Munich Security Conference.",
+    "start": 337.1,
+    "end": 339.94
+  },
+  {
+    "text": "US Secretary of State Marco Rubio was there, striking a much warmer tone than the administration has in the past.",
+    "start": 339.94,
+    "end": 346.66
+  },
+  {
+    "text": "Getting a standing ovation after highlighting the importance of transatlantic ties.",
+    "start": 347.04,
+    "end": 351.14
+  },
+  {
+    "text": "But European officials say that despite the friendlier words, the relationship feels more like a marriage of convenience these days, lacking the trust it once had.",
+    "start": 351.72,
+    "end": 360.26
+  },
+  {
+    "text": "Reflecting that sentiment, UK Prime Minister Kierstharmer told the same conference that Europe must be ready to stand on its own two feet when it comes to defence.",
+    "start": 360.8,
+    "end": 368.48
+  },
+  {
+    "text": "It's a clear signal that the old assumptions about security are being re-evaluated.",
+    "start": 369.12,
+    "end": 373.52
+  },
+  {
+    "text": "And we're seeing that play out in policy.",
+    "start": 373.98,
+    "end": 375.94
+  },
+  {
+    "text": "Canada, for instance, is rolling out a new defense industrial strategy that will prioritize domestic firms for military contracts, aiming to create 125,000 jobs, and transition away from an overreliance on the United States.",
+    "start": 376.36,
+    "end": 389.08
+  },
+  {
+    "text": "This all comes against a backdrop of simmering global tensions.",
+    "start": 389.56,
+    "end": 392.5
+  },
+  {
+    "text": "The US and Iran are set to hold a second round of talks this week, which is keeping oil prices relatively steady for now.",
+    "start": 393.06,
+    "end": 399.06
+  },
+  {
+    "text": "In a strange return of events, a right-wing group in the Canadian province of Alberta is ramping up a secession campaign, and they've reportedly met with officials from the Trump administration to discuss the logistics of breaking away from Canada.",
+    "start": 399.82,
+    "end": 411.68
+  },
+  {
+    "text": "They're aiming to collect 177,000 signatures to force a referendum.",
+    "start": 412.1,
+    "end": 416.22
+  },
+  {
+    "text": "And in China, observers are trying to read the tea leaves to figure out who might be the next target of President Xi Jinping's purges, with one top general, Zhang Yushia, coming under scrutiny. One of the most fascinating stories blending technology and defense is out of the Pentagon. The US military just airlifted a miniature nuclear reactor for the first time.",
+    "start": 416.74,
+    "end": 435.64
+  },
+  {
+    "text": "The reactor, made by a company called Valar Atomics, is a five-megawatt unit that can fit inside a C-17 transport plane enough to theoretically power about 5,000 homes.",
+    "start": 436.14,
+    "end": 446.4
+  },
+  {
+    "text": "It was flown from California to a base in Utah for testing. This is part of a push to bolster energy security for military bases. While governments are redrawing alliances, big money is still moving across borders. In the shipping world, German carrier Hapagloid confirmed its in advance talks to acquire its Israeli rival, Zim, integrated shipping services, in a deal reportedly valued between $3.5 billion. The news trigger to strike at Zim's headquarters in Haifa, with workers worried about their jobs. In Australia, logistics operator Kub Holdings has agreed to an $8.26 billion buyout from a consortium led by McQuarry Asset Management.",
+    "start": 446.86,
+    "end": 487.94
+  },
+  {
+    "text": "Kub shares shot to a record high on the news. We're also seeing some other interesting corporate moves, with gun dynasty Beretta amassing a 10% stake in American rival Ruger.",
+    "start": 488.6,
+    "end": 499.44
+  },
+  {
+    "text": "And Smithfield Foods is planning a new $1.3 billion pork plant in South Dakota.",
+    "start": 500.32,
+    "end": 505.28
+  },
+  {
+    "text": "Meanwhile, the fallout from the Jeffrey Epstein scandal continues to ripple through the highest levels of corporate America. In the last few days, we've seen a string of high profile resignations. Kathy Rumler, the chief legal officer at Goldman Sachs and a former Obama White House council, announced she is resigning. Thomas Pritzker, of the Hyatt Hotel's fortune, has retired as the company's executive chairman. In case he wasserman, is putting his major talent agency up for sale, telling staff he felt he had become a distraction. It's a stark reminder of how long the shadow of that scandal really is. All right, let's take a quick look at the markets.",
+    "start": 506.12,
+    "end": 541.9
+  },
+  {
+    "text": "As I mentioned, US stock and bond markets are closed today for the President's Day holiday, but we do have some early morning numbers from the commodity space. Oil is trading pretty flat ahead of those US Iran talks. Brent Crude, the international benchmark, was hovering around $67.78 a barrel. West Texas Intermediate was at $62.91. Gold, after a jump last week on softer inflation data, has given back some of those gains in thin holiday trading. Spot gold was recently trading around $4.988 in ounce. In Europe, natural gas prices fell nearly 5% as supply has been holding steady. We'll be watching later this week for the release of Federal Reserve Meeting Minutes and more inflation data on Friday. We hit about 28 of today's 70 stories to get you up to speed. Thanks for tuning in. I-L-L, be back tomorrow with another rundown, have a great day.",
+    "start": 542.74,
+    "end": 597.1
+  }
+]

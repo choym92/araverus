@@ -88,9 +88,9 @@ def get_articles_to_analyze(supabase, limit: int | None = None) -> list[dict]:
 
 
 def estimate_cost(count: int) -> str:
-    """Estimate OpenAI API cost for analyzing N articles."""
-    # GPT-4o-mini: ~$0.00016 per article (input + output)
-    cost = count * 0.00016
+    """Estimate Gemini API cost for analyzing N articles."""
+    # Gemini 2.5 Flash: ~$0.00015 per article (input + output)
+    cost = count * 0.00015
     return f"${cost:.4f}"
 
 
@@ -102,8 +102,8 @@ def main():
     args = parser.parse_args()
 
     # Check for API key
-    if not os.getenv("OPENAI_API_KEY"):
-        print("Error: OPENAI_API_KEY not set in environment")
+    if not os.getenv("GEMINI_API_KEY"):
+        print("Error: GEMINI_API_KEY not set in environment")
         sys.exit(1)
 
     print("=" * 60)

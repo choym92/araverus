@@ -1,4 +1,4 @@
-<!-- Updated: 2026-02-17 -->
+<!-- Updated: 2026-02-18 -->
 # PRD: Full Finance Pipeline on Mac Mini (launchd)
 
 ## Overview
@@ -15,7 +15,7 @@ Migrate the **entire** finance pipeline — from RSS ingest through briefing gen
 | **Cost** | ~2,000 min/month free tier, crawl job eats ~90 min | Already running, $0 marginal |
 | **Security** | Secrets in GitHub, visible to repo admins | Keys on local disk, no exposure |
 | **Playwright** | Install chromium every run (~2 min) | Installed once, cached |
-| **HuggingFace model** | Cache action, still slow first run | Downloaded once, persistent |
+| **HuggingFace models** | Cache action, still slow first run | Downloaded once, persistent (bge-base-en-v1.5 for threading) |
 | **State** | Ephemeral runners, no memory between runs | Persistent disk, logs, outputs |
 | **Future AI agents** | N/A | Docker isolation for untrusted agents (see Security) |
 
@@ -45,12 +45,20 @@ Mac Mini (launchd)
 │                  │   ├── wsj_ingest.py --mark-processed-from-db   │
 │                  │   └── wsj_ingest.py --update-domain-status     │
 │                  │                                               │
+│                  ├── Phase 4.5: Embed + Thread        (~2 min)   │
+│                  │   └── embed_and_thread.py                      │
+│                  │       ├── Embed articles (BAAI/bge-base-en-v1.5)│
+│                  │       ├── Match to existing threads (centroid) │
+│                  │       ├── LLM group unmatched (Gemini Flash)   │
+│                  │       └── Create/merge/deactivate threads      │
+│                  │                                               │
 │                  ├── Phase 5: Briefing               (~5 min)    │
 │                  │   └── generate_briefing.py                    │
 │                  │       ├── LLM curation + briefing gen (EN/KO) │
 │                  │       ├── [CHAPTER:] marker extraction → JSON │
 │                  │       ├── TTS audio (Chirp HD + Gemini TTS)   │
-│                  │       ├── Save text + chapters + meta → Supabase│
+│                  │       ├── Whisper sentence alignment → JSON    │
+│                  │       ├── Save text + chapters + sentences → DB│
 │                  │       └── Upload latest audio → Supabase Storage│
 │                  │                                               │
 │                  └── Log summary + exit code                     │
@@ -60,7 +68,7 @@ Mac Mini (launchd)
 └── scripts/output/briefings/ (text + audio)                       │
 ```
 
-**Total runtime**: ~45 min end-to-end (crawl is the bottleneck).
+**Total runtime**: ~50 min end-to-end (crawl is the bottleneck).
 
 ---
 
@@ -79,8 +87,9 @@ SCRIPTS="$PROJECT_DIR/scripts"
 DATE=$(date +%Y-%m-%d)
 LOG_DIR="$PROJECT_DIR/logs"
 LOG_FILE="$LOG_DIR/pipeline-$DATE.log"
+BRIEFING_DIR="$HOME/Documents/Briefings"
 
-mkdir -p "$LOG_DIR" "$SCRIPTS/output"
+mkdir -p "$LOG_DIR" "$SCRIPTS/output" "$BRIEFING_DIR"
 
 # Redirect all output to log (and stdout for launchd)
 exec > >(tee -a "$LOG_FILE") 2>&1
@@ -91,6 +100,24 @@ echo "Started: $(date)"
 echo "============================================"
 
 cd "$PROJECT_DIR"
+
+# ── Load secrets from macOS Keychain ──────────────────
+load_key() {
+    local key_name="$1"
+    local val
+    val=$(security find-generic-password -a "$key_name" -s "araverus" -w 2>/dev/null) || {
+        echo "WARN: Could not load $key_name from Keychain"
+        return 1
+    }
+    export "$key_name=$val"
+}
+
+load_key "NEXT_PUBLIC_SUPABASE_URL"
+load_key "SUPABASE_SERVICE_ROLE_KEY"
+load_key "GEMINI_API_KEY"
+export GOOGLE_APPLICATION_CREDENTIALS="$HOME/credentials/araverus-tts-sa.json"
+
+echo "Secrets loaded from Keychain"
 
 # ── Phase 1: Ingest + Search ───────────────────────────
 echo ""
@@ -117,10 +144,15 @@ echo ">>> Phase 4: Post-process"
 $VENV "$SCRIPTS/wsj_ingest.py" --mark-processed-from-db || echo "WARN: mark-processed failed"
 $VENV "$SCRIPTS/wsj_ingest.py" --update-domain-status || echo "WARN: domain-status failed"
 
+# ── Phase 4.5: Embed + Thread ────────────────────────
+echo ""
+echo ">>> Phase 4.5: Embed + Thread"
+$VENV "$SCRIPTS/embed_and_thread.py" || echo "WARN: Embed/thread had errors (continuing)"
+
 # ── Phase 5: Briefing ──────────────────────────────────
 echo ""
 echo ">>> Phase 5: Briefing"
-$VENV "$SCRIPTS/generate_briefing.py" || echo "ERROR: Briefing generation failed"
+$VENV "$SCRIPTS/generate_briefing.py" --output-dir "$BRIEFING_DIR" || echo "ERROR: Briefing generation failed"
 
 # ── Done ────────────────────────────────────────────────
 echo ""
@@ -131,10 +163,12 @@ echo "============================================"
 
 **Key design decisions**:
 - `set -euo pipefail` for strict error handling
+- Secrets loaded from macOS Keychain (no `.env` file on disk) via `security find-generic-password`
 - Phase 1 failure = hard abort (no articles = nothing to do)
-- Phase 3 (crawl) and Phase 5 (briefing) failures = log warning but don't kill the pipeline
+- Phase 3 (crawl), Phase 4.5 (threading), and Phase 5 (briefing) failures = log warning but don't kill the pipeline
 - `tee -a` writes to both log file and stdout (launchd captures stdout)
 - Date-stamped log files — one per day, easy to grep
+- Briefing output dir is `~/Documents/Briefings` (outside repo, persistent archive)
 
 ---
 
@@ -169,23 +203,21 @@ pip install -r scripts/requirements.txt
 playwright install chromium
 ```
 
-### 3. Environment Variables
+### 3. Environment Variables (macOS Keychain)
 
-Create `~/Project/araverus/.env`:
+Secrets are stored in the macOS login Keychain under service name `araverus`. No `.env` file on disk for production pipeline.
 
-```env
-# Supabase (used by all pipeline scripts)
-NEXT_PUBLIC_SUPABASE_URL=https://xxxx.supabase.co
-SUPABASE_SERVICE_ROLE_KEY=eyJhbGci...
+```bash
+# Store each key in Keychain (run once per Mac)
+security add-generic-password -a "NEXT_PUBLIC_SUPABASE_URL" -s "araverus" -w "https://xxxx.supabase.co"
+security add-generic-password -a "SUPABASE_SERVICE_ROLE_KEY" -s "araverus" -w "eyJhbGci..."
+security add-generic-password -a "GEMINI_API_KEY" -s "araverus" -w "AIza..."
+```
 
-# OpenAI (used by crawl_ranked.py → llm_analysis.py)
-OPENAI_API_KEY=sk-...
-
-# Google Gemini (used by generate_briefing.py for LLM + KO TTS)
-GEMINI_API_KEY=AIza...
-
-# Google Cloud (used by generate_briefing.py for EN TTS — Chirp 3 HD)
-GOOGLE_APPLICATION_CREDENTIALS=/Users/<user>/credentials/araverus-tts-sa.json
+Google Cloud service account JSON is stored on disk (outside repo):
+```bash
+# Place at:
+~/credentials/araverus-tts-sa.json
 ```
 
 **Where to get each**:
@@ -194,9 +226,10 @@ GOOGLE_APPLICATION_CREDENTIALS=/Users/<user>/credentials/araverus-tts-sa.json
 |---|---|
 | `NEXT_PUBLIC_SUPABASE_URL` | Supabase Dashboard → Settings → API → Project URL |
 | `SUPABASE_SERVICE_ROLE_KEY` | Supabase Dashboard → Settings → API → service_role (secret) |
-| `OPENAI_API_KEY` | platform.openai.com → API Keys |
 | `GEMINI_API_KEY` | aistudio.google.com → API Keys |
 | `GOOGLE_APPLICATION_CREDENTIALS` | Google Cloud Console → IAM → Service Accounts → Create Key (JSON). Enable `Cloud Text-to-Speech API` on the project. |
+
+**For local development** (not Mac Mini): use `scripts/load_env.sh` which reads the same Keychain keys, or create `.env.local` at the project root.
 
 ### 4. Verify Each Phase Manually
 
@@ -362,6 +395,7 @@ Frontend reads `audio_url` from `wsj_briefings` table. URL is stable (same filen
 |---|---|---|
 | Briefing text (`briefing_text`) | Supabase `wsj_briefings` | Frontend queries it |
 | Chapters JSON (`chapters`) | Supabase `wsj_briefings` | Frontend renders chapter navigation |
+| Sentences JSON (`sentences`) | Supabase `wsj_briefings` | Frontend renders synced transcript with highlighting |
 | Audio URL (`audio_url`) | Supabase `wsj_briefings` | Frontend reads URL |
 | Audio file (MP3) | Supabase Storage (latest) + Mac Mini (history) | CDN for speed, local for archive |
 | Pipeline metadata (junction, briefed flags) | Supabase | Pipeline logic depends on it |
@@ -375,6 +409,7 @@ Frontend reads `audio_url` from `wsj_briefings` table. URL is stable (same filen
 
 ```sql
 ALTER TABLE wsj_briefings ADD COLUMN chapters jsonb;
+ALTER TABLE wsj_briefings ADD COLUMN sentences jsonb;
 ```
 
 ### Category convention
@@ -396,6 +431,15 @@ SELECT * FROM wsj_briefings WHERE date = '2026-02-17' AND category IN ('EN', 'KO
 2. **Extract**: Regex parses markers → `chapters` JSON array with title + character position
 3. **Clean**: Remove markers from text before sending to TTS (prevents TTS reading "CHAPTER")
 4. **Save**: `chapters` JSON to `wsj_briefings.chapters` column
+
+### Whisper sentence alignment
+
+After TTS, before DB save:
+1. Run Whisper (`base` model) on the generated MP3
+2. Merge segments into full sentences (split on `.!?` and CJK equivalents)
+3. Store as `sentences` JSONB in `wsj_briefings` — `[{text, start, end}]`
+4. Frontend uses sentence timestamps for synced transcript highlighting during playback
+5. Graceful fallback: if `whisper` is not installed, skip without error
 
 ### Supabase Storage upload
 
@@ -509,7 +553,9 @@ grep -E "FATAL|ERROR|WARN" ~/Project/araverus/logs/pipeline-$(date +%Y-%m-%d).lo
 | `WARN: Google News search had errors` | Rate limiting or network | Normal — continues with whatever results were found |
 | `ERROR: Embedding rank failed` | No search results from Phase 1 | Check if `wsj_google_news_results.jsonl` is empty |
 | `WARN: Crawl had errors` | Some sites blocked, timeouts | Normal — partial crawl is fine, retryable next day |
+| `WARN: Embed/thread had errors` | Embedding model download or Gemini API error | Check internet, verify `GEMINI_API_KEY` in Keychain. Thread failures are non-blocking |
 | `ERROR: Briefing generation failed` | Gemini API error or 0 articles | Check `GEMINI_API_KEY`, check `wsj_items.briefed` filter |
+| `Could not load X from Keychain` | Key not stored or wrong service name | Run `security add-generic-password -a "KEY_NAME" -s "araverus" -w "value"` |
 | `ffmpeg: command not found` | PATH not set in launchd | Add `/opt/homebrew/bin` to PATH in plist |
 | Playwright error | Browser not installed | Run `playwright install chromium` in venv |
 
@@ -533,14 +579,15 @@ Add a second launchd job or a simple weekly cleanup:
 | Embedding Ranking | Local (all-MiniLM-L6-v2) | $0 |
 | URL Resolution | Free (HTTP redirects) | $0 |
 | Crawling | Free (Playwright + newspaper4k) | $0 |
-| LLM Analysis per crawl | OpenAI gpt-4o-mini | ~$0.02 |
+| LLM Analysis per crawl | Gemini 2.5 Flash | ~$0.005 |
+| Thread LLM grouping | Gemini 2.5 Flash | ~$0.003 |
 | Briefing Curation | Gemini 2.5 Pro | ~$0.006 |
 | EN Briefing | Gemini 2.5 Pro | ~$0.051 |
 | KO Briefing | Gemini 2.5 Pro | ~$0.063 |
 | EN TTS | Google Chirp 3 HD | ~$0.144 |
 | KO TTS | Gemini TTS Preview | ~$0.060 |
-| **Total per day** | | **~$0.35** |
-| **Monthly (daily)** | | **~$10.50** |
+| **Total per day** | | **~$0.33** |
+| **Monthly (daily)** | | **~$10.00** |
 
 ---
 
@@ -549,13 +596,15 @@ Add a second launchd job or a simple weekly cleanup:
 ### Credential Isolation
 
 ```
-~/Project/araverus/.env              # Pipeline keys (Supabase, OpenAI, Gemini)
-~/credentials/araverus-tts-sa.json   # Google Cloud service account (outside repo)
+macOS Keychain (service: "araverus")  # Pipeline keys (Supabase, Gemini)
+~/credentials/araverus-tts-sa.json    # Google Cloud service account (outside repo)
+.env.local                            # Local dev only (gitignored)
 ```
 
-- `.env` and `credentials/` are in `.gitignore` — never committed
+- Pipeline keys stored in macOS Keychain — no plaintext files on disk
 - `SUPABASE_SERVICE_ROLE_KEY` has full DB access — treat as root password
 - Service account JSON stored **outside the repo directory**
+- `.env.local` exists for local dev convenience but is gitignored
 
 ### Future AI Agent Isolation (Open Claw, etc.)
 
@@ -572,6 +621,7 @@ If running untrusted AI agents on the same Mac Mini:
 
 ### Phase A: DB + Schema (safe, non-breaking)
 - [x] Run migration: `ALTER TABLE wsj_briefings ADD COLUMN chapters jsonb`
+- [ ] Run migration: `ALTER TABLE wsj_briefings ADD COLUMN sentences jsonb`
 - [ ] Create Supabase Storage bucket: `INSERT INTO storage.buckets (id, name, public) VALUES ('briefings', 'briefings', true)`
 
 ### Phase B: Mac Mini Environment Setup
@@ -580,21 +630,28 @@ If running untrusted AI agents on the same Mac Mini:
 - [ ] `python3 -m venv .venv && source .venv/bin/activate`
 - [ ] `pip install -r scripts/requirements.txt`
 - [ ] `playwright install chromium`
-- [ ] Create `.env` with 5 keys (Supabase, OpenAI, Gemini, GCloud SA)
+- [ ] Store 3 keys in macOS Keychain (`NEXT_PUBLIC_SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, `GEMINI_API_KEY`)
 - [ ] Place Google Cloud service account JSON at `~/credentials/araverus-tts-sa.json`
+- [ ] Verify Keychain: `source scripts/load_env.sh` should print "Env loaded from Keychain"
 
 ### Phase C: Script Changes (`generate_briefing.py`)
-- [ ] Add `[CHAPTER:]` marker instructions to EN/KO prompts
-- [ ] Add chapter extraction logic (regex → JSON)
-- [ ] Add marker removal before TTS
-- [ ] Add `chapters` JSON to DB save
-- [ ] Add Supabase Storage upload (latest audio overwrite)
-- [ ] Add `audio_url` to DB save
+- [x] Add `[CHAPTER:]` marker instructions to EN/KO prompts
+- [x] Add chapter extraction logic (regex → JSON)
+- [x] Add marker removal before TTS
+- [x] Add `chapters` JSON to DB save
+- [x] Add Supabase Storage upload (latest audio overwrite)
+- [x] Add `audio_url` to DB save
+- [x] Add Whisper sentence alignment after TTS (graceful fallback if whisper not installed)
+- [x] Add `sentences` JSON to DB save
+
+### Phase C.5: Verify Embed + Thread
+- [ ] `python scripts/embed_and_thread.py` (daily mode — threads today's articles)
+- [ ] Check thread quality: `SELECT title, member_count FROM wsj_story_threads WHERE active=true ORDER BY member_count DESC LIMIT 10`
 
 ### Phase D: Verify Pipeline
 - [ ] `python scripts/generate_briefing.py --dry-run` (Phase 5 only)
 - [ ] `python scripts/generate_briefing.py --skip-tts --skip-db` (text only)
-- [ ] `python scripts/generate_briefing.py` (full run)
+- [ ] `python scripts/generate_briefing.py --output-dir ~/Documents/Briefings` (full run)
 - [ ] `bash scripts/run_pipeline.sh` (full pipeline, manual)
 
 ### Phase E: launchd Setup
@@ -605,13 +662,91 @@ If running untrusted AI agents on the same Mac Mini:
 - [ ] Verify next morning's automatic run
 
 ### Phase F: Frontend
-- [ ] Fix `news-service.ts`: `.eq('category', 'ALL')` → `.in('category', ['EN', 'KO'])`
-- [ ] Remove `fs/promises` local file reads from `page.tsx`
-- [ ] Replace with Supabase queries (`briefing_text`, `chapters`, `audio_url`)
+- [x] Fix `news-service.ts`: `.eq('category', 'ALL')` → `.in('category', ['EN', 'KO'])`
+- [x] Remove `fs/promises` local file reads from `page.tsx`
+- [x] Replace with Supabase queries (`briefing_text`, `chapters`, `sentences`, `audio_url`)
+- [x] Pass `sentences` to BriefingPlayer for synced transcript highlighting
+- [x] Fix download filename `.wav` → `.mp3`
 
 ### Phase G: Decommission GitHub Actions
 - [ ] After 3 successful Mac Mini days: disable GitHub Actions workflow
 - [ ] After 30 days: delete workflow YAML + remove GitHub Secrets
+
+## Audio Debugging: Local File Fallback
+
+Until the full pipeline (Phase 5 → Supabase Storage upload) is running on Mac Mini, the frontend falls back to local files for audio, chapters, sentences, and transcripts because `wsj_briefings.audio_url` is `null` and `sentences` column doesn't exist yet in DB.
+
+### Problem
+- DB `wsj_briefings` has no `audio_url`, no `sentences` column, and `chapters` is null
+- Without fallback, player renders with no `<audio>` source (silent), no chapter navigation, no transcript highlighting
+
+### Local files used for testing
+
+**Audio** (served from `public/`):
+```
+public/audio/chirp3-en-pro-friendly-2026-02-16.wav   # EN TTS
+public/audio/gemini-tts-ko-kore-2026-02-16.wav       # KO TTS
+public/audio/gemini-tts-ko-kore-2026-02-15.mp3       # KO TTS (older)
+```
+
+**Chapters, sentences, transcripts** (read server-side from `notebooks/tts_outputs/text/`):
+```
+notebooks/tts_outputs/text/chapters-en-2026-02-16.json    # 6 EN chapters (position 0.0–1.0)
+notebooks/tts_outputs/text/chapters-ko-2026-02-16.json    # KO chapters
+notebooks/tts_outputs/text/sentences-en-2026-02-16.json   # Whisper-aligned EN sentences ({text, start, end})
+notebooks/tts_outputs/text/sentences-ko-2026-02-16.json   # Whisper-aligned KO sentences
+notebooks/tts_outputs/text/briefing-pro-friendly-2026-02-16.txt  # EN transcript text
+notebooks/tts_outputs/text/briefing-ko-pro-2026-02-16.txt        # KO transcript text
+```
+
+### Current implementation in `page.tsx`
+
+`page.tsx` is a Server Component. It reads local JSON/text files via `fs/promises` and passes them as fallbacks when DB values are null:
+
+```typescript
+import { readFile } from 'fs/promises'
+import path from 'path'
+
+// Read local fallback data (server-side only)
+const ttsDir = path.join(process.cwd(), 'notebooks/tts_outputs/text')
+const [localChaptersEn, localChaptersKo, localSentencesEn, localSentencesKo, localTranscriptEn, localTranscriptKo] = await Promise.all([
+  readFile(path.join(ttsDir, 'chapters-en-2026-02-16.json'), 'utf-8').then(JSON.parse).catch(() => undefined),
+  readFile(path.join(ttsDir, 'chapters-ko-2026-02-16.json'), 'utf-8').then(JSON.parse).catch(() => undefined),
+  readFile(path.join(ttsDir, 'sentences-en-2026-02-16.json'), 'utf-8').then(JSON.parse).catch(() => undefined),
+  readFile(path.join(ttsDir, 'sentences-ko-2026-02-16.json'), 'utf-8').then(JSON.parse).catch(() => undefined),
+  readFile(path.join(ttsDir, 'briefing-pro-friendly-2026-02-16.txt'), 'utf-8').catch(() => undefined),
+  readFile(path.join(ttsDir, 'briefing-ko-pro-2026-02-16.txt'), 'utf-8').catch(() => undefined),
+])
+
+// BriefingPlayer props — DB first, local fallback second
+en={{
+  audioUrl: enBriefing?.audio_url || '/audio/chirp3-en-pro-friendly-2026-02-16.wav',
+  chapters: enBriefing?.chapters ?? localChaptersEn,
+  transcript: enBriefing?.briefing_text || localTranscriptEn,
+  sentences: enBriefing?.sentences ?? localSentencesEn,
+}}
+ko={{
+  audioUrl: koBriefing?.audio_url || '/audio/gemini-tts-ko-kore-2026-02-16.wav',
+  chapters: koBriefing?.chapters ?? localChaptersKo,
+  transcript: koBriefing?.briefing_text || localTranscriptKo,
+  sentences: koBriefing?.sentences ?? localSentencesKo,
+}}
+```
+
+### Features enabled by local fallback
+- **Chapter navigation**: pill buttons on progress bar + clickable chapter list
+- **Sentence-level transcript highlighting**: Whisper timestamps sync with audio playback
+- **EN/KO toggle**: both languages have full data
+- **Resume position**: saved to localStorage per audio URL
+
+### Revert when pipeline is live
+Once `generate_briefing.py` uploads to Supabase Storage and saves `audio_url`, `chapters`, and `sentences` to DB:
+1. Remove `fs/promises` and `path` imports from `page.tsx`
+2. Remove local file reading block
+3. Revert to DB-only props (original condition: `enBriefing?.audio_url ? {...} : undefined`)
+4. Run migration: `ALTER TABLE wsj_briefings ADD COLUMN sentences jsonb`
+
+---
 
 ## Open Questions
 

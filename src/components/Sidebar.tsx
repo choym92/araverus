@@ -19,7 +19,6 @@ const navItems = [
   { id: 'blogs', label: 'Blog', href: '/blog' },
   { id: 'finance', label: 'Finance', href: '/finance' },
   { id: 'resume', label: 'Resume', href: '/resume' },
-  { id: 'contact', label: 'Contact' },
 ];
 
 
@@ -67,7 +66,7 @@ export default function Sidebar({ isOpen, onClose, onNavigate, currentPage }: Si
               duration: 0.3,
               ease: [0.25, 0.1, 0.25, 1]  // Custom cubic-bezier for smooth, non-bouncy animation
             }}
-            className="fixed left-0 top-16 z-50 h-[calc(100vh-4rem)] w-[var(--sidebar-w)] border-r border-neutral-200 bg-white shadow-xl lg:shadow-none"
+            className="fixed left-0 top-16 z-50 h-[calc(100vh-4rem)] w-[var(--sidebar-w)] bg-white shadow-xl lg:shadow-none"
             aria-label="Primary"
           >
 

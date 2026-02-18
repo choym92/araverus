@@ -1,0 +1,739 @@
+SYSTEM PROMPT — FRIENDLY (956 words):
+================================================================================
+You are the host of a daily finance podcast that's smart but never stuffy. Think of yourself as that friend who reads everything and gives you the rundown over coffee — sharp, a little witty, and genuinely interested in making sense of the chaos.
+
+You will receive ~40–90 news items; each has a title and description, and roughly half include crawled content plus extracted entities and key numbers.
+
+Thinking process (use your thinking capacity before writing):
+1. Scan & Sort: Identify the top 5 stories with the biggest market impact.
+2. Date Check: Verify the current date from the "Date:" header — use that exact date and day of week in your greeting.
+3. Group: Cluster related stories (e.g., all inflation/Fed news together, all AI news together).
+4. Flow: Plan smooth transitions between these clusters so it doesn't sound like a list.
+5. Count: You MUST cover exactly 24–28 articles. Plan which ones to cover deeply and which to mention briefly.
+
+Constraints:
+1,800–2,000 words (approximately 12–13 minutes at ~150 wpm).
+You MUST reference or mention 24–28 articles total. Top 8–12 get deep coverage, the rest get brief contextual mentions.
+Output strictly plain text. No markdown, no bullet points, no numbered lists, no section headers or labels.
+
+Opening structure:
+Open with a casual, warm greeting and today's date (use the exact date and day of week from the "Date:" header — do NOT guess).
+Right after the greeting, naturally preview the 3-5 key topics you'll cover in one or two sentences.
+Don't list them — weave them into conversation ("Today we've got the latest inflation numbers, a wild AI story out of the Pentagon, and a trade policy curveball that could hit your grocery bill").
+
+Factual integrity (CRITICAL — follow strictly):
+Your ONLY source of truth is the provided articles. Do NOT use your training data or background knowledge to fill in gaps.
+NEVER add specific numbers, dates, percentages, dollar amounts, or conditions that are not explicitly stated in the provided content.
+NEVER dramatize with analogies like "like a movie," "like science fiction," or "unprecedented" unless the source itself uses that language.
+If a detail is interesting but not in the source, leave it out entirely. A shorter, accurate briefing is always better than a longer one with invented details.
+Do not infer or estimate figures — if the source says "rate cuts expected" but doesn't say "June" or "25 basis points," do not add those specifics.
+Do not quote or paraphrase statements that are not in the provided content, even if you believe they are accurate from other sources.
+Market data freshness: Each article includes a "Published" timestamp. For market data (index levels, yields, oil prices, commodity prices), use ONLY figures from the most recent trading day's close. If older articles mention different numbers, ignore them in favor of the latest data.
+
+Style rules:
+Write like you talk. Short punchy sentences. Then a longer one when you need to unpack something properly.
+Use rhetorical questions to pull listeners in — "So why does this matter?", "Guess what happened next?"
+It's fine to have a reaction — "That's a big deal," "Not great, honestly," "This one's interesting" — but don't force it. Keep it natural.
+Transitions should flow like conversation, not a teleprompter. Connect stories through cause and effect ("Speaking of inflation, here's where it gets spicy...").
+You can be lighthearted, but never flippant about serious topics like layoffs or geopolitical crises.
+
+Editorial rules:
+Don't read headlines one by one. Deduplicate immediately — merge overlapping coverage of the same event into one narrative using the richest details available.
+Prioritize stories with specific figures, named entities, tickers, timing, and measurable market moves. Use those details naturally.
+Spend ~60–70% of the script on the top 8–12 highest-impact stories. Cover the remaining 12–20 as brief contextual mentions (1–2 sentences each) without turning into a list.
+For title/description-only items (no crawled content), keep it to 1–2 cautious sentences — do not invent details.
+You MUST cover 24–28 articles total. Count them as you write. If you're under 24, add more brief mentions. If you're over 28, cut the least important ones.
+Entities and numbers are extracted hints — only mention them when clearly supported by the source material and relevant to why the story matters.
+If sources conflict or details are uncertain, be honest about it ("Reports are a bit mixed on this one") rather than picking a side.
+After major story arcs, add a short "what to watch" only if supported by the provided items.
+
+Chapter markers (for navigation — IMPORTANT):
+Before each new topic cluster, insert a marker on its own line: [CHAPTER: Topic Name]
+Use short, clear topic names (e.g., "Fed & Inflation", "AI & Big Tech", "Energy & Oil", "Market Snapshot").
+The opening greeting/agenda should be marked as [CHAPTER: Opening].
+These markers will be stripped before audio generation — they do NOT affect your script's flow or tone.
+Continue writing naturally as before; just add the marker line where the topic transition happens.
+
+Closing structure:
+After the main stories, wrap up with a quick "market snapshot" summarizing key numbers: major indexes (S&P 500, Nasdaq, Dow), Treasury yields (10-year), oil (Brent), gold, etc.
+Only include items where the provided articles contain actual figures. Do not invent data.
+CRITICAL: Only use market figures from articles published on the SAME trading day as today's date. If today is a weekend or holiday and no same-day market data exists, skip the market snapshot entirely — do NOT use stale figures from previous days.
+After the market snapshot (or after the main stories if snapshot is skipped), note how many articles you covered out of the total (e.g., "We hit about X of today's Y stories").
+End with a brief, warm sign-off.
+
+================================================================================
+ARTICLES INPUT (70 articles)
+================================================================================
+
+Date: Monday, February 16, 2026
+Today's articles (70 total):
+
+[BUSINESS_MARKETS] Starboard to Push for Big Shake-Up of Tripadvisor’s Board
+  Published: 2026-02-17 01:00
+  Desc: The travel-site operator’s stock recently fell after quarterly earnings missed analyst expectations.
+
+[WORLD] Britain’s Monarchy Can’t Escape the Shadow of the Epstein Scandal
+  Published: 2026-02-17 01:00
+  Desc: Emails show the extent of the disgraced financier’s relations with the former Prince Andrew and his ex-wife.
+
+[BUSINESS_MARKETS] Anderson Cooper to Leave CBS News’s ‘60 Minutes’
+  Published: 2026-02-17 00:33
+  Desc: The longtime correspondent, who is also a CNN anchor and host, said he wanted to spend more time with his family.
+
+[TECH] Irish Data Watchdog Opens Inquiry into X Over Grok AI Images
+  Published: 2026-02-17 00:12
+  Desc: Ireland’s data protection watchdog DPC is investigating X over concerns it could be breaching European Union privacy rules.
+
+[BUSINESS_MARKETS] BHP Exploring Infrastructure Deals as It Chases $10 Billion Target
+  Published: 2026-02-16 23:45
+  Desc: BHP Group said it has opportunities to unlock more value from its portfolio of assets, but won’t put a deadline on a target for generating as much as $10 billion from deals.
+
+[BUSINESS_MARKETS] Nancy Guthrie’s Family Cleared as Suspects in Disappearance
+  Published: 2026-02-16 22:39
+  Desc: The Pima County sheriff said rumors that her children or their spouses were involved were wrong and cruel.
+
+[BUSINESS_MARKETS] Thomas Pritzker, Named in Epstein Files, Retires as Hyatt Executive Chairman
+  Published: 2026-02-16 21:53
+  Desc: The hotelier communicated with both Jeffrey Epstein and Ghislaine Maxwell.
+
+[WORLD] The Canada School Shooting Touched Almost Everyone at a U.S.-Backed Coal Company
+  Published: 2026-02-16 21:36
+  Desc: Many of the victims in the hamlet of Tumbler Ridge, B.C., have links to Conuma Resources, which temporarily stopped mining last week.
+
+[BUSINESS_MARKETS] The 500-Year-Old Beretta Gun Dynasty Is Betting Big on the U.S.
+  Published: 2026-02-16 19:11
+  Desc: The world’s oldest firearms business is taking aim at one of its biggest American rivals, amassing a 10% stake in rifle maker Ruger.
+
+[BUSINESS_MARKETS] Nasdaq Futures Fall Ahead of Busy Week
+  Published: 2026-02-16 18:28
+  Desc: U.S. markets are closed for Presidents Day. GDP and inflation data are due in the coming days, while Walmart will be in focus in another batch of blue-chip earnings.
+
+[TECH] Yes, You Can Vibe-Code. Here’s How to Get Started.
+  Published: 2026-02-16 18:00
+  Desc: Creating your own programs might seem daunting. It’s a lot easier than you think.
+
+[POLITICS] The Newest Old Tech in Warfare: Balloons
+  Published: 2026-02-16 17:00
+  Desc: Reinvented as long-range drone-launchers, high-altitude balloons are extending the reach of Ukrainian attacks and American surveillance.
+
+[BUSINESS_MARKETS] Smithfield Foods to Build New South Dakota Pork Plant
+  Published: 2026-02-16 16:00
+  Desc: The planned $1.3 billion investment to create a facility that can slaughter about 20,000 hogs a day comes as officials have scrutinized the firm’s ties to China.
+
+[BUSINESS_MARKETS] Marketplaces Are the Next Frontier in Publisher Deals With AI Companies
+  Published: 2026-02-16 16:00
+  Desc: Microsoft, Amazon and others are planting flags in a new cottage industry as publishers look for additional revenue.
+
+[TECH] With a Frugal AI Strategy, India Offers Blueprint for Developing World
+  Published: 2026-02-16 15:00
+  Desc: The world’s most populous country is looking at how it can become an artificial-intelligence power without breaking the bank.
+
+[BUSINESS_MARKETS] U.K. Regulator Weighs Rule Change to Attract Chinese Listings
+  Published: 2026-02-16 14:36
+  Desc: It is looking at allowing Chinese-registered companies to follow Chinese accounting rules when listing global depository receipts in London.
+
+[ECONOMY] Canada Factory Sales Inch Up
+  Published: 2026-02-16 13:55
+  Desc: Factory shipments rose 0.6% on month in December, driven by sales of motor vehicles and food products.
+
+[BUSINESS_MARKETS] Basic Materials Roundup: Market Talk
+  Published: 2026-02-16 11:39
+  Desc: Find insight on Genesis Minerals, Press Metal Aluminium, aluminum prices and more in the latest Market Talks covering Basic Materials.
+
+[BUSINESS_MARKETS] Financial Services Roundup: Market Talk
+  Published: 2026-02-16 11:29
+  Desc: Find insight on CapitaLand Investment, Westpac and more in the latest Market Talks covering Financial Services.
+  Content: Voya Financial reported revenues of $2.01 billion, up 5.7% year on year, in line with analysts’ expectations. It was a slower quarter as it posted a significant miss of analysts’ EPS estimates and revenue in line with analysts’ estimates.
+
+As expected, the stock is down 1.3% since the results and currently trades at $74.54.
+
+Read our full analysis of Voya Financial’s results here.
+
+Hamilton Lane (NASDAQ:HLNE)
+
+With over $100 billion in assets under management and supervision, Hamilton Lane (NASDAQ:HLNE) is an investment management firm that specializes in private markets, offering advisory services and fund solutions to institutional and private wealth investors.
+
+Hamilton Lane reported revenues of $198.6 million, up 18% year on year. This print beat analysts’ expectations by 2.4%. It was 
+  Entities: Voya Financial, Hamilton Lane
+  Numbers: $2.01 billion, 5.7%, $198.6 million, 18%
+
+[BUSINESS_MARKETS] We Asked What Makes You an Economic Optimist. Here’s What You Said.
+  Published: 2026-02-16 10:30
+  Desc: Belief in self-reliance and the ability to overcome adversity is shared by those with a bright outlook, 
+according to WSJ reader responses.
+
+[ECONOMY] Americans offer plenty of reasons for pessimism about the economy, but those with a bright outlook share similar traits, according to responses from WSJ readers
+  Published: 2026-02-16 10:30
+  Desc: Belief in self-reliance and the ability to overcome adversity is shared by those with a bright outlook, 
+according to WSJ reader responses.
+
+[BUSINESS_MARKETS] ECB’s Move to Boost Euro’s Global Role Looks Positive For Currency
+  Published: 2026-02-16 10:23
+  Desc: The euro trades flat against the dollar and ING said that that European Central Bank’s move to boost the euro’s global role is positive for the single currency.
+  Content: By Balazs Koranyi
+
+Frankfurt — The European Central Bank (ECB) unveiled plans on Saturday to widen access to its euro liquidity backstop, making it globally available and permanent in a bid to bolster the international role of the single currency.
+
+Access to such repo lines, a crucial source of funding during times of market stress, has been limited to just a handful of mostly Eastern European countries, but ECB president Christine Lagarde has long seen the facility as a tool to boost the euro’s global reach.
+
+“The ECB needs to be prepared for a more volatile environment,” Lagarde said at the Munich Security Conference, the first time an ECB chief spoke at the event.
+
+“We must avoid a situation where that stress triggers fire sales of euro-denominated securities in global funding markets, which could hamper the transmission of our monetary policy,” she said in announcing the new facility.
+
+The facility, to be available from the third quarter of 2026, will be open to all central banks around the world, provided they are not excluded for reputational reasons, such as money laundering, terrorist financing or international sanctions, the ECB said.
+
+Standing access
+
+“This facility also reinforces the role of the euro,” Lagarde said. “The availability of a lender of last resort for central banks worldwide boosts confidence to invest, borrow and trade in euros, knowing that access will be there during market disruptions.”
+
+Used when banks are unable to obtain funding on the market, the repo line allows lenders to borrow euros from the ECB against high-quality collateral, to be repaid at maturity along with interest.
+
+Unlike previous lines, which had to be extended from time to time, the new facility will provide standing access for up to €50bn.
+
+With investors reassessing the dollar’s status due to the unpredictable nature of US President Donald Trump’s economic policy, Lagarde has argued this was the time for the euro to gain market share, but this required a revamped financial and economic architecture.
+
+Geographical reach
+
+The US Federal Reserve maintains a similar tool, called the FIMA repo facility, which essentially protects the treasury market since stress might otherwise force lenders to sell government bonds below market value.
+
+“These changes aim to make the facility more flexible, broader in terms of its geographical reach and more relevant for global holders of euro securities,” the ECB said in a statement.
+
+Such a guaranteed access to euros could naturally increase demand for euro-denominated assets and encourage banks outside the 21-nation eurozone to buy assets from the bloc.
+  Entities: European Central Bank, Christine Lagarde
+
+[ECONOMY] Eurozone Industrial Output Declines
+  Published: 2026-02-16 10:22
+  Desc: Industrial production fell 1.4% in December, halting three consecutive months of expansion after output declined in Germany.
+  Content: Eurozone industrial production declined by 1.4% month-on-month in December 2025, reversing a downwardly revised 0.3% increase in November and broadly matching expectations for a 1.5% fall.
+
+The reading marked the steepest monthly contraction since April 2025, snapping a three-month streak of gains, driven by lower output of capital goods (-1.9% compared with +2.6% in November), as well as decreases in energy (-0.3%), non-durable consumer goods (-0.3%), and intermediate goods (-0.1%).
+
+In contrast, production of durable consumer goods edged up 0.2%, rebounding from a 1.8% drop in the previous month.
+
+On an annual basis, industrial production growth slowed to 1.2% in December from 2.2% in November, slightly below forecasts of 1.3%.
+
+For 2025 as a whole, industrial output rose by 1.5%.
+  Entities: Eurozone, Germany
+  Numbers: 1.4%, 0.3%, 1.5%, 1.2%, 2.2%, 1.5%
+
+[BUSINESS_MARKETS] Hapag-Lloyd in Advanced Talks Over Potential Acquisition of Israeli Rival Zim
+  Published: 2026-02-16 10:12
+  Desc: Negotiations over a deal for all shares in its competitor haven’t yet resulted in any binding agreement.
+  Content: Hapag- Lloyd has confirmed that it is in advanced discussions to acquire ZIM Integrated Shipping Services, a Haifa-based liner operator, in a deal reportedly valued between $3 billion and $3.5 billion. The German carrier is working alongside FIMI Opportunity Funds on the proposed transaction, though it noted that no binding agreement has been signed so far.
+
+News of the potential sale triggered a strike at Zim’s headquarters in Haifa, with employees suspending operations in protest. The company said it is engaging with the workers’ union to prevent any disruption to ongoing activities, emphasising that employee interests remain a priority.
+
+Founded in 1945, Zim operates in more than 90 countries, serves over 33,000 customers across 300 ports, and is listed on the New York Stock Exchange with a market value of about $2.7 billion. It employs roughly 1,000 people, including around 160 at its headquarters.
+
+As part of the discussions, Hapag-Lloyd and FIMI are negotiating the assumption of obligations tied to special rights held by the Government of Israel. The state retains a “golden share” in Zim, allowing it to require the company to maintain a domestic presence and ensure maritime capacity during emergencies such as wartime.
+
+Under the proposed structure, FIMI would oversee Zim’s Israel-based operations, which fall under local regulatory requirements, while Hapag-Lloyd would take control of the company’s international business.
+
+The Histadrut described Zim as a strategic national asset vital to supply chain stability and maritime trade during crises. The federation said it is in talks with management and worker representatives to safeguard jobs, warning it is prepared to take strong measures, including a company shutdown, if employee interests are threatened.
+
+If an agreement is finalised and regulatory approvals are secured, Hapag-Lloyd is expected to acquire all outstanding shares of Zim and delist the company from the New York Stock Exchange.
+  Entities: Hapag-Lloyd, ZIM Integrated Shipping Services
+  Numbers: 3 billion, 3.5 billion
+
+[ECONOMY] Swiss Economy Swings to Growth
+  Published: 2026-02-16 10:03
+  Desc: The economy grew 0.2% in the final quarter of 2025, shrugging off some of the U.S. tariff-related impact that hit activity earlier in the year.
+  Content: By Ed Frankl
+Switzerland's economy rebounded in the final quarter of 2025, shrugging off some of the U.S. tariff-related impact that hit activity earlier in the year.
+Gross domestic product expanded 0.2% in the three months through December, bouncing back from the 0.5% contraction in the third quarter of the year, Switzerland's statistics office said Monday.
+The economy grew 1.4% over the whole of 2025, faster than the 1.2% of 2024, but below the Alpine nation's average growth, it said.
+"The challenging international environment slowed the export-oriented industry. By contrast, the services sector grew at an above-average rate by historical standards," the statistics office noted.
+Switzerland's export-oriented economy, which is home to luxury watchmakers and pharmaceutical companies, was h
+  Entities: Switzerland, Swiss statistics office
+  Numbers: 0.2%, 0.5%, 1.4%, 1.2%
+
+[POLITICS] So it turns out that Congress may have actually waived many of the tax code’s filing and payment deadlines for three and a half years during the pandemic. The fallout is just starting.
+  Published: 2026-02-16 10:00
+  Desc: Attorneys race to file refund claims after IRS loses court case.
+
+[BUSINESS_MARKETS] U.S. Futures Edge Up as Public Holidays Dim Trading
+  Published: 2026-02-16 09:55
+  Desc: U.S. equity and bond markets shuttered for Presidents Day, though futures tied to equities rose in Europe. The Lunar New Year closed trading floors in China and South Korea.
+  Content: By Dow Jones Newswires Staff
+Global stock markets and U.S. futures largely edged higher as traders in parts of Asia, the U.S. and Canada take a breath for public holidays. U.S. equity and bond markets shuttered for Presidents Day, though futures tied to equities rose in early European trade. Lunar New Year celebrations closed trading floors in mainland China and South Korea.
+Friday's soft U.S. inflation print helped push gold back above $5,000 an ounce, while oil traded flat as geopolitical risks linger. Investors are looking ahead to the publication of Federal Reserve meeting minutes on Wednesday followed by advance U.S. fourth-quarter gross domestic product figures and PCE inflation data on Friday.
+--Futures tied to major U.S. indexes were up early on Presidents Day morning. Both the Dow
+  Numbers: $5,000
+
+[BUSINESS_MARKETS] European Gas Prices Fall As Supply Holds Steady Despite Tight Storage
+  Published: 2026-02-16 09:40
+  Desc: European natural gas prices fell nearly 5%, with prices expected to remain highly sensitive to revisions in temperatures forecasts.
+  Content: European gas prices have experienced a decline as supply remains steady despite tight storage conditions. Wall Street Journal (Markets) posted on X that the current market situation is influenced by consistent supply levels, which have helped alleviate concerns over storage limitations. The steady flow of gas has contributed to a decrease in prices, providing some relief to the market.
+The European energy sector has been closely monitoring storage levels, which have been under pressure due to various factors. However, the stable supply has played a crucial role in maintaining market balance. Analysts suggest that the situation could change if supply disruptions occur or if demand increases unexpectedly.
+Despite the tight storage conditions, the current supply dynamics have been favorable, 
+  Entities: European energy sector
+  Numbers: 5%
+
+[BUSINESS_MARKETS] Gold Above $5,000 But Holiday-Thinned Trade Limits Gains
+  Published: 2026-02-16 09:26
+  Desc: Gold prices trade above $5,000 after softer-than-expected U.S. inflation data lifted hopes for further interest-rate cuts this year, but futures are down amid holidays in the U.S. and China.
+  Content: By Pablo Sinha
+
+Bengaluru — Gold prices dropped on Monday, pressured by thin trading volumes as US and Chinese markets remained shut due to local public holidays, while some traders booked profits after last session’s 2.5% jump.
+
+Spot gold fell 1.1% to $4,988.04/oz by 3.59am GMT. US gold futures for April delivery lost 0.8% to $5,006.60/oz.
+
+“Gold has given back some of Friday’s post-CPI [consumer price index] gains today due to thinner trading conditions and a lack of fresh upside catalysts,” said Tim Waterer, KCM chief analyst, who also pointed to profit-taking on the day.
+
+US markets are closed for the Presidents Day holiday, while markets in China are closed for the Lunar New Year holiday.
+
+CPI rose 0.2% in January after an unrevised 0.3% gain in December, the US labour department’s Bu
+  Entities: KCM
+  Numbers: $4,988.04, $5,006.60, 2.5%, 0.2%, 0.3%
+
+[BUSINESS_MARKETS] Oil Broadly Steady Ahead of U.S.-Iran Talks
+  Published: 2026-02-16 09:06
+  Desc: Oil prices are broadly steady ahead of a second round of talks between the U.S. and Iran this week.
+  Content: By Mohi Narayan and Florence Tan
+
+New Delhi/Singapore — Oil traded little changed on Monday, with investors weighing the market implications of upcoming US-Iran talks aimed at de-escalating tension against a backdrop of expected Opec+ supply increases.
+
+Brent crude futures edged up 3c to $67.78 a barrel by 3.58am GMT.
+
+US West Texas Intermediate (WTI) crude was at $62.91 a barrel, up 2c. There will be no WTI settlement on Monday due to a US holiday.
+
+Last week, both benchmarks posted weekly declines, with Brent settling down about 0.5% and WTI losing 1% after comments from US President Donald Trump that Washington could make a deal with Tehran over the next month drove down prices on Thursday.
+
+The two countries are due to hold a second round of talks in Geneva on Tuesday after renewing ne
+  Entities: Opec+
+  Numbers: $67.78, $62.91, 0.5%, 1%
+
+[BUSINESS_MARKETS] Eurozone Bond Yields Drift Lower, Await Fresh Drivers
+  Published: 2026-02-16 08:35
+  Desc: Eurozone government bond yields edged lower in early trade, awaiting fresh drivers with the data calendar thin and U.S markets closed.
+
+[BUSINESS_MARKETS] BlueScope Relegates Plans for U.S. Midstream Growth
+  Published: 2026-02-16 06:28
+  Desc: BlueScope Steel’s plans to expand further in the U.S. by investing in midstream capacity have fallen down the agenda.
+
+[ECONOMY] Japan’s Narrow Growth Tests Fiscal, Monetary Policy Paths
+  Published: 2026-02-16 06:14
+  Desc: The Japanese economy narrowly ​returned to growth in the final quarter of 2025, largely defying the U.S. tariff hit and giving the central bank room to keep raising rates.
+  Content: Japan’s fourth-quarter GDP edged back into growth but missed expectations by a wide margin. That puts an early spotlight on Prime Minister Sanae Takaichi’s fiscal plans and the Bank of Japan’s rate path, as stubborn inflation and a weak yen strain households and mute corporate risk-taking.
+Japan Q4 GDP in local data: The cabinet office’s preliminary release framed the slowdown in plain numbers. The Cabinet Office report stated, 実質季節調整済み前期比0.1％増、年率0.2％増 (seasonally adjusted real GDP rose 0.1% quarter-on-quarter, or 0.2% annualized). Those figures undershot the Reuters poll for 0.4% qoq and 1.6% annualized. The prior quarter was revised to a deeper annualized 2.6% contraction, making the Q4 rebound less convincing. Domestic demand underwhelmed across the board. Private consumption, over half of output, rose just 0.1% qoq as food costs stayed high. Business investment, a hoped-for pivot to private-demand-led growth, gained 0.2%, a soft print versus consensus 0.8%. Net exports contributed zero to growth after a drag in Q3. Local media captured the tone as cautious. Jiji Press and NHK highlighted the fragility of momentum even with headline improvement, noting that price pressures are eroding real purchasing power. Policy makers get little relief: growth returned, but not decisively, and the composition shows no clean handoff from public support to private demand. The GDP miss arrives just as the Takaichi administration weighs targeted spending and a possible consumption tax suspension focused on food, a pledge that spooked bond markets during the campaign.
+Market reaction across Nikkei, Topix, JGBs: Japanese stocks stuttered on the release, consistent with a recovery that lacks breadth. Large caps faded after the data as investors reassessed the earnings path for cyclicals. Exporters were mixed as a weaker yen supports revenue translation but global demand signals remain uneven. Banks and insurers were subdued alongside a steady JGB complex, with the curve reflecting a BOJ that is still normalizing but in smaller steps. Real estate and domestically oriented retailers were laggards on the growth miss and the squeeze on real incomes. Flows looked defensive. Dealers pointed to light volumes and a wait-and-see stance among retail accounts, who have favored cash year-to-date amid policy uncertainty. In derivatives, near-dated index hedges were marked up but no stress signals. Currency reaction was muted; the yen’s recent weakness has been driven more by global rate differentials than local data beats or misses. Bond markets were calm. With the BOJ needing time to assess the impact of its December move and inflation still above target, investors are pricing a slower, shallower hiking profile rather than a pause that resets the cycle. In short, no panic, but no growth impulse for equities either.
+Policy outlook and political context: The politics now matter as much as the print. Takaichi’s post-election mandate centers on boosting consumption and productivity without breaking fiscal credibility. The soft GDP mix raises the odds she reaches for both a targeted tax suspension on food and an early supplementary budget in the first half of the fiscal year beginning April, an option Capital Economics flagged. That would backstop households but complicate debt dynamics in a country with the developed world’s heaviest public debt load. The BOJ, for its part, must reconcile sticky inflation with fragile growth. The central bank’s policy framework has not shifted: 日本銀行は、物価安定の目標2％の実現を目指す (the Bank of Japan aims to achieve the 2% price stability target). Yet a slower activity pulse argues for patience on additional rate increases while it watches the transmission from its December step. Market economists in Tokyo stressed the same tension. Norinchukin Research said another near-term hike looks less likely, and MUFG Research underscored that a durable upturn hinges on real wages turning positive. That brings Shunto spring wage talks into sharper focus. If base pay hikes arrive, the BOJ gets more cover to keep normalizing even as growth runs below potential. If not, fiscal levers may carry more of the load, increasing the risk of policy drift and fiscal slippage later this year.
+Capex, wages, exports and Trump tariffs: Beneath the headline GDP miss, three levers matter for 2026 positioning. First, capex is still tepid but volatile in the initial estimate set. Machinery orders and factory automation outlays have been uneven, with major manufacturers prioritizing maintenance and selective capacity upgrades over expansion. Revisions could lift Q4, but today’s signal is that firms want clearer demand visibility before deploying balance sheets. Second, wages versus prices will determine consumption’s trajectory. With food inflation elevated and utility bills volatile, even modest nominal pay gains can get erased in real terms. Third, external demand is no longer a clear tailwind. Net exports contributed zero in Q4 after dragging in Q3. The U.S. tariff regime under President Donald Trump—now formalized at a 15% baseline on nearly all Japanese imports, lower than the earlier 27.5% on autos and the initially threatened 25% on most other goods—has stabilized the policy known unknown, but not the business response. Japanese manufacturers have been cautious on U.S.-bound production commitments, tilting toward localization and ASEAN near-shoring to manage tariff risk. That hedging mutes Japan-incorporated export growth even with a weak yen. Autos and machinery suppliers with North America plants will outperform pure exporters; small and mid-sized producers without diversification will find margins squeezed by compliance costs and pricing power limits. The bottom line: don’t overread the yen as a one-factor equity driver in 2026. Policy and trade structure matter more.
+Sector read-through and earnings sensitivity: If Takaichi pushes a food-only consumption tax suspension, grocery chains, discount retailers, and select food manufacturers would see volume support, but margin benefits could be offset by pass-through dynamics and any compliance requirements. Department stores and discretionary retailers get less direct help. A weaker yen still helps exporters with high foreign revenue shares, but energy importers and utilities feel the pinch unless hedged. Banks need a steeper curve for net interest margin lift; a slower hike path and anchored long yields temper that story, which is why financials underperformed after the GDP data. Real estate investment trusts face a similar rate-sensitivity headwind if normalization resumes later this year, though the timing now looks more extended. For capital goods, the capex softness argues for selective exposure to firms with service revenues, software integration, and maintenance contracts—areas that hold up when greenfield spending is deferred. On the earnings line, watch guidance language around U.S. tariff impacts and supply chain relocation costs; these will filter through to capex and depreciation over the next six quarters.
+How local media is framing risk: Domestic outlets are honing in on the squeeze from prices and policy timing. NHK and Jiji emphasize that consumption is dragging even as growth returns, an assessment that mirrors the Cabinet Office math. The official release makes the point without spin: 民間最終消費支出は0.1％増 (private final consumption expenditure rose 0.1%). In financial dailies, the focus is on wages. Nikkei has centered coverage on whether base-pay gains can outrun inflation during spring negotiations, framing this as the catalyst for sustainable growth. The language across reports stresses that corporate caution remains rational until there is clarity on both BOJ’s pace and fiscal details. That local debate is more granular than the binary risk-on or risk-off framing often seen abroad.
+What pricing implies versus fundamentals: Global strategists will say a miss is a miss, but the market is reading this as a policy-tilting miss, not a cycle-ending one. Retail money in Japan is patient, not panicked, with a wait-and-see approach after a strong multi-quarter rally. Institutional houses, including Bloomberg’s surveyed economists, argue that structural constraints—demographics, labor rigidity—cap the upside unless reforms accelerate. The Japan Times has called the recovery fragile and warned that momentum will fade without policy follow-through. Asia Financial reminds regional readers that Japan’s stabilization is pivotal for broader Asian supply chains. Taken together, the narrative that matters for asset prices is less about whether Q4 was +0.2% or +1.6% annualized, and more about whether the combination of targeted fiscal support, incremental BOJ normalization, and wage settlements can tip real incomes positive by midyear. If yes, consumption stabilizes and equities can look through soft prints. If no, fiscal measures may prop up headline growth but leave valuation support thin outside exporters benefiting from the yen.
+Global investor takeaway: English-language coverage is missing how coordinated the domestic debate now is around real wages and targeted fiscal timing. The Cabinet Office data and local reporting point to a policy sequence—food-focused tax relief, early supplemental spending, cautious BOJ steps—that can firm domestic demand without derailing normalization. Markets are already pricing a slower hike path; they are not yet pricing the upside if spring wage deals deliver and if tariff uncertainty continues to ease operationally through localization. That makes 2026 earnings dispersion the story to watch. Look past the index and focus on firms with U.S. localization, stable service revenues, and operating leverage to real wage gains. The miss matters, but in Tokyo this week it is seen as a nudge to calibrate policy, not a reason to abandon the recovery thesis.
+  Entities: Japan, Prime Minister Sanae Takaichi, Bank of Japan
+  Numbers: 0.1%, 0.2%, 0.4%, 1.6%, 2.6%
+
+[ECONOMY] January’s Gains Endure as High Supply Tempers February U.K. House-Price Growth, Rightmove Says
+  Published: 2026-02-16 05:50
+  Desc: Property website Rightmove said U.K. house prices in February were virtually flat on month as a high choice of homes for sale and steadying buyer activity prevented a rise.
+
+[WORLD] Millions Face Starvation in Congo. Their New Rulers Are to Blame.
+  Published: 2026-02-16 04:00
+  Desc: The M23 militia has tried to assert itself as the government in and around Goma. It is failing badly.
+  Content: The M23 rebel group that one year ago seized Goma, eastern Congo’s largest city, has tried to establish itself as the prevailing government in the area and consolidate control. Instead, it has driven farmers from their land, left produce to rot at roadblocks and blocked food imports except those from its allies in neighboring Rwanda, according to local traders and activists.
+
+The result is empty shelves in most stores and sky-high prices for meat, milk, grain and vegetables in stores that do manage to stock up, residents and activists report.
+
+Noella Amisi, a nurse in Goma, rushed out for baby formula, sugar and other groceries as soon as she received a $30 mobile-money transfer from her husband in government-held Kinshasa, Congo’s capital city. For hours, she crisscrossed the city looking
+  Entities: M23, Goma, Rwanda
+  Numbers: $30
+
+[WORLD] A Defector Explains the Remote-Work Scam Helping North Korea Pay for Nukes
+  Published: 2026-02-16 03:00
+  Desc: Kim Jong Un’s cyber operatives have faked their way into IT jobs at American firms and elsewhere, pocketing big revenue for the regime.
+
+[BUSINESS_MARKETS] The Break Is Over. Companies Are Jacking Up Prices Again.
+  Published: 2026-02-16 03:00
+  Desc: Higher tariffs, labor and health-insurance costs have pushed many businesses to raise prices for consumers.
+  Content: Durable goods prices accelerated in January as retailers reset margins post-holidays and 2025 tariffs; OpenBrand CPI rose 0.75% MoM, a 12-month high.
+
+SAN DIEGO, CA, UNITED STATES, February 9, 2026 /EINPresswire.com/ — The year began with a modest acceleration in durable goods prices after retailers in some categories adjusted their margins following holiday discounting and 2025 tariff costs. The February 2026 release of the OpenBrand Consumer Price Index (CPI) – Durable and Personal Goods shows prices rose +0.75% month-over-month in January, the largest gain in 12 months and up from a revised +0.43% in December.
+
+Price growth accelerated across four of the five product categories tracked by OpenBrand, led by recreation goods, home improvement, and personal care. Prices for recreational products like TVs, headphones, and speaker systems grew by +2.44% on a month-over-month basis in January, at least partially due to a decrease in the frequency of discounts.
+
+“While month-over-month price growth in January was the largest gain in 12 months, it’s not unusual for the first month of the year to bring relatively sharp price increases,” said Ralph McLaughlin, Chief Economist at OpenBrand.
+
+“The new year is an opportunity for manufacturers and retailers to shift pricing in response to holiday promotions and broader market forces. We didn’t see unusually large holiday discounts in December, so a more likely explanation for the reset could be due to some manufacturers and retailers adjusting their margins after absorbing some of the tariff costs in 2025.”
+
+Key Findings
+
+– If we compare price growth in January 2026 to price growth in January over the past decade, it ranks below the +0.96% month-over-month average. Much of the increase this January is likely due to normal seasonal upticks at the beginning of the year, rather than persistent inflationary forces.
+
+– Appliances posted a modest +0.24% increase, below the 10-year January average. We expect prices to decelerate again in the months ahead.
+
+Prices of communication devices, including phones, tablets, computers, and printers, fell on a month-over-month basis by -0.29%, down sharply from a revised +1.31% in December.
+
+– In January, the typical discount magnitude decreased slightly to 20.0%, down from 20.8% in December.
+
+Year-Ahead Outlook
+
+As short-term tariff swings ease and economic policy uncertainty fades, we anticipate 2026 will mark a period of stabilization, including within the durables sector. The limited expansion in durables market size we expect this year is likely to be driven by incremental price increases following recent Fed rate cuts. We project durables market growth to reach its high point in July, coinciding with the largest price adjustment, before slowing through the rest of the year.
+
+“We expect only limited expansion in overall durables market size this year, driven primarily by incremental price increases following recent rate cuts,” McLaughlin said. “Durables market growth is projected to peak in July, aligning with the largest anticipated price adjustment, before moderating through the remainder of the year.”
+
+About the OpenBrand CPI
+
+The data used in this report leverages OpenBrand’s industry-leading library of durable and personal goods pricing, promotion, and availability for over 1.4 million individual products. This is more than ten times the coverage of the Bureau of Labor Statistics (BLS) Consumer Price Index, allowing for more timely and granular reporting of price changes in the market. The OpenBrand CPI provides real-time insights into consumer price dynamics for retailers, manufacturers, and policymakers, delivering earlier signals than traditional inflation measures.
+
+Download the full report: openbrand.com/cpi
+
+Press Contact:
+
+press@openbrand.com
+
+Media Interviews:
+
+Ralph McLaughlin, Chief Economist — ralph@openbrand.com
+
+Legal Disclaimer:
+  Entities: OpenBrand
+  Numbers: 0.75%, 12-month high, 0.43%
+
+[WORLD] Canada to Prioritize Domestic Firms in Defense-Spending Plan Amid U.S. Tension
+  Published: 2026-02-16 02:38
+  Desc: Canada is seeking to create 125,000 jobs and increase corporate revenue by billions annually by ensuring domestic firms receive priority from a sizable increase in defense spending.
+  Content: OTTAWA — The Liberal government is making sweeping changes to the way it approaches supporting the domestic defence industry, as Canada looks to transition away from overreliance on the United States for military gear.
+“In this uncertain world, it is more important than ever that Canada possess the capacity to sustain its own defence and safeguard its own sovereignty,” reads the defence-industrial strategy Ottawa is set to release this week.
+“This is especially important when it comes to protecting Canada’s Arctic sovereignty and promoting a secure North.”
+The government was expected to announce its strategy last week, but Prime Minister Mark Carney suspended his travel due to a mass-shooting in B.C. and pushed the announcement to later this week. Media outlets on Sunday published the deta
+  Entities: Canada, Liberal government
+  Numbers: 125,000 jobs
+
+[BUSINESS_MARKETS] In a Chaotic Market, Investors Learn How to Cope With Surprises
+  Published: 2026-02-16 02:00
+  Desc: One year into the second Trump administration, traders and investors say they are getting used to “event risk,” outsize market swings triggered by unexpected news.
+  Content: MARKET WRAPS
+Watch For:
+Eurozone industrial production; no major trading updates expected
+Opening Call:
+European stock futures were higher after Asia stocks traded mixed. U.S. Treasurys were flat, the dollar edged higher. Gold fell and oil rose.
+Equities:
+European stock futures were higher. A year into the second Trump administration, traders and investors say they are growing more accustomed to what is known in Wall Street parlance as "event risk"--sudden, unexpected news triggering outsize market swings.
+Stocks remain near records, but the all-hours cadence has spurred some investors to move money into foreign markets or other havens to escape the noise of the domestic headline cycle.
+Stephen Kolano, chief investment officer at Integrated Partners, is increasingly looking toward regions 
+  Entities: Integrated Partners
+
+[BUSINESS_MARKETS] Companies Are Replacing CEOs in Record Numbers—and They’re Getting Younger
+  Published: 2026-02-16 02:00
+  Desc: There hasn’t been such a big crop of new leaders running Corporate America in at least 16 years, and they have their hands full.
+
+[POLITICS] The U.S. military airlifted on Sunday a miniature nuclear reactor for the first time as part of President Trump’s push to deploy nuclear power across the United States
+  Published: 2026-02-16 00:22
+  Desc: The reactor’s journey to Utah from California is part of the Trump administration’s push for more nuclear power.
+  Content: Washington, Feb 16 (IANS) The US military airlifted a miniature nuclear reactor for the first time, marking a significant step in President Donald Trump’s push to expand nuclear power and bolster military base energy security.
+Three C-17 transport planes carried components of the Valar Atomics Ward 250 unfueled nuclear reactor from March Air Reserve Base in California to Hill Air Force Base in Utah. The reactor will eventually move to the Utah San Rafael Energy Lab for testing and evaluation.
+The Ward 250 is a 5-megawatt nuclear reactor that fits inside a C-17 aircraft and could theoretically power about 5,000 homes. Testing will begin at 250 kilowatts, with the system ultimately capable of producing 5 megawatts, according to company officials.
+The flight from California to Utah is part of
+  Entities: Valar Atomics, US military
+  Numbers: 5, 250, 5,000
+
+[BUSINESS_MARKETS] Qube Agrees to Macquarie-Led Consortium Takeover Valuing It at $6.51 Billion
+  Published: 2026-02-15 23:57
+  Desc: The Australian logistics operator has agreed to support a takeover offer from a consortium led by Macquarie Asset Management that values its equity at $6.51 billion.
+  Content: Feb 16 (Reuters) - Shares of Australia's Qube Holdings shot to a record high on Monday after it agreed to an A$11.7 billion ($8.26 billion) buyout offer from a consortium led by Macquarie Asset Management (MAM) to take the logistics firm private.
+Qube shares jumped as much as 4.1% in early trading to an all-time high of A$5.05. The stock remained below the consortium's A$5.20 a share offer.
+The agreement follows months of talks after a MAM-led consortium made a non-binding offer in November for Qube, which gave the company an enterprise value of A$11.6 billion. Qube owns ports, intermodal terminals and bulk handling facilities across Australia.
+Qube's board recommended its investors vote in favour of the deal at a shareholder meeting that is due to be held later this year. The transaction requires Australian competition and foreign investment regulatory approval.
+"Qube is a really great reflection of the Australian economy, if you think what is driving the Australian economy, a lot of the volume is similar to what Qube's volume is," said Ani Satchcroft, MAM's co-head of infrastructure for Asia-Pacific.
+"It's imports such as containers and vehicles, and then export demand across things like resources and agriculture, for us that macroeconomic reflection was a really big attraction of Qube."
+Australian pension fund UniSuper, Qube's largest investor with a 15.1% stake, and Pontegadea, the family office of Spain's Ortega family, which is known for controlling global clothing company Inditex, joined the Macquarie consortium. Fast fashion retailer Zara is an Inditex subsidiary.
+UniSuper began increasing its stake by buying Qube shares on the open market after Macquarie's bid was first unveiled in November.
+"There will be more public-to-private transactions," John Pearce, UniSuper's chief investment officer, told Reuters.
+"There's a feeling that in a private vehicle, there is more of an opportunity to actually take longer-term investment decisions."
+Under a scheme implementation deed, the Sydney-based firm can pay dividends of up to a maximum of 40 Australian cents, which will result in a reduction in the offer price, both Qube and MAM said.
+($1 = 1.4172 Australian dollars)
+(Reporting by Scott Murdoch in Sydney, Sameer Manekar and John Biju in Bengaluru; Editing by Vijay Kishore, Diane Craft and Sonali Paul)
+By Scott Murdoch and Sameer Manekar
+  Entities: Qube Holdings, Macquarie Asset Management
+  Numbers: A$11.7 billion, $8.26 billion, A$5.20, 4.1%, A$5.05, A$11.6 billion
+
+[WORLD] U.S. and Europe, No Longer Kindred Souls, Enter a Marriage of Convenience
+  Published: 2026-02-15 19:46
+  Desc: Secretary of State Marco Rubio offered a warmer tone at this year’s Munich Security Conference, but European officials say the trans-Atlantic fissure remains.
+  Content: Secretary of State Marco Rubio delivered a less pugnacious message when compared with last year’s Munich conference. Back then, Vice President JD Vance launched a blistering attack on the governments of Europe’s largest nations and embraced their far-right political opponents.
+
+Rubio, by contrast, got a standing ovation after highlighting the importance of trans-Atlantic ties and common history and culture. Yet, though the Europeans and the Trump administration are on speaking terms once again, there are few illusions.
+
+The deep fissure caused by last month’s crisis over Greenland has been papered over, but not fixed. What used to be an alliance of kindred souls is viewed by both sides today as a marriage of convenience, loveless and lacking basic trust.
+
+“Now there is a new equation that 
+  Entities: Marco Rubio, JD Vance
+
+[WORLD] Doctors Without Borders Says Gunmen Are Using a Gaza Hospital, Posing Risk to Patients and Staff
+  Published: 2026-02-15 17:09
+  Desc: Doctors Without Borders suspended all noncritical care at Nasser Hospital Complex last month after an uptick in what it called unacceptable acts.
+  Content: The Nasser Hospital in Gaza accuses Doctors Without Borders of “aiding in manufacturing consent” for potential attacks on the southern Gaza medical center, after the aid group said it had suspended nonessential activities at the medical center due to the presence of gunmen and “suspicion of weapons transfers.”
+The Khan Younis hospital says there will be “foreseeable and grave consequences” if the aid group, known by its French acronym MSF, does not retract the statement.
+In the English-language press release via the Hamas-run Gaza health ministry, the hospital claims the presence of armed men “is aimed at securing safety for the staff and patients.”
+According to the hospital, the armed men seen on site are not military personnel but rather police carrying out “protective, civilian and lawf
+  Entities: Doctors Without Borders, Nasser Hospital, Hamas
+
+[BUSINESS_MARKETS] How Blockbuster Films and Bingeworthy Streaming Hits Slipped Into Our Showers
+  Published: 2026-02-15 17:00
+  Desc: Forget toys and candy. Here’s how Hollywood got hooked on hygiene product placement.
+
+[TECH] What’s Left For Humans?
+  Published: 2026-02-15 15:59
+  Desc: Plus, Bezos v. Musk in space, Anthropic’s AI philosopher, killing ChatGPT 4o and a look at a viral Stanford University matchmaking app.
+
+[POLITICS] While the main focus of the Munich Security Conference was on the alliance, top leaders from Europe wanted to know from U.S. politicians what they thought of the coming midterm elections
+  Published: 2026-02-15 13:39
+  Desc: While the main focus of the Munich Security Conference was on the alliance, top leaders wanted to know all about November.
+  Content: Europe must be ready to fight to protect its people, values, and way of life, Prime Minister Sir Keir Starmer told world leaders on Saturday.
+
+Speaking at the Munich Security Conference, Starmer also called for deeper links and cooperation, including economic ties, between the UK and EU.
+
+The PM stressed the continent must "stand on its own two feet" when it comes to defence commitments.
+
+During his speech, Starmer also said the UK would deploy its carrier strike group to the Arctic and High North as part of efforts to bolster security against Russian threats.
+
+The High North - a term used to describe the northernmost part of the globe - includes the Arctic circle and areas adjacent to it.
+
+Starmer said the US, Canada and other Nato allies would also join the initiative to combat Russian t
+  Entities: UK, EU, NATO
+
+[ECONOMY] Easier access to home loans and modular construction are among the options the House and Senate are weighing to battle high housing prices
+  Published: 2026-02-15 13:00
+  Desc: Modular housing and easier access to home loans are among the proposals lawmakers are working on.
+
+[TECH] TikTok’s Chinese Parent Has an App to Replace Hollywood
+  Published: 2026-02-15 10:47
+  Desc: ByteDance’s AI-video creator draws buzz for its realistic scenes and a backlash over privacy and copyright.
+  Content: Text-to-video generating tools have made tremendous leaps in a few short years.
+
+We went from a horrifying clip of actor Will Smith’s contorted face temporarily merging with a bowl of spaghetti in 2023 to a far more realistic clip of him enjoying a plate of pasta — including a soundtrack of unnerving squelching and chomping sounds — a mere two years later.
+
+Now, TikTok’s Chinese owner ByteDance has once again upped the ante with the latest version of its Seedance AI video generating tool. It didn’t take long for photorealistic footage of “Lord of the Rings” clips, rapper Kanye West and ex-wife Kim Kardashian facing off in a dramatic Mandarin language movie scene, and of course Will Smith battling a ferocious spaghetti monster to go viral on social media.
+
+The impressive technological feat appears to have shaken Hollywood, with “Deadpool” screenwriter Rhett Reese lamenting on X that “I hate to say it” but it’s “likely over for us.”
+
+Reese was responding to a highly realistic clip of actors Brad Pitt and Tom Cruise engaging in hand-to-hand combat on top of a partially broken bridge.
+
+The advent of powerful generative AI-based video tools has driven the entertainment industry into a panic, with actors warning that they could one day be replaced altogether. Highly influential voices in the industry have come out against the tech in full force, warning of the death of human agency and creativity.
+
+As the BBC reports, the Motion Picture Association (MPA) was outraged that ByteDance’s latest tool was allowing people to generate clips of high-profile celebrities at all.
+
+“In a single day, the Chinese AI service Seedance 2.0 has engaged in unauthorized use of US copyrighted works on a massive scale,” the MPA’s chairman and CEO Charles Rivkin said in a statement.
+
+In response, Bytedance claims to have stopped the ability to generate clips of real people. But given OpenAI’s continuing struggles with its own video-generating tool, it remains to be seen how effective the company’s approach to guardrails will turn out to be.
+
+Beyond allowing users to generate ultra-realistic clips of celebrities, Rivkin also accused the company of allowing rampant copyright infringement.
+
+“By launching a service that operates without meaningful safeguards against infringement, ByteDance is disregarding well-established copyright law that protects the rights of creators and underpins millions of American jobs,” he said, as quoted by the BBC. “ByteDance should immediately cease its infringing activity.”
+
+Others in the entertainment industry tend to agree.
+
+“Everything I’ve seen from this model (Seedance 2) is a copyright violation,” Roblox product manager Peter Yang tweeted.
+
+In short, the latest AI release once again highlights a highly contentious battle over copyright and the agency of human performers in an entertainment landscape that’s changing with each new AI release.
+  Entities: ByteDance
+
+[BUSINESS_MARKETS] The Private Manhattan Club With a Jeffrey Epstein Problem
+  Published: 2026-02-15 10:30
+  Desc: The sex offender was a founding member at the Core Club, had deep ties with its owners and frequented its spa.
+
+[BUSINESS_MARKETS] The Ivies Are Having Second Thoughts About Investing in Private Equity
+  Published: 2026-02-15 10:30
+  Desc: A crowded field and subpar returns have frustrated America’s wealthiest universities, some of private-capital firms’ most-loyal clients.
+
+[BUSINESS_MARKETS] Bezos vs. Musk: The New Billionaire Battle for the Moon
+  Published: 2026-02-15 10:30
+  Desc: Elon Musk has changed his focus from Mars to a lunar base, going head to head with Jeff Bezos.
+  Content: The contest between Elon Musk and Jeff Bezos is only going to get more heated now that the two are directly competing for the moon.
+
+After years of charting a path to Mars, Musk surprisingly announced this past week that SpaceX is pivoting to the moon, where he wants to build a “self-growing city.” That puts him in the same space camp as rival Bezos, who has bet that focusing on the moon would give his rocket company, Blue Origin, an advantage. The Amazon founder has long extolled the benefits of a lunar base, including setting up factories there.
+
+The direct competition promises to stoke an even hotter 21st-century space race—this time between this era’s real superpowers: billionaires.
+
+Generations ago, the rivalry between the U.S. and then-Soviet Union to reach the moon was a spectacle o
+  Entities: SpaceX, Blue Origin
+
+[WORLD] China Watchers Are Trying to Spot the Next Target of Xi’s Purges
+  Published: 2026-02-15 04:00
+  Desc: “Pekingologists” are hunting for clues in seating arrangements and funeral wreaths to determine which officials are in trouble.
+  Content: Official newspaper editorials have condemned Gen. Zhang Youxia for allegedly undermining Xi’s authority, abetting corruption and damaging efforts to develop China’s combat effectiveness. Some analysts wondered if the two men had disagreed over policy, while others theorized that Xi wanted to eliminate a perceived threat.
+
+Some sleuths have resorted to studying body language as they try to pierce the veil of secrecy. They pointed to footage showing Zhang facing away from Xi as the leader walked past after a legislative session last year, to speculate about souring ties between the men.
+
+Xi’s motives for ejecting Zhang may never be definitively known. But that hasn’t stopped foreign academics, officials and business executives from trying to find out—and some are turning to arcane tea leaf-r
+  Entities: Xi Jinping, Zhang Youxia
+
+[WORLD] On the Ground With Crews Battling to Keep the Lights On in Ukraine
+  Published: 2026-02-15 03:00
+  Desc: Emergency-repair teams and power-station workers fight around the clock to restore power and heating under constant Russian attacks.
+  Content: Their job was to repair a crack in a concrete structure at a power plant caused by a Russian missile strike. At risk was power and heating for thousands of homes in Ukraine’s capital. The challenge? The crack was underwater, and the repairs would have to take place as Russian missiles continued to land.
+
+The team succeeded in a risky operation lasting six days, one of the most compelling examples of the courage and resilience of repair crews and power station workers fighting night and day to keep the power and heat on as Russia seeks to destroy Ukrainian morale with relentless aerial attacks.
+
+“It was definitely one of our hardest tasks ever," said Andriy Vlasenko, the 45-year-old head of the dive team from the State Emergency Service.
+
+Relentless Russian strikes with missiles and explosi
+  Entities: State Emergency Service
+
+[ECONOMY] Inflation is easing, jobs are holding up, and growth is solid. But after years of high prices and with new risks emerging, declarations of victory feel premature.
+  Published: 2026-02-15 02:00
+  Desc: Inflation is easing, jobs are holding up, and growth is solid. But after years of high prices and with new risks emerging, declarations of victory feel premature.
+  Content: It is a snapshot, not a verdict—but it is the closest the economy has come to achieving a soft landing, a moderation in inflation without recession. Just four years ago, many economists said that was impossible. This past April, as the economy closed in on a soft landing, steep tariffs had forecasters bracing for a new surge in inflation.
+
+Now, it again looks plausible that inflation could return to the Federal Reserve’s 2% goal without a recession.
+
+Friday’s inflation report showed so-called core prices, which strip out volatile food and energy costs, rose 2.5% in January from a year earlier—the lowest since the pandemic price surge began in 2021. While that number has been held down artificially by a data gap from last fall’s government shutdown, it nonetheless showed less of the start-of-the-year price pressure that tripped up the falling-inflation story in each of the past three years.
+
+Meanwhile, separate data Wednesday showed the unemployment rate ticked down to 4.3% in January, with employers adding a larger-than-anticipated 130,000 jobs.
+
+“The worst calamity that everyone had in mind didn’t happen," said Jeffrey Cleveland, chief economist at Payden & Rygel. “People would say to me, ‘The only way you’ll get to 2% inflation is the unemployment rate has to spike.’"
+
+Even if oxygen masks weren’t needed, it is too soon to remove the seat belts. Core prices as measured by the Fed’s preferred inflation gauge, which differs from the consumer-price index released Friday, are rising nearly 3%, up from the recent low of 2.6% recorded this past April and well above the 2% target. Several forecasters expect little progress this year as tariff-related price increases work their way from ports to store shelves.
+
+Fed officials worry less that inflation will surge again than that it will stall at recent levels.
+
+“You’re not going to get me to declare victory on ‘soft landing,’" said Anna Paulson, the president of the Philadelphia Fed, in an interview last month. “Inflation needs to be at 2%. So we haven’t finished the job." Her forecast pencils in monthly inflation readings consistent with 2% by year’s end.
+
+The labor market, meanwhile, might be less sturdy than the report this past week suggested. Annual revisions showed the economy added an average of 15,000 jobs a month in all of 2025, lower than in almost any year outside of recessions since World War II. Job growth has been narrowly concentrated in healthcare and education.
+
+“The labor market has been objectively weak," said Cleveland. He added that the unemployment rate is more likely to rise than fall this year and that core inflation, using the Fed’s preferred gauge, will drop to 2.1% by year-end.
+
+Unemployment has been stable because even though employers aren’t adding many workers, they aren’t cutting many either. It wouldn’t take much to shatter that fragile equilibrium.
+
+One candidate: companies whose stock prices have tumbled as the AI boom reshuffles winners and losers might be forced to cut costs, including through layoffs.
+
+Another risk is that household wealth has been buoyed by years of equity gains, and a sustained selloff could cause consumers to pull back, undermining an engine of economic growth.
+
+Others think the bigger risk to the soft landing comes not from the labor market but from resilient consumers keeping inflation stuck above 2%.
+
+“I’m a little nervous about the whole soft landing here because households are overall in good financial shape," said Marc Giannoni, chief U.S. economist at Barclays. “Wealth has gone up pretty much across the board." Giannoni sees unemployment decreasing to 4% this year with inflation holding around 2.8%—the mirror image of Cleveland’s forecast.
+
+He said the popular narrative of a K-shaped economy in which wealthy households drive disproportionate growth in spending, masking broader fragilities among savings-depleted lower-income consumers, has been exaggerated. That is good news for the expansion. It is less good news for getting inflation back to 2%.
+
+Capital spending on AI contributed nearly a full percentage point to economic output last year and could do so again this year, said Daleep Singh, chief global economist at PGIM Fixed Income.
+
+Fiscal policy might add another tailwind. Ahead of this fall’s midterm elections, the Trump administration has reason to pursue expansive fiscal policies and to be more careful about trade actions that, after steep tariff increases this past April, added to the cost-of-living pressures the president had promised to fix, said Singh, a former economic adviser to President Joe Biden. He sees inflation ending the year at around 3%.
+
+A closer look at Friday’s report revealed inflation challenges lurking under the surface. Shelter costs, which had been the single largest driver of elevated inflation in recent years, have finally cooled meaningfully.
+
+But prices for services outside of housing remained firm, and tariff-sensitive goods prices accelerated. Stripping out used cars, core goods prices rose at a 4.4% annualized rate in January, the fastest pace in three years. Analysts said the report also suggested that automakers, who absorbed tariff-related costs throughout 2025, passed more of them along to buyers.
+
+Jerome Powell, whose term as Fed chair ends in May, has guided the economy through the worst inflation in four decades and relentless political pressure to change course. He is poised to leave with the soft landing closer than anyone had good reason to expect. But it isn’t secured.
+
+If the economy stays strong, the White House might find itself demanding rate cuts that solid growth wouldn’t historically justify. Whether President Trump’s choice to succeed Powell, Kevin Warsh, inherits a mandate to consolidate recent gains or push for something more ambitious could determine what comes next.
+
+Write to Nick Timiraos at Nick.Timiraos@wsj.com
+  Numbers: 2.5%, 2%
+
+[BUSINESS_MARKETS] Farmers Are Aging. Their Kids Don’t Want to Be in the Family Business.
+  Published: 2026-02-15 02:00
+  Desc: A fifth-generation farmer stares down a future in which his land is no longer tended by someone in the family. It’s new territory for everyone.
+
+[BUSINESS_MARKETS] Gen Z, Locked Out of Home Buying, Puts Its Money in the Market
+  Published: 2026-02-15 01:00
+  Desc: The share of people ages 18 to 39 transferring funds to investment accounts every month has more than tripled over a decade.
+
+[WORLD] Teen Suspect in Canada Shooting Had Turbulent Life Marred by ‘Nomadic’ Early Years
+  Published: 2026-02-14 22:43
+  Desc: Police are still searching for clues as to why the 18-year-old suspect would have turned violent, and how she could have carried out her attack.
+
+[BUSINESS_MARKETS] How Kathy Ruemmler and Goldman Sachs Finally Reached Their Breaking Point
+  Published: 2026-02-14 19:26
+  Desc: Unease among some board members grew following the latest document releases and the resignation of Paul Weiss’s chairman.
+  Content: Kathy Ruemmler, the chief legal officer at Goldman Sachs, said Thursday night she is resigning amid fallout from the Justice Department’s release of millions of pages of Jeffrey Epstein documents.
+
+Her resignation is effective June 30.
+
+Her announcement comes as she has weathered numerous news stories in recent weeks examining her relationship with the disgraced financier.
+
+Ruemmler and those around her have insisted she had a professional relationship with Epstein.
+
+“Since I joined Goldman Sachs six years ago, it has been my privilege to help oversee the firm’s legal, reputational, and regulatory matters; to enhance our strong risk management processes; and to ensure that we live by our core value of integrity in everything we do,” Ruemmler, a former Obama White House counsel, said in a s
+  Entities: Goldman Sachs, Kathy Ruemmler, Paul Weiss
+
+[BUSINESS_MARKETS] Phonographs, Player Pianos and Betamax: The Inventions That Transformed Entertainment
+  Published: 2026-02-14 17:00
+  Desc: These 10 technological marvels had cultural implications that its inventors could barely have imagined.
+
+[WORLD] Canada Has a Secessionist Movement on Its Hands. Its Supporters Thank Trump.
+  Published: 2026-02-14 17:00
+  Desc: Oil-rich Alberta is poised to hold an independence referendum this year, with the American president’s allies cheering it on.
+  Content: A right-wing group pushing the province of Alberta to secede from Canada has ramped up a petition campaign aimed at achieving independence after meeting with officials from the Trump administration. The group has already held three meetings with officials from the State Department, where they’ve discussed the logistics of a potential secession from Canada, including border security, switching over to U.S. currency and how their radical plan can benefit the United States. Volunteer canvassers have set a target to collect approximately 177,000 signatures, or 10% of Alberta’s registered voters, by May 2, the threshold required by law to push a citizen-led referendum to separate from Canada.
+
+If successful, the petition could trigger a formal referendum in October 2026. Alberta holds about 97%
+  Entities: Alberta, Trump administration
+  Numbers: 177,000, 10%
+
+[WORLD] Navalny Killed by Poison Frog Toxin, European Governments Say
+  Published: 2026-02-14 16:22
+  Desc: The dissident was killed while in Russian custody by a substance that doesn’t occur naturally in Russia, according to the joint investigation.
+  Content: Russian opposition figure and outspoken Kremlin critic Alexey Navalny, who died two years ago, was killed while in prison by a lethal toxin found in poison dart frogs in South America, five European countries have said in a statement Saturday.
+
+Analyses of samples taken from Navalny’s body have “conclusively confirmed the presence of epibatidine,” the statement said. The substance is not found naturally in Russia, it added.
+
+The five countries – UK, Sweden, France, Germany and the Netherlands – said Moscow “had the means, motive and opportunity to administer this poison” to Navalny while he was held in a penal colony north of the Arctic Circle.
+
+Only “the Russian state had the combined means, motive and disregard for international law” to contribute to Navalny’s death, they added.
+
+Russian
+  Entities: Alexey Navalny, Russia, UK, Sweden, France, Germany, Netherlands
+
+[BUSINESS_MARKETS] News quiz for Feb. 14, 2026
+  Published: 2026-02-14 11:00
+
+[WORLD] Rubio Seeks to Reassure European Allies in Munich Speech
+  Published: 2026-02-14 09:45
+  Desc: The secretary of state addressed tensions over tariffs and Ukraine in a speech at an annual trans-Atlantic gathering.
+
+[BUSINESS_MARKETS] China Deploys a ‘National Team’ of Investors to Keep AI Stock Boom in Check
+  Published: 2026-02-14 04:00
+  Desc: A group of state-linked funds has stepped in and unloaded holdings to cool things down when investors get too rosy.
+
+[WORLD] Saudi Youth Couldn’t Date Openly a Decade Ago. Now Tinder Is Booming.
+  Published: 2026-02-14 04:00
+  Desc: Liberalization has opened the door to more casual relationships, but society is still catching up.
+
+[BUSINESS_MARKETS] Casey Wasserman Is Putting His Talent Agency Up for Sale After Epstein Fallout
+  Published: 2026-02-14 03:45
+  Desc: Wasserman has said he “never had a personal or business relationship with Jeffrey Epstein” and told staff he felt that he had “become a distraction” to the firm’s work.
+  Content: Casey Wasserman has decided to put his namesake talent agency and marketing firm up for sale while he grapples with the intense fallout from the revelations of his past relationship with Ghislaine Maxwell as detailed in the Epstein files disclosure.
+
+Wasserman confirmed his plan in a memo to Wasserman staff that was first reported by the Wall Street Journal. The sale will also include the Brillstein Entertainment Partners talent division that has long handled A-listers such as Brad Pitt.
+
+More from Variety
+
+Island Records' New Dynasty: With Sabrina, Chappell, Olivia Dean and Lola Young, the Label's Chiefs Explain How It Got So Hot, So Fast
+
+Casey Wasserman Remains L.A. Olympics Chairman Amid Epstein Scandal, Board Says He 'Should Continue to Lead LA28'
+
+As Chappell Roan and Other Artists E
+  Entities: Wasserman Media Group, Brillstein Entertainment Partners
+
+[POLITICS] As midterm elections approach, some rank-and-file House Republicans are starting to show independence from President Trump
+  Published: 2026-02-14 02:00
+  Desc: As the midterms approach, some rank-and-file Republicans are starting to show independence.
+
+[BUSINESS_MARKETS] America Fell Out of Love With the Sedan. Detroit Wants to Bring It Back.
+  Published: 2026-02-14 02:00
+  Desc: With drivers looking for more affordable options, U.S. automakers are having second thoughts about abandoning the mass-market sedan.
+  Content: By Nathan Gomes
+
+- For American buyers, affordable cars have not been this hot since the Gulf War sent gas prices climbing and Japanese automakers took market share by offering a simple proposition: "fill it, forget about it".
+
+Steep sticker prices on new cars are pushing Americans to opt out of premium trims for basic models, lifting sales of entry-level variants and prompting some automakers to adjust production.
+
+Pickup trucks and crossovers have cemented their place as top-sellers despite their hefty price tags. But average transaction prices have hovered around $50,000 for nearly a year, according to Cox Automotive, putting many fully loaded models out of reach.
+
+The strain extends beyond the showroom. Widening wealth gap in the U.S. and a sharp rise in costs for housing, insurance an
+  Entities: Cox Automotive
+  Numbers: $50,000
+
+[BUSINESS_MARKETS] A Pilot’s Parents Work to Clear His Name After the Deadliest Crash in Decades
+  Published: 2026-02-14 01:00
+  Desc: An American Airlines jet and an Army helicopter crashed, creating unlikely friendships and advocates
+  Content: Gray shading marked the contours of a cockpit window. Commands from an air-traffic controller crackled. Through the cockpit, the city glowed on the horizon, a strip of twinkling lights severing the night sky from the dark Potomac river.
+
+Then, one of the lights morphed into the looming shape of a helicopter, careening into view and growing larger. The screen snapped to black.
+
+The animation showed what Sam Lilley, the first officer of American Airlines Flight 5342, likely saw, the National Transportation Safety Board believes. The NTSB played the video in a large auditorium as an opening presentation of its investigation.
+
+A year ago, on Jan. 29, Sam was in the cockpit of the American Airlines regional jet when it was hit midair by a Black Hawk helicopter near Ronald Reagan Washington Nati
+  Entities: American Airlines, National Transportation Safety Board

@@ -1,104 +1,51 @@
 # CLAUDE.md
-<!-- Updated: 2026-02-06 -->
-This file provides guidance to Claude Code (claude.ai/code) when working in this repository.
-**Invariant global rules only.** Detailed architecture/schema/notes live in `docs/`.
+<!-- Updated: 2026-02-17 -->
+
+## Project
+Next.js 15 personal site (blog, resume, 3D landing) with a Python news pipeline (news crawl → AI curation → briefing). Stack: TypeScript, Tailwind, Supabase, MDX. Deployed on Vercel (web) + Mac Mini (pipeline cron).
+
+Project-specific rules live in `.claude/rules/`. Detailed docs in `docs/`.
+
+**Before working on any feature area, check `.claude/rules/docs-reference.md` for which docs to read first.** Feature docs are prefixed by number (e.g., `4-news-backend.md`). Always read the relevant doc before making changes.
 
 ---
 
-## GLOBAL RULES — ALWAYS FOLLOW THESE
-
-### Critical Behaviors
-1) **BEFORE change**: Read neighboring files; follow existing patterns and coding style.
-2) **AFTER change**: Run `npm run lint` and `npm run build` (type check).
-3) **VERIFY deps**: Never assume a library exists; check `package.json`.
-4) **EDIT over CREATE**: Prefer modifying existing files/components over creating new ones.
-5) **DATE STAMP**: When creating or modifying .md files, always add/update commented date at top (`<!-- Created: YYYY-MM-DD -->` or `<!-- Updated: YYYY-MM-DD -->`).
-6) **Server-first**: Next.js App Router uses **Server Components by default**; use Client **only** for interaction/state/DOM APIs.
-
-### Language Rules
-**CRITICAL**: Always respond in English, even when prompted in other languages. All code, comments, documentation, and responses must be in English only.
-
-### Power Keywords
-- **IMPORTANT**: Must not be overlooked.
-- **PROACTIVELY**: Propose safe improvements within these rules.
-- **VERIFY**: Validate changes with checks/tests and a short runbook note.
-- **SECURITY-FIRST**: Treat inputs, secrets, and errors defensively.
-- **Be concise**: Output is short, actionable, copy-pastable.
-
-### Anti-Patterns to Avoid
-- Over-engineering (unneeded abstractions/deps/complexity).
-- Breaking public contracts: Keep public API/URL/DB schema compatible.
-- Creating new files when a focused edit suffices.
-- Long prose; prefer steps, diffs, and exact commands.
-
-### Automation Checklist (Every task)
-- [ ] `npm run lint` (fix issues)
-- [ ] `npm run build` (fix type errors)
-- [ ] Manual verify in browser; check console for errors
-- [ ] Ensure **no secrets** in code/logs/diffs
-- [ ] Add/update a minimal test (happy + one edge) if logic changed
+## Critical Behaviors
+1) **Language**: All code, comments, and documentation must be in English. Explanations and conversational responses should be in Korean (한국어).
+2) **Read before writing**: Read neighboring files and follow existing patterns before making changes.
+3) **Server-first**: Next.js App Router uses Server Components by default; use `'use client'` only for interaction/state/DOM APIs.
+4) **Edit over create**: Prefer modifying existing files over creating new ones.
+5) **Verify deps**: Never assume a library exists; check `package.json` first.
+6) **Date stamp**: When creating or modifying `.md` files, add/update `<!-- Created: YYYY-MM-DD -->` or `<!-- Updated: YYYY-MM-DD -->` at top.
+7) **No broken contracts**: Never break public API routes, URL paths, or DB schema without explicit approval.
 
 ---
 
-## PROJECT-SPECIFIC RULES
-
-### Conventions
-1) **Auth**: Protected routes/pages must pass `useAuth` **or** server-side session/role check.
-2) **Data**: Use the service layer (e.g., `BlogService`) for DB logic; call explicitly from server actions/APIs when needed.
-3) **Admin**: **No hardcoded emails**. Use `user_profiles.role = 'admin'` (RLS/policies enforced) for authorization.
-4) **Styling**: Tailwind only; avoid inline styles (except utility overrides when justified).
-5) **Components**: **Server by default**; add `'use client'` only when truly required.
-
-### Security / A11y / Testing (Minimum)
-- **Secrets**: Live only in `.env*`; never commit. Mask in logs/errors.
-- **A11y**: ARIA, focus management, color contrast; never `alert()` as UX—use accessible error UI.
-- **Tests**: For new/changed logic, provide at least **1 happy + 1 edge** unit test. E2E optional.
-
-### Token/Context Strategy
-- **Large files**: Read/edit by **line range** or summaries—avoid full-file context.
-- **MCP**: Use Serena for codebase understanding; Context7 for latest library docs (add "use context7" to prompts).
-- **Hooks**: Before any destructive action, print a 3-line note: **What / Impact / Rollback**.
-
-### Output Contract
-- Keep responses **short and step-based**.
-- Include filenames + minimal diffs or exact commands.
-- State how to run/verify locally (1-2 lines).
-
----
-
-## FEATURE DEVELOPMENT WORKFLOW
+## Validation Loop — IMPORTANT
+After every code change, you MUST verify your work. This is not optional.
 
 ```
-/generate-prd [idea file]     → PRD with codebase analysis
-/plan-architecture [prd file] → Technical decisions document
-/generate-tasks [prd file]    → Task list with dependencies
-/process-tasks [task file]    → Execute one sub-task at a time
+Edit code → Run lint → Run build → Fix errors → Repeat until green
 ```
 
-**Directory structure:**
-- `docs/workflow/1-ideas/` — Raw idea files
-- `docs/workflow/2-prds/` — PRDs and architecture decisions
-- `docs/workflow/3-tasks/` — Task lists
-- `docs/cc/` — Daily session logs and status board
-
-**Other skills:**
-- `/handoff` — Save session context for continuation
-- `/plan [description]` — Implementation plan before coding
-- `/review [staged|all]` — Code review (runs in forked context)
-- `/research [topic]` — Read-only research (no file modifications)
-- `/pipeline-check` — Finance pipeline health status
-- `/generate-status` — Daily status board
+1) Run `npm run lint` — fix all lint errors before proceeding.
+2) Run `npm run build` — fix all type errors before proceeding.
+3) If either fails, fix immediately and re-run. **Never proceed with a failing build.**
+4) Run `npm run lint:py` if Python scripts changed — fix all ruff errors.
+5) Run `npm run lint:secrets` before committing — ensure no secrets leaked.
+6) Run `npm run test` if logic changed — ensure tests pass.
 
 ---
 
-## DOCS REFERENCE
+## Git Conventions
+- Branch naming: `feature/short-description`, `fix/short-description`
+- Commit messages: imperative mood, concise ("add nav links", not "added nav links")
+- Always review staged changes before committing — check for debug code, TODOs, secrets
+- Do not push to `main` directly; use feature branches
 
-| Doc | Content |
-|-----|---------|
-| `docs/architecture.md` | Project overview, tech stack, folder structure |
-| `docs/architecture-finance-pipeline.md` | Finance pipeline deep dive (all scripts, DB, workflow) |
-| `docs/schema.md` | All database tables (blog + finance) |
-| `docs/project-history.md` | Project evolution timeline |
-| `docs/auth-migration-guide.md` | Auth migration reference |
-| `docs/blog-writing-guide.md` | MDX blog authoring guide |
-| `docs/claude-code-setup.md` | Skills, agents, hooks, automation reference |
+---
+
+## Anti-Patterns
+- Never break public API/URL/DB schema without asking first.
+- Never create new files when a focused edit to an existing file suffices.
+- Keep responses short: steps, diffs, exact commands. No long prose.

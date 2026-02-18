@@ -1,7 +1,7 @@
-<!-- Updated: 2026-02-06 -->
+<!-- Updated: 2026-02-17 -->
 # Araverus — Project Architecture
 
-Paul Cho's personal website, blog, and finance briefing platform.
+Paul Cho's personal website, blog, and news briefing platform.
 
 ---
 
@@ -14,9 +14,9 @@ Paul Cho's personal website, blog, and finance briefing platform.
 | Auth/DB/Storage | Supabase (Postgres + Auth + Storage) |
 | Blog | MDX static generation (Git + Obsidian authoring) |
 | Animations | Framer Motion, tsParticles |
-| Finance Pipeline | Python scripts, GitHub Actions |
-| AI/LLM | OpenAI (GPT-4o-mini for analysis + briefing) |
-| CI/CD | Vercel (frontend), GitHub Actions (finance pipeline) |
+| News Pipeline | Python scripts, GitHub Actions + Mac Mini (launchd) |
+| AI/LLM | Gemini 2.5 Pro (briefing + TTS), GPT-4o-mini (analysis), Chirp 3 HD (EN TTS) |
+| CI/CD | Vercel (frontend), GitHub Actions + Mac Mini (pipeline) |
 
 ---
 
@@ -24,24 +24,24 @@ Paul Cho's personal website, blog, and finance briefing platform.
 
 ```
 ┌─────────────────────────────────────────────────────────────────────┐
-│                           ARAVERUS                                   │
+│                           ARAVERUS                                  │
 ├─────────────────┬──────────────────────┬────────────────────────────┤
-│   Website       │   Blog (MDX)         │   Finance Pipeline         │
+│   Website       │   Blog (MDX)         │   News Pipeline            │
 │   (Next.js)     │                      │   (Python + GH Actions)    │
 ├─────────────────┼──────────────────────┼────────────────────────────┤
 │ Landing page    │ content/blog/        │ scripts/                   │
 │ /resume         │ ├── slug/index.mdx   │ ├── wsj_ingest.py          │
-│ /finance        │ └── public/blog/     │ ├── crawl_ranked.py        │
-│ /blog           │                      │ ├── llm_analysis.py        │
+│ /blog           │ └── public/blog/     │ ├── crawl_ranked.py        │
+│ /news           │                      │ ├── generate_briefing.py   │
 │ /admin          │ Categories:          │ └── ...9 scripts total     │
 │ /login          │ Publication,Tutorial │                            │
-│ /news           │ Insight, Release     │ Daily at 6 AM ET           │
+│ /dashboard      │ Insight, Release     │ Daily at 6 AM ET           │
 ├─────────────────┴──────────────────────┴────────────────────────────┤
 │                         Supabase                                     │
 │  Auth · Postgres · Storage                                           │
 │  Tables: user_profiles, blog_posts, blog_assets                      │
 │  Tables: wsj_items, wsj_crawl_results, wsj_domain_status,           │
-│          wsj_llm_analysis, briefs, audio_assets                      │
+│          wsj_llm_analysis, wsj_briefings, wsj_briefing_items         │
 └─────────────────────────────────────────────────────────────────────┘
 ```
 
@@ -55,29 +55,35 @@ araverus/
 │   ├── app/                    # Next.js routes (server-first)
 │   │   ├── page.tsx            # Landing page (hero + particles)
 │   │   ├── blog/               # Blog list + [slug] pages
-│   │   ├── finance/            # Finance briefing page
+│   │   ├── news/               # News page (WSJ-style 3-col + audio briefing)
+│   │   │   ├── page.tsx        # Server component (data fetching)
+│   │   │   ├── layout.tsx      # Metadata
+│   │   │   └── _components/    # NewsShell, BriefingPlayer, ArticleCard
 │   │   ├── resume/             # Resume viewer (PDF embed)
 │   │   ├── admin/              # Admin panel (role-gated)
 │   │   ├── login/              # Auth page
-│   │   ├── news/               # News page
+│   │   ├── dashboard/          # Dashboard page
 │   │   ├── api/                # API routes
 │   │   └── rss.xml/            # RSS feed generation
 │   ├── components/             # Reusable UI (client only when needed)
 │   │   ├── Hero.tsx            # Landing hero with particle bg
 │   │   ├── ParticleBackground.tsx  # tsParticles (dynamic import, ssr:false)
+│   │   ├── Header.tsx          # Site header
 │   │   ├── Sidebar.tsx         # Collapsible nav sidebar
-│   │   └── ...
+│   │   └── WaveGrid.tsx        # Wave grid animation
 │   ├── hooks/                  # Custom React hooks
 │   └── lib/                    # Services, utils, clients
 │       ├── blog.service.ts     # Blog CRUD via Supabase
+│       ├── news-service.ts     # News queries (NewsService class)
 │       ├── authz.ts            # Server-side auth guards
-│       └── finance/            # (Deprecated TS library, unused)
+│       ├── supabase-server.ts  # Server Supabase client
+│       ├── supabase.ts         # Browser Supabase client
+│       └── mdx.ts              # MDX utilities
 ├── content/blog/               # MDX blog posts (Git-managed)
-├── scripts/                    # Python finance pipeline
+├── scripts/                    # Python news pipeline
 ├── .github/workflows/          # GitHub Actions
-├── supabase/migrations/        # DB migrations
 ├── docs/                       # Project documentation
-└── public/                     # Static assets (images, resume.pdf, logo.svg)
+└── public/                     # Static assets (images, resume.pdf, logo.svg, audio)
 ```
 
 ---
@@ -85,7 +91,7 @@ araverus/
 ## Key Design Principles
 
 1. **Server-first**: App Router uses Server Components by default. Client only for interaction/state/DOM APIs.
-2. **Service layer**: DB logic goes through `BlogService` etc., never direct in components.
+2. **Service layer**: DB logic goes through `BlogService`, `NewsService` etc., never direct in components.
 3. **Role-based auth**: `user_profiles.role = 'admin'` (no hardcoded emails). Server-side guards via `authz.ts`.
 4. **Tailwind only**: No inline styles except justified utility overrides.
 5. **Edit over create**: Prefer modifying existing files over creating new ones.
@@ -98,7 +104,7 @@ araverus/
 
 - **Hero**: Particle constellation animation (tsParticles) with logo-shaped polygon mask
 - **Design**: Monochrome, Playfair Display serif headlines, Inter body text
-- **Pages**: /, /resume, /finance, /blog, /admin, /login, /news
+- **Pages**: /, /resume, /blog, /admin, /login, /dashboard, /news
 - **A11y**: `prefers-reduced-motion` respected, WCAG AA contrast, keyboard navigation
 
 ### 2. Blog (MDX)
@@ -110,11 +116,13 @@ araverus/
 - **Authoring**: Git + Obsidian → Push → Vercel auto-deploy
 - **Guide**: See `docs/blog-writing-guide.md`
 
-### 3. Finance TTS Briefing Pipeline
+### 3. News Platform
 
-- **Purpose**: Collect WSJ news, find free alternative sources, crawl content, verify relevance, generate TTS briefing scripts
-- **Stack**: Python scripts → GitHub Actions (daily 6 AM ET) → Supabase
-- **Full docs**: See `docs/architecture-finance-pipeline.md`
+- **Purpose**: Collect WSJ news, find free alternative sources, crawl content, verify relevance, generate EN/KO audio briefings
+- **Pipeline**: Python scripts → GitHub Actions (daily 6 AM ET) + Mac Mini (launchd)
+- **Frontend**: `/news` — WSJ-style 3-column layout with audio briefing player (EN/KO), category filtering
+- **Backend docs**: See `docs/4-news-backend.md`
+- **Frontend docs**: See `docs/4-news-frontend.md`
 
 ---
 
@@ -130,7 +138,6 @@ User → Supabase Auth (cookie/session)
 - `requireUser()`: Redirects to `/login` if not authenticated
 - `requireAdmin()`: Requires `role = 'admin'`, returns 404 otherwise
 - RLS policies enforce row-level access on blog_posts, blog_assets
-- Guide: See `docs/auth-migration-guide.md`
 
 ---
 
@@ -145,10 +152,12 @@ SUPABASE_SERVICE_ROLE_KEY=       # Server only, never expose
 # Site
 NEXT_PUBLIC_SITE_URL=http://localhost:3000
 
-# Finance Pipeline (GitHub Actions secrets)
+# News Pipeline (GitHub Actions / Mac Mini secrets)
 SUPABASE_URL=
 SUPABASE_KEY=
 OPENAI_API_KEY=
+GOOGLE_API_KEY=                  # Gemini (briefing + KO TTS)
+GOOGLE_CLOUD_PROJECT=            # Chirp 3 HD (EN TTS)
 ```
 
 ---
@@ -159,6 +168,7 @@ OPENAI_API_KEY=
 npm run dev       # Dev server
 npm run build     # Production build (type check)
 npm run lint      # ESLint
+npm run test      # Vitest
 npm start         # Production server
 ```
 
@@ -168,9 +178,9 @@ npm start         # Production server
 
 | Doc | Content |
 |-----|---------|
-| `docs/architecture-finance-pipeline.md` | Finance pipeline deep dive |
 | `docs/schema.md` | All database tables |
 | `docs/blog-writing-guide.md` | MDX blog authoring guide |
-| `docs/auth-migration-guide.md` | Auth migration reference |
-| `docs/project-history.md` | Project evolution timeline |
+| `docs/4-news-backend.md` | News pipeline scripts, GitHub Actions, briefing generation |
+| `docs/4-news-frontend.md` | `/news` page components, data flow, BriefingPlayer |
+| `docs/claude-code-setup.md` | Skills, agents, hooks, automation reference |
 | `CLAUDE.md` | Development rules and workflow |

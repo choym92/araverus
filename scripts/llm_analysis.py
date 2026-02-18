@@ -2,7 +2,7 @@
 """
 LLM-based content analysis for crawled articles.
 
-Uses GPT-4o-mini to verify if crawled content matches WSJ headline
+Uses Gemini 2.5 Flash to verify if crawled content matches WSJ headline
 and extract rich metadata (entities, sentiment, summary, etc.).
 
 Usage:
@@ -16,20 +16,18 @@ import json
 import os
 from typing import Optional
 
-from openai import OpenAI
-
-# Initialize OpenAI client (lazy loaded)
-_client: Optional[OpenAI] = None
+_client = None
 
 
-def get_openai_client() -> Optional[OpenAI]:
-    """Get or create OpenAI client."""
+def get_gemini_client():
+    """Get or create Gemini client."""
     global _client
-    api_key = os.getenv("OPENAI_API_KEY")
+    api_key = os.getenv("GEMINI_API_KEY")
     if not api_key:
         return None
     if _client is None:
-        _client = OpenAI(api_key=api_key)
+        from google import genai
+        _client = genai.Client(api_key=api_key)
     return _client
 
 
@@ -80,7 +78,7 @@ def analyze_content(
     wsj_title: str,
     wsj_description: str,
     crawled_content: str,
-    model: str = "gpt-4o-mini",
+    model: str = "gemini-2.5-flash",
 ) -> Optional[dict]:
     """
     Analyze crawled content against WSJ headline using LLM.
@@ -89,15 +87,17 @@ def analyze_content(
         wsj_title: Original WSJ article title
         wsj_description: Original WSJ article description
         crawled_content: Crawled article content (first 800 chars used)
-        model: OpenAI model to use
+        model: Gemini model to use
 
     Returns:
         dict with analysis results, or None on error
     """
-    client = get_openai_client()
+    client = get_gemini_client()
     if not client:
-        print("OPENAI_API_KEY not set, skipping LLM analysis")
+        print("GEMINI_API_KEY not set, skipping LLM analysis")
         return None
+
+    from google.genai import types
 
     prompt = LLM_PROMPT.format(
         wsj_title=wsj_title,
@@ -106,19 +106,21 @@ def analyze_content(
     )
 
     try:
-        response = client.chat.completions.create(
+        response = client.models.generate_content(
             model=model,
-            messages=[{"role": "user", "content": prompt}],
-            max_tokens=500,
-            temperature=0,
-            response_format={"type": "json_object"},
+            contents=prompt,
+            config=types.GenerateContentConfig(
+                temperature=0,
+                response_mime_type="application/json",
+            ),
         )
 
-        result = json.loads(response.choices[0].message.content)
-        result["input_tokens"] = response.usage.prompt_tokens
-        result["output_tokens"] = response.usage.completion_tokens
+        result = json.loads(response.text)
+        usage = response.usage_metadata
+        result["input_tokens"] = usage.prompt_token_count if usage else None
+        result["output_tokens"] = usage.candidates_token_count if usage else None
         result["model_used"] = model
-        result["raw_response"] = response.choices[0].message.content
+        result["raw_response"] = response.text
 
         return result
 
@@ -201,7 +203,7 @@ def save_analysis_to_db(supabase, crawl_result_id: str, analysis: dict) -> bool:
         "importance": importance,
         "keywords": keywords,
         "raw_response": analysis,
-        "model_used": analysis.get("model_used", "gpt-4o-mini"),
+        "model_used": analysis.get("model_used", "gemini-2.5-flash"),
         "input_tokens": analysis.get("input_tokens"),
         "output_tokens": analysis.get("output_tokens"),
     }
@@ -275,4 +277,4 @@ if __name__ == "__main__":
     if result:
         print(json.dumps(result, indent=2))
     else:
-        print("Analysis failed - check OPENAI_API_KEY")
+        print("Analysis failed - check GEMINI_API_KEY")

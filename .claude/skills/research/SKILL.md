@@ -5,7 +5,7 @@ user-invocable: true
 argument-hint: [topic or question]
 context: fork
 model: sonnet
-allowed-tools: Read, Glob, Grep, WebSearch, WebFetch, mcp__serena__find_symbol, mcp__serena__get_symbols_overview, mcp__serena__search_for_pattern, mcp__serena__find_referencing_symbols, mcp__context7__resolve-library-id, mcp__context7__query-docs
+allowed-tools: Read, Glob, Grep, WebSearch, WebFetch, mcp__context7__resolve-library-id, mcp__context7__query-docs
 ---
 
 # Research

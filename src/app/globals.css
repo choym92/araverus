@@ -12,6 +12,20 @@
   --font-sans: var(--font-inter);
   --font-mono: var(--font-geist-mono);
   --font-serif: var(--font-playfair);
+
+  /* WSJ News design tokens */
+  --color-news-midnight: #0a0f1a;
+  --color-news-coal: #1a1a2e;
+  --color-news-ink: #2d2d3f;
+  --color-news-smoke: #6b7280;
+  --color-news-mist: #e5e7eb;
+  --color-news-cream: #faf9f6;
+  --color-news-white: #ffffff;
+  --color-news-blue: #0080c6;
+  --color-news-red: #c72c41;
+  --color-news-gold: #d4a843;
+  --color-news-divider: #d1d5db;
+  --spacing-news-gap: 20px;
 }
 
 @media (prefers-color-scheme: dark) {

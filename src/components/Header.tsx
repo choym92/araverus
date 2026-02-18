@@ -44,7 +44,7 @@ export default function Header({ sidebarOpen, onToggleSidebar }: HeaderProps) {
   };
 
   return (
-    <header className="fixed top-0 right-0 left-0 h-20 pt-2 bg-white/80 backdrop-blur-md border-b border-gray-100 z-30">
+    <header className="fixed top-0 right-0 left-0 h-20 pt-2 bg-white/80 backdrop-blur-md z-30">
       <div className="h-full px-6 md:px-12 lg:px-16 flex items-center justify-between">
         {/* Left side - Logo and Toggle button always visible */}
         <div className="flex items-center gap-8">

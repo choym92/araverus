@@ -145,7 +145,15 @@ After the main stories, wrap up with a quick "market snapshot" summarizing key n
 Only include items where the provided articles contain actual figures. Do not invent data.
 CRITICAL: Only use market figures from articles published on the SAME trading day as today's date. If today is a weekend or holiday and no same-day market data exists, skip the market snapshot entirely — do NOT use stale figures from previous days.
 After the market snapshot (or after the main stories if snapshot is skipped), note how many articles you covered out of the total (e.g., "We hit about X of today's Y stories").
-End with a brief, warm sign-off."""
+End with a brief, warm sign-off.
+
+Chapter markers:
+Insert exactly one [CHAPTER: Title] marker at the start of each major topic shift.
+Use short titles (2-4 words). Place on its own line before the paragraph.
+Include 4-6 markers total. First one before the opening greeting.
+Example:
+[CHAPTER: Opening]
+Good morning, everyone..."""
 
 BRIEFING_SYSTEM_KO = """당신은 매일 금융 뉴스 팟캐스트의 진행자입니다. 똑똑하지만 딱딱하지 않은, 모든 뉴스를 읽고 커피 한 잔 하면서 핵심을 정리해주는 친구 같은 존재입니다.
 
@@ -202,7 +210,15 @@ BRIEFING_SYSTEM_KO = """당신은 매일 금융 뉴스 팟캐스트의 진행자
 - 제공된 기사에 수치가 포함된 항목만 언급하세요. 데이터가 없는 항목은 넣지 마세요.
 - 중요: 오늘 날짜와 같은 거래일에 발행된 기사의 시장 수치만 사용하세요. 주말이나 휴일이라 당일 시장 데이터가 없으면 마켓 스냅샷을 통째로 건너뛰세요 — 이전 날의 오래된 수치를 사용하지 마세요.
 - 마켓 스냅샷 후 (또는 스냅샷을 건너뛴 경우 본문 후) 전체 기사 수 대비 다룬 기사 수를 언급하세요 (예: "오늘 총 Y개 기사 중 약 X개를 다뤘습니다").
-- 간단한 마무리 인사로 끝내세요."""
+- 간단한 마무리 인사로 끝내세요.
+
+챕터 마커:
+각 주요 토픽 전환 시작에 [CHAPTER: 제목] 마커를 삽입하세요.
+짧은 제목(2-4단어). 해당 문단 앞 별도 줄에 배치.
+총 4-6개. 첫 번째는 오프닝 인사 앞.
+예시:
+[CHAPTER: 오프닝]
+안녕하세요, 여러분..."""
 
 # ---------------------------------------------------------------------------
 # Dataclasses
@@ -691,6 +707,52 @@ def generate_briefing(
 
 
 # ---------------------------------------------------------------------------
+# Chapter extraction & audio upload
+# ---------------------------------------------------------------------------
+
+
+def extract_chapters(text: str) -> list[dict]:
+    """Extract [CHAPTER: Title] markers and return position ratios."""
+    pattern = re.compile(r"^\[CHAPTER:\s*(.+?)\]\s*$", re.MULTILINE)
+    total_len = len(text)
+    if total_len == 0:
+        return []
+    chapters = []
+    for match in pattern.finditer(text):
+        chapters.append({
+            "title": match.group(1).strip(),
+            "position": round(match.start() / total_len, 4),
+        })
+    log.info("Extracted %d chapters", len(chapters))
+    return chapters
+
+
+def clean_markers(text: str) -> str:
+    """Remove [CHAPTER:] markers from text for TTS and DB storage."""
+    cleaned = re.sub(r"^\[CHAPTER:\s*.+?\]\s*\n?", "", text, flags=re.MULTILINE)
+    cleaned = re.sub(r"\n{3,}", "\n\n", cleaned)
+    return cleaned.strip()
+
+
+def upload_audio_to_storage(sb, mp3_path: Path, lang: str) -> str:
+    """Upload MP3 to Supabase Storage and return public URL."""
+    storage_path = f"briefing-{lang}-latest.mp3"
+    with open(mp3_path, "rb") as f:
+        data = f.read()
+    try:
+        sb.storage.from_("briefings").remove([storage_path])
+    except Exception:
+        pass
+    sb.storage.from_("briefings").upload(
+        storage_path, data,
+        file_options={"content-type": "audio/mpeg", "upsert": "true"},
+    )
+    url = sb.storage.from_("briefings").get_public_url(storage_path)
+    log.info("Uploaded %s → %s", mp3_path.name, url)
+    return url
+
+
+# ---------------------------------------------------------------------------
 # TTS generation
 # ---------------------------------------------------------------------------
 
@@ -869,6 +931,71 @@ def generate_tts_ko(
 
 
 # ---------------------------------------------------------------------------
+# Whisper sentence alignment
+# ---------------------------------------------------------------------------
+
+
+def extract_sentences(mp3_path: Path, lang: str) -> list[dict]:
+    """Run Whisper on TTS audio and return sentence-level timestamps."""
+    try:
+        import whisper
+    except ImportError:
+        log.warning("whisper not installed — skipping sentence extraction")
+        return []
+
+    start = time.time()
+    whisper_lang = "en" if lang == "en" else "ko"
+    log.info("Whisper alignment for %s: %s...", lang.upper(), mp3_path.name)
+
+    model = whisper.load_model("base")
+    result = model.transcribe(str(mp3_path), language=whisper_lang, word_timestamps=True, verbose=False)
+
+    # Merge segments into full sentences
+    segments = [
+        {"text": s["text"].strip(), "start": round(s["start"], 2), "end": round(s["end"], 2)}
+        for s in result["segments"]
+    ]
+    sentences = _merge_into_sentences(segments)
+
+    elapsed = time.time() - start
+    log.info("Whisper: %d sentences extracted in %.1fs", len(sentences), elapsed)
+    return sentences
+
+
+def _merge_into_sentences(segments: list[dict]) -> list[dict]:
+    """Merge Whisper segments into full sentences (split on . ! ? and equivalents)."""
+    sentences: list[dict] = []
+    buf_text: list[str] = []
+    buf_start: Optional[float] = None
+    buf_end: float = 0
+
+    for seg in segments:
+        text = seg["text"].strip()
+        if not text:
+            continue
+        if buf_start is None:
+            buf_start = seg["start"]
+        buf_text.append(text)
+        buf_end = seg["end"]
+        if text[-1] in ".!?\u3002\uff1f\uff01":
+            sentences.append({
+                "text": " ".join(buf_text),
+                "start": round(buf_start, 2),
+                "end": round(buf_end, 2),
+            })
+            buf_text, buf_start = [], None
+
+    if buf_text:
+        sentences.append({
+            "text": " ".join(buf_text),
+            "start": round(buf_start, 2),
+            "end": round(buf_end, 2),
+        })
+
+    return sentences
+
+
+# ---------------------------------------------------------------------------
 # DB persistence
 # ---------------------------------------------------------------------------
 
@@ -880,6 +1007,9 @@ def save_briefing_to_db(
     result: BriefingResult,
     articles: list[Article],
     tts_result: Optional[TTSResult] = None,
+    chapters: Optional[list[dict]] = None,
+    audio_url: Optional[str] = None,
+    sentences: Optional[list[dict]] = None,
 ) -> str:
     """Upsert briefing row and link articles. Returns briefing UUID."""
     record: dict = {
@@ -891,6 +1021,12 @@ def save_briefing_to_db(
     }
     if tts_result:
         record["audio_duration"] = int(tts_result.duration_sec)
+    if chapters is not None:
+        record["chapters"] = json.dumps(chapters)
+    if audio_url:
+        record["audio_url"] = audio_url
+    if sentences is not None:
+        record["sentences"] = json.dumps(sentences)
 
     db_result = sb.table("wsj_briefings").upsert(
         record, on_conflict="date,category"
@@ -1110,20 +1246,34 @@ def main() -> None:
         if existing.data:
             log.warning("Briefing already exists for %s/%s — will upsert", date_str, lang.upper())
 
-        # Generate briefing
+        # Generate briefing (raw text with [CHAPTER:] markers)
         prompt = build_briefing_prompt(articles, target, lang)
         result = generate_briefing(gemini, prompt, lang, cost)
         if not result:
             log.error("%s briefing failed — skipping", lang.upper())
             continue
 
-        # Save text
+        # Extract chapters from raw text, then clean markers
+        chapters = extract_chapters(result.text)
+        clean_text = clean_markers(result.text)
+
+        # Replace result text with clean version (no markers)
+        result = BriefingResult(
+            text=clean_text,
+            model_version=result.model_version,
+            prompt_tokens=result.prompt_tokens,
+            output_tokens=result.output_tokens,
+            thinking_tokens=result.thinking_tokens,
+            elapsed_sec=result.elapsed_sec,
+        )
+
+        # Save clean text to file
         txt_path = day_dir / f"briefing-{lang}-{date_str}.txt"
         with open(str(txt_path), "w") as f:
             f.write(result.text)
         log.info("Saved: %s", txt_path)
 
-        # TTS
+        # TTS on clean text
         tts_result = None
         if not args.skip_tts:
             audio_path = day_dir / f"audio-{lang}-{date_str}.mp3"
@@ -1132,10 +1282,29 @@ def main() -> None:
             elif lang == "ko":
                 tts_result = generate_tts_ko(gemini, result.text, audio_path, cost)
 
+        # Whisper sentence alignment
+        sentences = None
+        if tts_result:
+            try:
+                sentences = extract_sentences(tts_result.path, lang)
+            except Exception as e:
+                log.warning("Whisper alignment failed for %s: %s", lang.upper(), e)
+
+        # Upload audio to Supabase Storage
+        audio_url = None
+        if tts_result and not args.skip_db:
+            try:
+                audio_url = upload_audio_to_storage(sb, tts_result.path, lang)
+            except Exception as e:
+                log.warning("Audio upload failed for %s: %s", lang.upper(), e)
+
         # DB
         if not args.skip_db:
             try:
-                save_briefing_to_db(sb, target, lang.upper(), result, articles, tts_result)
+                save_briefing_to_db(
+                    sb, target, lang.upper(), result, articles,
+                    tts_result, chapters, audio_url, sentences,
+                )
             except Exception as e:
                 log.error("DB save failed for %s: %s", lang.upper(), e)
 

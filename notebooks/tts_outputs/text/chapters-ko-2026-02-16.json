@@ -1,0 +1,38 @@
+[
+  {
+    "title": "오프닝",
+    "position": 0.0
+  },
+  {
+    "title": "글로벌 경제 바로미터",
+    "position": 0.052
+  },
+  {
+    "title": "아시아 시장 동향",
+    "position": 0.2767
+  },
+  {
+    "title": "기업 인수합병 소식",
+    "position": 0.3609
+  },
+  {
+    "title": "엡스타인 스캔들 후폭풍",
+    "position": 0.5073
+  },
+  {
+    "title": "AI와 빅테크 전쟁",
+    "position": 0.6016
+  },
+  {
+    "title": "지정학과 에너지",
+    "position": 0.7533
+  },
+  {
+    "title": "기타 주목할 뉴스",
+    "position": 0.8824
+  },
+  {
+    "title": "마켓 스냅샷",
+    "position": 0.9589
+  }
+]

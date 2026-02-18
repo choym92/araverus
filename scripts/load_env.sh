@@ -13,7 +13,6 @@ load_key() {
 
 load_key "NEXT_PUBLIC_SUPABASE_URL"
 load_key "SUPABASE_SERVICE_ROLE_KEY"
-load_key "OPENAI_API_KEY"
 load_key "GEMINI_API_KEY"
 export GOOGLE_APPLICATION_CREDENTIALS="$HOME/credentials/araverus-tts-sa.json"
 echo "Env loaded from Keychain"

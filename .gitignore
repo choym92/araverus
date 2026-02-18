@@ -52,3 +52,12 @@ scripts/output/
 
 # Pipeline logs
 logs/
+
+# Audio files (large binaries — served locally or via Supabase Storage)
+public/audio/
+notebooks/tts_outputs/audio/
+*.wav
+*.mp3
+
+# Serena memories (MCP local state)
+.serena/

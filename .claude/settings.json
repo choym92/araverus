@@ -29,8 +29,8 @@
         "hooks": [
           {
             "type": "command",
-            "command": "echo 'File modified — remember to run lint/build'",
-            "timeout": 5
+            "command": ".claude/hooks/post-edit-lint.sh",
+            "timeout": 15
           }
         ]
       }

@@ -37,7 +37,7 @@ RELEVANCE_THRESHOLD = 0.25  # Flag if below this
 RELEVANCE_CHARS = 800       # Characters from crawled content to compare
 
 # LLM analysis settings
-LLM_ENABLED = bool(os.getenv("OPENAI_API_KEY"))
+LLM_ENABLED = bool(os.getenv("GEMINI_API_KEY"))
 # LLM analysis: Accept if same_event=true OR score >= 6 (complementary articles)
 
 # Load embedding model for relevance check (cached after first load)

@@ -4,7 +4,7 @@
 # Required Secrets:
 #   SUPABASE_URL - Supabase project URL
 #   SUPABASE_KEY - Supabase service role key
-#   OPENAI_API_KEY - OpenAI API key (for LLM relevance check)
+#   GEMINI_API_KEY - Google Gemini API key (for LLM analysis + threading)
 
 name: Finance Pipeline
 
@@ -223,7 +223,7 @@ jobs:
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
-          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
         continue-on-error: true
 
       - name: Upload crawl results
@@ -271,7 +271,7 @@ jobs:
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
-          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
         continue-on-error: true
 
   # ============================================================
@@ -344,8 +344,10 @@ jobs:
                   ranked = data.get('ranked', [])
 
                   for article in ranked:
-                      # Save all resolved articles with crawl status
-                      if article.get('resolve_status') == 'success':
+                      # Only save articles that were actually crawled (have a crawl_status).
+                      # Skip backup candidates still at pending/None — crawl_ranked.py
+                      # already marked them as 'skipped' in DB; re-upserting would overwrite that.
+                      if article.get('resolve_status') == 'success' and article.get('crawl_status'):
                           record = {
                               'wsj_item_id': wsj.get('id'),
                               'wsj_title': wsj.get('title'),
