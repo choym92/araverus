@@ -68,6 +68,11 @@ echo ">>> Phase 4: Post-process"
 $VENV "$SCRIPTS/wsj_ingest.py" --mark-processed-from-db || echo "WARN: mark-processed failed"
 $VENV "$SCRIPTS/wsj_ingest.py" --update-domain-status || echo "WARN: domain-status failed"
 
+# ── Phase 4.5: Embed + Thread ────────────────────────
+echo ""
+echo ">>> Phase 4.5: Embed + Thread"
+$VENV "$SCRIPTS/embed_and_thread.py" || echo "WARN: Embed/thread had errors (continuing)"
+
 # ── Phase 5: Briefing ──────────────────────────────────
 echo ""
 echo ">>> Phase 5: Briefing"

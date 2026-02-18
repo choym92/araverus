@@ -58,8 +58,15 @@ Analyze and return ONLY valid JSON (no markdown, no explanation):
   "sentiment": "<positive|negative|neutral|mixed>",
   "geographic_region": "<US|China|Europe|Asia|Global|Other>",
   "time_horizon": "<immediate|short_term|long_term>",
-  "summary": "<1-2 sentence summary of the crawled article>"
+  "summary": "<1-2 sentence summary of the crawled article>",
+  "importance": "<must_read|worth_reading|optional>",
+  "keywords": ["<2-4 short topic keywords, e.g. Fed, interest rates, monetary policy>"]
 }}
+
+Importance criteria:
+- must_read: Market-moving events, major policy shifts, significant earnings surprises, breaking news
+- worth_reading: Notable developments, useful market context, sector trends
+- optional: Routine updates, minor follow-ups, background pieces
 
 Scoring Guide:
 - 9-10: Exact same news event, high quality article
@@ -134,6 +141,7 @@ VALID_SENTIMENTS = {'positive', 'negative', 'neutral', 'mixed'}
 VALID_QUALITIES = {'article', 'list_page', 'profile', 'paywall', 'garbage', 'opinion'}
 VALID_CONFIDENCES = {'high', 'medium', 'low'}
 VALID_TIME_HORIZONS = {'immediate', 'short_term', 'long_term'}
+VALID_IMPORTANCES = {'must_read', 'worth_reading', 'optional'}
 
 
 def normalize_value(value: str | None, valid_set: set, default: str = 'other') -> str | None:
@@ -169,6 +177,11 @@ def save_analysis_to_db(supabase, crawl_result_id: str, analysis: dict) -> bool:
     content_quality = normalize_value(analysis.get("content_quality"), VALID_QUALITIES, "article")
     confidence = normalize_value(analysis.get("confidence"), VALID_CONFIDENCES, "medium")
     time_horizon = normalize_value(analysis.get("time_horizon"), VALID_TIME_HORIZONS, "immediate")
+    importance = normalize_value(analysis.get("importance"), VALID_IMPORTANCES, "optional")
+
+    # Normalize keywords: ensure list of strings, max 4
+    raw_keywords = analysis.get("keywords", [])
+    keywords = [str(k).strip() for k in raw_keywords if k][:4] if isinstance(raw_keywords, list) else []
 
     record = {
         "crawl_result_id": crawl_result_id,
@@ -185,6 +198,8 @@ def save_analysis_to_db(supabase, crawl_result_id: str, analysis: dict) -> bool:
         "geographic_region": geographic_region,
         "time_horizon": time_horizon,
         "summary": analysis.get("summary"),
+        "importance": importance,
+        "keywords": keywords,
         "raw_response": analysis,
         "model_used": analysis.get("model_used", "gpt-4o-mini"),
         "input_tokens": analysis.get("input_tokens"),

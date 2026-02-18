@@ -11,8 +11,9 @@ supabase>=2.0.0
 python-dotenv>=1.0.0
 
 # ML/NLP dependencies
-sentence-transformers>=2.2.0  # Embedding-based ranking (all-MiniLM-L6-v2)
+sentence-transformers>=2.2.0  # Embedding-based ranking + BAAI/bge-base-en-v1.5
 numpy>=1.24.0
+vecs>=0.4.0  # pgvector Python client (optional, for direct vector ops)
 
 # Content extraction (for crawl_article.py)
 trafilatura>=1.6.0
@@ -28,3 +29,9 @@ openai>=1.0.0
 # Google AI (for generate_briefing.py)
 google-genai>=1.0.0
 google-cloud-texttospeech>=2.16.0
+
+# Whisper (for sentence-level alignment in generate_briefing.py)
+openai-whisper>=20231117
+
+# Postgres direct connection (for db_query.py)
+psycopg2-binary>=2.9.0

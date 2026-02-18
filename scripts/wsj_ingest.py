@@ -36,6 +36,8 @@ import httpx
 from dotenv import load_dotenv
 from supabase import create_client, Client
 
+from utils.slug import generate_slug
+
 # Load environment variables from .env.local
 load_dotenv(Path(__file__).parent.parent / '.env.local')
 
@@ -285,6 +287,8 @@ def fetch_all_wsj_feeds() -> tuple[list[WsjItem], list[str]]:
 
 def insert_wsj_item(supabase: Client, item: WsjItem) -> bool:
     """Insert WSJ item into Supabase. Returns True if inserted, False if duplicate."""
+    slug = generate_slug(item.title)
+
     try:
         supabase.table('wsj_items').insert({
             'feed_name': item.feed_name,
@@ -296,11 +300,33 @@ def insert_wsj_item(supabase: Client, item: WsjItem) -> bool:
             'url_hash': item.url_hash,
             'published_at': item.published_at,
             'subcategory': item.subcategory,
+            'slug': slug,
         }).execute()
         return True
     except Exception as e:
-        # Check for unique constraint violation (duplicate url_hash)
-        if '23505' in str(e) or 'duplicate' in str(e).lower():
+        error_str = str(e)
+        # Check for unique constraint violation (duplicate url_hash or slug)
+        if '23505' in error_str or 'duplicate' in error_str.lower():
+            # If slug collision, retry with date suffix
+            if 'slug' in error_str.lower() and item.published_at:
+                from utils.slug import generate_unique_slug
+                slug = generate_unique_slug(item.title, item.published_at, set())
+                try:
+                    supabase.table('wsj_items').insert({
+                        'feed_name': item.feed_name,
+                        'feed_url': item.feed_url,
+                        'title': item.title,
+                        'description': item.description,
+                        'link': item.link,
+                        'creator': item.creator,
+                        'url_hash': item.url_hash,
+                        'published_at': item.published_at,
+                        'subcategory': item.subcategory,
+                        'slug': slug,
+                    }).execute()
+                    return True
+                except Exception:
+                    pass
             return False
         raise
 

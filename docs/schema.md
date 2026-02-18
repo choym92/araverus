@@ -1,4 +1,5 @@
-<!-- Updated: 2026-02-15 -->
+<!-- Updated: 2026-02-17 -->
+<!-- Phase: News UX enhancement (migrations 007-009) -->
 # Database Schema (araverus)
 
 All Supabase/Postgres tables. Blog tables for the website, WSJ tables for the finance pipeline.
@@ -78,6 +79,8 @@ processed_at  TIMESTAMPTZ   -- when processed was set true
 briefed       BOOLEAN       -- set true for all articles used as input to a briefing
                             --   prevents re-briefing on previously seen articles
 briefed_at    TIMESTAMPTZ   -- when briefed was set true
+slug          TEXT UNIQUE   -- URL-friendly slug for /news/[slug] (generated from title)
+thread_id     UUID FK → wsj_story_threads(id)  -- story thread assignment (nullable)
 created_at    TIMESTAMPTZ   -- auto: now()
 ```
 
@@ -148,6 +151,8 @@ sentiment         TEXT          -- positive | negative | neutral | mixed
 geographic_region TEXT          -- US | China | Europe | Asia | Global | Other
 time_horizon      TEXT          -- immediate | short_term | long_term
 summary           TEXT          -- 1-2 sentence LLM-generated summary of crawled article
+importance        TEXT          -- must_read | worth_reading | optional (market impact classification)
+keywords          TEXT[]        -- 2-4 free-form topic keywords (e.g., {"Fed","interest rates"})
 raw_response      JSONB         -- full LLM JSON response (for debugging)
 model_used        TEXT          -- "gpt-4o-mini"
 input_tokens      INT           -- prompt token count
@@ -190,6 +195,8 @@ category        TEXT          -- 'ALL', 'BUSINESS_MARKETS', 'TECH', etc. Default
 briefing_text   TEXT          -- LLM-generated briefing narrative (~700-1400 words)
 audio_url       TEXT          -- Supabase Storage URL for TTS audio (Phase 3)
 audio_duration  INT           -- audio length in seconds (Phase 3)
+chapters        JSONB         -- chapter markers [{title, position}] for audio navigation
+sentences       JSONB         -- Whisper sentence timestamps [{text, start, end}] for transcript sync
 item_count      INT           -- number of articles included in this briefing
 model           TEXT          -- LLM model used for generation
 tts_provider    TEXT          -- TTS service used (Phase 3)
@@ -208,6 +215,44 @@ PRIMARY KEY (briefing_id, wsj_item_id)
 
 **Purpose**: Tracks which articles were included in which briefing. N:N relationship — one article can appear in multiple briefings (e.g., ALL + TECH). Replaces the need for a `briefed` flag on `wsj_items`.
 
+### `wsj_embeddings` — Article Embeddings (Phase: News UX)
+**Written by**: `embed_and_thread.py`
+**Model**: BAAI/bge-base-en-v1.5 (768 dimensions)
+
+```sql
+id          UUID PRIMARY KEY    -- auto-generated
+wsj_item_id UUID NOT NULL UNIQUE FK → wsj_items(id) ON DELETE CASCADE
+embedding   vector(768) NOT NULL -- normalized embedding vector
+model       TEXT NOT NULL DEFAULT 'BAAI/bge-base-en-v1.5'
+created_at  TIMESTAMPTZ DEFAULT now()
+```
+
+**Purpose**: Stores article embeddings for semantic similarity search (related articles, more-like-this, future search).
+
+### `wsj_story_threads` — Story Thread Clusters (Phase: News UX)
+**Written by**: `embed_and_thread.py`
+
+```sql
+id           UUID PRIMARY KEY    -- auto-generated
+title        TEXT NOT NULL        -- LLM-generated thread headline
+centroid     vector(768)          -- normalized centroid of member embeddings
+member_count INT NOT NULL DEFAULT 0
+first_seen   DATE NOT NULL        -- earliest article in thread
+last_seen    DATE NOT NULL        -- most recent article in thread
+active       BOOLEAN NOT NULL DEFAULT true  -- false when last_seen > 7 days
+created_at   TIMESTAMPTZ DEFAULT now()
+updated_at   TIMESTAMPTZ DEFAULT now()
+```
+
+**Purpose**: Groups related articles across days into story threads. Centroids updated incrementally. Threads deactivated after 7 days of inactivity.
+
+### RPC Functions (pgvector)
+
+| Function | Purpose |
+|----------|---------|
+| `match_articles(query_item_id, match_count, days_window)` | Cosine similarity search within ±N days |
+| `match_articles_wide(query_item_id, match_count, days_window)` | Same but wider window (90 days default) |
+
 ---
 
 ## Table Relationships
@@ -218,6 +263,8 @@ user_profiles ──1:N──▶ blog_assets
 
 wsj_items ──1:N──▶ wsj_crawl_results ──1:1──▶ wsj_llm_analysis
 wsj_items ──N:N──▶ wsj_briefings (via wsj_briefing_items)
+wsj_items ──1:1──▶ wsj_embeddings
+wsj_items ──N:1──▶ wsj_story_threads (via thread_id)
 
 wsj_domain_status (independent, updated by crawl pipeline)
 ```
