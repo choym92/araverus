@@ -81,9 +81,9 @@ export default function BriefingPlayer({
   // Active language data
   const activeLang = lang === 'ko' && ko ? ko : en
   const audioUrl = activeLang?.audioUrl ?? ''
-  const chapters = activeLang?.chapters ?? []
+  const chapters = Array.isArray(activeLang?.chapters) ? activeLang.chapters : []
   const transcript = activeLang?.transcript ?? ''
-  const sentences = activeLang?.sentences ?? []
+  const sentences = Array.isArray(activeLang?.sentences) ? activeLang.sentences : []
   const hasToggle = !!en && !!ko
 
   // Switch language

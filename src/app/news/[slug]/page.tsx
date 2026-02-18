@@ -97,6 +97,28 @@ export default async function ArticlePage({ params }: ArticlePageProps) {
           {item.title}
         </h1>
 
+        {/* Summary — prefer the longer of summary vs description */}
+        {(item.summary || item.description) && (
+          <div className="border-l-4 border-neutral-200 pl-4 mb-6">
+            <p className="text-base text-neutral-600 leading-relaxed">
+              {(item.summary?.length ?? 0) >= (item.description?.length ?? 0)
+                ? item.summary
+                : item.description}
+            </p>
+          </div>
+        )}
+
+        {/* Story Timeline — same thread across days */}
+        {thread && timeline.length > 1 && (
+          <div className="mb-8">
+            <TimelineSection
+              threadTitle={thread.title}
+              articles={timeline}
+              currentId={item.id}
+            />
+          </div>
+        )}
+
         {/* Importance badge */}
         {item.importance === 'must_read' && (
           <div className="inline-flex items-center gap-1.5 px-3 py-1 bg-amber-50 border border-amber-200 rounded-full text-xs font-medium text-amber-800 mb-4">
@@ -111,13 +133,6 @@ export default async function ArticlePage({ params }: ArticlePageProps) {
         {item.keywords && item.keywords.length > 0 && (
           <div className="mb-6">
             <KeywordPills keywords={item.keywords} linkable />
-          </div>
-        )}
-
-        {/* Summary */}
-        {item.summary && (
-          <div className="border-l-4 border-neutral-200 pl-4 mb-8">
-            <p className="text-base text-neutral-600 leading-relaxed">{item.summary}</p>
           </div>
         )}
 
@@ -153,17 +168,6 @@ export default async function ArticlePage({ params }: ArticlePageProps) {
         {related.length > 0 && (
           <div className="mb-10">
             <RelatedSection title="Related Articles" articles={related} />
-          </div>
-        )}
-
-        {/* Story Timeline — same thread across days */}
-        {thread && timeline.length > 1 && (
-          <div className="mb-10">
-            <TimelineSection
-              threadTitle={thread.title}
-              articles={timeline}
-              currentId={item.id}
-            />
           </div>
         )}
 

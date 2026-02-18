@@ -162,9 +162,8 @@ export class NewsService {
         published_at,
         slug,
         thread_id,
-        wsj_crawl_results!inner (
+        wsj_crawl_results (
           top_image,
-          relevance_flag,
           source,
           resolved_url,
           wsj_llm_analysis (
@@ -175,7 +174,6 @@ export class NewsService {
         )
       `)
       .eq('slug', slug)
-      .eq('wsj_crawl_results.relevance_flag', 'ok')
       .limit(1)
       .single()
 
@@ -300,6 +298,16 @@ export class NewsService {
 
     if (error || !data) return null
     return data as StoryThread
+  }
+
+  async getThreadsByIds(threadIds: string[]): Promise<Map<string, StoryThread>> {
+    if (threadIds.length === 0) return new Map()
+    const { data, error } = await this.supabase
+      .from('wsj_story_threads')
+      .select('id, title, member_count, first_seen, last_seen')
+      .in('id', threadIds)
+    if (error || !data) return new Map()
+    return new Map((data as StoryThread[]).map(t => [t.id, t]))
   }
 
   async getBriefingSources(briefingId: string): Promise<{

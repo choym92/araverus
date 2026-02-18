@@ -14,7 +14,7 @@ Project-specific rules live in `.claude/rules/`. Detailed docs in `docs/`.
 1) **Language**: All code, comments, and documentation must be in English. Explanations and conversational responses should be in Korean (한국어).
 2) **Read before writing**: Read neighboring files and follow existing patterns before making changes.
 3) **Server-first**: Next.js App Router uses Server Components by default; use `'use client'` only for interaction/state/DOM APIs.
-4) **Edit over create**: Prefer modifying existing files over creating new ones.
+4) **Edit over create**: Prefer modifying existing files over creating new ones. This includes idea/doc files — append to existing docs rather than creating new files for related topics.
 5) **Verify deps**: Never assume a library exists; check `package.json` first.
 6) **Date stamp**: When creating or modifying `.md` files, add/update `<!-- Created: YYYY-MM-DD -->` or `<!-- Updated: YYYY-MM-DD -->` at top.
 7) **No broken contracts**: Never break public API routes, URL paths, or DB schema without explicit approval.

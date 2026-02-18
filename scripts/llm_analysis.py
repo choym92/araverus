@@ -37,7 +37,7 @@ LLM_PROMPT = """Analyze this crawled article against the original WSJ headline.
 WSJ Headline: "{wsj_title}"
 WSJ Description: "{wsj_description}"
 
-Crawled Content (first 800 chars):
+Crawled Content:
 \"\"\"
 {crawled_content}
 \"\"\"
@@ -56,7 +56,7 @@ Analyze and return ONLY valid JSON (no markdown, no explanation):
   "sentiment": "<positive|negative|neutral|mixed>",
   "geographic_region": "<US|China|Europe|Asia|Global|Other>",
   "time_horizon": "<immediate|short_term|long_term>",
-  "summary": "<1-2 sentence summary of the crawled article>",
+  "summary": "<150-250 word summary covering key facts, numbers, context, and implications. Do NOT repeat the headline. Start with new information or context.>",
   "importance": "<must_read|worth_reading|optional>",
   "keywords": ["<2-4 short topic keywords, e.g. Fed, interest rates, monetary policy>"]
 }}
@@ -86,7 +86,7 @@ def analyze_content(
     Args:
         wsj_title: Original WSJ article title
         wsj_description: Original WSJ article description
-        crawled_content: Crawled article content (first 800 chars used)
+        crawled_content: Crawled article content (full text)
         model: Gemini model to use
 
     Returns:
@@ -102,7 +102,7 @@ def analyze_content(
     prompt = LLM_PROMPT.format(
         wsj_title=wsj_title,
         wsj_description=wsj_description or "",
-        crawled_content=crawled_content[:800] if crawled_content else "",
+        crawled_content=crawled_content or "",
     )
 
     try:

@@ -5,6 +5,7 @@ import NewsShell from './_components/NewsShell'
 import BriefingPlayer from './_components/BriefingPlayer'
 import ArticleCard from './_components/ArticleCard'
 import KeywordPills from './_components/KeywordPills'
+import ThreadSection from './_components/ThreadSection'
 import Link from 'next/link'
 import { readFile } from 'fs/promises'
 import path from 'path'
@@ -79,6 +80,18 @@ function groupByThread(items: NewsItem[]): {
   return { threaded, ungrouped }
 }
 
+/** Compute heat score for thread ranking — weighted importance with time decay */
+function computeHeatScore(articles: NewsItem[]): number {
+  const weights: Record<string, number> = { must_read: 3, worth_reading: 2, optional: 1 }
+  const now = Date.now()
+  return articles.reduce((sum, a) => {
+    const daysOld = (now - new Date(a.published_at).getTime()) / 86400000
+    if (isNaN(daysOld)) return sum
+    const w = weights[a.importance ?? 'optional'] ?? 1
+    return sum + w * Math.exp(-0.3 * daysOld)
+  }, 0)
+}
+
 export default async function NewsPage({ searchParams }: NewsPageProps) {
   const params = await searchParams
   const category = params.category
@@ -93,20 +106,6 @@ export default async function NewsPage({ searchParams }: NewsPageProps) {
   ])
 
   const briefing = enBriefing || koBriefing
-  const briefingSources = briefing
-    ? await service.getBriefingSources(briefing.id)
-    : []
-
-  // TODO: Remove local file reads once pipeline uploads to Supabase Storage
-  const ttsDir = path.join(process.cwd(), 'notebooks/tts_outputs/text')
-  const [localChaptersEn, localChaptersKo, localSentencesEn, localSentencesKo, localTranscriptEn, localTranscriptKo] = await Promise.all([
-    readFile(path.join(ttsDir, 'chapters-en-2026-02-16.json'), 'utf-8').then(JSON.parse).catch(() => undefined),
-    readFile(path.join(ttsDir, 'chapters-ko-2026-02-16.json'), 'utf-8').then(JSON.parse).catch(() => undefined),
-    readFile(path.join(ttsDir, 'sentences-en-2026-02-16.json'), 'utf-8').then(JSON.parse).catch(() => undefined),
-    readFile(path.join(ttsDir, 'sentences-ko-2026-02-16.json'), 'utf-8').then(JSON.parse).catch(() => undefined),
-    readFile(path.join(ttsDir, 'briefing-pro-friendly-2026-02-16.txt'), 'utf-8').catch(() => undefined),
-    readFile(path.join(ttsDir, 'briefing-ko-pro-2026-02-16.txt'), 'utf-8').catch(() => undefined),
-  ])
 
   // Filter by keyword if active
   const filteredItems = activeKeyword
@@ -115,11 +114,35 @@ export default async function NewsPage({ searchParams }: NewsPageProps) {
       )
     : items
 
+  // Group by thread early (needed for parallel fetch)
+  const { threaded, ungrouped } = groupByThread(filteredItems)
+  const threadIds = Array.from(threaded.keys())
+
+  // Parallel fetch: briefingSources + threadMeta + local files
+  // TODO: Remove local file reads once pipeline uploads to Supabase Storage
+  const ttsDir = path.join(process.cwd(), 'notebooks/tts_outputs/text')
+  const [briefingSources, threadMeta, localChaptersEn, localChaptersKo, localSentencesEn, localSentencesKo, localTranscriptEn, localTranscriptKo] = await Promise.all([
+    briefing ? service.getBriefingSources(briefing.id) : Promise.resolve([] as { title: string; feed_name: string; link: string; source: string | null }[]),
+    service.getThreadsByIds(threadIds),
+    readFile(path.join(ttsDir, 'chapters-en-2026-02-16.json'), 'utf-8').then(JSON.parse).catch(() => undefined),
+    readFile(path.join(ttsDir, 'chapters-ko-2026-02-16.json'), 'utf-8').then(JSON.parse).catch(() => undefined),
+    readFile(path.join(ttsDir, 'sentences-en-2026-02-16.json'), 'utf-8').then(JSON.parse).catch(() => undefined),
+    readFile(path.join(ttsDir, 'sentences-ko-2026-02-16.json'), 'utf-8').then(JSON.parse).catch(() => undefined),
+    readFile(path.join(ttsDir, 'briefing-pro-friendly-2026-02-16.txt'), 'utf-8').catch(() => undefined),
+    readFile(path.join(ttsDir, 'briefing-ko-pro-2026-02-16.txt'), 'utf-8').catch(() => undefined),
+  ])
+
   // Aggregate keywords for filter bar
   const allKeywords = aggregateKeywords(items)
 
-  // Group by thread for today tab
-  const { threaded, ungrouped } = groupByThread(filteredItems)
+  // Sort threads by heat score (hottest first)
+  const sortedThreads = Array.from(threaded.values())
+    .map(group => ({
+      ...group,
+      title: threadMeta.get(group.threadId)?.title ?? `${group.articles.length} Related Articles`,
+      heat: computeHeatScore(group.articles),
+    }))
+    .sort((a, b) => b.heat - a.heat)
 
   // For non-threaded layout (backward compat)
   const featured = filteredItems[0] || null
@@ -283,35 +306,32 @@ export default async function NewsPage({ searchParams }: NewsPageProps) {
               />
             </div>
 
-            {/* Thread groups */}
-            {Array.from(threaded.values()).map((group) => (
-              <section key={group.threadId}>
-                <h2 className="font-serif text-lg text-neutral-900 border-b-2 border-neutral-900 pb-2 mb-4">
-                  {/* Thread title from first article's metadata — falls back to category */}
-                  {group.articles[0]?.feed_name
-                    ? `${group.articles.length} articles`
-                    : 'Related Stories'}
-                </h2>
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-x-6">
-                  {group.articles.map((item) => (
-                    <ArticleCard
-                      key={item.id}
-                      headline={item.title}
-                      summary={item.summary ?? item.description}
-                      source={item.source}
-                      category={item.feed_name}
-                      timestamp={item.published_at}
-                      imageUrl={item.top_image}
-                      link={item.link}
-                      variant="standard"
-                      slug={item.slug}
-                      importance={item.importance}
-                      keywords={item.keywords}
-                      activeKeyword={activeKeyword}
-                    />
-                  ))}
-                </div>
-              </section>
+            {/* Thread groups — sorted by heat score */}
+            {sortedThreads.map((group, idx) => (
+              <ThreadSection
+                key={group.threadId}
+                title={group.title}
+                articleCount={group.articles.length}
+                defaultExpanded={idx === 0}
+              >
+                {group.articles.map((item) => (
+                  <ArticleCard
+                    key={item.id}
+                    headline={item.title}
+                    summary={item.summary ?? item.description}
+                    source={item.source}
+                    category={item.feed_name}
+                    timestamp={item.published_at}
+                    imageUrl={item.top_image}
+                    link={item.link}
+                    variant="standard"
+                    slug={item.slug}
+                    importance={item.importance}
+                    keywords={item.keywords}
+                    activeKeyword={activeKeyword}
+                  />
+                ))}
+              </ThreadSection>
             ))}
 
             {/* Ungrouped articles */}
