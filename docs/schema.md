@@ -172,11 +172,12 @@ llm_fail_count   INT          -- LLM is_same_event=false count (reset on success
 last_llm_failure TIMESTAMPTZ
 success_rate     NUMERIC      -- computed: success_count / (success_count + fail_count)
 weighted_score   NUMERIC      -- quality score combining success rate and volume
+wilson_score     NUMERIC      -- Wilson score 95% CI lower bound for true success rate
 created_at       TIMESTAMPTZ
 updated_at       TIMESTAMPTZ
 ```
 
-**Auto-block rule**: `fail_count > 5 AND success_rate < 20%` OR `llm_fail_count >= 3`
+**Auto-block rule**: `wilson_score < 0.15` (with `total >= 5`) OR `llm_fail_count >= 10 AND success < llm_fail * 3`
 **LLM tracking**: `llm_fail_count` incremented when crawled content doesn't match WSJ event, reset to 0 on success.
 
 ### `wsj_briefings` — Daily Briefing Output (Phase 2)

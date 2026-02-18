@@ -17,7 +17,7 @@ import numpy as np
 from sentence_transformers import SentenceTransformer
 
 # Import shared domain utilities
-from domain_utils import load_preferred_domains, is_preferred_domain
+from domain_utils import load_preferred_domains, is_preferred_domain, load_blocked_domains, is_blocked_domain
 
 # Load model (downloads on first run, ~80MB)
 print("Loading embedding model...")
@@ -116,10 +116,14 @@ def main():
 
     print(f"Loaded {len(results)} WSJ items from {input_path.name}")
 
-    # Load preferred domains (base + top 10 from DB by weighted_score)
+    # Load preferred domains (top 10 from DB by weighted_score)
     print("Loading preferred domains...")
     preferred_domains = load_preferred_domains(top_n=10)
     print(f"  Using {len(preferred_domains)} preferred domains")
+
+    # Load blocked domains to filter before ranking
+    blocked_domains = load_blocked_domains()
+    print(f"  Blocked domains: {len(blocked_domains)}")
 
     print(f"Ranking with top_k={top_k}, min_score={min_score}\n")
 
@@ -131,7 +135,11 @@ def main():
 
         print("=" * 80)
         print(f"[{i+1}/{len(results)}] WSJ: {wsj.get('title', 'N/A')}")
-        print(f"    Candidates: {len(candidates)}")
+
+        # Filter out blocked domains before ranking
+        candidates = [c for c in candidates
+                      if not is_blocked_domain(c.get('source_domain', ''), blocked_domains)]
+        print(f"    Candidates: {len(candidates)} (after blocked filter)")
 
         # Query = WSJ title + description
         query_text = f"{wsj.get('title', '')} {wsj.get('description', '')}"

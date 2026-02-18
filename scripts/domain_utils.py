@@ -11,12 +11,9 @@ import os
 from functools import lru_cache
 from pathlib import Path
 
-# Base preferred domains - verified reliable sources for US finance news
-BASE_PREFERRED_DOMAINS = [
-    'marketwatch.com',
-    'cnbc.com',
-    'finance.yahoo.com',
-]
+# Preferred domains are now fully DB-driven (top N by weighted_score).
+# No hardcoded list — domains earn preferred status through performance.
+BASE_PREFERRED_DOMAINS = []
 
 
 def get_supabase_client():
@@ -74,9 +71,8 @@ def load_preferred_domains(supabase=None, top_n: int = 10) -> list[str]:
     """
     Get combined list of preferred domains.
 
-    Combines:
-    - BASE_PREFERRED_DOMAINS (hardcoded reliable sources)
-    - Top N domains from DB by weighted_score
+    Returns top N domains from DB by weighted_score.
+    Fully DB-driven — no hardcoded list.
 
     Args:
         supabase: Supabase client (optional, will create if None)

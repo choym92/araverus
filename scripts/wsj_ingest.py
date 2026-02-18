@@ -21,6 +21,7 @@ Environment:
 """
 import hashlib
 import json
+import math
 import os
 import sys
 from collections import Counter
@@ -679,6 +680,17 @@ def cmd_mark_searched(jsonl_path: Path) -> None:
     print(f"Marked {updated} items as searched.")
 
 
+def wilson_lower_bound(success: int, total: int, z: float = 1.96) -> float:
+    """Wilson score 95% CI lower bound."""
+    if total == 0:
+        return 0.0
+    p = success / total
+    denom = 1 + z * z / total
+    center = p + z * z / (2 * total)
+    spread = z * math.sqrt((p * (1 - p) + z * z / (4 * total)) / total)
+    return (center - spread) / denom
+
+
 def cmd_update_domain_status() -> None:
     """Update wsj_domain_status table from wsj_crawl_results.
 
@@ -754,11 +766,9 @@ def cmd_update_domain_status() -> None:
         for row in llm_fail_response.data
     } if llm_fail_response.data else {}
 
-    # Allowlist: domains that should never be auto-blocked
-    DOMAIN_ALLOWLIST = {
-        'finance.yahoo.com',
-        'livemint.com',
-    }
+    # Wilson Score thresholds for auto-blocking
+    WILSON_THRESHOLD = 0.15
+    MIN_ATTEMPTS = 5
 
     # Upsert to wsj_domain_status
     now = datetime.utcnow().isoformat()
@@ -774,18 +784,19 @@ def cmd_update_domain_status() -> None:
         # Calculate success rate
         success_rate = success / total if total > 0 else 0
 
-        # Determine status: auto-block if:
-        # - fail > 5 AND success_rate < 20%, OR
+        # Wilson Score: lower bound of 95% CI for true success rate
+        wilson = wilson_lower_bound(success, total)
+
+        # Auto-block if:
+        # - Wilson lower bound < threshold with enough data, OR
         # - llm_fail >= 10 AND success_count < llm_fail * 3 (LLM failure rate > 25%)
-        # This ensures high-volume domains with good success rates aren't blocked
-        # Allowlisted domains are never auto-blocked
-        crawl_block = fail > 5 and success_rate < 0.2
+        crawl_block = total >= MIN_ATTEMPTS and wilson < WILSON_THRESHOLD
         llm_block = llm_fail >= 10 and success < llm_fail * 3
-        should_block = (crawl_block or llm_block) and domain not in DOMAIN_ALLOWLIST
+        should_block = crawl_block or llm_block
         status = 'blocked' if should_block else 'active'
 
         if crawl_block:
-            block_reason = f"Auto-blocked: {fail} failures, {success_rate:.0%} success rate"
+            block_reason = f"Auto-blocked: wilson={wilson:.3f} < {WILSON_THRESHOLD} ({success}/{total}, {success_rate:.0%})"
         elif llm_block:
             llm_rate = llm_fail / (success + llm_fail) if (success + llm_fail) > 0 else 1
             block_reason = f"Auto-blocked: {llm_fail} LLM failures vs {success} successes ({llm_rate:.0%} LLM fail rate)"
@@ -806,6 +817,7 @@ def cmd_update_domain_status() -> None:
             'block_reason': block_reason,
             'success_rate': round(success_rate, 4),
             'weighted_score': round(weighted_score, 4),
+            'wilson_score': round(wilson, 4),
             'updated_at': now,
         }
 
@@ -827,7 +839,7 @@ def cmd_update_domain_status() -> None:
             print(f"Error updating {domain}: {e}")
 
     print(f"\nUpdated {updated} domains in wsj_domain_status")
-    print(f"Auto-blocked {blocked} domains (fail > 5 AND success < 20%, OR llm_fail >= 3)")
+    print(f"Auto-blocked {blocked} domains (wilson < {WILSON_THRESHOLD} OR llm_fail ratio)")
 
     # Show blocked domains
     if blocked > 0:
@@ -837,10 +849,13 @@ def cmd_update_domain_status() -> None:
             fail = stats['fail_count']
             total = success + fail
             rate = success / total if total > 0 else 0
+            wilson = wilson_lower_bound(success, total)
             llm_fail = llm_fail_counts.get(domain, 0)
-            if (fail > 5 and rate < 0.2) or llm_fail >= 3:
-                reason = "LLM failures" if llm_fail >= 3 else "crawl failures"
-                print(f"  {domain}: {fail} fails, {rate:.0%} success, {llm_fail} llm_fail ({reason})")
+            crawl_blocked = total >= MIN_ATTEMPTS and wilson < WILSON_THRESHOLD
+            llm_blocked = llm_fail >= 10 and success < llm_fail * 3
+            if crawl_blocked or llm_blocked:
+                reason = "LLM failures" if llm_blocked else "wilson score"
+                print(f"  {domain}: wilson={wilson:.3f}, {rate:.0%} success ({success}/{total}), {llm_fail} llm_fail ({reason})")
 
 
 def cmd_retry_low_relevance() -> None:
