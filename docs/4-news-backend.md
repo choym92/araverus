@@ -1,4 +1,4 @@
-<!-- Updated: 2026-02-17 -->
+<!-- Updated: 2026-02-18 -->
 # News Platform — Backend & Pipeline
 
 Single source of truth for the finance news pipeline: ingestion, crawling, analysis, briefing generation, and deployment.
@@ -28,7 +28,7 @@ Single source of truth for the finance news pipeline: ingestion, crawling, analy
 
 ## Pipeline Scripts
 
-### `wsj_ingest.py` (926 lines)
+### `wsj_ingest.py` (1071 lines)
 
 RSS ingestion, export, lifecycle management, domain status.
 
@@ -43,7 +43,15 @@ RSS ingestion, export, lifecycle management, domain status.
 | `--retry-low-relevance` | Reactivate backup articles for low-relevance items |
 | `--stats` | Show database statistics |
 
-**Key logic:** 6 WSJ feeds (BUSINESS_MARKETS, WORLD, TECH, ECONOMY, POLITICS). URL-based category extraction (~95% accuracy). Title-based dedup with least-count category balancing. Skips lifestyle/arts/opinion. Domain auto-block: `fail_count > 5 AND success_rate < 20%` or `llm_fail_count >= 10 AND success_count < llm_fail_count * 3`.
+**Feeds:** 6 WSJ RSS feeds — BUSINESS, MARKETS, WORLD, TECH, ECONOMY, POLITICS. Each feed has a `feed_name` and `feed_url` configured as constants.
+
+**Category extraction:** URL-based (~95% accuracy). Parses `/articles/` or `/livecoverage/` URL paths to extract subcategory (e.g., `wsj.com/economy/trade` → `trade`). Falls back to `feed_name` if URL pattern doesn't match. Known gap: ~28% of items still have NULL `subcategory`.
+
+**Dedup:** Title-based dedup with Levenshtein-like comparison. When a duplicate is found across feeds, keeps the version from the feed with fewer total items (least-count category balancing). Skips lifestyle/arts/opinion content.
+
+**Slug generation:** `slugify(title)[:80]` with date-suffix collision handling (e.g., `-2`, `-3`).
+
+**Domain auto-block** (via `--update-domain-status`): Two criteria — `fail_count > 5 AND success_rate < 20%` OR `llm_fail_count >= 10 AND success_count < llm_fail_count * 3`. Uses Wilson score for statistical confidence on small sample sizes.
 
 ### `wsj_to_google_news.py` (1078 lines)
 
@@ -109,9 +117,9 @@ Core crawling engine. Hybrid newspaper4k + browser fallback.
 
 Shared domain utilities. Base preferred domains: marketwatch.com, cnbc.com, finance.yahoo.com. Dynamic top 10 from DB by `weighted_score`. Blocked domain loading from DB + `scripts/data/blocked_domains.json`.
 
-### `llm_analysis.py` (264 lines)
+### `llm_analysis.py` (280 lines)
 
-GPT-4o-mini content verification + metadata extraction (temp=0, JSON mode). Extracts: relevance_score, is_same_event, event_type, content_quality, sentiment, geographic_region, key_entities, key_numbers, tickers, people, summary, **importance** (must_read/worth_reading/optional), **keywords** (2-4 free-form). Tracks domain LLM fail/success counts.
+**Gemini 2.5 Flash** content verification + metadata extraction (JSON mode). Extracts: relevance_score, is_same_event, event_type, content_quality, sentiment, geographic_region, key_entities, key_numbers, tickers, people, summary (150-250 words), **importance** (must_read/worth_reading/optional), **keywords** (2-4 free-form). Tracks domain LLM fail/success counts. Requires `GEMINI_API_KEY`.
 
 ### `llm_backfill.py` (222 lines)
 
@@ -192,7 +200,7 @@ python scripts/generate_briefing.py --output-dir PATH        # Custom output dir
 
 **Optimizations:** `uv` package manager, HuggingFace model caching, Playwright chromium fresh per run, `continue-on-error` on crawl/search steps, artifact passing (7 days retention).
 
-**Secrets:** `SUPABASE_URL`, `SUPABASE_KEY`, `OPENAI_API_KEY`
+**Secrets:** `SUPABASE_URL`, `SUPABASE_KEY`, `GEMINI_API_KEY`
 
 ---
 
@@ -205,7 +213,7 @@ python scripts/generate_briefing.py --output-dir PATH        # Custom output dir
 | `wsj_items` | WSJ RSS feed articles with feed_name, category, searched/processed/briefed flags, **slug**, **thread_id** |
 | `wsj_crawl_results` | Crawled backup articles with content, embedding_score, crawl_status, relevance_flag |
 | `wsj_domain_status` | Domain quality tracking — success_rate, weighted_score, auto-block status |
-| `wsj_llm_analysis` | GPT-4o-mini extracted metadata — entities, sentiment, summary, event_type, **importance**, **keywords** |
+| `wsj_llm_analysis` | Gemini 2.5 Flash extracted metadata — entities, sentiment, summary, event_type, **importance**, **keywords** |
 | `wsj_embeddings` | Article embeddings (BAAI/bge-base-en-v1.5, 768d) for semantic similarity |
 | `wsj_story_threads` | Story thread clusters with centroids, member counts, active/inactive status |
 | `wsj_briefings` | Generated briefing text + audio paths, upsert on (date, category) |
@@ -263,22 +271,30 @@ backups 'skipped'
 
 **Embedding Relevance**: Cosine similarity ≥ 0.25 → `relevance_flag='ok'`, else `'low'`
 
-**LLM Verification** (GPT-4o-mini): Accept if `is_same_event=true` OR `score >= 6`. Reject otherwise → domain `llm_fail_count` incremented.
+**LLM Verification** (Gemini 2.5 Flash): Accept if `is_same_event=true` OR `score >= 6`. Reject otherwise → domain `llm_fail_count` incremented.
 
 ---
 
 ## Environment Variables
 
 ```env
-# Supabase (local dev)
+# Supabase (local dev / Mac Mini)
 NEXT_PUBLIC_SUPABASE_URL=
 SUPABASE_SERVICE_ROLE_KEY=
+
+# Gemini (LLM analysis, embedding thread grouping, briefing generation)
+GEMINI_API_KEY=
+
+# Google Cloud TTS (service account — only needed for briefing audio)
+GOOGLE_APPLICATION_CREDENTIALS=~/credentials/araverus-tts-sa.json
 
 # GitHub Actions secrets
 SUPABASE_URL=
 SUPABASE_KEY=
-OPENAI_API_KEY=
+GEMINI_API_KEY=
 ```
+
+> **Note:** `OPENAI_API_KEY` is no longer used. All LLM calls migrated to Gemini. Mac Mini loads secrets from macOS Keychain via `load_env.sh`.
 
 ---
 
@@ -296,7 +312,7 @@ OPENAI_API_KEY=
 | `lxml>=4.9.0` | XML parsing |
 | `newspaper4k>=0.9.0` | Fast HTTP extraction + metadata |
 | `crawl4ai>=0.4.0` | Browser-based crawling |
-| `openai>=1.0.0` | OpenAI API (LLM analysis) |
+| `google-genai>=1.0.0` | Gemini API (LLM analysis, briefing, TTS) |
 
 ---
 
@@ -351,4 +367,4 @@ python scripts/generate_briefing.py --date 2026-02-13         # Specific date
 
 **Monthly:** ~$9.70/month (daily) or ~$7.10/month (weekdays only)
 
-**LLM analysis (backfill):** ~$0.00016/article (GPT-4o-mini)
+**LLM analysis (backfill):** ~$0.00016/article (Gemini 2.5 Flash)

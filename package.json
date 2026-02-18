@@ -10,7 +10,7 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "lint:secrets": "secretlint \"src/**/*\" \"scripts/**/*.py\"",
-    "lint:py": "ruff check scripts/"
+    "lint:py": "scripts/.venv/bin/ruff check scripts/"
   },
   "dependencies": {
     "@heroicons/react": "^2.2.0",

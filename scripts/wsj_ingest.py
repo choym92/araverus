@@ -112,8 +112,11 @@ def get_supabase_client() -> Client:
 # ============================================================
 
 def generate_url_hash(url: str) -> str:
-    """Generate SHA-256 hash of URL for deduplication."""
-    return hashlib.sha256(url.encode()).hexdigest()
+    """Generate SHA-256 hash of URL for deduplication. Strips query params to avoid duplicates."""
+    from urllib.parse import urlparse, urlunparse
+    parsed = urlparse(url)
+    clean = urlunparse((parsed.scheme, parsed.netloc, parsed.path, '', '', ''))
+    return hashlib.sha256(clean.encode()).hexdigest()
 
 
 def parse_rss_date(date_str: str) -> Optional[str]:
@@ -138,6 +141,8 @@ URL_CATEGORY_MAP = {
     'finance': 'BUSINESS_MARKETS',
     'business': 'BUSINESS_MARKETS',
     'markets': 'BUSINESS_MARKETS',
+    'personal-finance': 'BUSINESS_MARKETS',
+    'science': 'TECH',
     'economy': 'ECONOMY',
     'politics': 'POLITICS',
     'world': 'WORLD',
@@ -205,14 +210,21 @@ def parse_wsj_rss(xml_text: str, feed_name: str, feed_url: str) -> list[WsjItem]
         if title.startswith('Opinion |'):
             continue
 
+        # Skip roundup/digest posts (no real article content)
+        if 'Roundup: Market Talk' in title:
+            continue
+
         # Skip low-value categories (poor crawl success rates)
-        SKIP_CATEGORIES = ['/lifestyle/', '/real-estate/', '/arts/', '/health/', '/style/', '/livecoverage/', '/arts-culture/']
+        SKIP_CATEGORIES = ['/lifestyle/', '/real-estate/', '/arts/', '/health/', '/style/', '/livecoverage/', '/arts-culture/', '/buyside/', '/sports/', '/opinion/']
         if any(cat in link for cat in SKIP_CATEGORIES):
             continue
 
         # Extract category/subcategory from URL (more accurate than RSS feed_name)
         url_category, subcategory = extract_category_from_url(link)
         item_feed_name = url_category if url_category else feed_name
+        # Fallback: use feed_name as subcategory when URL doesn't provide one
+        if subcategory is None:
+            subcategory = item_feed_name.lower().replace('_', '-')
 
         # Extract dc:creator (author)
         creator_el = item.find('dc:creator', namespaces)
@@ -564,7 +576,7 @@ def cmd_ingest() -> None:
 
     # Show current stats
     stats = get_stats(supabase)
-    print(f"\nDatabase stats:")
+    print("\nDatabase stats:")
     print(f"  Total items: {stats['total']}")
     print(f"  Unprocessed: {stats['unprocessed']}")
     print(f"  Processed:   {stats['processed']}")

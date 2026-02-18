@@ -1,0 +1,5 @@
+[lint]
+ignore = [
+    "E402",  # Module level import not at top of file (intentional: load_dotenv before imports)
+    "F841",  # Unused variable (some kept for debugging clarity)
+]
