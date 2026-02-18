@@ -1,0 +1,201 @@
+<!-- Updated: 2026-02-18 -->
+# News Threading System Design
+
+## Overview
+
+Story threads dynamically group related news articles about the same developing story. Threads have no member limit and manage themselves through heat-based lifecycle with no manual intervention.
+
+## Thread Lifecycle
+
+```
+Active → Cooling → Archived → (Resurrected → Active)
+```
+
+| State | Condition | Matching | Frontend |
+|-------|-----------|----------|----------|
+| **Active** | New article within 3 days | Yes (base threshold) | Shown, ranked by heat |
+| **Cooling** | 3-14 days since last article | Yes (higher threshold) | Shown below active |
+| **Archived** | 14+ days inactive | No matching | Hidden from feed, accessible via article detail timeline |
+| **Resurrected** | Archived thread gets a new match | Becomes Active again | Re-appears in feed |
+
+No hard time-based deletion. Threads persist indefinitely for historical timeline views.
+
+## Heat Score
+
+Computed at query time (not stored). Determines frontend ranking.
+
+```
+heat = Σ (importance_weight × time_decay(article_age))
+
+importance_weight: must_read=3, worth_reading=2, optional=1
+time_decay: e^(-0.3 × days_old)  → half-life ~2.3 days
+```
+
+Examples:
+- "Fed Rate Decision" — today 2× must_read + yesterday 3× worth_reading → heat ≈ 10.5
+- "Venezuela Crisis" — last article 5 days ago, 1× must_read → heat ≈ 0.67
+
+## Daily Pipeline Flow
+
+```
+New articles crawled (RSS: title + description available immediately)
+  → Embed with BAAI/bge-base-en-v1.5 (requires title + description, NOT full crawl)
+  → Filter out roundup articles ("Market Talk") from threading
+  → Match against Active + Cooling thread centroids (dynamic threshold)
+  → Unmatched recent articles (last 2 days) → Gemini LLM grouping → cross-validate with embeddings
+  → Merge check: new thread centroid vs existing threads (>0.92 = merge)
+  → Create remaining as new threads
+  → Heat scores auto-update (query-time calculation)
+```
+
+### Embedding eligibility
+
+Articles are eligible for embedding when `description IS NOT NULL` — no dependency on the full crawl pipeline (`processed` flag). This ensures ~95%+ embedding coverage even for freshly crawled articles that only have RSS metadata.
+
+## Matching Rules
+
+### Dynamic threshold (anti-gravity)
+
+```
+effective_threshold = base(0.62) + time_penalty + size_penalty
+
+time_penalty = 0.01 × days_gap
+size_penalty = 0.04 × ln(member_count + 1)
+
+Hard cap: if member_count >= 50 → effective_threshold = max(computed, 0.87)
+Margin check: best_sim - second_best_sim must be >= 0.03, otherwise ambiguous → unmatched
+```
+
+| Thread size | size_penalty | effective (same day) |
+|-------------|-------------|----------------------|
+| 2 members | +0.044 | 0.664 |
+| 10 members | +0.096 | 0.716 |
+| 50 members | +0.157 | **0.870** (hard cap) |
+| 100 members | +0.185 | **0.870** (hard cap) |
+
+**Why:** Prevents "gravity well" — large threads attracting unrelated articles,
+growing larger, attracting more. Small threads are easy to join; 50+ member
+threads are effectively frozen (require 0.87+ similarity).
+
+**Note on base threshold:** 0.62 is calibrated for title+description-only embeddings (BAAI/bge-base-en-v1.5). These produce lower pairwise similarity than full-content embeddings. The original 0.70 threshold resulted in only 0-5 centroid matches per day out of 50-60 articles.
+
+### Centroid update (Dynamic EMA)
+
+```
+effective_alpha = 0.1 / ln(member_count + 2)
+new_centroid = effective_alpha × new_embedding + (1 - effective_alpha) × old_centroid
+```
+
+| Thread size | alpha | Effect |
+|-------------|-------|--------|
+| 2 members | 0.072 | New article = 7% influence |
+| 10 members | 0.040 | 4% |
+| 50 members | 0.025 | 2.5% |
+| 150 members | 0.020 | 2% — centroid barely moves |
+
+**Why:** Large threads stay stable. A single off-topic article can't drag
+the centroid toward "general news". Small threads remain flexible to
+capture the story's direction early on.
+
+### LLM grouping + cross-validation
+
+Unmatched articles are grouped into new thread candidates by Gemini 2.5 Flash. Multiple safeguards prevent garbage threads:
+
+1. **Recent-only input**: Daily mode limits LLM input to articles from the last 2 days.
+2. **Group size cap**: Max 8 articles per LLM group. Larger groups are truncated.
+3. **Date context**: Article dates are included in the LLM prompt for temporal awareness.
+4. **Embedding cross-validation**: `validate_llm_group()` checks both average pairwise similarity (≥ 0.42) and minimum pair floor (≥ 0.25). Rejects groups with outlier members.
+
+```python
+def validate_llm_group(member_articles, min_similarity=0.42):
+    """Reject if avg pairwise < 0.42 OR any pair < 0.25 (outlier detection)."""
+    # Returns (is_valid: bool, avg_similarity: float)
+```
+
+**Why LLM grouping exists:** Centroid matching can only assign articles to *existing* threads. New topics need LLM grouping to create the initial thread. Without it, new stories would never get threaded.
+
+### Thread merge detection
+
+Before creating a new thread, check against all Active/Cooling threads:
+- If cosine_similarity(new_centroid, existing_centroid) > **0.92** → merge into existing
+- High threshold (0.92) ensures only truly duplicate threads merge
+- "Fed Chair Nomination" and "Trade Tariffs" won't merge even if both mention Trump
+
+### Roundup article exclusion
+
+Articles with "Roundup: Market Talk" (or similar daily summary patterns) in their title
+are excluded from thread matching. These cover multiple sectors in a single article,
+creating embeddings that point toward "general market news" and pollute thread centroids.
+They remain visible as standalone articles in the feed.
+
+### Thread title refresh
+When a thread accumulates N+ new articles since last title update (thresholds: 10, 25, 50):
+- Send last 5 article titles to Gemini
+- Request updated thread title
+- Keeps titles accurate as stories develop ("Fed Holds at 4.5%" → "Fed Cuts Rates to 4.25%")
+
+## Algorithm Constants
+
+| Parameter | Value | Formula |
+|-----------|-------|---------|
+| Base threshold | 0.62 | Fixed (calibrated for title+description embeddings) |
+| Time penalty | 0.01/day | `0.01 × days_gap` |
+| Size penalty | dynamic | `0.04 × ln(member_count + 1)` |
+| Hard cap | 50 members | Threads ≥50 require 0.87+ similarity |
+| Frozen threshold | 0.87 | Override for hard-capped threads |
+| Match margin | 0.03 | Best must beat runner-up by this |
+| EMA alpha | dynamic | `0.1 / ln(member_count + 2)` |
+| Merge threshold | 0.92 | Fixed; finds best match, not first |
+| LLM group min similarity | 0.42 | Avg pairwise cosine similarity |
+| LLM group min pair floor | 0.25 | No pair can be below this |
+| LLM group max size | 8 | Max articles per LLM group |
+| LLM daily cutoff | 2 days | Only recent articles sent to LLM grouping |
+| Archive after | 14 days | Days since last article |
+| Roundup filter | pattern | Titles containing "Roundup: Market Talk" |
+
+## Edge Cases
+
+| Scenario | Handling |
+|----------|----------|
+| **Gravity well** (large thread absorbs everything) | Size penalty makes large threads harder to join |
+| **Centroid drift** (thread shifts to "general news") | Dynamic EMA — large threads resist drift |
+| **Roundup pollution** (Market Talk has high similarity to everything) | Excluded from threading entirely |
+| **LLM garbage groups** (unrelated articles forced together) | Embedding cross-validation rejects groups below 0.42 similarity |
+| **Near-duplicate threads** | Merge check (>0.92) before creation |
+| **Same topic, different events** (two shootings) | Time-weighted threshold separates them |
+| **Story evolution** (trade war → tariffs vs agriculture) | Sub-stories naturally split when embeddings diverge |
+| **Long-running story** (months-long saga) | Stable centroid follows slowly; if shift too large, new thread forms |
+| **Volume spike** (market crash, 50 articles/day) | Centroid matching handles naturally |
+| **Article fits 2 threads** | Assigned to most similar thread (1:1 FK, acceptable trade-off) |
+| **Resurrection** (quiet story re-erupts) | Archived thread reactivated on new match |
+| **New topic appears** | LLM grouping creates initial thread from recent unmatched articles |
+
+## Database Schema
+
+Existing `wsj_story_threads` table — no schema change needed. `active` boolean already exists.
+The `active` field maps to the lifecycle: `true` = Active or Cooling, `false` = Archived.
+Cooling vs Active is determined by `last_seen` at query time.
+
+Heat score is computed at query time from joined article data, not stored.
+
+## Backfill Strategy
+
+Process existing articles chronologically (oldest → newest) to simulate natural pipeline:
+
+```
+Day 1 (oldest): LLM creates initial threads
+Day 2: centroid match existing → LLM groups remaining → merge check
+Day 3+: same pattern
+```
+
+Use `--backfill-by-date --start-date YYYY-MM-DD` flag. Deactivation is skipped
+during backfill (historical dates would incorrectly archive everything).
+
+## Version History
+
+| Version | Date | Changes |
+|---------|------|---------|
+| v3.0 | 2026-02-18 | Anti-gravity (size penalty), dynamic EMA, roundup exclusion, merge threshold 0.92 |
+| v3.1 | 2026-02-18 | Embedding condition relaxed (`processed=True` → `description IS NOT NULL`), LLM cross-validation added, daily LLM input limited to 2 days |
+| v3.2 | 2026-02-18 | Thresholds recalibrated: base 0.70→0.62, LLM min similarity 0.55→0.42 |
+| v3.3 | 2026-02-18 | Anti-gravity overhaul: size penalty 0.02→0.04, hard cap (50 members @ 0.87), margin check (0.03), LLM group size cap (8), min-pair floor (0.25), merge best-not-first bugfix, backfill stale count fix |

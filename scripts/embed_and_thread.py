@@ -34,9 +34,24 @@ load_dotenv(Path(__file__).parent.parent / '.env.local')
 
 EMBEDDING_MODEL = 'BAAI/bge-base-en-v1.5'
 EMBEDDING_DIM = 768
-THREAD_SIMILARITY_THRESHOLD = 0.70
-THREAD_INACTIVE_DAYS = 7
+THREAD_BASE_THRESHOLD = 0.62       # Base cosine similarity for thread matching
+THREAD_TIME_PENALTY = 0.01         # +0.01 per day gap between article and thread last_seen
+THREAD_SIZE_PENALTY = 0.04         # Anti-gravity: 0.04 × ln(member_count + 1) — doubled from 0.02
+THREAD_MERGE_THRESHOLD = 0.92      # Above this, new thread merges into existing
+CENTROID_EMA_BASE_ALPHA = 0.1      # EMA alpha base, divided by ln(member_count + 2)
+THREAD_ARCHIVE_DAYS = 14           # Days of inactivity before archiving
+LLM_GROUP_MIN_SIMILARITY = 0.42    # Min avg pairwise cosine similarity for LLM group validation
+LLM_GROUP_MIN_PAIR_FLOOR = 0.25    # No pair in LLM group can be below this
+LLM_GROUP_MAX_SIZE = 8             # Max articles per LLM group
+THREAD_HARD_CAP = 50               # Threads above this enter "frozen" mode
+THREAD_FROZEN_THRESHOLD = 0.87     # Required similarity for frozen threads
+THREAD_MATCH_MARGIN = 0.03         # Best must beat runner-up by this margin
 BATCH_SIZE = 100
+
+# Articles matching these patterns are excluded from threading (daily roundups pollute centroids)
+THREADING_EXCLUDE_PATTERNS = ['Roundup: Market Talk']
+
+import math
 
 # ============================================================
 # Supabase
@@ -96,14 +111,14 @@ def get_unembedded_articles(supabase: Client, limit: int = 500) -> list[dict]:
         .execute()
     embedded_ids = {row['wsj_item_id'] for row in (embedded_response.data or [])}
 
-    # Get all processed items (fetch in pages to avoid limit issues)
+    # Get all items with description (title+description is enough to embed)
     all_items = []
     page_size = 1000
     offset = 0
     while True:
         items_response = supabase.table('wsj_items') \
             .select('id, title, description, published_at') \
-            .eq('processed', True) \
+            .not_.is_('description', 'null') \
             .order('published_at', desc=True) \
             .range(offset, offset + page_size - 1) \
             .execute()
@@ -184,10 +199,12 @@ def get_active_threads(supabase: Client) -> list[dict]:
 
 
 def get_unthreaded_articles(supabase: Client) -> list[dict]:
-    """Get articles with embeddings but no thread assignment."""
+    """Get articles with embeddings but no thread assignment.
+    Includes keywords from LLM analysis for better thread grouping.
+    """
     response = supabase.table('wsj_items') \
-        .select('id, title, published_at, wsj_embeddings(embedding)') \
-        .eq('processed', True) \
+        .select('id, title, published_at, wsj_embeddings(embedding), wsj_crawl_results(wsj_llm_analysis(keywords))') \
+        .not_.is_('description', 'null') \
         .is_('thread_id', 'null') \
         .order('published_at', desc=True) \
         .limit(500) \
@@ -209,22 +226,67 @@ def get_unthreaded_articles(supabase: Client) -> list[dict]:
             # pgvector returns embedding as string "[0.1,0.2,...]"
             if isinstance(raw_emb, str):
                 raw_emb = json.loads(raw_emb)
+
+            # Extract keywords from nested join
+            keywords = []
+            crawl = item.get('wsj_crawl_results')
+            if crawl:
+                cr = crawl[0] if isinstance(crawl, list) else crawl
+                llm = cr.get('wsj_llm_analysis') if cr else None
+                if llm:
+                    ll = llm[0] if isinstance(llm, list) else llm
+                    keywords = ll.get('keywords') or [] if ll else []
+
             results.append({
                 'id': item['id'],
                 'title': item['title'],
                 'published_at': item['published_at'],
+                'keywords': keywords,
                 'embedding': np.array(raw_emb, dtype=np.float32),
             })
 
     return results
 
 
+def is_roundup_article(title: str) -> bool:
+    """Check if article is a daily roundup that should be excluded from threading."""
+    return any(pattern in title for pattern in THREADING_EXCLUDE_PATTERNS)
+
+
+def validate_llm_group(member_articles: list[dict], min_similarity: float = LLM_GROUP_MIN_SIMILARITY) -> tuple[bool, float]:
+    """Check if LLM-proposed group members are actually similar via embeddings.
+
+    Validates both average pairwise similarity and minimum pair floor.
+    Returns (is_valid, avg_similarity).
+    """
+    if len(member_articles) < 2:
+        return False, 0.0
+    embeddings = np.array([a['embedding'] for a in member_articles])
+    norms = np.linalg.norm(embeddings, axis=1, keepdims=True)
+    normalized = embeddings / norms
+    sim_matrix = normalized @ normalized.T
+    n = len(embeddings)
+    pairs = []
+    for i in range(n):
+        for j in range(i + 1, n):
+            pairs.append(float(sim_matrix[i, j]))
+    avg_sim = np.mean(pairs)
+    min_pair = min(pairs)
+    if avg_sim < min_similarity:
+        return False, float(avg_sim)
+    if min_pair < LLM_GROUP_MIN_PAIR_FLOOR:
+        return False, float(avg_sim)
+    return True, float(avg_sim)
+
+
 def match_to_threads(
     articles: list[dict],
     threads: list[dict],
-    threshold: float = THREAD_SIMILARITY_THRESHOLD,
 ) -> tuple[dict[str, str], list[dict]]:
-    """Match articles to threads by centroid similarity.
+    """Match articles to threads with dynamic threshold (time + size penalty).
+
+    Anti-gravity: larger threads require higher similarity to join.
+    Roundup articles are excluded from matching entirely.
 
     Returns:
         (matched: {article_id: thread_id}, unmatched: [articles])
@@ -238,25 +300,57 @@ def match_to_threads(
         centroid = t.get('centroid')
         if centroid:
             if isinstance(centroid, str):
-                # Parse pgvector string format "[0.1,0.2,...]"
-                centroid = json.loads(centroid.replace('[', '[').replace(']', ']'))
+                centroid = json.loads(centroid)
             thread_centroids.append({
                 'id': t['id'],
-                'centroid': np.array(centroid),
+                'centroid': np.array(centroid, dtype=np.float32),
                 'count': t['member_count'],
+                'last_seen': t.get('last_seen', ''),
             })
 
     for article in articles:
+        # Skip roundup articles — they pollute centroids
+        if is_roundup_article(article.get('title', '')):
+            unmatched.append(article)
+            continue
+
         best_sim = 0.0
+        second_best_sim = 0.0
         best_thread_id = None
+        article_date = article.get('published_at', '')[:10]
 
         for tc in thread_centroids:
             sim = cosine_similarity(article['embedding'], tc['centroid'])
-            if sim > best_sim:
-                best_sim = sim
-                best_thread_id = tc['id']
 
-        if best_sim >= threshold and best_thread_id:
+            # Time penalty
+            days_gap = 0
+            if article_date and tc['last_seen']:
+                try:
+                    a_date = datetime.strptime(article_date, '%Y-%m-%d')
+                    t_date = datetime.strptime(tc['last_seen'], '%Y-%m-%d')
+                    days_gap = abs((a_date - t_date).days)
+                except ValueError:
+                    pass
+
+            # Dynamic threshold: base + time + size (anti-gravity)
+            time_pen = THREAD_TIME_PENALTY * days_gap
+            size_pen = THREAD_SIZE_PENALTY * math.log(tc['count'] + 1)
+            effective_threshold = THREAD_BASE_THRESHOLD + time_pen + size_pen
+
+            # Hard cap: frozen threads require very high similarity
+            if tc['count'] >= THREAD_HARD_CAP:
+                effective_threshold = max(effective_threshold, THREAD_FROZEN_THRESHOLD)
+
+            if sim >= effective_threshold:
+                if sim > best_sim:
+                    second_best_sim = best_sim
+                    best_sim = sim
+                    best_thread_id = tc['id']
+                elif sim > second_best_sim:
+                    second_best_sim = sim
+
+        # Margin check: best must clearly beat runner-up
+        if best_thread_id and (best_sim - second_best_sim) >= THREAD_MATCH_MARGIN:
             matched[article['id']] = best_thread_id
         else:
             unmatched.append(article)
@@ -282,19 +376,24 @@ def group_unmatched_with_llm(articles: list[dict]) -> list[dict]:
 
     client = genai.Client(api_key=api_key)
 
-    # Prepare article list — Gemini Pro has 1M context, send all unmatched
-    cap = min(len(articles), 500)
+    # Filter out roundup articles before sending to LLM
+    threadable = [a for a in articles if not is_roundup_article(a.get('title', ''))]
+    if len(threadable) < 2:
+        return []
+
+    cap = min(len(threadable), 500)
     article_list = "\n".join(
-        f"{i+1}. [{a['id'][:8]}] {a['title']}"
-        for i, a in enumerate(articles[:cap])
+        f"{i+1}. [{a['id'][:8]}] [{a.get('published_at', '')[:10]}] {a['title']}"
+        + (f" [{', '.join(a.get('keywords', []))}]" if a.get('keywords') else "")
+        for i, a in enumerate(threadable[:cap])
     )
 
-    prompt = f"""Group these news articles into story threads (clusters of articles about the same ongoing story/topic).
+    prompt = f"""Group these news articles into story threads. Each thread = articles about the SAME specific event or developing story.
 
-Articles:
+Articles (format: index. [id] [date] title [keywords]):
 {article_list}
 
-Return ONLY valid JSON object with a "groups" key. Each group should have 2+ articles.
+Return ONLY valid JSON object with a "groups" key. Each group should have 2-8 articles.
 Articles that don't fit any group should be omitted.
 
 {{"groups": [
@@ -302,11 +401,16 @@ Articles that don't fit any group should be omitted.
   ...
 ]}}
 
-Rules:
-- Group articles about the same specific news story/event
-- Thread titles should be concise (5-10 words)
-- Only create groups with 2+ articles
-- It's OK to leave articles ungrouped"""
+STRICT RULES:
+- A thread must be about ONE specific event/story (e.g. "Toyota CEO Resignation" not "Automotive Industry")
+- NEVER create generic/broad topic threads like "Economic Trends", "Market Reactions", "Company Performance", "Policy Changes"
+- Thread titles must name specific entities, events, or actions (who did what)
+- Only group articles that are clearly about the same developing story, not just the same broad topic
+- 5-10 word titles, be specific: "Fed Holds Rates at 4.5%" not "Interest Rate Decisions"
+- Maximum 8 articles per group. If more articles belong together, create separate sub-groups by specific angle
+- Prefer grouping articles published within 3 days of each other
+- It's better to leave articles ungrouped than to force them into a vague thread
+- Only create groups with 2+ articles"""
 
     try:
         response = client.models.generate_content(
@@ -327,10 +431,12 @@ Rules:
         output = []
         for group in groups:
             indices = group.get('indices', [])
+            # Cap group size to prevent oversized initial threads
+            indices = indices[:LLM_GROUP_MAX_SIZE]
             article_ids = []
             for idx in indices:
-                if 1 <= idx <= len(articles):
-                    article_ids.append(articles[idx - 1]['id'])
+                if isinstance(idx, int) and 1 <= idx <= len(threadable):
+                    article_ids.append(threadable[idx - 1]['id'])
             if len(article_ids) >= 2:
                 output.append({
                     'title': group.get('title', 'Untitled Thread'),
@@ -372,44 +478,47 @@ def assign_threads(supabase: Client, dry_run: bool = False) -> dict:
             except Exception as e:
                 print(f"  ERROR assigning {article_id}: {e}")
 
-        # Update thread member counts and last_seen
+        # Update thread centroids with EMA and member counts
         thread_updates = {}
         for article_id, thread_id in matched.items():
             article = next(a for a in articles if a['id'] == article_id)
             if thread_id not in thread_updates:
-                thread_updates[thread_id] = {'count': 0, 'embeddings': []}
+                thread_updates[thread_id] = {'count': 0, 'embeddings': [], 'dates': []}
             thread_updates[thread_id]['count'] += 1
             thread_updates[thread_id]['embeddings'].append(article['embedding'])
+            thread_updates[thread_id]['dates'].append(article.get('published_at', '')[:10])
 
         for thread_id, update in thread_updates.items():
             thread = next((t for t in threads if t['id'] == thread_id), None)
             if not thread:
                 continue
 
-            # Update centroid incrementally
+            # EMA centroid update: new_centroid = α*new + (1-α)*old
             old_centroid = None
             if thread.get('centroid'):
                 c = thread['centroid']
                 if isinstance(c, str):
                     c = json.loads(c)
-                old_centroid = np.array(c)
+                old_centroid = np.array(c, dtype=np.float32)
 
             if old_centroid is not None:
-                old_count = thread['member_count']
+                new_centroid = old_centroid.copy()
+                _ema_alpha = CENTROID_EMA_BASE_ALPHA / math.log(thread['member_count'] + 2)
                 for emb in update['embeddings']:
-                    old_count += 1
-                    old_centroid = (old_centroid * (old_count - 1) + emb) / old_count
-                new_centroid = old_centroid / np.linalg.norm(old_centroid)
+                    new_centroid = _ema_alpha * emb + (1 - _ema_alpha) * new_centroid
+                new_centroid = new_centroid / np.linalg.norm(new_centroid)
             else:
                 new_centroid = np.mean(update['embeddings'], axis=0)
                 new_centroid = new_centroid / np.linalg.norm(new_centroid)
+
+            last_seen = max(update['dates']) if update['dates'] else datetime.utcnow().strftime('%Y-%m-%d')
 
             try:
                 supabase.table('wsj_story_threads') \
                     .update({
                         'member_count': thread['member_count'] + update['count'],
                         'centroid': new_centroid.tolist(),
-                        'last_seen': datetime.utcnow().strftime('%Y-%m-%d'),
+                        'last_seen': last_seen,
                         'updated_at': datetime.utcnow().isoformat(),
                     }) \
                     .eq('id', thread_id) \
@@ -419,16 +528,32 @@ def assign_threads(supabase: Client, dry_run: bool = False) -> dict:
 
     # Step 2: Group unmatched articles into new threads via LLM
     new_thread_count = 0
-    if len(unmatched) >= 2:
-        print("  Grouping unmatched articles with LLM...")
-        groups = group_unmatched_with_llm(unmatched)
+    merged_count = 0
+    rejected_count = 0
+
+    # For daily mode, limit LLM input to recent articles (last 2 days)
+    cutoff = (datetime.utcnow() - timedelta(days=2)).strftime('%Y-%m-%d')
+    recent_unmatched = [a for a in unmatched if a.get('published_at', '')[:10] >= cutoff]
+
+    if len(recent_unmatched) >= 2:
+        print(f"  Grouping {len(recent_unmatched)} recent unmatched articles with LLM (cutoff: {cutoff})...")
+        groups = group_unmatched_with_llm(recent_unmatched)
         print(f"  LLM created {len(groups)} new thread groups")
+
+        # Refresh active threads for merge detection
+        all_threads = get_active_threads(supabase) if not dry_run else threads
 
         if not dry_run:
             for group in groups:
-                # Compute centroid from member embeddings
-                member_articles = [a for a in unmatched if a['id'] in group['article_ids']]
-                if not member_articles:
+                member_articles = [a for a in recent_unmatched if a['id'] in group['article_ids']]
+                if not member_articles or len(member_articles) < 2:
+                    continue
+
+                # Cross-validate: reject if group members aren't actually similar
+                is_valid, avg_sim = validate_llm_group(member_articles)
+                if not is_valid:
+                    print(f"    Rejected '{group['title']}' — avg similarity {avg_sim:.3f} < {LLM_GROUP_MIN_SIMILARITY}")
+                    rejected_count += 1
                     continue
 
                 embeddings = np.array([a['embedding'] for a in member_articles])
@@ -439,8 +564,51 @@ def assign_threads(supabase: Client, dry_run: bool = False) -> dict:
                 first_seen = min(dates) if dates else datetime.utcnow().strftime('%Y-%m-%d')
                 last_seen = max(dates) if dates else datetime.utcnow().strftime('%Y-%m-%d')
 
+                # Merge check: find best matching existing thread above threshold
+                merge_target = None
+                best_merge_sim = 0.0
+                for t in all_threads:
+                    t_centroid = t.get('centroid')
+                    if not t_centroid:
+                        continue
+                    if isinstance(t_centroid, str):
+                        t_centroid = json.loads(t_centroid)
+                    sim = cosine_similarity(centroid, np.array(t_centroid, dtype=np.float32))
+                    if sim >= THREAD_MERGE_THRESHOLD and sim > best_merge_sim:
+                        best_merge_sim = sim
+                        merge_target = t
+
+                if merge_target:
+                    # Merge into existing thread
+                    merge_id = merge_target['id']
+                    print(f"    Merging '{group['title']}' → existing '{merge_target['title']}'")
+                    for aid in group['article_ids']:
+                        supabase.table('wsj_items') \
+                            .update({'thread_id': merge_id}) \
+                            .eq('id', aid) \
+                            .execute()
+
+                    # EMA centroid update for merged thread
+                    old_c = merge_target.get('centroid')
+                    if isinstance(old_c, str):
+                        old_c = json.loads(old_c)
+                    old_c = np.array(old_c, dtype=np.float32)
+                    _ema_alpha = CENTROID_EMA_BASE_ALPHA / math.log(merge_target['member_count'] + 2)
+                    for emb in [a['embedding'] for a in member_articles]:
+                        old_c = _ema_alpha * emb + (1 - _ema_alpha) * old_c
+                    old_c = old_c / np.linalg.norm(old_c)
+
+                    supabase.table('wsj_story_threads').update({
+                        'member_count': merge_target['member_count'] + len(group['article_ids']),
+                        'centroid': old_c.tolist(),
+                        'last_seen': last_seen,
+                        'updated_at': datetime.utcnow().isoformat(),
+                    }).eq('id', merge_id).execute()
+
+                    merged_count += 1
+                    continue
+
                 try:
-                    # Create thread
                     thread_response = supabase.table('wsj_story_threads').insert({
                         'title': group['title'],
                         'centroid': centroid.tolist(),
@@ -452,26 +620,37 @@ def assign_threads(supabase: Client, dry_run: bool = False) -> dict:
 
                     if thread_response.data:
                         new_thread_id = thread_response.data[0]['id']
-                        # Assign articles
                         for aid in group['article_ids']:
                             supabase.table('wsj_items') \
                                 .update({'thread_id': new_thread_id}) \
                                 .eq('id', aid) \
                                 .execute()
                         new_thread_count += 1
+                        # Add to all_threads for subsequent merge checks
+                        all_threads.append({
+                            'id': new_thread_id,
+                            'title': group['title'],
+                            'centroid': centroid.tolist(),
+                            'member_count': len(group['article_ids']),
+                            'last_seen': last_seen,
+                        })
 
                 except Exception as e:
                     print(f"  ERROR creating thread '{group['title']}': {e}")
 
-    return {'matched': len(matched), 'new_threads': new_thread_count}
+    if merged_count:
+        print(f"  Merged into existing: {merged_count}")
+    if rejected_count:
+        print(f"  Rejected by cross-validation: {rejected_count}")
+    return {'matched': len(matched), 'new_threads': new_thread_count, 'merged': merged_count}
 
 
 # ============================================================
 # Step 3: Deactivate stale threads
 # ============================================================
 
-def deactivate_stale_threads(supabase: Client, days: int = THREAD_INACTIVE_DAYS, dry_run: bool = False) -> int:
-    """Mark threads with last_seen > N days ago as inactive."""
+def deactivate_stale_threads(supabase: Client, days: int = THREAD_ARCHIVE_DAYS, dry_run: bool = False) -> int:
+    """Mark threads with last_seen > N days ago as archived (inactive)."""
     cutoff = (datetime.utcnow() - timedelta(days=days)).strftime('%Y-%m-%d')
 
     response = supabase.table('wsj_story_threads') \
@@ -507,9 +686,267 @@ def deactivate_stale_threads(supabase: Client, days: int = THREAD_INACTIVE_DAYS,
 # Main
 # ============================================================
 
+def get_date_range_articles(supabase: Client, date_str: str) -> list[dict]:
+    """Get unthreaded articles with embeddings for a specific date."""
+    next_date = (datetime.strptime(date_str, '%Y-%m-%d') + timedelta(days=1)).strftime('%Y-%m-%d')
+
+    response = supabase.table('wsj_items') \
+        .select('id, title, published_at, wsj_embeddings(embedding), wsj_crawl_results(wsj_llm_analysis(keywords))') \
+        .eq('processed', True) \
+        .is_('thread_id', 'null') \
+        .gte('published_at', date_str) \
+        .lt('published_at', next_date) \
+        .order('published_at', desc=False) \
+        .limit(500) \
+        .execute()
+
+    results = []
+    for item in (response.data or []):
+        emb = item.get('wsj_embeddings')
+        if isinstance(emb, list) and emb:
+            emb_data = emb[0]
+        elif isinstance(emb, dict):
+            emb_data = emb
+        else:
+            continue
+
+        if emb_data and emb_data.get('embedding'):
+            raw_emb = emb_data['embedding']
+            if isinstance(raw_emb, str):
+                raw_emb = json.loads(raw_emb)
+
+            keywords = []
+            crawl = item.get('wsj_crawl_results')
+            if crawl:
+                cr = crawl[0] if isinstance(crawl, list) else crawl
+                llm = cr.get('wsj_llm_analysis') if cr else None
+                if llm:
+                    ll = llm[0] if isinstance(llm, list) else llm
+                    keywords = ll.get('keywords') or [] if ll else []
+
+            results.append({
+                'id': item['id'],
+                'title': item['title'],
+                'published_at': item['published_at'],
+                'keywords': keywords,
+                'embedding': np.array(raw_emb, dtype=np.float32),
+            })
+
+    return results
+
+
+def backfill_by_date(supabase: Client, dry_run: bool = False, limit_days: int | None = None, start_date: str | None = None):
+    """Process articles chronologically, day by day, building threads incrementally."""
+
+    if not start_date:
+        # Get earliest unthreaded article date
+        response = supabase.table('wsj_items') \
+            .select('published_at') \
+            .eq('processed', True) \
+            .is_('thread_id', 'null') \
+            .order('published_at', desc=False) \
+            .limit(1) \
+            .execute()
+
+        if not response.data:
+            print("No unthreaded articles.")
+            return
+
+        start_date = response.data[0]['published_at'][:10]
+
+    response = supabase.table('wsj_items') \
+        .select('published_at') \
+        .eq('processed', True) \
+        .is_('thread_id', 'null') \
+        .order('published_at', desc=True) \
+        .limit(1) \
+        .execute()
+
+    end_date = response.data[0]['published_at'][:10]
+
+    print(f"Date range: {start_date} → {end_date}")
+
+    current = datetime.strptime(start_date, '%Y-%m-%d')
+    end = datetime.strptime(end_date, '%Y-%m-%d')
+    day_count = 0
+
+    while current <= end:
+        date_str = current.strftime('%Y-%m-%d')
+        articles = get_date_range_articles(supabase, date_str)
+
+        if articles:
+            print(f"\n--- {date_str}: {len(articles)} articles ---")
+
+            threads = get_active_threads(supabase)
+            print(f"  Active threads: {len(threads)}")
+
+            # Match to existing
+            matched, unmatched = match_to_threads(articles, threads)
+            print(f"  Centroid matched: {len(matched)}")
+            print(f"  Unmatched: {len(unmatched)}")
+
+            if not dry_run:
+                # Save matched
+                for article_id, thread_id in matched.items():
+                    try:
+                        supabase.table('wsj_items') \
+                            .update({'thread_id': thread_id}) \
+                            .eq('id', article_id) \
+                            .execute()
+                    except Exception as e:
+                        print(f"  ERROR: {e}")
+
+                # EMA centroid updates for matched
+                thread_updates = {}
+                for article_id, thread_id in matched.items():
+                    article = next(a for a in articles if a['id'] == article_id)
+                    if thread_id not in thread_updates:
+                        thread_updates[thread_id] = {'embeddings': [], 'dates': []}
+                    thread_updates[thread_id]['embeddings'].append(article['embedding'])
+                    thread_updates[thread_id]['dates'].append(article.get('published_at', '')[:10])
+
+                for thread_id, update in thread_updates.items():
+                    thread = next((t for t in threads if t['id'] == thread_id), None)
+                    if not thread:
+                        continue
+                    old_c = thread.get('centroid')
+                    if isinstance(old_c, str):
+                        old_c = json.loads(old_c)
+                    old_c = np.array(old_c, dtype=np.float32)
+                    _ema_alpha = CENTROID_EMA_BASE_ALPHA / math.log(thread['member_count'] + 2)
+                    for emb in update['embeddings']:
+                        old_c = _ema_alpha * emb + (1 - _ema_alpha) * old_c
+                    old_c = old_c / np.linalg.norm(old_c)
+                    last_seen = max(update['dates'])
+                    new_count = thread['member_count'] + len(update['embeddings'])
+                    try:
+                        supabase.table('wsj_story_threads').update({
+                            'member_count': new_count,
+                            'centroid': old_c.tolist(),
+                            'last_seen': last_seen,
+                            'updated_at': datetime.utcnow().isoformat(),
+                        }).eq('id', thread_id).execute()
+                        # Update in-memory count so subsequent days use correct size penalty
+                        thread['member_count'] = new_count
+                        thread['centroid'] = old_c.tolist()
+                        thread['last_seen'] = last_seen
+                    except Exception as e:
+                        print(f"  ERROR updating thread: {e}")
+
+            # LLM group unmatched
+            if len(unmatched) >= 2:
+                groups = group_unmatched_with_llm(unmatched)
+                print(f"  LLM groups: {len(groups)}")
+
+                if not dry_run:
+                    all_threads = get_active_threads(supabase)
+                    new_count = 0
+                    merge_count = 0
+                    reject_count = 0
+                    for group in groups:
+                        member_articles = [a for a in unmatched if a['id'] in group['article_ids']]
+                        if not member_articles or len(member_articles) < 2:
+                            continue
+
+                        # Cross-validate: reject if group members aren't actually similar
+                        is_valid, avg_sim = validate_llm_group(member_articles)
+                        if not is_valid:
+                            print(f"    Rejected '{group['title']}' — avg similarity {avg_sim:.3f} < {LLM_GROUP_MIN_SIMILARITY}")
+                            reject_count += 1
+                            continue
+
+                        embs = np.array([a['embedding'] for a in member_articles])
+                        centroid = np.mean(embs, axis=0)
+                        centroid = centroid / np.linalg.norm(centroid)
+                        dates = [a['published_at'][:10] for a in member_articles if a.get('published_at')]
+
+                        # Merge check: find best matching existing thread
+                        merge_target = None
+                        best_merge_sim = 0.0
+                        for t in all_threads:
+                            t_c = t.get('centroid')
+                            if not t_c:
+                                continue
+                            if isinstance(t_c, str):
+                                t_c = json.loads(t_c)
+                            sim = cosine_similarity(centroid, np.array(t_c, dtype=np.float32))
+                            if sim >= THREAD_MERGE_THRESHOLD and sim > best_merge_sim:
+                                best_merge_sim = sim
+                                merge_target = t
+
+                        if merge_target:
+                            mid = merge_target['id']
+                            print(f"    Merge: '{group['title']}' → '{merge_target['title']}'")
+                            for aid in group['article_ids']:
+                                supabase.table('wsj_items').update({'thread_id': mid}).eq('id', aid).execute()
+                            old_c = merge_target.get('centroid')
+                            if isinstance(old_c, str):
+                                old_c = json.loads(old_c)
+                            old_c = np.array(old_c, dtype=np.float32)
+                            _ema_alpha = CENTROID_EMA_BASE_ALPHA / math.log(merge_target['member_count'] + 2)
+                            for emb in [a['embedding'] for a in member_articles]:
+                                old_c = _ema_alpha * emb + (1 - _ema_alpha) * old_c
+                            old_c = old_c / np.linalg.norm(old_c)
+                            supabase.table('wsj_story_threads').update({
+                                'member_count': merge_target['member_count'] + len(group['article_ids']),
+                                'centroid': old_c.tolist(),
+                                'last_seen': max(dates) if dates else date_str,
+                                'updated_at': datetime.utcnow().isoformat(),
+                            }).eq('id', mid).execute()
+                            merge_count += 1
+                        else:
+                            try:
+                                resp = supabase.table('wsj_story_threads').insert({
+                                    'title': group['title'],
+                                    'centroid': centroid.tolist(),
+                                    'member_count': len(group['article_ids']),
+                                    'first_seen': min(dates) if dates else date_str,
+                                    'last_seen': max(dates) if dates else date_str,
+                                    'active': True,
+                                }).execute()
+                                if resp.data:
+                                    tid = resp.data[0]['id']
+                                    for aid in group['article_ids']:
+                                        supabase.table('wsj_items').update({'thread_id': tid}).eq('id', aid).execute()
+                                    new_count += 1
+                                    all_threads.append({
+                                        'id': tid, 'title': group['title'],
+                                        'centroid': centroid.tolist(),
+                                        'member_count': len(group['article_ids']),
+                                        'last_seen': max(dates) if dates else date_str,
+                                    })
+                            except Exception as e:
+                                print(f"    ERROR: {e}")
+
+                    print(f"  New threads: {new_count}, Merged: {merge_count}, Rejected: {reject_count}")
+
+        current += timedelta(days=1)
+        if articles:
+            day_count += 1
+            if limit_days and day_count >= limit_days:
+                print(f"\n  Stopped after {limit_days} active days (--limit-days)")
+                break
+
+    # Summary
+    thread_count = supabase.table('wsj_story_threads').select('id', count='exact').eq('active', True).execute()
+    threaded = supabase.table('wsj_items').select('id', count='exact').not_.is_('thread_id', 'null').execute()
+    print(f"\nTotal active threads: {thread_count.count}")
+    print(f"Total threaded articles: {threaded.count}")
+
+
 def main():
     dry_run = '--dry-run' in sys.argv
     embed_only = '--embed-only' in sys.argv
+    backfill = '--backfill-by-date' in sys.argv
+
+    # Parse --limit-days N and --start-date YYYY-MM-DD
+    limit_days = None
+    start_date = None
+    for i, arg in enumerate(sys.argv):
+        if arg == '--limit-days' and i + 1 < len(sys.argv):
+            limit_days = int(sys.argv[i + 1])
+        if arg == '--start-date' and i + 1 < len(sys.argv):
+            start_date = sys.argv[i + 1]
 
     print("=" * 60)
     print("Embed & Thread Pipeline")
@@ -526,15 +963,21 @@ def main():
         print("\n--embed-only flag set, skipping thread matching.")
         return
 
-    # Step 2: Thread matching
-    print("\n[2/3] Assigning threads...")
-    result = assign_threads(supabase, dry_run=dry_run)
-    print(f"  Matched: {result['matched']}, New threads: {result['new_threads']}")
+    if backfill:
+        # Chronological backfill mode — skip deactivation (historical data)
+        print("\n[2/3] Backfill by date (chronological)...")
+        backfill_by_date(supabase, dry_run=dry_run, limit_days=limit_days, start_date=start_date)
+        print("\n[3/3] Skipping deactivation (backfill mode)")
+    else:
+        # Normal daily mode
+        print("\n[2/3] Assigning threads...")
+        result = assign_threads(supabase, dry_run=dry_run)
+        print(f"  Matched: {result['matched']}, New threads: {result['new_threads']}, Merged: {result.get('merged', 0)}")
 
-    # Step 3: Deactivate stale
-    print("\n[3/3] Deactivating stale threads...")
-    deactivated = deactivate_stale_threads(supabase, dry_run=dry_run)
-    print(f"  Deactivated: {deactivated}")
+        # Step 3: Deactivate stale
+        print("\n[3/3] Deactivating stale threads...")
+        deactivated = deactivate_stale_threads(supabase, dry_run=dry_run)
+        print(f"  Deactivated: {deactivated}")
 
     print("\n" + "=" * 60)
     print("Done.")
