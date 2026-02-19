@@ -27,7 +27,6 @@ import json
 import re
 import sys
 from dataclasses import dataclass, asdict
-from datetime import date
 from pathlib import Path
 from typing import Optional
 from urllib.parse import urlparse
@@ -439,59 +438,6 @@ async def resolve_google_news_url(google_url: str) -> str | None:
     return None
 
 
-# Blocked domains file path
-BLOCKED_DOMAINS_FILE = Path(__file__).parent / "data" / "blocked_domains.json"
-
-
-def load_blocked_domains() -> dict:
-    """Load blocked domains from JSON file."""
-    if BLOCKED_DOMAINS_FILE.exists():
-        with open(BLOCKED_DOMAINS_FILE) as f:
-            return json.load(f)
-    return {"blocked": {}, "working": {}}
-
-
-def save_blocked_domains(data: dict) -> None:
-    """Save blocked domains to JSON file."""
-    BLOCKED_DOMAINS_FILE.parent.mkdir(exist_ok=True)
-    with open(BLOCKED_DOMAINS_FILE, "w") as f:
-        json.dump(data, f, indent=2)
-
-
-def is_domain_blocked(domain: str) -> tuple[bool, str | None]:
-    """Check if domain is in blocked list. Returns (is_blocked, reason)."""
-    data = load_blocked_domains()
-    for blocked_domain, info in data.get("blocked", {}).items():
-        if blocked_domain in domain:
-            return True, info.get("reason")
-    return False, None
-
-
-def log_crawl_result(domain: str, success: bool, status_code: int, content_length: int) -> None:
-    """Log crawl result to blocked/working domains list.
-
-    Only marks as blocked for actual HTTP blocks (401, 403, 429).
-    200 with low content could be paywall/selector-mismatch/overlay - not blocked.
-    """
-    data = load_blocked_domains()
-    today = date.today().isoformat()
-
-    # Actual block: non-200 status codes that indicate blocking
-    is_blocked = status_code in [401, 403, 429] or (not success and status_code not in [200, 302])
-
-    if is_blocked:
-        reason = f"Status {status_code}"
-        data["blocked"][domain] = {"reason": reason, "tested": today}
-        data["working"].pop(domain, None)
-    elif success and content_length >= 500:
-        # Good result: mark as working
-        data["working"][domain] = {"tested": today}
-        data["blocked"].pop(domain, None)
-    # For 200 with low content: don't update lists (could be paywall/selector issue)
-
-    save_blocked_domains(data)
-
-
 # Domain-specific config for article extraction
 # css_selector: targets article content directly (most effective)
 # excluded_tags: removes noise elements
@@ -641,7 +587,6 @@ async def crawl_article(
     mode: str = "undetected",
     use_domain_selector: bool = True,
     skip_blocked: bool = True,
-    log_result: bool = True,
     blocked_domains: set[str] = None,
 ) -> dict:
     """
@@ -654,7 +599,6 @@ async def crawl_article(
         mode: "basic", "stealth", or "undetected"
         use_domain_selector: If True, use domain-specific CSS selectors when available
         skip_blocked: If True, skip domains known to be blocked
-        log_result: If True, log success/failure to blocked_domains.json
         blocked_domains: Set of domains to skip newspaper4k (from wsj_domain_status)
 
     Returns:
@@ -686,29 +630,26 @@ async def crawl_article(
 
     domain = get_domain(url)
 
-    # Check if domain is blocked
-    is_blocked, block_reason = is_domain_blocked(domain)
-    if skip_blocked and is_blocked:
-        return {
-            "success": False,
-            "status_code": 0,
-            "title": None,
-            "markdown": "",
-            "markdown_length": 0,
-            "domain": domain,
-            "skipped": True,
-            "skip_reason": block_reason,
-        }
+    # Check if domain is blocked (via caller-provided set from DB)
+    if skip_blocked and blocked_domains:
+        from domain_utils import is_blocked_domain
+        if is_blocked_domain(domain, blocked_domains):
+            return {
+                "success": False,
+                "status_code": 0,
+                "title": None,
+                "markdown": "",
+                "markdown_length": 0,
+                "domain": domain,
+                "skipped": True,
+                "skip_reason": "Domain blocked (DB)",
+            }
 
     # =========================================================================
     # HYBRID APPROACH: Try newspaper4k first (fast), fall back to browser
     # =========================================================================
     np_result = _try_newspaper4k(url, domain, blocked_domains)
     if np_result:
-        # newspaper4k succeeded - return result with standard fields
-        if log_result:
-            log_crawl_result(domain, True, 200, np_result["markdown_length"])
-
         return {
             "success": True,
             "status_code": 200,
@@ -764,10 +705,6 @@ async def crawl_article(
             # Use Pass 2 only if it gives more content
             if result2["markdown_length"] > result["markdown_length"]:
                 result = result2
-
-    # Log result for future reference
-    if log_result:
-        log_crawl_result(domain, result["success"], result["status_code"], result["markdown_length"])
 
     result["skipped"] = False
     result["original_url"] = original_url
@@ -1312,7 +1249,7 @@ async def main():
         print("  --save                Save full content to file")
         print("  --force               Force crawl even if domain is blocked")
         print("  --no-domain-selector  Disable domain-specific CSS selectors")
-        print("\nBlocked domains are tracked in scripts/data/blocked_domains.json")
+        print("\nBlocked domains are tracked in wsj_domain_status (Supabase)")
         sys.exit(1)
 
     url = sys.argv[1]
@@ -1346,11 +1283,14 @@ async def main():
     domain = get_domain(url)
     is_known_domain = get_domain_config(url) is not None
 
+    # Load blocked domains from DB
+    sys.path.insert(0, str(Path(__file__).parent))
+    from domain_utils import load_blocked_domains, is_blocked_domain
+    db_blocked = load_blocked_domains()
+
     # Check blocked status
-    is_blocked, block_reason = is_domain_blocked(domain)
-    if is_blocked:
+    if is_blocked_domain(domain, db_blocked):
         print(f"Domain blocked: {domain}")
-        print(f"  Reason: {block_reason}")
         if skip_blocked:
             print("  Use --force to attempt anyway")
             sys.exit(0)
@@ -1361,7 +1301,7 @@ async def main():
     print(f"Domain: {domain} ({'configured' if is_known_domain else 'fallback'})")
     print("=" * 60)
 
-    result = await crawl_article(url, mode=mode, use_domain_selector=use_domain_selector, skip_blocked=skip_blocked)
+    result = await crawl_article(url, mode=mode, use_domain_selector=use_domain_selector, skip_blocked=skip_blocked, blocked_domains=db_blocked)
 
     if result.get("skipped"):
         print(f"Skipped: {result.get('skip_reason', 'Domain blocked')}")

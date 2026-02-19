@@ -3,7 +3,7 @@
 Shared domain utilities for WSJ pipeline.
 
 Provides:
-- Blocked domain loading from DB + local JSON
+- Blocked domain loading from DB (wsj_domain_status)
 - Domain matching utilities
 """
 import os
@@ -27,7 +27,7 @@ def get_supabase_client():
 
 def load_blocked_domains(supabase=None) -> set[str]:
     """
-    Load blocked domains from wsj_domain_status + local JSON file.
+    Load blocked domains from wsj_domain_status table.
 
     Args:
         supabase: Supabase client (optional, will create if None)
@@ -37,16 +37,6 @@ def load_blocked_domains(supabase=None) -> set[str]:
     """
     blocked = set()
 
-    # Load from local JSON file
-    json_path = Path(__file__).parent / "data" / "blocked_domains.json"
-    if json_path.exists():
-        import json
-        with open(json_path) as f:
-            data = json.load(f)
-            json_domains = set(data) if isinstance(data, list) else set(data.get("domains", []))
-            blocked.update(json_domains)
-
-    # Load from DB
     if supabase is None:
         supabase = get_supabase_client()
 
@@ -58,8 +48,7 @@ def load_blocked_domains(supabase=None) -> set[str]:
                 .execute()
 
             if response.data:
-                db_domains = {row['domain'] for row in response.data if row.get('domain')}
-                blocked.update(db_domains)
+                blocked = {row['domain'] for row in response.data if row.get('domain')}
         except Exception as e:
             print(f"  Warning: Could not load blocked domains from DB: {e}")
 

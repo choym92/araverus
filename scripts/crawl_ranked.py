@@ -300,6 +300,9 @@ async def main():
     if blocked_domains:
         print(f"Loaded {len(blocked_domains)} blocked domains (will skip newspaper4k)")
 
+    # In-memory set for tracking domains that fail during this run
+    run_blocked = set(blocked_domains)
+
     # Load data from DB or file
     if from_db:
         print("Loading pending items from database...")
@@ -374,7 +377,7 @@ async def main():
 
             try:
                 result = await asyncio.wait_for(
-                    crawl_article(url, mode=CRAWL_MODE, blocked_domains=blocked_domains),
+                    crawl_article(url, mode=CRAWL_MODE, blocked_domains=run_blocked),
                     timeout=90
                 )
 
@@ -506,9 +509,10 @@ async def main():
                     wsj_success += 1
                     break  # Stop trying more articles for this WSJ
                 else:
-                    # Failed - mark and try next
+                    # Failed - mark and try next; track domain for this run
                     article["crawl_status"] = "failed"
                     article["crawl_error"] = result.get("skip_reason", "Content too short")
+                    run_blocked.add(domain)
                     print(f"✗ {result.get('skip_reason', 'Too short')[:30]}")
 
                     # Save failure to DB
@@ -518,6 +522,7 @@ async def main():
             except Exception as e:
                 article["crawl_status"] = "error"
                 article["crawl_error"] = str(e)[:100]
+                run_blocked.add(domain)
                 print(f"✗ {str(e)[:30]}")
 
                 # Save error to DB

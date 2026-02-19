@@ -1,4 +1,4 @@
-<!-- Updated: 2026-02-18 -->
+<!-- Updated: 2026-02-19 -->
 # News Platform — Backend & Pipeline
 
 Single source of truth for the finance news pipeline: ingestion, crawling, analysis, briefing generation, and deployment.
@@ -41,6 +41,7 @@ RSS ingestion, export, lifecycle management, domain status.
 | `--mark-processed-from-db` | Set `processed=true` based on DB crawl results |
 | `--update-domain-status` | Aggregate crawl results → domain stats, auto-block |
 | `--retry-low-relevance` | Reactivate backup articles for low-relevance items |
+| `--seed-blocked-from-json` | One-time: migrate JSON blocked domains to DB |
 | `--stats` | Show database statistics |
 
 **Feeds:** 6 WSJ RSS feeds — BUSINESS, MARKETS, WORLD, TECH, ECONOMY, POLITICS. Each feed has a `feed_name` and `feed_url` configured as constants.
@@ -88,9 +89,9 @@ Resolves Google News redirect URLs to actual article URLs.
 
 **3 strategies:** Direct base64 decode → `batchexecute` API POST → follow redirect/canonical URL.
 
-### `crawl_ranked.py` (597 lines)
+### `crawl_ranked.py`
 
-Crawls resolved URLs with quality verification.
+Crawls resolved URLs with quality verification. Maintains `run_blocked` in-memory set (seeded from DB) to skip domains that fail during the current run.
 
 | Flag | Default | Action |
 |------|---------|--------|
@@ -100,9 +101,9 @@ Crawls resolved URLs with quality verification.
 
 **Key logic:** Candidates sorted by `weighted_score = embedding_score * domain_success_rate`. Per-article pipeline: crawl → garbage check → embedding relevance (≥0.25) → LLM verification → accept or try next backup. `CRAWL_MODE`: `"stealth"` in CI, `"undetected"` locally.
 
-### `crawl_article.py` (1394 lines)
+### `crawl_article.py`
 
-Core crawling engine. Hybrid newspaper4k + browser fallback.
+Core crawling engine. Hybrid newspaper4k + browser fallback. Blocked domain check uses caller-provided `blocked_domains` set (from DB). No local JSON file — domain blocking is DB-only via `domain_utils.is_blocked_domain()`.
 
 | Flag | Default | Action |
 |------|---------|--------|
@@ -115,7 +116,7 @@ Core crawling engine. Hybrid newspaper4k + browser fallback.
 
 ### `domain_utils.py` (211 lines)
 
-Shared domain utilities. Base preferred domains: marketwatch.com, cnbc.com, finance.yahoo.com. Dynamic top 10 from DB by `weighted_score`. Blocked domain loading from DB + `scripts/data/blocked_domains.json`.
+Shared domain utilities. Blocked domain loading from DB (`wsj_domain_status` table only). Substring matching via `is_blocked_domain()`.
 
 ### `llm_analysis.py` (280 lines)
 

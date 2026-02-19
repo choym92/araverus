@@ -1012,6 +1012,50 @@ def cmd_retry_low_relevance() -> None:
     print("  2. Run: python scripts/wsj_ingest.py --update-domain-status")
 
 
+def cmd_seed_blocked_from_json() -> None:
+    """One-time migration: seed blocked domains from JSON file to wsj_domain_status."""
+    print("=" * 60)
+    print("Seed Blocked Domains from JSON → DB")
+    print("=" * 60)
+
+    json_path = Path(__file__).parent / "data" / "blocked_domains.json"
+    if not json_path.exists():
+        print(f"Error: JSON file not found: {json_path}")
+        sys.exit(1)
+
+    with open(json_path) as f:
+        data = json.load(f)
+
+    blocked = data.get("blocked", {})
+    if not blocked:
+        print("No blocked domains found in JSON.")
+        return
+
+    print(f"Found {len(blocked)} blocked domains in JSON")
+
+    supabase = get_supabase_client()
+    now = datetime.utcnow().isoformat()
+    inserted = 0
+
+    for domain, info in blocked.items():
+        reason = info.get("reason", "Migrated from JSON")
+        try:
+            supabase.table('wsj_domain_status').upsert(
+                {
+                    'domain': domain,
+                    'status': 'blocked',
+                    'block_reason': f"JSON migration: {reason}",
+                    'updated_at': now,
+                },
+                on_conflict='domain',
+            ).execute()
+            inserted += 1
+        except Exception as e:
+            print(f"  Error inserting {domain}: {e}")
+
+    print(f"Upserted {inserted}/{len(blocked)} domains to wsj_domain_status")
+
+
 def cmd_stats() -> None:
     """Show current database statistics."""
     print("=" * 60)
@@ -1047,6 +1091,7 @@ def main():
         print("  --mark-processed-from-db Query wsj_crawl_results and mark processed")
         print("  --update-domain-status   Aggregate crawl results to wsj_domain_status")
         print("  --retry-low-relevance    Reactivate backups for low-relevance items")
+        print("  --seed-blocked-from-json  One-time: migrate JSON blocked domains to DB")
         print("  --stats                  Show database statistics")
         return
 
@@ -1054,7 +1099,9 @@ def main():
         cmd_ingest()
         return
 
-    if args[0] == '--export':
+    if args[0] == '--seed-blocked-from-json':
+        cmd_seed_blocked_from_json()
+    elif args[0] == '--export':
         output_path = Path(args[1]) if len(args) > 1 else None
         cmd_export(output_path)
     elif args[0] == '--mark-searched':
