@@ -1,9 +1,30 @@
-<!-- Updated: 2026-02-18 -->
+<!-- Updated: 2026-02-19 -->
 # News Threading System Design
 
 ## Overview
 
 Story threads dynamically group related news articles about the same developing story. Threads have no member limit and manage themselves through heat-based lifecycle with no manual intervention.
+
+## How It Works (Plain English)
+
+### 1. Turn articles into numbers (embedding)
+Each article's title + description is converted into a list of 768 numbers (a "vector"). Articles about similar topics produce similar number patterns — like GPS coordinates where "gas price" articles cluster near each other in 768-dimensional space.
+
+### 2. Try to match new articles to existing threads
+Each thread has a **centroid** — a single vector representing the "average member." When a new article arrives, we check: "Is this article close enough to any thread's centroid?"
+
+Three safeguards prevent bad matches:
+- **Time penalty**: If a thread hasn't had a new article in days, the bar for joining gets higher. Prevents old dead stories from grabbing new unrelated articles.
+- **Size penalty (anti-gravity)**: Bigger threads are harder to join. Without this, popular threads would attract everything like a black hole — "U.S. Economy" would absorb every article.
+- **Margin check**: The best matching thread must clearly beat the runner-up (by at least 0.03). If an article is 0.72 similar to Thread A and 0.71 to Thread B, that's basically a coin flip — assigning it to the wrong thread would pollute that thread's centroid and cause a chain reaction of bad matches downstream. Better to leave it unmatched and let the LLM handle it in Step 3.
+
+### 3. Group leftovers with AI
+Articles that didn't match any thread go to Gemini AI: "Here are 40 articles — which ones are about the same specific event?" The AI groups them and names each group (e.g., "Fed Holds Rates at 4.5%").
+
+But AI makes mistakes, so we double-check: we mathematically verify that the grouped articles actually have similar embeddings. If the AI forced unrelated articles together, we reject the group. If the new group looks nearly identical to an existing thread (>0.92 similarity), we merge instead of creating a duplicate.
+
+### 4. Retire old threads
+Threads with no new articles for 14+ days are archived. They're still visible in article detail pages but won't accept new matches.
 
 ## Thread Lifecycle
 

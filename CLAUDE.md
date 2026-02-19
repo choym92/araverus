@@ -1,5 +1,5 @@
 # CLAUDE.md
-<!-- Updated: 2026-02-18 -->
+<!-- Updated: 2026-02-19 -->
 
 ## Project
 Next.js 15 personal site (blog, resume, 3D landing) with a Python news pipeline (news crawl → AI curation → briefing). Stack: TypeScript, Tailwind, Supabase, MDX. Deployed on Vercel (web) + Mac Mini (pipeline cron).
@@ -18,6 +18,7 @@ Project-specific rules live in `.claude/rules/`. Detailed docs in `docs/`.
 5) **Verify deps**: Never assume a library exists; check `package.json` first.
 6) **Date stamp**: When creating or modifying `.md` files, add/update `<!-- Created: YYYY-MM-DD -->` or `<!-- Updated: YYYY-MM-DD -->` at top.
 7) **No broken contracts**: Never break public API routes, URL paths, or DB schema without explicit approval.
+8) **Docs sync**: After every `src/` or `scripts/` code change that affects architecture, data flow, props, or APIs — **immediately** append one line to `docs/cc/_pending-docs.md`. Before commit, update the relevant `docs/` file(s) and delete `_pending-docs.md`. Do NOT log changes to `CLAUDE.md`, `.claude/rules/`, or `docs/` files themselves.
 
 ---
 

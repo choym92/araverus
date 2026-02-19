@@ -1,4 +1,4 @@
-<!-- Updated: 2026-02-18 -->
+<!-- Updated: 2026-02-19 -->
 # News Platform — Frontend
 
 Technical guide for the `/news` page. WSJ-style 3-column layout with in-card thread carousels, bilingual audio briefing player, and keyword filtering. Powered by the existing news pipeline.
@@ -111,8 +111,9 @@ graph LR
 
 Articles are sorted before slicing into columns:
 1. **Importance**: `must_read` → `worth_reading` → `optional` (null treated as optional)
-2. **Thread preference**: Articles with `thread_id` rank higher (threaded stories are more significant)
-3. **Recency**: Newer articles first within the same importance/thread tier
+2. **Crawled**: Articles with `summary` (crawled + LLM analyzed) rank higher — richer card content
+3. **Thread preference**: Articles with `thread_id` rank higher (threaded stories are more significant)
+4. **Recency**: Newer articles first within the same tier
 
 This ensures the featured hero is always a `must_read` article (preferably threaded), and higher-importance articles fill the left column.
 
@@ -221,9 +222,8 @@ sequenceDiagram
 | `src/app/news/layout.tsx` | Server | Metadata only (`title`, `description`) |
 | `src/app/news/page.tsx` | Server | Data fetching, tabs, keyword filter, 3-col layout, thread timeline fetch |
 | `src/app/news/[slug]/page.tsx` | Server | Article detail page with metadata, related articles, story timeline |
-| `src/app/news/[slug]/_components/RelatedSection.tsx` | Server | Horizontal card grid for related articles (pgvector) |
-| `src/app/news/[slug]/_components/TimelineSection.tsx` | Server | Vertical timeline with date dots for story threads |
-| `src/app/news/[slug]/_components/MoreLikeThisSection.tsx` | Server | 90-day similarity cards (wraps RelatedSection) |
+| `src/app/news/[slug]/_components/RelatedSection.tsx` | Server | Numbered list with similarity score bars (pgvector, 7-day, excludes timeline articles) |
+| `src/app/news/[slug]/_components/TimelineSection.tsx` | Client | Collapsible vertical timeline — shows last 5, "Show N older..." expand, sticky "Show less" bar |
 | `src/app/news/_components/NewsShell.tsx` | Client | Header + Sidebar wrapper (sidebar starts closed, shifts content on open) |
 | `src/app/news/_components/BriefingPlayer.tsx` | Client | Bilingual audio player with chapters, transcript, volume, download |
 | `src/app/news/_components/ArticleCard.tsx` | Client | Article display (featured/standard) + framer-motion thread carousel |
@@ -492,9 +492,8 @@ classDiagram
 | `getLatestBriefings()` | `wsj_briefings WHERE category IN ('EN','KO') ORDER BY date DESC LIMIT 2` | `{ en: Briefing \| null, ko: Briefing \| null }` |
 | `getNewsItems(opts)` | `wsj_items LEFT JOIN wsj_crawl_results LEFT JOIN wsj_llm_analysis` (no processed/relevance filter — shows all articles) | `NewsItem[]` (flattened; crawl/LLM fields are null for uncrawled articles) |
 | `getNewsItemBySlug(slug)` | `wsj_items WHERE slug=? JOIN crawl+llm` | `NewsItem \| null` |
-| `getRelatedArticles(itemId, limit)` | `match_articles` RPC (pgvector, ±1 day) | `RelatedArticle[]` |
+| `getRelatedArticles(itemId, limit)` | `match_articles` RPC (pgvector, ±7 days) | `RelatedArticle[]` |
 | `getThreadTimeline(threadId)` | `wsj_items WHERE thread_id=? ORDER BY published_at ASC` | `NewsItem[]` |
-| `getMoreLikeThis(itemId, limit)` | `match_articles_wide` RPC (pgvector, 90 days) | `RelatedArticle[]` |
 | `getStoryThread(threadId)` | `wsj_story_threads WHERE id=?` | `StoryThread \| null` |
 | `getThreadsByIds(threadIds)` | `wsj_story_threads WHERE id IN (...)` | `Map<string, StoryThread>` |
 | `getBriefingSources(id)` | `wsj_briefing_items JOIN wsj_items JOIN wsj_crawl_results` | `BriefingSource[]` |
@@ -543,10 +542,10 @@ classDiagram
 | Decision | Choice | Rationale |
 |----------|--------|-----------|
 | URL scheme | Slug-based (`/news/fed-holds-rates`) | SEO-friendly, human-readable |
-| Sections order | Article → Related (today) → Timeline → More Like This (90d) | Progressive depth: same-day → story arc → historical |
-| External link | "Read original" secondary link | Keep users on-site, don't hide source |
-| Related articles | pgvector `match_articles` RPC (±1 day window) | Semantic similarity, not just same category |
-| More Like This | `match_articles_wide` RPC (90 day window) | Cross-time connections |
+| Sections order | Article → Story Timeline → Related Articles | Timeline = same thread, Related = similar but different stories |
+| External links | "Read on {source}" (primary) + "Read on WSJ" (secondary) | Transparent sourcing |
+| Detail layout | Must Read inline with category, keywords under headline, bold first sentence in summary | Option A layout — clean hierarchy |
+| Related articles | pgvector `match_articles` RPC (±7 day window), excludes Story Timeline articles | Semantic similarity, not just same category |
 
 ### Why Not Graph View?
 
@@ -613,20 +612,14 @@ The `/news/[slug]` page has the route and basic layout, but these sections need 
 │  │ Headline, summary, keywords, source link           │  │
 │  └───────────────────────────────────────────────────┘  │
 │                                                           │
-│  ┌─ Related (Today) ────────────────────────────────┐  │
-│  │ Hub-spoke: same day/cluster, embedding nearest    │  │
-│  │ (pgvector match_articles RPC exists, UI minimal)  │  │
+│  ┌─ Story Timeline (collapsible) ────────────────────┐  │
+│  │ Last 5 articles shown, "Show N older..." expand   │  │
+│  │ Sticky "Show less" bar when expanded              │  │
 │  └───────────────────────────────────────────────────┘  │
 │                                                           │
-│  ┌─ Story Timeline (mini) ──────────────────────────┐  │
-│  │ This story across days (3-5 entries max)          │  │
-│  │ [View full timeline →] links to Stories tab       │  │
-│  │ (getThreadTimeline() exists, UI minimal)          │  │
-│  └───────────────────────────────────────────────────┘  │
-│                                                           │
-│  ┌─ More Like This (Historical) ────────────────────┐  │
-│  │ pgvector cross-time nearest neighbor (90 days)    │  │
-│  │ (match_articles_wide RPC exists, UI minimal)      │  │
+│  ┌─ Related Articles (7-day pgvector) ──────────────┐  │
+│  │ Numbered list with similarity % bars              │  │
+│  │ Excludes articles already in Story Timeline       │  │
 │  └───────────────────────────────────────────────────┘  │
 └─────────────────────────────────────────────────────────┘
 ```

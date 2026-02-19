@@ -18,7 +18,7 @@ const navItems = [
   { id: 'news', label: 'News', href: '/news' },
   { id: 'blogs', label: 'Blog', href: '/blog' },
   { id: 'finance', label: 'Finance', href: '/finance' },
-  { id: 'resume', label: 'Resume', href: '/resume' },
+  // { id: 'resume', label: 'Resume', href: '/resume' },
 ];
 
 

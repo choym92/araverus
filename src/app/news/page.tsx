@@ -119,13 +119,17 @@ export default async function NewsPage({ searchParams }: NewsPageProps) {
   // Aggregate keywords for filter bar
   const allKeywords = aggregateKeywords(items)
 
-  // Sort by importance: must_read first (prefer threaded), then worth_reading, then optional
+  // Sort: importance → crawled → threaded → recency
   const importanceRank: Record<string, number> = { must_read: 0, worth_reading: 1, optional: 2 }
   const sortedItems = [...filteredItems].sort((a, b) => {
     const ia = importanceRank[a.importance ?? 'optional'] ?? 2
     const ib = importanceRank[b.importance ?? 'optional'] ?? 2
     if (ia !== ib) return ia - ib
-    // Within same importance, prefer articles with threads (storylines)
+    // Crawled articles have richer cards (summary, keywords, image, source)
+    const ca = a.summary ? 0 : 1
+    const cb = b.summary ? 0 : 1
+    if (ca !== cb) return ca - cb
+    // Prefer articles with threads (storylines)
     const ta = a.thread_id ? 0 : 1
     const tb = b.thread_id ? 0 : 1
     if (ta !== tb) return ta - tb
@@ -443,7 +447,7 @@ export default async function NewsPage({ searchParams }: NewsPageProps) {
         {/* Footer */}
         <div className="border-t border-neutral-200 mt-12 pt-6 text-center">
           <p className="text-xs text-neutral-400">
-            Data sourced from public RSS feeds and crawled articles. Not affiliated with The Wall Street Journal.
+            Data sourced from public RSS feeds and News APIs.
           </p>
         </div>
       </div>

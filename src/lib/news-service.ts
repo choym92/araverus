@@ -214,7 +214,7 @@ export class NewsService {
       .rpc('match_articles', {
         query_item_id: itemId,
         match_count: limit,
-        days_window: 1,
+        days_window: 7,
       })
 
     if (error || !data) return []
@@ -281,17 +281,6 @@ export class NewsService {
     })
   }
 
-  async getMoreLikeThis(itemId: string, limit = 5): Promise<RelatedArticle[]> {
-    const { data, error } = await this.supabase
-      .rpc('match_articles_wide', {
-        query_item_id: itemId,
-        match_count: limit,
-        days_window: 90,
-      })
-
-    if (error || !data) return []
-    return data as RelatedArticle[]
-  }
 
   async getStoryThread(threadId: string): Promise<StoryThread | null> {
     const { data, error } = await this.supabase
