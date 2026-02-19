@@ -97,7 +97,7 @@ graph LR
 ├───────────────────────────────────────────────────────────────────┤
 │                                                                    │
 │  ┌─ Left 3/12 ──┐  ┌─ Center 6/12 ──────────┐  ┌─ Right 3/12 ─┐│
-│  │ standard      │  │ BriefingPlayer          │  │ Latest        ││
+│  │ standard      │  │ BriefingPlayer          │  │ standard      ││
 │  │ cards [1-5]   │  │ Featured hero card [0]  │  │ standard      ││
 │  │ (no images)   │  │ + below-fold 2-col [12+]│  │ cards [6-11]  ││
 │  │ + thread ◀▶   │  │ + thread ◀▶             │  │ + thread ◀▶   ││
@@ -107,11 +107,20 @@ graph LR
 └───────────────────────────────────────────────────────────────────┘
 ```
 
+#### Article Sorting (importance-based)
+
+Articles are sorted before slicing into columns:
+1. **Importance**: `must_read` → `worth_reading` → `optional` (null treated as optional)
+2. **Thread preference**: Articles with `thread_id` rank higher (threaded stories are more significant)
+3. **Recency**: Newer articles first within the same importance/thread tier
+
+This ensures the featured hero is always a `must_read` article (preferably threaded), and higher-importance articles fill the left column.
+
 #### Card Slicing
-- `featured = filteredItems[0]` → center hero
-- `leftStories = filteredItems[1..5]` → left column (5 cards, no images)
-- `rightStories = filteredItems[6..11]` → right column (6 standard cards)
-- `belowFold = filteredItems[12..]` → center 2-col grid (first 4) + 3-col grid (rest)
+- `featured = sortedItems[0]` → center hero (best must_read + threaded article)
+- `leftStories = sortedItems[1..5]` → left column (5 cards, no images)
+- `rightStories = sortedItems[6..11]` → right column (6 standard cards)
+- `belowFold = sortedItems[12..]` → center 2-col grid (first 4) + 3-col grid (rest)
 
 #### Thread Carousel (in-card)
 Cards with `thread_id` show a thread indicator at the bottom:
@@ -386,7 +395,7 @@ interface ArticleCardProps {
 ```
 
 - **featured**: Large image, centered headline, full summary
-- **standard**: Optional image, headline + summary + keywords + source
+- **standard**: Optional image, headline (line-clamp-2) + summary + keywords + source. Cards with thread carousel use fixed height (`h-44` + `overflow-hidden`) to prevent layout shift on arrow navigation.
 - **Thread carousel**: When `threadTimeline.length > 1`, shows ◀ N/M ▶ indicator at card bottom. Starts at latest article (end of timeline). Framer Motion slide animation.
 - **ImportanceBadge**: Star icon for `must_read` articles
 
@@ -562,6 +571,8 @@ These are workarounds that should be removed once the pipeline is fully deployed
 | Hack | Location | Description | Resolution |
 |------|----------|-------------|------------|
 | Local file reads | `page.tsx` lines 123-131 | Reads chapters, sentences, and transcript from `notebooks/tts_outputs/text/` via `fs/promises` | Remove once pipeline uploads to Supabase Storage and `wsj_briefings.chapters`/`sentences` are populated |
+| JSONB double-stringify | `page.tsx` `parseJsonField()` | Pipeline stores chapters/sentences as JSON strings inside JSONB columns. `parseJsonField` detects string values and `JSON.parse()` them. | Fix pipeline to store native JSONB objects |
+| Briefing date local TZ | `page.tsx` briefingDate | `new Date("YYYY-MM-DD")` parses as UTC → wrong day in KST. Uses `new Date(y, m-1, d)` to parse as local timezone. | Non-issue once pipeline stores full ISO timestamps |
 | Hardcoded audio paths | `page.tsx` lines 294, 300 | Falls back to `/audio/chirp3-en-*.wav` and `/audio/gemini-tts-ko-*.wav` | Remove once `wsj_briefings.audio_url` is reliably populated |
 | Hardcoded date suffix | `page.tsx` lines 126-131 | Local filenames include `2026-02-16` date suffix | Will be dynamic once pipeline writes to Supabase |
 | `readFile` import | `page.tsx` line 10 | `fs/promises` imported in a Next.js page (server-only, works but non-standard) | Remove with the local file reads |

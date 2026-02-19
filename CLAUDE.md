@@ -37,6 +37,7 @@ Edit code → Run lint → Fix errors → Repeat until green
 
 ---
 
+
 ## Git Conventions
 - Branch naming: `feature/short-description`, `fix/short-description`
 - Commit messages: imperative mood, concise ("add nav links", not "added nav links")

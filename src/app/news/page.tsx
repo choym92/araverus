@@ -68,6 +68,20 @@ export default async function NewsPage({ searchParams }: NewsPageProps) {
 
   const briefing = enBriefing || koBriefing
 
+  // Parse JSONB fields that may be stored as strings (pipeline double-stringify bug)
+  const parseJsonField = <T,>(val: T | string | null | undefined): T | undefined => {
+    if (typeof val === 'string') try { return JSON.parse(val) } catch { return undefined }
+    return (val ?? undefined) as T | undefined
+  }
+  if (enBriefing) {
+    enBriefing.chapters = parseJsonField(enBriefing.chapters) ?? null
+    enBriefing.sentences = parseJsonField(enBriefing.sentences) ?? null
+  }
+  if (koBriefing) {
+    koBriefing.chapters = parseJsonField(koBriefing.chapters) ?? null
+    koBriefing.sentences = parseJsonField(koBriefing.sentences) ?? null
+  }
+
   // Filter by keyword if active
   const filteredItems = activeKeyword
     ? items.filter((item) =>
@@ -105,11 +119,25 @@ export default async function NewsPage({ searchParams }: NewsPageProps) {
   // Aggregate keywords for filter bar
   const allKeywords = aggregateKeywords(items)
 
+  // Sort by importance: must_read first (prefer threaded), then worth_reading, then optional
+  const importanceRank: Record<string, number> = { must_read: 0, worth_reading: 1, optional: 2 }
+  const sortedItems = [...filteredItems].sort((a, b) => {
+    const ia = importanceRank[a.importance ?? 'optional'] ?? 2
+    const ib = importanceRank[b.importance ?? 'optional'] ?? 2
+    if (ia !== ib) return ia - ib
+    // Within same importance, prefer articles with threads (storylines)
+    const ta = a.thread_id ? 0 : 1
+    const tb = b.thread_id ? 0 : 1
+    if (ta !== tb) return ta - tb
+    // Then by recency
+    return new Date(b.published_at).getTime() - new Date(a.published_at).getTime()
+  })
+
   // Card slicing for 3-column layout
-  const featured = filteredItems[0] || null
-  const leftStories = filteredItems.slice(1, 6)
-  const rightStories = filteredItems.slice(6, 12)
-  const belowFold = filteredItems.slice(12)
+  const featured = sortedItems[0] || null
+  const leftStories = sortedItems.slice(1, 6)
+  const rightStories = sortedItems.slice(6, 12)
+  const belowFold = sortedItems.slice(12)
 
   // Parse date string directly to avoid timezone shift (e.g. "2026-02-18" → "Feb 18, 2026")
   const briefingDate = briefing
@@ -345,9 +373,6 @@ export default async function NewsPage({ searchParams }: NewsPageProps) {
 
               {/* Right column — standard cards with thread carousels */}
               <div className="lg:col-span-3 lg:border-l lg:border-neutral-200 lg:pl-6">
-                <h3 className="font-serif text-lg text-neutral-900 border-b-2 border-neutral-900 pb-2 mb-3">
-                  Latest
-                </h3>
                 {rightStories.map((item) => (
                   <ArticleCard
                     key={item.id}

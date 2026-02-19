@@ -235,58 +235,60 @@ export default function ArticleCard({
       } ${isOptional ? 'opacity-70' : ''}`}
     >
       <CardWrapper slug={activeSlug} link={activeLink} className="group block">
-        <AnimatePresence custom={direction} mode="wait">
-          <motion.div
-            key={carouselIndex}
-            custom={direction}
-            variants={slideVariants}
-            initial="enter"
-            animate="center"
-            exit="exit"
-            transition={{ duration: 0.25 }}
-          >
-            <div className="flex gap-4">
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-2 mb-1.5">
-                  {isMustRead && <ImportanceBadge importance="must_read" />}
-                  <span className="text-[11px] font-semibold text-neutral-900 uppercase tracking-wide">
-                    {categoryLabel(activeCategory)}
-                  </span>
-                  <span className="text-[11px] text-neutral-400">{timeAgo(activeTimestamp)}</span>
+        <div className={`${hasThread ? 'h-44 overflow-hidden' : ''}`}>
+          <AnimatePresence custom={direction} mode="wait">
+            <motion.div
+              key={carouselIndex}
+              custom={direction}
+              variants={slideVariants}
+              initial="enter"
+              animate="center"
+              exit="exit"
+              transition={{ duration: 0.25 }}
+            >
+              <div className="flex gap-4">
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2 mb-1.5">
+                    {isMustRead && <ImportanceBadge importance="must_read" />}
+                    <span className="text-[11px] font-semibold text-neutral-900 uppercase tracking-wide">
+                      {categoryLabel(activeCategory)}
+                    </span>
+                    <span className="text-[11px] text-neutral-400">{timeAgo(activeTimestamp)}</span>
+                  </div>
+                  <h3 className="font-serif text-lg leading-snug text-neutral-900 group-hover:text-neutral-600 transition-colors mb-1.5 line-clamp-2">
+                    {activeHeadline}
+                  </h3>
+                  {activeSummary && (
+                    <p className="text-sm text-neutral-500 leading-relaxed line-clamp-2">
+                      {activeSummary}
+                    </p>
+                  )}
+                  {activeKeywords && activeKeywords.length > 0 && (
+                    <div className="mt-2">
+                      <KeywordPills keywords={activeKeywords} activeKeyword={activeKeyword} />
+                    </div>
+                  )}
+                  {activeSource && (
+                    <p className="text-[11px] text-neutral-400 mt-1.5">
+                      via {activeSource}
+                    </p>
+                  )}
                 </div>
-                <h3 className="font-serif text-lg leading-snug text-neutral-900 group-hover:text-neutral-600 transition-colors mb-1.5">
-                  {activeHeadline}
-                </h3>
-                {activeSummary && (
-                  <p className="text-sm text-neutral-500 leading-relaxed line-clamp-2">
-                    {activeSummary}
-                  </p>
-                )}
-                {activeKeywords && activeKeywords.length > 0 && (
-                  <div className="mt-2">
-                    <KeywordPills keywords={activeKeywords} activeKeyword={activeKeyword} />
+                {activeImage && (
+                  <div className="relative w-24 h-24 shrink-0 overflow-hidden rounded">
+                    <Image
+                      src={activeImage}
+                      alt=""
+                      fill
+                      className="object-cover group-hover:scale-105 transition-transform duration-300"
+                      sizes="96px"
+                    />
                   </div>
                 )}
-                {activeSource && (
-                  <p className="text-[11px] text-neutral-400 mt-1.5">
-                    via {activeSource}
-                  </p>
-                )}
               </div>
-              {activeImage && (
-                <div className="relative w-24 h-24 shrink-0 overflow-hidden rounded">
-                  <Image
-                    src={activeImage}
-                    alt=""
-                    fill
-                    className="object-cover group-hover:scale-105 transition-transform duration-300"
-                    sizes="96px"
-                  />
-                </div>
-              )}
-            </div>
           </motion.div>
         </AnimatePresence>
+        </div>
       </CardWrapper>
       {hasThread && (
         <div className="border-t border-neutral-100 mt-3 pt-2 flex items-center gap-2 text-xs text-neutral-500">
