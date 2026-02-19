@@ -4,10 +4,29 @@ Shared domain utilities for WSJ pipeline.
 
 Provides:
 - Blocked domain loading from DB (wsj_domain_status)
+- Hardcoded uncrawlable domains (SNS, video platforms)
 - Domain matching utilities
 """
 import os
 from pathlib import Path
+
+# Domains that can never contain crawlable article content.
+# These are blocked unconditionally, regardless of DB stats.
+UNCRAWLABLE_DOMAINS = {
+    # Social media
+    "facebook.com",
+    "instagram.com",
+    "linkedin.com",
+    "reddit.com",
+    "threads.com",
+    "tiktok.com",
+    "twitter.com",
+    "x.com",
+    # Video platforms
+    "youtube.com",
+    # Aggregator redirects
+    "news.google.com",
+}
 
 
 def get_supabase_client():
@@ -51,6 +70,9 @@ def load_blocked_domains(supabase=None) -> set[str]:
                 blocked = {row['domain'] for row in response.data if row.get('domain')}
         except Exception as e:
             print(f"  Warning: Could not load blocked domains from DB: {e}")
+
+    # Always include hardcoded uncrawlable domains
+    blocked |= UNCRAWLABLE_DOMAINS
 
     return blocked
 

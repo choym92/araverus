@@ -103,7 +103,7 @@ Crawls resolved URLs with quality verification. Maintains `run_blocked` in-memor
 
 ### `crawl_article.py`
 
-Core crawling engine. Hybrid newspaper4k + browser fallback. Blocked domain check uses caller-provided `blocked_domains` set (from DB). No local JSON file — domain blocking is DB-only via `domain_utils.is_blocked_domain()`.
+Core crawling engine. Hybrid newspaper4k + browser fallback. Blocked domain check uses caller-provided `blocked_domains` set (from DB + hardcoded uncrawlable list). Domain blocking via `domain_utils.is_blocked_domain()`.
 
 | Flag | Default | Action |
 |------|---------|--------|
@@ -116,7 +116,7 @@ Core crawling engine. Hybrid newspaper4k + browser fallback. Blocked domain chec
 
 ### `domain_utils.py` (211 lines)
 
-Shared domain utilities. Blocked domain loading from DB (`wsj_domain_status` table only). Substring matching via `is_blocked_domain()`.
+Shared domain utilities. Blocked domain loading from DB (`wsj_domain_status` table) + hardcoded `UNCRAWLABLE_DOMAINS` (10 SNS/video/aggregator domains that can never contain article content). Substring matching via `is_blocked_domain()`. Hardcoded domains are always included even if DB is unreachable.
 
 ### `llm_analysis.py` (280 lines)
 
