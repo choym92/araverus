@@ -41,11 +41,7 @@ import httpx
 from dotenv import load_dotenv
 from sklearn.feature_extraction.text import ENGLISH_STOP_WORDS
 
-# Import shared domain utilities
-from domain_utils import (
-    load_preferred_domains,
-    get_domain_priority,
-)
+# Import shared domain utilities (blocked domains loaded inline where needed)
 
 # Load environment variables
 load_dotenv(Path(__file__).parent.parent / '.env.local')
@@ -111,7 +107,7 @@ def is_non_english_source(source_name: str) -> bool:
     return False
 
 # PREFERRED_DOMAINS is now loaded dynamically from domain_utils
-# See: load_preferred_domains() which combines BASE_PREFERRED_DOMAINS + top DB domains
+# Preferred domain logic removed — pure embedding score ranking only
 
 # Event keywords with priority (higher = more important)
 EVENT_PRIORITY = {
@@ -687,53 +683,28 @@ def format_query_with_exclusions(query: str) -> str:
     return f"{query} -site:wsj.com"
 
 
-def count_preferred_domain_hits(articles: list[dict], preferred_domains: list[str]) -> dict:
-    """Count hits per preferred domain."""
-    hits = {d: 0 for d in preferred_domains}
-    for art in articles:
-        domain = art.get('source_domain', '')
-        for pref in preferred_domains:
-            if pref in domain or domain in pref:
-                hits[pref] += 1
-                break
-    return hits
-
-
 async def search_multi_query(
     queries: list[str],
     client: httpx.AsyncClient,
-    preferred_domains: list[str],
     after_date=None,
     delay_query: float = 1.0,
 ) -> tuple[list[dict], dict]:
     """
     Search with multiple queries, union results, dedupe, and filter.
 
-    Strategy: Dual-phase search (preferred domains first, broad fallback)
-    - Phase 1: Search preferred domains with site: queries
-    - Phase 2: Broad search only if Phase 1 doesn't find enough results
-
     Args:
         queries: List of search queries to try
         client: HTTP client for requests
-        preferred_domains: List of preferred domains for Phase 1 search
         after_date: WSJ publish date for date filtering
         delay_query: Delay between queries in seconds
 
     Returns:
         tuple of (articles, instrumentation_dict)
-
-    Features:
-    - Prioritizes known-good domains (faster, higher quality)
-    - Falls back to broad search when needed
-    - Filters blocked sources by domain
     """
     all_articles = []
     seen_keys = set()
     instrumentation = {
         'queries_executed': [],
-        'preferred_domain_hits': {},
-        'phase1_sufficient': False,
     }
 
     # Helper to add article with deduplication and date filtering
@@ -757,57 +728,6 @@ async def search_multi_query(
         seen_keys.add(key)
         all_articles.append(article)
         return True
-
-    # Threshold: if Phase 1 finds this many results, skip Phase 2
-    PHASE1_SUFFICIENT_THRESHOLD = 2
-
-    # ==========================================================================
-    # PHASE 1: Preferred domain search (site: queries)
-    # ==========================================================================
-    print("    Phase 1: Searching preferred domains...")
-
-    # Use first query (clean title) for site: searches
-    primary_query = queries[0] if queries else ""
-
-    for pref_domain in preferred_domains[:5]:  # Top 5 preferred domains
-        site_query = f"site:{pref_domain} {primary_query}"
-        # No date filter for preferred domains (trust them more)
-
-        t0 = time.perf_counter()
-        articles = await search_google_news(site_query, client)
-        elapsed = time.perf_counter() - t0
-
-        added_count = sum(1 for a in articles if add_article(a))
-
-        instrumentation['queries_executed'].append({
-            'query': site_query[:80],
-            'results': len(articles),
-            'added': added_count,
-            'time': round(elapsed, 2),
-            'type': 'preferred',
-            'domain': pref_domain,
-        })
-
-        if added_count > 0:
-            print(f"      site:{pref_domain}: +{added_count} articles")
-
-        await asyncio.sleep(delay_query)
-
-    # Check if Phase 1 found enough
-    pref_hits = count_preferred_domain_hits(all_articles, preferred_domains)
-    instrumentation['preferred_domain_hits'] = pref_hits
-    total_pref_hits = sum(pref_hits.values())
-
-    print(f"    Phase 1 results: {len(all_articles)} articles from preferred domains")
-
-    if len(all_articles) >= PHASE1_SUFFICIENT_THRESHOLD:
-        instrumentation['phase1_sufficient'] = True
-        print(f"    Phase 1 found {len(all_articles)} articles, continuing to broad search")
-
-    # ==========================================================================
-    # PHASE 2: Broad search (always runs)
-    # ==========================================================================
-    print(f"    Phase 2: Broad search ({len(all_articles)} articles from Phase 1)...")
 
     for i, query in enumerate(queries):
         # Add exclusions
@@ -833,19 +753,11 @@ async def search_multi_query(
             'results': len(articles),
             'added': added_count,
             'time': round(elapsed, 2),
-            'type': 'broad',
         })
         print(f"      Q{i+1}: +{added_count} new articles ({len(articles)} total)")
 
         if i < len(queries) - 1:
             await asyncio.sleep(delay_query)
-
-    # Update preferred hits after Phase 2
-    pref_hits = count_preferred_domain_hits(all_articles, preferred_domains)
-    instrumentation['preferred_domain_hits'] = pref_hits
-
-    # Sort by domain priority (preferred domains first)
-    all_articles.sort(key=lambda a: get_domain_priority(a.get('source_domain', ''), preferred_domains))
 
     return all_articles, instrumentation
 
@@ -916,11 +828,6 @@ async def main():
     if limit:
         wsj_items = wsj_items[:limit]
 
-    # Load preferred domains (base + top 10 from DB by weighted_score)
-    print("Loading preferred domains...")
-    preferred_domains = load_preferred_domains(top_n=10)
-    print(f"  Using {len(preferred_domains)} preferred domains: {preferred_domains[:5]}...")
-
     print(f"\nProcessing {len(wsj_items)} items | delay_item={delay_item}s | delay_query={delay_query}s\n")
 
     results = []
@@ -942,19 +849,11 @@ async def main():
             for j, q in enumerate(queries):
                 print(f"      Q{j+1}: {q[:70]}{'...' if len(q) > 70 else ''}")
 
-            # Search with all queries (dual-phase: preferred domains first, then broad)
+            # Search with all queries
             articles, instr = await search_multi_query(
-                queries, client, preferred_domains, wsj_date, delay_query
+                queries, client, wsj_date, delay_query
             )
             print(f"    Found: {len(articles)} articles")
-
-            # Show preferred domain hits
-            pref_hits = instr.get('preferred_domain_hits', {})
-            pref_with_hits = {k: v for k, v in pref_hits.items() if v > 0}
-            if pref_with_hits:
-                print(f"    Preferred domains: {pref_with_hits}")
-            else:
-                print("    Preferred domains: (none)")
 
             # Show top 5
             for j, art in enumerate(articles[:5]):
@@ -991,29 +890,6 @@ async def main():
     print(f"  - With articles: {len(results_with_articles)}")
     print(f"  - No articles found: {len(results_no_articles)}")
     print(f"Total articles found: {total_articles}")
-
-    # Aggregate phase stats
-    agg_pref_hits = {d: 0 for d in preferred_domains}
-    phase1_sufficient_count = 0
-    phase2_needed_count = 0
-    for instr_item in all_instrumentation:
-        instr = instr_item.get('instrumentation', {})
-        for domain, count in instr.get('preferred_domain_hits', {}).items():
-            if domain in agg_pref_hits:
-                agg_pref_hits[domain] += count
-        if instr.get('phase1_sufficient'):
-            phase1_sufficient_count += 1
-        else:
-            phase2_needed_count += 1
-
-    print("\nDual-phase search stats:")
-    print(f"  Phase 1 sufficient (skipped broad): {phase1_sufficient_count}")
-    print(f"  Phase 2 needed (broad fallback): {phase2_needed_count}")
-
-    print("\nPreferred domain coverage:")
-    for domain, count in agg_pref_hits.items():
-        marker = "✓" if count > 0 else "✗"
-        print(f"  {marker} {domain}: {count} articles")
 
     if results_no_articles:
         print("\nSkipped (0 articles):")

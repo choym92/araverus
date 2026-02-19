@@ -22,25 +22,29 @@ echo "============================================"
 
 cd "$PROJECT_DIR"
 
-# ── Load secrets from macOS Keychain ──────────────────
-# Each key stored under service "araverus" in login keychain.
-# This avoids storing secrets in a .env file on disk.
-load_key() {
-    local key_name="$1"
-    local val
-    val=$(security find-generic-password -a "$key_name" -s "araverus" -w 2>/dev/null) || {
-        echo "WARN: Could not load $key_name from Keychain"
-        return 1
+# ── Load secrets ─────────────────────────────────────
+# Try .env.pipeline first (works in launchd), fall back to Keychain (interactive)
+ENV_FILE="$PROJECT_DIR/.env.pipeline"
+if [[ -f "$ENV_FILE" ]]; then
+    set -a
+    source "$ENV_FILE"
+    set +a
+    echo "Secrets loaded from .env.pipeline"
+else
+    load_key() {
+        local val
+        val=$(security find-generic-password -a "$1" -s "araverus" -w 2>/dev/null) || {
+            echo "WARN: Could not load $1 from Keychain"
+            return 1
+        }
+        export "$1=$val"
     }
-    export "$key_name=$val"
-}
-
-load_key "NEXT_PUBLIC_SUPABASE_URL"
-load_key "SUPABASE_SERVICE_ROLE_KEY"
-load_key "GEMINI_API_KEY"
-export GOOGLE_APPLICATION_CREDENTIALS="$HOME/credentials/araverus-tts-sa.json"
-
-echo "Secrets loaded from Keychain"
+    load_key "NEXT_PUBLIC_SUPABASE_URL"
+    load_key "SUPABASE_SERVICE_ROLE_KEY"
+    load_key "GEMINI_API_KEY"
+    export GOOGLE_APPLICATION_CREDENTIALS="$HOME/credentials/araverus-tts-sa.json"
+    echo "Secrets loaded from Keychain"
+fi
 
 # ── Phase 1: Ingest + Search ───────────────────────────
 echo ""

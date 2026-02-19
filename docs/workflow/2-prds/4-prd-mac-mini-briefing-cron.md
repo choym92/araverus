@@ -1,4 +1,5 @@
 <!-- Updated: 2026-02-18 -->
+<!-- Wilson Score section added: 2026-02-18 -->
 # PRD: Full Finance Pipeline on Mac Mini (launchd)
 
 ## Overview
@@ -69,6 +70,15 @@ Mac Mini (launchd)
 ```
 
 **Total runtime**: ~50 min end-to-end (crawl is the bottleneck).
+
+### Domain Filtering (Wilson Score)
+
+The pipeline uses **Wilson Score confidence interval** for automatic domain quality filtering — no hardcoded allowlists/blocklists.
+
+- **Phase 2** (`embedding_rank.py`): Filters out blocked domains via `wilson_lower_bound()` before ranking. Domains with `wsj_domain_status.status = 'blocked'` are excluded.
+- **Phase 4** (`wsj_ingest.py --update-domain-status`): Auto-blocks domains where `wilson_score < 0.15` with `>= 5` crawl attempts. Updates `wsj_domain_status.wilson_score` and `status` columns.
+- Fully DB-driven via `wsj_domain_status` table — no hardcoded lists.
+- Full methodology: `docs/workflow/4-todo/backend-data-cleanup.md`
 
 ---
 

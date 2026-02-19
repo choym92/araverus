@@ -366,15 +366,17 @@ async def main():
             url = article["resolved_url"]
             source = article.get("source", "Unknown")
             domain = article.get("resolved_domain", "")
-            is_pref = "★" if article.get("is_preferred") else " "
             domain_rate = domain_success_rates.get(domain, 0.5)
             w_score = weighted_score(article)
 
             total_attempts += 1
-            print(f"  {is_pref} Trying [{j+1}/{len(crawlable)}]: {domain} (w:{w_score:.2f})...", end=" ", flush=True)
+            print(f"  Trying [{j+1}/{len(crawlable)}]: {domain} (w:{w_score:.2f})...", end=" ", flush=True)
 
             try:
-                result = await crawl_article(url, mode=CRAWL_MODE, blocked_domains=blocked_domains)
+                result = await asyncio.wait_for(
+                    crawl_article(url, mode=CRAWL_MODE, blocked_domains=blocked_domains),
+                    timeout=90
+                )
 
                 if result.get("success") and result.get("markdown_length", 0) > 500:
                     crawled_content = result.get("markdown", "")

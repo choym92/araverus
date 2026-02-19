@@ -1021,11 +1021,11 @@ def save_briefing_to_db(
     if tts_result:
         record["audio_duration"] = int(tts_result.duration_sec)
     if chapters is not None:
-        record["chapters"] = json.dumps(chapters)
+        record["chapters"] = chapters
     if audio_url:
         record["audio_url"] = audio_url
     if sentences is not None:
-        record["sentences"] = json.dumps(sentences)
+        record["sentences"] = sentences
 
     db_result = sb.table("wsj_briefings").upsert(
         record, on_conflict="date,category"
