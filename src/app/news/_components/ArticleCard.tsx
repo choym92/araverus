@@ -1,8 +1,13 @@
+'use client'
+
+import { useState } from 'react'
 import Image from 'next/image'
 import Link from 'next/link'
+import { AnimatePresence, motion } from 'framer-motion'
 import KeywordPills from './KeywordPills'
+import type { NewsItem } from '@/lib/news-service'
 
-type Variant = 'featured' | 'standard' | 'compact'
+type Variant = 'featured' | 'standard'
 
 interface ArticleCardProps {
   headline: string
@@ -17,7 +22,9 @@ interface ArticleCardProps {
   importance?: string | null
   keywords?: string[] | null
   activeKeyword?: string | null
-  scoreDisplay?: 'visual' | 'numeric'
+  id?: string
+  threadTimeline?: NewsItem[] | null
+  threadTitle?: string | null
 }
 
 function timeAgo(timestamp: string): string {
@@ -41,17 +48,8 @@ function categoryLabel(feedName: string): string {
   return map[feedName] || feedName
 }
 
-function ImportanceBadge({ importance, variant }: { importance: string; variant: 'visual' | 'numeric' }) {
+function ImportanceBadge({ importance }: { importance: string }) {
   if (importance !== 'must_read') return null
-
-  if (variant === 'numeric') {
-    return (
-      <span className="text-[10px] font-semibold text-amber-700 uppercase tracking-wide">
-        Must Read
-      </span>
-    )
-  }
-
   return (
     <svg className="w-3.5 h-3.5 text-amber-500 shrink-0" fill="currentColor" viewBox="0 0 20 20">
       <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
@@ -84,6 +82,12 @@ function CardWrapper({
   )
 }
 
+const slideVariants = {
+  enter: (dir: number) => ({ x: dir > 0 ? 60 : -60, opacity: 0 }),
+  center: { x: 0, opacity: 1 },
+  exit: (dir: number) => ({ x: dir > 0 ? -60 : 60, opacity: 0 }),
+}
+
 export default function ArticleCard({
   headline,
   summary,
@@ -97,67 +101,128 @@ export default function ArticleCard({
   importance,
   keywords,
   activeKeyword,
-  scoreDisplay = 'visual',
+  id,
+  threadTimeline,
+  threadTitle,
 }: ArticleCardProps) {
-  const isMustRead = importance === 'must_read'
-  const isOptional = importance === 'optional'
+  const hasThread = threadTimeline && threadTimeline.length > 1
+  // Start at the latest article (end of timeline, sorted ascending by published_at)
+  const initialIndex = hasThread ? threadTimeline.length - 1 : 0
+  const [carouselIndex, setCarouselIndex] = useState(initialIndex)
+  const [direction, setDirection] = useState<1 | -1>(1)
+
+  // Display data: use carousel item if navigated away from initial, else original props
+  const current = hasThread ? threadTimeline[carouselIndex] : null
+  const isNavigated = carouselIndex !== initialIndex && hasThread && current != null
+  const activeHeadline = isNavigated ? current.title : headline
+  const activeSummary = isNavigated ? (current.summary ?? current.description) : summary
+  const activeSource = isNavigated ? current.source : source
+  const activeCategory = isNavigated ? current.feed_name : category
+  const activeTimestamp = isNavigated ? current.published_at : timestamp
+  const activeImage = isNavigated ? current.top_image : imageUrl
+  const activeLink = isNavigated ? current.link : link
+  const activeSlug = isNavigated ? current.slug : slug
+  const activeImportance = isNavigated ? current.importance : importance
+  const activeKeywords = isNavigated ? current.keywords : keywords
+
+  const isMustRead = activeImportance === 'must_read'
+  const isOptional = activeImportance === 'optional'
+
+  const handlePrev = (e: React.MouseEvent) => {
+    e.preventDefault()
+    e.stopPropagation()
+    if (carouselIndex > 0) {
+      setDirection(-1)
+      setCarouselIndex(carouselIndex - 1)
+    }
+  }
+
+  const handleNext = (e: React.MouseEvent) => {
+    e.preventDefault()
+    e.stopPropagation()
+    if (hasThread && carouselIndex < threadTimeline.length - 1) {
+      setDirection(1)
+      setCarouselIndex(carouselIndex + 1)
+    }
+  }
 
   if (variant === 'featured') {
     return (
       <article className={`pb-6 mb-6 ${isMustRead ? 'border-l-2 border-amber-400 pl-4' : ''}`}>
-        <CardWrapper slug={slug} link={link} className="group block text-center">
-          {imageUrl && (
-            <div className="relative w-full aspect-[4/3] mb-5 overflow-hidden rounded">
-              <Image
-                src={imageUrl}
-                alt=""
-                fill
-                className="object-cover group-hover:scale-105 transition-transform duration-300"
-                sizes="(max-width: 768px) 100vw, 600px"
-              />
-            </div>
-          )}
-          <div className="flex items-center justify-center gap-2 mb-2">
-            {isMustRead && <ImportanceBadge importance="must_read" variant={scoreDisplay} />}
-            <h2 className="font-serif text-2xl md:text-3xl leading-tight text-neutral-900 group-hover:text-neutral-600 transition-colors">
-              {headline}
-            </h2>
-          </div>
-          {summary && (
-            <p className="text-base text-neutral-500 leading-relaxed line-clamp-3 max-w-lg mx-auto mb-2">
-              {summary}
-            </p>
-          )}
-          {keywords && keywords.length > 0 && (
-            <div className="flex justify-center mt-2">
-              <KeywordPills keywords={keywords} activeKeyword={activeKeyword} />
-            </div>
-          )}
-          {source && (
-            <p className="text-xs text-neutral-400 mt-2">
-              via {source}
-            </p>
-          )}
+        <CardWrapper slug={activeSlug} link={activeLink} className="group block text-center">
+          <AnimatePresence custom={direction} mode="wait">
+            <motion.div
+              key={carouselIndex}
+              custom={direction}
+              variants={slideVariants}
+              initial="enter"
+              animate="center"
+              exit="exit"
+              transition={{ duration: 0.25 }}
+            >
+              {activeImage && (
+                <div className="relative w-full aspect-[4/3] mb-5 overflow-hidden rounded">
+                  <Image
+                    src={activeImage}
+                    alt=""
+                    fill
+                    className="object-cover group-hover:scale-105 transition-transform duration-300"
+                    sizes="(max-width: 768px) 100vw, 600px"
+                  />
+                </div>
+              )}
+              <div className="flex items-center justify-center gap-2 mb-2">
+                {isMustRead && <ImportanceBadge importance="must_read" />}
+                <h2 className="font-serif text-2xl md:text-3xl leading-tight text-neutral-900 group-hover:text-neutral-600 transition-colors">
+                  {activeHeadline}
+                </h2>
+              </div>
+              {activeSummary && (
+                <p className="text-base text-neutral-500 leading-relaxed line-clamp-3 max-w-lg mx-auto mb-2">
+                  {activeSummary}
+                </p>
+              )}
+              {activeKeywords && activeKeywords.length > 0 && (
+                <div className="flex justify-center mt-2">
+                  <KeywordPills keywords={activeKeywords} activeKeyword={activeKeyword} />
+                </div>
+              )}
+              {activeSource && (
+                <p className="text-xs text-neutral-400 mt-2">
+                  via {activeSource}
+                </p>
+              )}
+            </motion.div>
+          </AnimatePresence>
         </CardWrapper>
-      </article>
-    )
-  }
-
-  if (variant === 'compact') {
-    return (
-      <article className={`border-b border-neutral-100 py-3 ${isOptional ? 'opacity-70' : ''}`}>
-        <CardWrapper slug={slug} link={link} className="group block">
-          <div className="flex items-center gap-2 mb-1">
-            {isMustRead && <ImportanceBadge importance="must_read" variant={scoreDisplay} />}
-            <span className="text-[11px] font-semibold text-neutral-900 uppercase tracking-wide">
-              {categoryLabel(category)}
+        {hasThread && (
+          <div className="border-t border-neutral-200 mt-3 pt-2 flex items-center gap-2 text-xs text-neutral-500">
+            <button
+              onClick={handlePrev}
+              disabled={carouselIndex === 0}
+              className="px-1.5 py-0.5 rounded hover:bg-neutral-100 disabled:opacity-30 disabled:cursor-default"
+              aria-label="Previous article in thread"
+            >
+              ◀
+            </button>
+            <span className="font-medium tabular-nums">
+              {carouselIndex + 1}/{threadTimeline.length}
             </span>
-            <span className="text-[11px] text-neutral-400">{timeAgo(timestamp)}</span>
+            <button
+              onClick={handleNext}
+              disabled={carouselIndex === threadTimeline.length - 1}
+              className="px-1.5 py-0.5 rounded hover:bg-neutral-100 disabled:opacity-30 disabled:cursor-default"
+              aria-label="Next article in thread"
+            >
+              ▶
+            </button>
+            {threadTitle && (
+              <span className="text-neutral-400 truncate ml-1" title={threadTitle}>
+                📰 {threadTitle}
+              </span>
+            )}
           </div>
-          <h3 className="font-serif text-sm leading-snug text-neutral-900 group-hover:text-neutral-600 transition-colors">
-            {headline}
-          </h3>
-        </CardWrapper>
+        )}
       </article>
     )
   }
@@ -169,48 +234,88 @@ export default function ArticleCard({
         isMustRead ? 'border-l-2 border-amber-400 pl-4' : ''
       } ${isOptional ? 'opacity-70' : ''}`}
     >
-      <CardWrapper slug={slug} link={link} className="group block">
-        <div className="flex gap-4">
-          <div className="flex-1 min-w-0">
-            <div className="flex items-center gap-2 mb-1.5">
-              {isMustRead && <ImportanceBadge importance="must_read" variant={scoreDisplay} />}
-              <span className="text-[11px] font-semibold text-neutral-900 uppercase tracking-wide">
-                {categoryLabel(category)}
-              </span>
-              <span className="text-[11px] text-neutral-400">{timeAgo(timestamp)}</span>
-            </div>
-            <h3 className="font-serif text-lg leading-snug text-neutral-900 group-hover:text-neutral-600 transition-colors mb-1.5">
-              {headline}
-            </h3>
-            {summary && (
-              <p className="text-sm text-neutral-500 leading-relaxed line-clamp-2">
-                {summary}
-              </p>
-            )}
-            {keywords && keywords.length > 0 && (
-              <div className="mt-2">
-                <KeywordPills keywords={keywords} activeKeyword={activeKeyword} />
+      <CardWrapper slug={activeSlug} link={activeLink} className="group block">
+        <AnimatePresence custom={direction} mode="wait">
+          <motion.div
+            key={carouselIndex}
+            custom={direction}
+            variants={slideVariants}
+            initial="enter"
+            animate="center"
+            exit="exit"
+            transition={{ duration: 0.25 }}
+          >
+            <div className="flex gap-4">
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2 mb-1.5">
+                  {isMustRead && <ImportanceBadge importance="must_read" />}
+                  <span className="text-[11px] font-semibold text-neutral-900 uppercase tracking-wide">
+                    {categoryLabel(activeCategory)}
+                  </span>
+                  <span className="text-[11px] text-neutral-400">{timeAgo(activeTimestamp)}</span>
+                </div>
+                <h3 className="font-serif text-lg leading-snug text-neutral-900 group-hover:text-neutral-600 transition-colors mb-1.5">
+                  {activeHeadline}
+                </h3>
+                {activeSummary && (
+                  <p className="text-sm text-neutral-500 leading-relaxed line-clamp-2">
+                    {activeSummary}
+                  </p>
+                )}
+                {activeKeywords && activeKeywords.length > 0 && (
+                  <div className="mt-2">
+                    <KeywordPills keywords={activeKeywords} activeKeyword={activeKeyword} />
+                  </div>
+                )}
+                {activeSource && (
+                  <p className="text-[11px] text-neutral-400 mt-1.5">
+                    via {activeSource}
+                  </p>
+                )}
               </div>
-            )}
-            {source && (
-              <p className="text-[11px] text-neutral-400 mt-1.5">
-                via {source}
-              </p>
-            )}
-          </div>
-          {imageUrl && (
-            <div className="relative w-24 h-24 shrink-0 overflow-hidden rounded">
-              <Image
-                src={imageUrl}
-                alt=""
-                fill
-                className="object-cover group-hover:scale-105 transition-transform duration-300"
-                sizes="96px"
-              />
+              {activeImage && (
+                <div className="relative w-24 h-24 shrink-0 overflow-hidden rounded">
+                  <Image
+                    src={activeImage}
+                    alt=""
+                    fill
+                    className="object-cover group-hover:scale-105 transition-transform duration-300"
+                    sizes="96px"
+                  />
+                </div>
+              )}
             </div>
+          </motion.div>
+        </AnimatePresence>
+      </CardWrapper>
+      {hasThread && (
+        <div className="border-t border-neutral-100 mt-3 pt-2 flex items-center gap-2 text-xs text-neutral-500">
+          <button
+            onClick={handlePrev}
+            disabled={carouselIndex === 0}
+            className="px-1.5 py-0.5 rounded hover:bg-neutral-100 disabled:opacity-30 disabled:cursor-default"
+            aria-label="Previous article in thread"
+          >
+            ◀
+          </button>
+          <span className="font-medium tabular-nums">
+            {carouselIndex + 1}/{threadTimeline.length}
+          </span>
+          <button
+            onClick={handleNext}
+            disabled={carouselIndex === threadTimeline.length - 1}
+            className="px-1.5 py-0.5 rounded hover:bg-neutral-100 disabled:opacity-30 disabled:cursor-default"
+            aria-label="Next article in thread"
+          >
+            ▶
+          </button>
+          {threadTitle && (
+            <span className="text-neutral-400 truncate ml-1" title={threadTitle}>
+              📰 {threadTitle}
+            </span>
           )}
         </div>
-      </CardWrapper>
+      )}
     </article>
   )
 }

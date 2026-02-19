@@ -1,5 +1,5 @@
 # CLAUDE.md
-<!-- Updated: 2026-02-17 -->
+<!-- Updated: 2026-02-18 -->
 
 ## Project
 Next.js 15 personal site (blog, resume, 3D landing) with a Python news pipeline (news crawl → AI curation → briefing). Stack: TypeScript, Tailwind, Supabase, MDX. Deployed on Vercel (web) + Mac Mini (pipeline cron).
@@ -25,12 +25,12 @@ Project-specific rules live in `.claude/rules/`. Detailed docs in `docs/`.
 After every code change, you MUST verify your work. This is not optional.
 
 ```
-Edit code → Run lint → Run build → Fix errors → Repeat until green
+Edit code → Run lint → Fix errors → Repeat until green
 ```
 
 1) Run `npm run lint` — fix all lint errors before proceeding.
-2) Run `npm run build` — fix all type errors before proceeding.
-3) If either fails, fix immediately and re-run. **Never proceed with a failing build.**
+2) **NEVER run `npm run build` while the dev server is running.** Turbopack's `.next/` cache will corrupt and cause ENOENT 500 errors. The dev server handles type checking automatically via Turbopack.
+3) Only run `npm run build` when the dev server is stopped (e.g., before deploy or final verification).
 4) Run `npm run lint:py` if Python scripts changed — fix all ruff errors.
 5) Run `npm run lint:secrets` before committing — ensure no secrets leaked.
 6) Run `npm run test` if logic changed — ensure tests pass.

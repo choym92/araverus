@@ -5,7 +5,6 @@ import NewsShell from './_components/NewsShell'
 import BriefingPlayer from './_components/BriefingPlayer'
 import ArticleCard from './_components/ArticleCard'
 import KeywordPills from './_components/KeywordPills'
-import ThreadSection from './_components/ThreadSection'
 import Link from 'next/link'
 import { readFile } from 'fs/promises'
 import path from 'path'
@@ -45,53 +44,6 @@ function aggregateKeywords(items: NewsItem[]): { keyword: string; count: number 
     .slice(0, 20)
 }
 
-/** Group articles by thread_id */
-function groupByThread(items: NewsItem[]): {
-  threaded: Map<string, { threadId: string; articles: NewsItem[] }>
-  ungrouped: NewsItem[]
-} {
-  const threaded = new Map<string, { threadId: string; articles: NewsItem[] }>()
-  const ungrouped: NewsItem[] = []
-
-  for (const item of items) {
-    if (item.thread_id) {
-      const group = threaded.get(item.thread_id)
-      if (group) {
-        group.articles.push(item)
-      } else {
-        threaded.set(item.thread_id, { threadId: item.thread_id, articles: [item] })
-      }
-    } else {
-      ungrouped.push(item)
-    }
-  }
-
-  // Sort articles within each thread: must_read first, then by published_at desc
-  const importanceOrder: Record<string, number> = { must_read: 0, worth_reading: 1, optional: 2 }
-  for (const group of threaded.values()) {
-    group.articles.sort((a, b) => {
-      const ia = importanceOrder[a.importance || 'optional'] ?? 2
-      const ib = importanceOrder[b.importance || 'optional'] ?? 2
-      if (ia !== ib) return ia - ib
-      return new Date(b.published_at).getTime() - new Date(a.published_at).getTime()
-    })
-  }
-
-  return { threaded, ungrouped }
-}
-
-/** Compute heat score for thread ranking — weighted importance with time decay */
-function computeHeatScore(articles: NewsItem[]): number {
-  const weights: Record<string, number> = { must_read: 3, worth_reading: 2, optional: 1 }
-  const now = Date.now()
-  return articles.reduce((sum, a) => {
-    const daysOld = (now - new Date(a.published_at).getTime()) / 86400000
-    if (isNaN(daysOld)) return sum
-    const w = weights[a.importance ?? 'optional'] ?? 1
-    return sum + w * Math.exp(-0.3 * daysOld)
-  }, 0)
-}
-
 export default async function NewsPage({ searchParams }: NewsPageProps) {
   const params = await searchParams
   const category = params.category
@@ -100,10 +52,19 @@ export default async function NewsPage({ searchParams }: NewsPageProps) {
   const supabase = await createClient()
   const service = new NewsService(supabase)
 
-  const [{ en: enBriefing, ko: koBriefing }, items] = await Promise.all([
+  // Fetch today's articles first, backfill with older ones if needed to fill the layout
+  const todayCutoff = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString()
+
+  const [{ en: enBriefing, ko: koBriefing }, todayItems, allItems] = await Promise.all([
     service.getLatestBriefings(),
+    service.getNewsItems({ category, limit: 30, since: todayCutoff }),
     service.getNewsItems({ category, limit: 30 }),
   ])
+
+  // Today's articles first, then backfill with older ones (deduped)
+  const todayIds = new Set(todayItems.map(i => i.id))
+  const olderBackfill = allItems.filter(i => !todayIds.has(i.id))
+  const items = [...todayItems, ...olderBackfill].slice(0, 30)
 
   const briefing = enBriefing || koBriefing
 
@@ -114,16 +75,17 @@ export default async function NewsPage({ searchParams }: NewsPageProps) {
       )
     : items
 
-  // Group by thread early (needed for parallel fetch)
-  const { threaded, ungrouped } = groupByThread(filteredItems)
-  const threadIds = Array.from(threaded.keys())
+  // Collect visible thread IDs for timeline fetches
+  const visibleThreadIds = [...new Set(
+    filteredItems.filter(i => i.thread_id).map(i => i.thread_id!)
+  )]
 
-  // Parallel fetch: briefingSources + threadMeta + local files
-  // TODO: Remove local file reads once pipeline uploads to Supabase Storage
+  // Parallel fetch: briefingSources + threadMeta + threadTimelines + local files
   const ttsDir = path.join(process.cwd(), 'notebooks/tts_outputs/text')
-  const [briefingSources, threadMeta, localChaptersEn, localChaptersKo, localSentencesEn, localSentencesKo, localTranscriptEn, localTranscriptKo] = await Promise.all([
+  const [briefingSources, threadMeta, ...rest] = await Promise.all([
     briefing ? service.getBriefingSources(briefing.id) : Promise.resolve([] as { title: string; feed_name: string; link: string; source: string | null }[]),
-    service.getThreadsByIds(threadIds),
+    service.getThreadsByIds(visibleThreadIds),
+    ...visibleThreadIds.map(id => service.getThreadTimeline(id).catch(() => [] as NewsItem[])),
     readFile(path.join(ttsDir, 'chapters-en-2026-02-16.json'), 'utf-8').then(JSON.parse).catch(() => undefined),
     readFile(path.join(ttsDir, 'chapters-ko-2026-02-16.json'), 'utf-8').then(JSON.parse).catch(() => undefined),
     readFile(path.join(ttsDir, 'sentences-en-2026-02-16.json'), 'utf-8').then(JSON.parse).catch(() => undefined),
@@ -132,30 +94,33 @@ export default async function NewsPage({ searchParams }: NewsPageProps) {
     readFile(path.join(ttsDir, 'briefing-ko-pro-2026-02-16.txt'), 'utf-8').catch(() => undefined),
   ])
 
+  // Split rest: first N are timelines, last 6 are local files
+  const timelines = rest.slice(0, visibleThreadIds.length) as NewsItem[][]
+  const [localChaptersEn, localChaptersKo, localSentencesEn, localSentencesKo, localTranscriptEn, localTranscriptKo] = rest.slice(visibleThreadIds.length)
+
+  const threadTimelines = new Map<string, NewsItem[]>(
+    visibleThreadIds.map((id, i) => [id, timelines[i]])
+  )
+
   // Aggregate keywords for filter bar
   const allKeywords = aggregateKeywords(items)
 
-  // Sort threads by heat score (hottest first)
-  const sortedThreads = Array.from(threaded.values())
-    .map(group => ({
-      ...group,
-      title: threadMeta.get(group.threadId)?.title ?? `${group.articles.length} Related Articles`,
-      heat: computeHeatScore(group.articles),
-    }))
-    .sort((a, b) => b.heat - a.heat)
-
-  // For non-threaded layout (backward compat)
+  // Card slicing for 3-column layout
   const featured = filteredItems[0] || null
   const leftStories = filteredItems.slice(1, 6)
-  const rightStories = filteredItems.slice(6, 13)
-  const belowFold = filteredItems.slice(13)
+  const rightStories = filteredItems.slice(6, 12)
+  const belowFold = filteredItems.slice(12)
 
+  // Parse date string directly to avoid timezone shift (e.g. "2026-02-18" → "Feb 18, 2026")
   const briefingDate = briefing
-    ? new Date(briefing.date).toLocaleDateString('en-US', {
-        month: 'short',
-        day: 'numeric',
-        year: 'numeric',
-      })
+    ? (() => {
+        const [y, m, d] = briefing.date.split('-').map(Number)
+        return new Date(y, m - 1, d).toLocaleDateString('en-US', {
+          month: 'short',
+          day: 'numeric',
+          year: 'numeric',
+        })
+      })()
     : null
 
   // Build URL helper for tab switching
@@ -168,7 +133,12 @@ export default async function NewsPage({ searchParams }: NewsPageProps) {
     return `/news${qs ? `?${qs}` : ''}`
   }
 
-  const hasThreads = threaded.size > 0
+  /** Helper to build thread props for an article */
+  const threadPropsFor = (item: NewsItem) => ({
+    id: item.id,
+    threadTimeline: item.thread_id ? threadTimelines.get(item.thread_id) ?? null : null,
+    threadTitle: item.thread_id ? threadMeta.get(item.thread_id)?.title ?? null : null,
+  })
 
   return (
     <NewsShell>
@@ -280,92 +250,8 @@ export default async function NewsPage({ searchParams }: NewsPageProps) {
           </div>
         )}
 
-        {/* Today tab: thread-grouped layout */}
-        {tab === 'today' && filteredItems.length > 0 && hasThreads && (
-          <div className="space-y-10">
-            {/* Audio Briefing Player */}
-            <div className="max-w-3xl mx-auto">
-              <BriefingPlayer
-                date={briefingDate ?? new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
-                duration={briefing?.audio_duration ?? 0}
-                sourceCount={briefing?.item_count ?? briefingSources.length}
-                sources={briefingSources}
-                en={{
-                  audioUrl: enBriefing?.audio_url || '/audio/chirp3-en-pro-friendly-2026-02-16.wav',
-                  chapters: enBriefing?.chapters ?? localChaptersEn,
-                  transcript: enBriefing?.briefing_text || localTranscriptEn,
-                  sentences: enBriefing?.sentences ?? localSentencesEn,
-                }}
-                ko={{
-                  audioUrl: koBriefing?.audio_url || '/audio/gemini-tts-ko-kore-2026-02-16.wav',
-                  chapters: koBriefing?.chapters ?? localChaptersKo,
-                  transcript: koBriefing?.briefing_text || localTranscriptKo,
-                  sentences: koBriefing?.sentences ?? localSentencesKo,
-                }}
-                defaultLang="en"
-              />
-            </div>
-
-            {/* Thread groups — sorted by heat score */}
-            {sortedThreads.map((group, idx) => (
-              <ThreadSection
-                key={group.threadId}
-                title={group.title}
-                articleCount={group.articles.length}
-                defaultExpanded={idx === 0}
-              >
-                {group.articles.map((item) => (
-                  <ArticleCard
-                    key={item.id}
-                    headline={item.title}
-                    summary={item.summary ?? item.description}
-                    source={item.source}
-                    category={item.feed_name}
-                    timestamp={item.published_at}
-                    imageUrl={item.top_image}
-                    link={item.link}
-                    variant="standard"
-                    slug={item.slug}
-                    importance={item.importance}
-                    keywords={item.keywords}
-                    activeKeyword={activeKeyword}
-                  />
-                ))}
-              </ThreadSection>
-            ))}
-
-            {/* Ungrouped articles */}
-            {ungrouped.length > 0 && (
-              <section>
-                <h2 className="font-serif text-lg text-neutral-900 border-b-2 border-neutral-900 pb-2 mb-4">
-                  Other Stories
-                </h2>
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-x-6">
-                  {ungrouped.map((item) => (
-                    <ArticleCard
-                      key={item.id}
-                      headline={item.title}
-                      summary={item.summary ?? item.description}
-                      source={item.source}
-                      category={item.feed_name}
-                      timestamp={item.published_at}
-                      imageUrl={item.top_image}
-                      link={item.link}
-                      variant="standard"
-                      slug={item.slug}
-                      importance={item.importance}
-                      keywords={item.keywords}
-                      activeKeyword={activeKeyword}
-                    />
-                  ))}
-                </div>
-              </section>
-            )}
-          </div>
-        )}
-
-        {/* Fallback: WSJ 3-column layout (when no threads available) */}
-        {tab === 'today' && filteredItems.length > 0 && !hasThreads && (
+        {/* Today tab: WSJ 3-column layout */}
+        {tab === 'today' && filteredItems.length > 0 && (
           <>
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-0 border-b border-neutral-200 pb-8 mb-8">
               {/* Left column — text stories */}
@@ -385,6 +271,7 @@ export default async function NewsPage({ searchParams }: NewsPageProps) {
                     importance={item.importance}
                     keywords={item.keywords}
                     activeKeyword={activeKeyword}
+                    {...threadPropsFor(item)}
                   />
                 ))}
               </div>
@@ -428,6 +315,7 @@ export default async function NewsPage({ searchParams }: NewsPageProps) {
                     importance={featured.importance}
                     keywords={featured.keywords}
                     activeKeyword={activeKeyword}
+                    {...threadPropsFor(featured)}
                   />
                 )}
 
@@ -448,13 +336,14 @@ export default async function NewsPage({ searchParams }: NewsPageProps) {
                         importance={item.importance}
                         keywords={item.keywords}
                         activeKeyword={activeKeyword}
+                        {...threadPropsFor(item)}
                       />
                     ))}
                   </div>
                 )}
               </div>
 
-              {/* Right sidebar */}
+              {/* Right column — standard cards with thread carousels */}
               <div className="lg:col-span-3 lg:border-l lg:border-neutral-200 lg:pl-6">
                 <h3 className="font-serif text-lg text-neutral-900 border-b-2 border-neutral-900 pb-2 mb-3">
                   Latest
@@ -463,15 +352,18 @@ export default async function NewsPage({ searchParams }: NewsPageProps) {
                   <ArticleCard
                     key={item.id}
                     headline={item.title}
-                    summary={null}
+                    summary={item.summary ?? item.description}
                     source={item.source}
                     category={item.feed_name}
                     timestamp={item.published_at}
                     imageUrl={null}
                     link={item.link}
-                    variant="compact"
+                    variant="standard"
                     slug={item.slug}
                     importance={item.importance}
+                    keywords={item.keywords}
+                    activeKeyword={activeKeyword}
+                    {...threadPropsFor(item)}
                   />
                 ))}
               </div>
@@ -495,6 +387,7 @@ export default async function NewsPage({ searchParams }: NewsPageProps) {
                     importance={item.importance}
                     keywords={item.keywords}
                     activeKeyword={activeKeyword}
+                    {...threadPropsFor(item)}
                   />
                 ))}
               </div>

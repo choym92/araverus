@@ -78,10 +78,12 @@ export class NewsService {
     category,
     limit = 20,
     offset = 0,
+    since,
   }: {
     category?: string
     limit?: number
     offset?: number
+    since?: string
   } = {}): Promise<NewsItem[]> {
     let query = this.supabase
       .from('wsj_items')
@@ -96,7 +98,7 @@ export class NewsService {
         published_at,
         slug,
         thread_id,
-        wsj_crawl_results!inner (
+        wsj_crawl_results (
           top_image,
           relevance_flag,
           source,
@@ -108,10 +110,12 @@ export class NewsService {
           )
         )
       `)
-      .eq('processed', true)
-      .eq('wsj_crawl_results.relevance_flag', 'ok')
       .order('published_at', { ascending: false })
       .range(offset, offset + limit - 1)
+
+    if (since) {
+      query = query.gte('published_at', since)
+    }
 
     if (category) {
       query = query.eq('feed_name', category)

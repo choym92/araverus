@@ -1,7 +1,7 @@
 <!-- Updated: 2026-02-18 -->
 # News Platform — Frontend
 
-Technical guide for the `/news` page. Thread-grouped layout with bilingual audio briefing player, keyword filtering, and heat-based ranking. Powered by the existing news pipeline.
+Technical guide for the `/news` page. WSJ-style 3-column layout with in-card thread carousels, bilingual audio briefing player, and keyword filtering. Powered by the existing news pipeline.
 
 For backend pipeline & threading algorithm details, see `docs/4-news-backend.md` and `docs/4-news-threading.md`.
 
@@ -30,8 +30,7 @@ graph TB
     subgraph "Client Components"
         SHELL[NewsShell<br/>Header + Sidebar wrapper]
         PLAYER[BriefingPlayer<br/>HTML5 Audio + Framer Motion<br/>EN/KO toggle, chapters, transcript]
-        CARDS[ArticleCard<br/>featured / standard / compact]
-        THREAD[ThreadSection<br/>Collapsible thread group]
+        CARDS[ArticleCard 🖥️<br/>featured / standard<br/>+ thread carousel]
         KWPILLS[KeywordPills<br/>Filterable keyword tags]
     end
 
@@ -48,7 +47,6 @@ graph TB
     PAGE --> SHELL
     PAGE --> PLAYER
     PAGE --> CARDS
-    PAGE --> THREAD
     PAGE --> KWPILLS
 ```
 
@@ -71,10 +69,8 @@ graph LR
         PAGE --> CATS[Category Pills<br/>All / Markets / Tech / ...]
         PAGE --> KW[KeywordPills<br/>Topic filter bar]
         PAGE --> BP[BriefingPlayer 🔊<br/>Client Component<br/>EN/KO + chapters + transcript]
-        PAGE --> TS[ThreadSection 📂<br/>Client Component<br/>Collapsible thread groups]
-        TS --> AC_STD[ArticleCard standard]
-        PAGE --> UNGROUPED[Other Stories<br/>Ungrouped articles grid]
-        PAGE --> FALLBACK[Fallback 3-col<br/>When no threads exist]
+        PAGE --> AC[ArticleCard 🖥️<br/>Client Component<br/>featured / standard + thread carousel]
+        PAGE --> BELOW[Below-fold grid<br/>Remaining articles]
     end
 
     subgraph "news/[slug]/page.tsx (Server)"
@@ -88,7 +84,7 @@ graph LR
 
 ## Page Layout
 
-### Primary: Thread-Grouped (when threads exist)
+### Primary: WSJ 3-Column with In-Card Thread Carousels
 
 ```
 ┌───────────────────────────────────────────────────────────────────┐
@@ -100,46 +96,40 @@ graph LR
 │ Topics: [Fed(5)] [AI(4)] [Tariff(3)] [Nvidia(3)] [...]           │  ← keyword filter
 ├───────────────────────────────────────────────────────────────────┤
 │                                                                    │
-│  ┌─ Daily Briefing ── Feb 17, 2026 ──────── max-w-3xl mx-auto ─┐│
-│  │ EN|KO  ▶  30s  PLAY  30s  [ch1]---[ch2]---[ch3]             ││
-│  │ Transcript  Sources (12)  Download                            ││
-│  └───────────────────────────────────────────────────────────────┘│
-│                                                                    │
-│  ┌─ Fed Rate Decision & Housing (5 articles) ─── heat: 10.5 ────┐│
-│  │ ⭐ Lead article (must_read) — full card                       ││
-│  │ ▼ Show 4 more articles                                        ││
-│  └───────────────────────────────────────────────────────────────┘│
-│                                                                    │
-│  ┌─ AI Chip Race (4 articles) ─── heat: 7.2 ────────────────────┐│
-│  │ Lead article — full card                                      ││
-│  │ + 3 collapsed articles                                        ││
-│  └───────────────────────────────────────────────────────────────┘│
-│                                                                    │
-│  ── Other Stories ───────────────────────────────────────────────  │
-│  │ grid-cols-1 md:grid-cols-2 lg:grid-cols-3                     │
-│  │ Ungrouped articles (no thread_id)                             │
-│  └───────────────────────────────────────────────────────────────┘│
-│                                                                    │
-│  ── Footer disclaimer ───────────────────────────────────────────  │
-└───────────────────────────────────────────────────────────────────┘
-```
-
-### Fallback: WSJ 3-Column (when no threads exist)
-
-```
-┌───────────────────────────────────────────────────────────────────┐
-│ Header + Tabs + Category pills (same as above)                    │
-├───────────────────────────────────────────────────────────────────┤
-│                                                                    │
 │  ┌─ Left 3/12 ──┐  ┌─ Center 6/12 ──────────┐  ┌─ Right 3/12 ─┐│
 │  │ standard      │  │ BriefingPlayer          │  │ Latest        ││
-│  │ cards         │  │ Featured hero card      │  │ compact list  ││
-│  │ (text only)   │  │ + below-fold grid       │  │ (no images)   ││
+│  │ cards [1-5]   │  │ Featured hero card [0]  │  │ standard      ││
+│  │ (no images)   │  │ + below-fold 2-col [12+]│  │ cards [6-11]  ││
+│  │ + thread ◀▶   │  │ + thread ◀▶             │  │ + thread ◀▶   ││
 │  └───────────────┘  └────────────────────────┘  └──────────────┘│
 │                                                                    │
-│  ── Below fold: 3-col grid of remaining stories ─────────────────  │
+│  ── Below fold: 3-col grid of remaining stories [16+] ──────────  │
 └───────────────────────────────────────────────────────────────────┘
 ```
+
+#### Card Slicing
+- `featured = filteredItems[0]` → center hero
+- `leftStories = filteredItems[1..5]` → left column (5 cards, no images)
+- `rightStories = filteredItems[6..11]` → right column (6 standard cards)
+- `belowFold = filteredItems[12..]` → center 2-col grid (first 4) + 3-col grid (rest)
+
+#### Thread Carousel (in-card)
+Cards with `thread_id` show a thread indicator at the bottom:
+```
+┌─────────────────────────────────────┐
+│ ★ ECONOMY  12h ago                  │
+│ U.K. Inflation Slowed in January    │
+│ UK inflation fell to 3.0%...        │
+│ [inflation] [Bank of England]       │
+│ via Global Banking & Finance Review │
+│─────────────────────────────────────│
+│ ◀  8/8  ▶  US Inflation Slows... 📰│  ← thread indicator
+└─────────────────────────────────────┘
+```
+- Starts at **latest article** (end of timeline)
+- ◀ navigates to older articles, ▶ to newer
+- Framer Motion slide animation (0.25s)
+- Disabled at boundaries (first/last)
 
 ### Mobile (planned, not yet implemented)
 
@@ -179,30 +169,38 @@ sequenceDiagram
         Svc->>DB: SELECT * FROM wsj_briefings<br/>WHERE category IN ('EN','KO')<br/>ORDER BY date DESC LIMIT 2
         DB-->>Svc: { en: Briefing | null, ko: Briefing | null }
 
-        Page->>Svc: getNewsItems({ category: 'TECH', limit: 30 })
-        Svc->>DB: SELECT wsj_items<br/>JOIN wsj_crawl_results (top_image, source)<br/>JOIN wsj_llm_analysis (summary, keywords)<br/>WHERE processed=true AND feed_name='TECH'
-        DB-->>Svc: NewsItem[]
+        Page->>Svc: getNewsItems({ limit: 30, since: 24h_cutoff })
+        Svc->>DB: SELECT wsj_items<br/>LEFT JOIN wsj_crawl_results<br/>LEFT JOIN wsj_llm_analysis<br/>WHERE published_at >= cutoff
+        DB-->>Svc: todayItems: NewsItem[]
+
+        Page->>Svc: getNewsItems({ limit: 30 })
+        Svc->>DB: SELECT wsj_items (same query, no time filter)
+        DB-->>Svc: allItems: NewsItem[]
     end
 
-    Note over Page: groupByThread(items) → threaded Map + ungrouped[]<br/>aggregateKeywords(items) → keyword counts
+    Note over Page: Merge: today first, then older backfill (deduped)<br/>aggregateKeywords(items) → keyword counts
 
     par Parallel fetches (batch 2)
         Page->>Svc: getBriefingSources(briefingId)
-        Svc->>DB: SELECT wsj_briefing_items<br/>JOIN wsj_items JOIN wsj_crawl_results
+        Svc->>DB: SELECT wsj_briefing_items JOIN wsj_items
         DB-->>Svc: BriefingSource[]
 
-        Page->>Svc: getThreadsByIds(threadIds)
-        Svc->>DB: SELECT id, title, member_count<br/>FROM wsj_story_threads WHERE id IN (...)
+        Page->>Svc: getThreadsByIds(visibleThreadIds)
+        Svc->>DB: SELECT id, title FROM wsj_story_threads WHERE id IN (...)
         DB-->>Svc: Map<string, StoryThread>
+
+        Page->>Svc: getThreadTimeline(id) × N
+        Svc->>DB: SELECT wsj_items WHERE thread_id=? ORDER BY published_at ASC
+        DB-->>Svc: NewsItem[][] (one per thread)
 
         Page->>FS: readFile(chapters/sentences/transcript EN+KO)
         FS-->>Page: JSON/text (local fallback data)
     end
 
-    Note over Page: computeHeatScore() per thread<br/>Sort threads by heat descending
+    Note over Page: Build threadTimelines Map + threadPropsFor() helper
 
-    Page-->>Browser: SSR HTML with NewsShell + Player + ThreadSections + Cards
-    Note over Browser: Client hydrates NewsShell,<br/>BriefingPlayer, ThreadSection (expand/collapse)
+    Page-->>Browser: SSR HTML with 3-col layout + carousel props
+    Note over Browser: Client hydrates NewsShell,<br/>BriefingPlayer, ArticleCard (carousel)
 ```
 
 ---
@@ -212,16 +210,16 @@ sequenceDiagram
 | File | Type | Purpose |
 |------|------|---------|
 | `src/app/news/layout.tsx` | Server | Metadata only (`title`, `description`) |
-| `src/app/news/page.tsx` | Server | Data fetching, tabs, keyword filter, thread grouping, heat ranking, 3-col fallback |
+| `src/app/news/page.tsx` | Server | Data fetching, tabs, keyword filter, 3-col layout, thread timeline fetch |
 | `src/app/news/[slug]/page.tsx` | Server | Article detail page with metadata, related articles, story timeline |
 | `src/app/news/[slug]/_components/RelatedSection.tsx` | Server | Horizontal card grid for related articles (pgvector) |
 | `src/app/news/[slug]/_components/TimelineSection.tsx` | Server | Vertical timeline with date dots for story threads |
 | `src/app/news/[slug]/_components/MoreLikeThisSection.tsx` | Server | 90-day similarity cards (wraps RelatedSection) |
 | `src/app/news/_components/NewsShell.tsx` | Client | Header + Sidebar wrapper (sidebar starts closed, shifts content on open) |
 | `src/app/news/_components/BriefingPlayer.tsx` | Client | Bilingual audio player with chapters, transcript, volume, download |
-| `src/app/news/_components/ArticleCard.tsx` | Server | Article display with 3 variants + importance/keywords/slug support |
+| `src/app/news/_components/ArticleCard.tsx` | Client | Article display (featured/standard) + framer-motion thread carousel |
 | `src/app/news/_components/KeywordPills.tsx` | Server | Reusable keyword pills with optional link behavior + active state |
-| `src/app/news/_components/ThreadSection.tsx` | Client | Collapsible thread group with title + article count badge |
+| ~~`src/app/news/_components/ThreadSection.tsx`~~ | ~~Client~~ | **Deleted** — replaced by in-card thread carousels |
 | `src/lib/news-service.ts` | Server | `NewsService` class (Supabase queries, bilingual briefings, threads, related articles) |
 | `src/app/globals.css` | Shared | WSJ design tokens (`--color-news-*`) |
 | `next.config.ts` | Config | `remotePatterns` for external images |
@@ -237,18 +235,8 @@ Defined in `src/app/news/page.tsx` (server-side, not exported):
 ### `aggregateKeywords(items: NewsItem[])`
 Collects keywords from all articles, counts occurrences, returns top 20 sorted by frequency.
 
-### `groupByThread(items: NewsItem[])`
-Groups articles by `thread_id`. Returns `{ threaded: Map<string, { threadId, articles }>, ungrouped: NewsItem[] }`. Within each thread, articles are sorted by importance (must_read first) then by date descending.
-
-### `computeHeatScore(articles: NewsItem[])`
-Computes heat score for thread ranking. Formula:
-```
-heat = Σ (importance_weight × e^(-0.3 × days_old))
-
-importance_weight: must_read=3, worth_reading=2, optional=1
-time_decay half-life: ~2.3 days
-```
-See `docs/4-news-threading.md` for full algorithm details.
+### `threadPropsFor(item: NewsItem)`
+Returns `{ id, threadTimeline, threadTitle }` for an article. Looks up pre-fetched `threadTimelines` Map and `threadMeta` Map. Returns `null` for articles without `thread_id`.
 
 ---
 
@@ -375,7 +363,7 @@ stateDiagram-v2
     }
 ```
 
-### ArticleCard
+### ArticleCard (Client Component)
 
 ```typescript
 interface ArticleCardProps {
@@ -386,35 +374,21 @@ interface ArticleCardProps {
   timestamp: string
   imageUrl: string | null
   link: string
-  variant?: 'featured' | 'standard' | 'compact'
-  slug?: string | null       // links to /news/[slug] if present
-  importance?: string | null  // must_read / worth_reading / optional
+  variant?: 'featured' | 'standard'
+  slug?: string | null           // links to /news/[slug] if present
+  importance?: string | null     // must_read / worth_reading / optional
   keywords?: string[] | null
   activeKeyword?: string | null
-  scoreDisplay?: 'visual' | 'numeric'
+  id?: string                    // article ID for carousel position
+  threadTimeline?: NewsItem[] | null  // full thread timeline
+  threadTitle?: string | null    // thread display name
 }
 ```
 
 - **featured**: Large image, centered headline, full summary
 - **standard**: Optional image, headline + summary + keywords + source
-- **compact**: Headline only, no image, minimal metadata
-- **ImportanceBadge**: Visual indicator for `must_read` articles
-
-### ThreadSection
-
-```typescript
-interface ThreadSectionProps {
-  title: string              // from wsj_story_threads.title
-  articleCount: number
-  defaultExpanded?: boolean  // first thread starts expanded
-  children: React.ReactNode  // ArticleCard children
-}
-```
-
-- Shows thread title + article count badge
-- Expand/collapse: initially shows first 2 articles
-- If thread has ≤2 articles: no collapse, shows all
-- "Show N more" / "Show less" toggle buttons
+- **Thread carousel**: When `threadTimeline.length > 1`, shows ◀ N/M ▶ indicator at card bottom. Starts at latest article (end of timeline). Framer Motion slide animation.
+- **ImportanceBadge**: Star icon for `must_read` articles
 
 ### KeywordPills
 
@@ -507,7 +481,7 @@ classDiagram
 | Method | Query | Returns |
 |--------|-------|---------|
 | `getLatestBriefings()` | `wsj_briefings WHERE category IN ('EN','KO') ORDER BY date DESC LIMIT 2` | `{ en: Briefing \| null, ko: Briefing \| null }` |
-| `getNewsItems(opts)` | `wsj_items JOIN wsj_crawl_results JOIN wsj_llm_analysis WHERE processed=true` | `NewsItem[]` (flattened, includes slug, importance, keywords, thread_id, resolved_url) |
+| `getNewsItems(opts)` | `wsj_items LEFT JOIN wsj_crawl_results LEFT JOIN wsj_llm_analysis` (no processed/relevance filter — shows all articles) | `NewsItem[]` (flattened; crawl/LLM fields are null for uncrawled articles) |
 | `getNewsItemBySlug(slug)` | `wsj_items WHERE slug=? JOIN crawl+llm` | `NewsItem \| null` |
 | `getRelatedArticles(itemId, limit)` | `match_articles` RPC (pgvector, ±1 day) | `RelatedArticle[]` |
 | `getThreadTimeline(threadId)` | `wsj_items WHERE thread_id=? ORDER BY published_at ASC` | `NewsItem[]` |
@@ -526,8 +500,8 @@ classDiagram
 | Decision | Original Plan | Actual Implementation | Rationale |
 |----------|--------------|----------------------|-----------|
 | Layout | Standalone masthead | Shared Header + Sidebar via `NewsShell` | User wanted consistent site feel |
-| Primary layout | WSJ 3-column (3/6/3) | Thread-grouped single column | Meaningful grouping > visual density; mobile-friendly |
-| 3-column fallback | N/A | Kept as fallback when no threads exist | Backward compat for sparse data |
+| Primary layout | Thread-grouped single column | WSJ 3-column (3/6/3) with in-card thread carousels | Today's articles as priority; thread history is bonus UX via carousel |
+| Thread display | Collapsible ThreadSection groups | In-card ◀▶ carousel per article | Less visual noise; thread is secondary info, not primary grouping |
 | Sidebar behavior | N/A | Starts closed on `/news`, shifts content on open | News content takes full width by default |
 | Header/Sidebar borders | Default borders | Removed `border-r` and `border-b` | Cleaner OpenAI-style look |
 | Tab structure | Single view | Today / Stories / Search tabs | Progressive feature rollout |
@@ -537,8 +511,8 @@ classDiagram
 | Decision | Choice | Rationale |
 |----------|--------|-----------|
 | Category + Keyword coexistence | Categories filter articles, keywords filter within | Single unified view, not separate modes |
-| Thread ranking | Heat score (importance × time decay) | Hot stories float up automatically |
-| Thread collapse | First thread expanded, rest collapsed (2 articles shown) | Reduces cognitive load; 30 → 8 scannable chunks |
+| Article ordering | Today (24h) first, then older backfill (deduped) | Fresh content always on top; layout always filled |
+| DB query filter | No `processed` or `relevance_flag` filter | Show all articles including uncrawled (RSS title + description only) |
 | Keyword filter | Top 20 keywords by frequency, clickable pills | Information scent — users spot topics instantly |
 | Thread titles | From `wsj_story_threads.title` (Gemini-generated) | More meaningful than "N Related Articles" |
 
@@ -600,8 +574,7 @@ These are workarounds that should be removed once the pipeline is fully deployed
 
 | Issue | Description | Priority |
 |-------|-------------|----------|
-| Thread subset display | Today tab fetches 30 articles, but threads span days/weeks. A 17-article thread might show only 2 articles today, looking insignificant | Medium |
-| No "(2 of 17)" indicator | Users don't know how many total articles are in a thread | Medium |
+| Uncrawled article display | Articles without crawl results show only RSS title + description (no summary, keywords, source) | Low — acceptable |
 | Mobile responsiveness | Single-column collapse not yet implemented | High |
 | Sticky BriefingPlayer | Player should become compact sticky bar on scroll | Low |
 | Detail page components | RelatedSection, TimelineSection, MoreLikeThisSection exist but are minimal | Medium |
@@ -723,7 +696,7 @@ graph LR
 |-------|--------|-------------|
 | 1. Keywords + Embeddings + Threading | ✅ Done | Pipeline: keywords, bge-base embeddings, thread algorithm v3.3 |
 | 2. Article Detail Page | ✅ Done | `/news/[slug]` with metadata, basic related/timeline/MLT sections |
-| 3. Thread UX | ✅ Done | Thread titles, expand/collapse, heat score ranking |
+| 3. Thread UX | ✅ Done | In-card thread carousels (replaced ThreadSection groups) |
 | 4. Detail Page Sections | 🔶 Partial | RelatedSection, TimelineSection, MoreLikeThisSection exist but need fuller UI |
 | 5. Stories Tab | ❌ Not started | Cross-day narrative timeline |
 | 6. Search Tab | ❌ Not started | Semantic search via pgvector |
