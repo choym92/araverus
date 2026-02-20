@@ -141,22 +141,23 @@ Cards with `thread_id` show a thread indicator at the bottom:
 - Framer Motion slide animation (0.25s)
 - Disabled at boundaries (first/last)
 
-### Mobile (planned, not yet implemented)
+### Mobile (partial — player done, article grid TBD)
 
 ```
 Mobile (< 768px):
 ┌──────────────────────────┐
-│ 🎧 ▶ 0:00 EN|KO [─●──]  │  ← compact sticky
+│ BriefingPlayer (order-first)│  ← full player at top
+│ AI icon + title + EN/KO     │
+│ ▼ Chapter dropdown (select) │  ← pills replaced by dropdown
+│ ⏪ ▶ ⏩ 🔊 1.25x           │  ← controls + volume + speed
+│ [───────●────────] 3:42     │  ← progress bar
+│ Transcript (text-xs)         │  ← responsive font
+│ Double-tap left/right = skip │
 ├──────────────────────────┤
-│ [Today] [Stories] [Search]│
+│ Articles (single column)     │
 ├──────────────────────────┤
-│ [All|Mkts|Tech|Econ|more▸]│  ← horizontal scroll
-│ [Fed(5)] [AI(4)] [more ▸] │  ← horizontal scroll
-├──────────────────────────┤
-│ ┌─ 🔴 Fed Rates (5) ──┐ │
-│ │ Lead article         │ │
-│ │ ▼ 4 more articles    │ │  ← accordion
-│ └──────────────────────┘ │
+│ Mini-player (fixed bottom)   │  ← when scrolled past
+│ Minimize/expand toggle       │
 └──────────────────────────┘
 ```
 
@@ -225,7 +226,7 @@ sequenceDiagram
 | `src/app/news/[slug]/_components/RelatedSection.tsx` | Server | Numbered list with similarity score bars (pgvector, 7-day, excludes timeline articles) |
 | `src/app/news/[slug]/_components/TimelineSection.tsx` | Client | Collapsible vertical timeline — shows last 5, "Show N older..." expand, sticky "Show less" bar |
 | `src/app/news/_components/NewsShell.tsx` | Client | Header + Sidebar wrapper (sidebar starts closed, shifts content on open) |
-| `src/app/news/_components/BriefingPlayer.tsx` | Client | Bilingual audio player with chapters, transcript, volume, download |
+| `src/app/news/_components/BriefingPlayer.tsx` | Client | Bilingual audio player with chapters, transcript, sticky mini-player, theme object |
 | `src/app/news/_components/ArticleCard.tsx` | Client | Article display (featured/standard) + framer-motion thread carousel |
 | `src/app/news/_components/KeywordPills.tsx` | Server | Reusable keyword pills with optional link behavior + active state |
 | ~~`src/app/news/_components/ThreadSection.tsx`~~ | ~~Client~~ | **Deleted** — replaced by in-card thread carousels |
@@ -323,52 +324,56 @@ interface BriefingSource {
 }
 ```
 
+#### Theme System
+Uses a `const T` theme object with semantic color tokens (wrapper, text, muted, dim, surface, accent, etc.) replacing 52+ hardcoded Tailwind classes. Chrome metallic gradient accent: `from-gray-300 via-gray-500 to-gray-300`.
+
 #### Player Controls
 - **Play/Pause**: Large white circle button with scale animation
-- **Skip +/-30s**: RotateCcw / RotateCw buttons with "30" overlay
-- **Seek**: Click-to-seek gradient progress bar with hover dot and chapter markers
-- **Speed**: Cycle through 0.75x / 1x / 1.25x / 1.5x / 2x
-- **Volume**: Slider + mute/unmute toggle
-- **Download**: Download current language audio file
+- **Skip +/-15s**: RotateCcw / RotateCw buttons with "15" overlay
+- **Seek**: Click-to-seek gradient progress bar with YouTube-style segment dividers (no dots) + mouse-following hover tooltip showing time + chapter name
+- **Speed**: Hover to show popup dropdown (above controls), click to cycle through 1x / 1.25x / 1.5x / 2x. Same pattern for full and mini player.
+- **Volume**: Hover to show vertical popup slider (`writing-mode: vertical-lr`), click to mute/unmute. Same pattern for full and mini player.
 - **EN/KO Toggle**: Switch between English and Korean audio (resets playback position)
-- **Chapters**: Fixed-height pill buttons (h-12) below seek bar; dots on seek bar; click to jump. Desktop: equal-width flex-1 with text wrap. Mobile: min-width pills with horizontal scroll, auto-scrolls to active chapter.
-- **Transcript**: Sentence-level highlighting grouped by chapter headings. Auto-scroll uses container-scoped `scrollTo` (never moves the page). User scroll pauses auto-scroll for 2s.
-- **Sources**: Expandable scrollable list (Framer Motion) with numbered articles, categories, external links
-- **Keyboard**: Space (play/pause), Arrow Left/Right (+/-30s), Arrow Up/Down (volume), M (mute)
+- **Chapters**: Desktop: equal-width pill buttons with glow ring (`ring-2 ring-white/40 shadow-glow`) on active, `hover:scale-105 hover:-translate-y-0.5`. Mobile: dropdown select showing current chapter, tap to expand list.
+- **Transcript**: Default open. Sentence-level highlighting grouped by chapter headings (gray-300 color). Click any sentence to seek to its start. Custom smooth scroll animation (800ms cubic ease-in-out, targets upper 1/3 of container). Auto-scroll works even when paused.
+- **Sources**: Expandable scrollable list (Framer Motion) with numbered articles (larger font), categories, external links. Custom thin scrollbar styling.
+- **Keyboard**: Space (play/pause), Arrow Left/Right (+/-15s), Arrow Up/Down (volume — updates UI state), M (mute)
+- **Mobile**: Double-tap left/right side of controls area to skip -/+15s. Responsive font sizes (text-xs sm:text-sm).
 - **Resume**: Saves playback position to localStorage per audio URL
+
+#### Sticky Mini-Player
+When the full player scrolls out of view (IntersectionObserver), a mini-player appears via `createPortal` to `document.body`:
+- Fixed to bottom of viewport with Framer Motion spring animation
+- Shows: AI icon, title (marquee on overflow), EN/KO toggle, progress bar, play/pause, volume mute, speed, transcript toggle, minimize/expand
+- Minimize mode: hides title, speed, EN/KO, transcript; shows only icon + progress + play + volume + expand button
+- Transcript: fixed height (`h-10`) to prevent layout shift, responsive font
+- Volume and speed use same hover/click popup pattern as full player
+
+#### Page Layout Change
+`page.tsx`: BriefingPlayer rendered as a separate CSS grid item with `order-first` for mobile (player at top) and `lg:col-start-4 lg:col-span-6 lg:row-start-1` for desktop center column.
 
 ```mermaid
 stateDiagram-v2
-    [*] --> Collapsed: Page load
+    [*] --> FullPlayer: Page load (transcript open by default)
 
-    Collapsed --> Playing: Click Play
-    Playing --> Paused: Click Pause
-    Paused --> Playing: Click Play
-    Playing --> Collapsed: Audio ends
-
-    Collapsed --> Expanded: Click Sources chevron
-    Expanded --> Collapsed: Click Sources chevron
-
-    Collapsed --> Transcript: Click Transcript icon
-    Transcript --> Collapsed: Click Transcript icon
-
-    state Collapsed {
-        [*] --> ShowHeader: Icon + title + date + source count + duration
-        ShowHeader --> LangToggle: EN / KO toggle buttons
-        LangToggle --> ShowControls: Skip -30s | Play | Skip +30s
-        ShowControls --> ShowProgress: Seek bar with chapter dots
-        ShowProgress --> ShowTime: Current time + speed + remaining
-        ShowTime --> ShowVolume: Volume slider + mute + download
+    state FullPlayer {
+        [*] --> ShowHeader: AI icon + title + date + sources + duration
+        ShowHeader --> LangToggle: EN / KO toggle
+        LangToggle --> ShowChapters: Desktop pills / Mobile dropdown
+        ShowChapters --> ShowControls: Skip -15s | Play | Skip +15s | Volume | Speed
+        ShowControls --> ShowProgress: Seek bar with chapter dividers + hover tooltip
+        ShowProgress --> ShowTime: Current time + remaining
+        ShowTime --> ShowTranscript: Sentence-highlighted, click-to-seek
+        ShowTranscript --> ShowSources: Expandable numbered source list
     }
 
-    state Expanded {
-        [*] --> SourceList: Numbered article list (scrollable)
-        SourceList --> ClickSource: Link to original article
-    }
+    FullPlayer --> MiniPlayer: Scrolls out of view (IntersectionObserver)
+    MiniPlayer --> FullPlayer: Scrolls back into view
 
-    state Transcript {
-        [*] --> SentenceView: Sentence-highlighted text
-        SentenceView --> AutoScroll: Active sentence scrolls into view
+    state MiniPlayer {
+        [*] --> Expanded: Icon + title + EN/KO + progress + controls + transcript
+        Expanded --> Minimized: Click minimize (ChevronDown)
+        Minimized --> Expanded: Click expand (ChevronUp)
     }
 ```
 
@@ -528,12 +533,16 @@ classDiagram
 
 | Decision | Choice | Rationale |
 |----------|--------|-----------|
-| Player style | Card player with expand/collapse sources | NotebookLM-inspired, richer UX |
-| Player placement | Center of page (thread layout) or center column (3-col) | Visual hierarchy focal point |
+| Player style | Card player with theme object `T` (semantic color tokens) | Consistent dark theme, easy to restyle |
+| Player placement | Separate grid item — `order-first` mobile, center column desktop | Always visible; mobile gets player at top |
+| Sticky behavior | IntersectionObserver + createPortal mini-player with minimize/expand | Continuous playback while browsing articles |
 | Language | EN/KO bilingual with toggle | Pipeline generates both; let user choose |
-| Chapters | Dots on seek bar + pill buttons | Quick navigation within long briefings |
-| Transcript | Sentence-highlighted panel with auto-scroll | Accessibility + reading-along UX |
-| Volume/Download | Slider + mute + keyboard + download button | Standard audio player expectations |
+| Chapters | YouTube-style segment dividers on progress bar + desktop pills / mobile dropdown | Desktop: visual pills with glow. Mobile: dropdown saves space |
+| Progress bar | Hover tooltip with time + chapter name, segment highlight | YouTube-inspired interaction pattern |
+| Transcript | Default open, sentence-click-to-seek, custom 800ms smooth scroll | Reading-along UX, click to jump, smooth animation |
+| Volume/Speed | Hover to show popup, click to act (mute/cycle). Vertical slider, popup dropdown | YouTube-style hover/click separation |
+| Skip | 15s forward/back (was 30s) | Better for spoken content navigation |
+| Speeds | [1, 1.25, 1.5, 2] (removed 0.75x) | Most users don't slow down; cleaner options |
 | Resume | localStorage per audio URL | Avoid losing position on page refresh |
 | Audio fallback | Always show with local file fallback | Audio pipeline not fully deployed yet |
 
@@ -585,8 +594,7 @@ These are workarounds that should be removed once the pipeline is fully deployed
 | Issue | Description | Priority |
 |-------|-------------|----------|
 | Uncrawled article display | Articles without crawl results show only RSS title + description (no summary, keywords, source) | Low — acceptable |
-| Mobile responsiveness | Single-column collapse not yet implemented | High |
-| Sticky BriefingPlayer | Player should become compact sticky bar on scroll | Low |
+| Mobile responsiveness | Partially done — player responsive, article grid still needs single-column collapse | Medium |
 | Detail page components | RelatedSection, TimelineSection, MoreLikeThisSection exist but are minimal | Medium |
 
 ### Backend TODOs (tracked separately)
@@ -656,7 +664,7 @@ Embed user query → pgvector nearest neighbor → return matching articles. Mod
 
 | Feature | Backend Ready? | Frontend Effort | Notes |
 |---------|---------------|-----------------|-------|
-| Sticky BriefingPlayer | N/A | Small | Hero → compact sticky bar on scroll |
+| ~~Sticky BriefingPlayer~~ | ~~N/A~~ | ~~Done~~ | ~~Implemented with IntersectionObserver + createPortal~~ |
 | Thread "(2 of 17)" indicator | `wsj_story_threads.member_count` exists | Small | Show total vs displayed count |
 | Trending badges | Heat score exists | Small | "🔥 Trending" badge on hot threads |
 | Personalized "For You" feed | Needs user reading history | Medium | Auth required; could start with localStorage |
@@ -730,13 +738,18 @@ graph LR
 - [x] EN/KO language toggle switches audio and transcript
 - [x] Chapter markers appear on seek bar and as pill buttons
 - [x] Sentence-highlighted transcript with auto-scroll
-- [x] Volume control and mute toggle work
-- [x] Download button saves audio file
+- [x] Volume control and mute toggle work (hover popup, click mute)
+- [x] Sticky mini-player appears when full player scrolls out of view
+- [x] Mini-player minimize/expand toggle works
+- [x] Mobile chapter dropdown replaces pills on small screens
+- [x] Mobile double-tap skip works
+- [x] Click-to-seek on transcript sentences works
+- [x] YouTube-style progress bar hover tooltip shows time + chapter
 - [x] Sidebar starts closed, shifts content on toggle
 - [x] External images load from arbitrary domains
 - [x] Keyboard shortcuts (Space, arrows, M) work
 - [x] Article detail page loads at `/news/[slug]`
-- [ ] Mobile responsiveness (single-column collapse)
+- [ ] Mobile responsiveness (article grid single-column collapse)
 - [ ] Supabase Storage audio URLs replace local files
 - [ ] Pipeline auto-uploads chapters/sentences JSONB to `wsj_briefings`
 - [ ] Detail page Related/Timeline/MLT sections fully built

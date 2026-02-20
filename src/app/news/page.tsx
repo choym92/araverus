@@ -288,8 +288,31 @@ export default async function NewsPage({ searchParams }: NewsPageProps) {
         {tab === 'today' && filteredItems.length > 0 && (
           <>
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-0 border-b border-neutral-200 pb-8 mb-8">
+              {/* Audio Briefing Player — first on mobile, center area on desktop */}
+              <div className="order-first lg:order-none lg:col-start-4 lg:col-span-6 lg:row-start-1 lg:px-6 mb-6">
+                <BriefingPlayer
+                  date={briefingDate ?? new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                  duration={briefing?.audio_duration ?? 0}
+                  sourceCount={briefing?.item_count ?? briefingSources.length}
+                  sources={briefingSources}
+                  en={{
+                    audioUrl: enBriefing?.audio_url || '/audio/chirp3-en-pro-friendly-2026-02-16.wav',
+                    chapters: enBriefing?.chapters ?? localChaptersEn,
+                    transcript: enBriefing?.briefing_text || localTranscriptEn,
+                    sentences: enBriefing?.sentences ?? localSentencesEn,
+                  }}
+                  ko={{
+                    audioUrl: koBriefing?.audio_url || '/audio/gemini-tts-ko-kore-2026-02-16.wav',
+                    chapters: koBriefing?.chapters ?? localChaptersKo,
+                    transcript: koBriefing?.briefing_text || localTranscriptKo,
+                    sentences: koBriefing?.sentences ?? localSentencesKo,
+                  }}
+                  defaultLang="en"
+                />
+              </div>
+
               {/* Left column — text stories */}
-              <div className="lg:col-span-3 lg:border-r lg:border-neutral-200 lg:pr-6">
+              <div className="lg:col-span-3 lg:row-start-1 lg:row-span-2 lg:border-r lg:border-neutral-200 lg:pr-6">
                 {leftStories.map((item) => (
                   <ArticleCard
                     key={item.id}
@@ -310,31 +333,8 @@ export default async function NewsPage({ searchParams }: NewsPageProps) {
                 ))}
               </div>
 
-              {/* Center — audio player + featured hero */}
-              <div className="lg:col-span-6 lg:px-6">
-                {/* Audio Briefing Player */}
-                <div className="mb-6">
-                  <BriefingPlayer
-                    date={briefingDate ?? new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
-                    duration={briefing?.audio_duration ?? 0}
-                    sourceCount={briefing?.item_count ?? briefingSources.length}
-                    sources={briefingSources}
-                    en={{
-                      audioUrl: enBriefing?.audio_url || '/audio/chirp3-en-pro-friendly-2026-02-16.wav',
-                      chapters: enBriefing?.chapters ?? localChaptersEn,
-                      transcript: enBriefing?.briefing_text || localTranscriptEn,
-                      sentences: enBriefing?.sentences ?? localSentencesEn,
-                    }}
-                    ko={{
-                      audioUrl: koBriefing?.audio_url || '/audio/gemini-tts-ko-kore-2026-02-16.wav',
-                      chapters: koBriefing?.chapters ?? localChaptersKo,
-                      transcript: koBriefing?.briefing_text || localTranscriptKo,
-                      sentences: koBriefing?.sentences ?? localSentencesKo,
-                    }}
-                    defaultLang="en"
-                  />
-                </div>
-
+              {/* Center — featured hero + below-fold */}
+              <div className="lg:col-start-4 lg:col-span-6 lg:row-start-2 lg:px-6">
                 {featured && (
                   <ArticleCard
                     headline={featured.title}
@@ -378,7 +378,7 @@ export default async function NewsPage({ searchParams }: NewsPageProps) {
               </div>
 
               {/* Right column — standard cards with thread carousels */}
-              <div className="lg:col-span-3 lg:border-l lg:border-neutral-200 lg:pl-6">
+              <div className="lg:col-span-3 lg:row-start-1 lg:row-span-2 lg:border-l lg:border-neutral-200 lg:pl-6">
                 {rightStories.map((item) => (
                   <ArticleCard
                     key={item.id}
