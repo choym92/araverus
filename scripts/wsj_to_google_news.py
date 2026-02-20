@@ -265,6 +265,7 @@ def load_wsj_jsonl(jsonl_path: str, today_only: bool = False) -> list[dict]:
             'creator': item.get('creator'),
             'feed_name': item.get('feed_name'),
             'subcategory': item.get('subcategory'),
+            'llm_search_queries': item.get('llm_search_queries'),
         })
 
     return items
