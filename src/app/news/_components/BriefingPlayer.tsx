@@ -80,6 +80,7 @@ export default function BriefingPlayer({
   const [userScrolled, setUserScrolled] = useState(false)
   const userScrollTimeout = useRef<NodeJS.Timeout | null>(null)
   const transcriptRef = useRef<HTMLDivElement>(null)
+  const chapterListRef = useRef<HTMLDivElement>(null)
 
   // Active language data
   const activeLang = lang === 'ko' && ko ? ko : en
@@ -317,6 +318,16 @@ export default function BriefingPlayer({
     }, 0)
   }, [chapters, currentTime, audioDuration])
 
+  // Auto-scroll chapter pills to active chapter (mobile horizontal scroll)
+  useEffect(() => {
+    const container = chapterListRef.current
+    if (!container || activeChapterIndex < 0) return
+    const activeBtn = container.children[activeChapterIndex] as HTMLElement
+    if (!activeBtn) return
+    const left = activeBtn.offsetLeft - container.clientWidth / 2 + activeBtn.clientWidth / 2
+    container.scrollTo({ left, behavior: 'smooth' })
+  }, [activeChapterIndex])
+
   // Active sentence index based on real Whisper timestamps
   const activeSentenceIndex = useMemo(() => {
     if (sentences.length === 0 || currentTime <= 0) return 0
@@ -550,12 +561,12 @@ export default function BriefingPlayer({
       {/* Chapter list */}
       {chapters.length > 0 && (
         <div className="px-5 pb-3">
-          <div className="flex gap-1 items-stretch">
+          <div ref={chapterListRef} className="flex gap-1.5 items-stretch overflow-x-auto scrollbar-none md:overflow-x-visible">
             {chapters.map((ch, i) => (
               <button
                 key={i}
                 onClick={() => jumpToChapter(ch.position)}
-                className={`text-[11px] leading-snug px-1.5 py-1 rounded-lg transition-colors text-center flex-1 basis-0 min-w-0 h-12 flex flex-col items-center justify-center ${
+                className={`text-[11px] leading-snug px-2 py-1 rounded-lg transition-colors text-center min-w-[4.5rem] shrink-0 h-12 flex flex-col items-center justify-center md:flex-1 md:basis-0 md:min-w-0 md:shrink ${
                   activeChapterIndex === i
                     ? 'bg-white/20 text-white font-medium'
                     : 'bg-white/5 text-white/40 hover:bg-white/10 hover:text-white/70'
