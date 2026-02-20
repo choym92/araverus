@@ -331,7 +331,7 @@ interface BriefingSource {
 - **Volume**: Slider + mute/unmute toggle
 - **Download**: Download current language audio file
 - **EN/KO Toggle**: Switch between English and Korean audio (resets playback position)
-- **Chapters**: Equal-width fixed-height pill buttons (flex-1, h-12) below seek bar; text wraps inside pills; dots on seek bar; click to jump
+- **Chapters**: Fixed-height pill buttons (h-12) below seek bar; dots on seek bar; click to jump. Desktop: equal-width flex-1 with text wrap. Mobile: min-width pills with horizontal scroll, auto-scrolls to active chapter.
 - **Transcript**: Sentence-level highlighting grouped by chapter headings. Auto-scroll uses container-scoped `scrollTo` (never moves the page). User scroll pauses auto-scroll for 2s.
 - **Sources**: Expandable scrollable list (Framer Motion) with numbered articles, categories, external links
 - **Keyboard**: Space (play/pause), Arrow Left/Right (+/-30s), Arrow Up/Down (volume), M (mute)
