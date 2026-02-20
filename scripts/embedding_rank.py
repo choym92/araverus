@@ -2,7 +2,7 @@
 """
 Embedding-based ranking for WSJ → Google News candidates.
 
-Uses sentence-transformers (all-MiniLM-L6-v2) for semantic similarity.
+Uses sentence-transformers (BAAI/bge-base-en-v1.5) for semantic similarity.
 Ranks backup articles by cosine similarity to WSJ title + description.
 
 Usage:
@@ -21,7 +21,7 @@ from domain_utils import load_blocked_domains, is_blocked_domain
 
 # Load model (downloads on first run, ~80MB)
 print("Loading embedding model...")
-MODEL = SentenceTransformer('all-MiniLM-L6-v2')
+MODEL = SentenceTransformer('BAAI/bge-base-en-v1.5')
 print("Model loaded.\n")
 
 

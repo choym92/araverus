@@ -443,6 +443,10 @@ def export_to_jsonl(items: list[dict], output_path: Path) -> None:
                 'feed_name': item['feed_name'],
                 'creator': item['creator'],
                 'subcategory': item.get('subcategory'),
+                'extracted_entities': item.get('extracted_entities'),
+                'extracted_keywords': item.get('extracted_keywords'),
+                'extracted_tickers': item.get('extracted_tickers'),
+                'llm_search_queries': item.get('llm_search_queries'),
             }
             f.write(json.dumps(export_item, ensure_ascii=False) + '\n')
 

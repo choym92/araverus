@@ -50,6 +50,7 @@ fi
 echo ""
 echo ">>> Phase 1: Ingest + Search"
 $VENV "$SCRIPTS/wsj_ingest.py" || { echo "FATAL: Ingest failed"; exit 1; }
+$VENV "$SCRIPTS/wsj_preprocess.py" || echo "WARN: Preprocess had errors (continuing)"
 $VENV "$SCRIPTS/wsj_ingest.py" --export || { echo "FATAL: Export failed"; exit 1; }
 $VENV "$SCRIPTS/wsj_to_google_news.py" --delay-item 0.5 --delay-query 0.3 || echo "WARN: Google News search had errors (continuing)"
 

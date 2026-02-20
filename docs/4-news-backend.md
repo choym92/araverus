@@ -1,4 +1,4 @@
-<!-- Updated: 2026-02-19 -->
+<!-- Updated: 2026-02-20 -->
 # News Platform — Backend & Pipeline
 
 Single source of truth for the finance news pipeline: ingestion, crawling, analysis, briefing generation, and deployment.
@@ -21,8 +21,8 @@ Single source of truth for the finance news pipeline: ingestion, crawling, analy
 └──────────┘                    └──────────┘    └──────────┘    └──────────┘    └──────────┘    └──────────┘
 ```
 
-**Orchestration:** `.github/workflows/finance-pipeline.yml`
-**Schedule:** Daily at 6 AM ET (dual cron with timezone guard)
+**Orchestration:** `scripts/run_pipeline.sh` (Mac Mini launchd cron)
+**Schedule:** Daily
 
 ---
 
@@ -54,7 +54,24 @@ RSS ingestion, export, lifecycle management, domain status.
 
 **Domain auto-block** (via `--update-domain-status`): Two criteria — `fail_count > 5 AND success_rate < 20%` OR `llm_fail_count >= 10 AND success_count < llm_fail_count * 3`. Uses Wilson score for statistical confidence on small sample sizes.
 
-### `wsj_to_google_news.py` (1078 lines)
+### `wsj_preprocess.py`
+
+Pre-processes WSJ items with Gemini Flash-Lite to extract metadata and generate optimized search queries BEFORE the Google News search step.
+
+| Flag | Default | Action |
+|------|---------|--------|
+| *(none)* | — | Process unsearched items |
+| `--limit N` | 200 | Max items to process |
+| `--dry-run` | — | Print results without DB writes |
+| `--backfill` | — | Include already-searched items |
+
+**Model:** Gemini 2.0 Flash-Lite (JSON mode, temp 0.1). Extracts: entities, keywords, tickers, search_queries. Results saved to `wsj_items` columns (`extracted_entities`, `extracted_keywords`, `extracted_tickers`, `llm_search_queries`, `preprocessed_at`).
+
+**Cost:** ~$0.003/day (60 items), ~$0.10/month.
+
+**Relationship to `wsj_llm_analysis`:** Pre-process extracts from title+description (pre-search). `wsj_llm_analysis` extracts from crawled content (post-crawl). When Phase 2-3 cuts post-crawl Gemini by ~90%, `wsj_items.extracted_*` becomes the primary metadata source.
+
+### `wsj_to_google_news.py`
 
 Searches Google News for free alternatives to each WSJ article.
 
@@ -65,7 +82,7 @@ Searches Google News for free alternatives to each WSJ article.
 | `--delay-query S` | 1.0 | Delay between queries |
 | `--input PATH` | auto | Custom JSONL input file |
 
-**Key logic:** 4 queries per item (clean title, core keywords, description keywords, entity+event). Dual-phase search: Phase 1 preferred domain `site:` queries, Phase 2 broad search. Date filtering: [-1, +3] days from WSJ pubDate. Non-English/newsletter/blocked domain filtering.
+**Key logic:** Uses LLM-generated search queries from `wsj_preprocess.py` when available, falls back to clean title. Newsletters rely entirely on LLM queries. Date filtering: [-1, +3] days from WSJ pubDate. Non-English/newsletter/blocked domain filtering.
 
 ### `embedding_rank.py` (232 lines)
 
@@ -76,7 +93,7 @@ Ranks Google News candidates by semantic similarity.
 | `--top-k N` | 5 | Max results per WSJ item |
 | `--min-score F` | 0.3 | Minimum cosine similarity |
 
-**Model:** `all-MiniLM-L6-v2`. Preferred domains bypass min_score threshold.
+**Model:** `BAAI/bge-base-en-v1.5`. Preferred domains bypass min_score threshold.
 
 ### `resolve_ranked.py` (304 lines)
 
@@ -173,35 +190,32 @@ python scripts/generate_briefing.py --output-dir PATH        # Custom output dir
 
 ---
 
-## GitHub Actions Workflow
+## Mac Mini Pipeline (launchd)
 
-**File:** `.github/workflows/finance-pipeline.yml`
-**Trigger:** Manual (`workflow_dispatch`) or daily at 6 AM US Eastern.
-**Timezone Guard:** Two cron entries (`0 11 * * *` EST, `0 10 * * *` EDT). `tz-guard` job checks `date` in `America/New_York`.
+**File:** `scripts/run_pipeline.sh`
+**Trigger:** Daily via macOS launchd plist
+**Secrets:** Loaded from `.env.pipeline` or macOS Keychain
 
-### Full Run (`crawl_only=false`)
+### Pipeline Phases
 
-| Job | Timeout | Steps |
-|-----|---------|-------|
-| **tz-guard** | 1 min | Check if 6 AM Eastern |
-| **ingest-search** | 60 min | `wsj_ingest.py` → `--export` → `wsj_to_google_news.py --delay-item 0.5 --delay-query 0.3` |
-| **rank-resolve** | 45 min | `embedding_rank.py` → `resolve_ranked.py --delay 0.5 --update-db` → `wsj_ingest.py --mark-searched` |
-| **crawl** | 180 min | `crawl_ranked.py --delay 2 --update-db` (with OPENAI_API_KEY) |
-| **save-results** | 5 min | Merge artifacts → upsert to DB → `--mark-processed-from-db` → `--update-domain-status` |
+| Phase | Script | Action |
+|-------|--------|--------|
+| **1: Ingest + Search** | `wsj_ingest.py` | Ingest RSS feeds |
+| | `wsj_preprocess.py` | Gemini Flash-Lite: extract entities, keywords, search queries |
+| | `wsj_ingest.py --export` | Export unsearched items to JSONL (includes LLM queries) |
+| | `wsj_to_google_news.py` | Search Google News using LLM queries (fallback: clean title) |
+| **2: Rank + Resolve** | `embedding_rank.py` | Rank candidates by bge-base-en-v1.5 similarity |
+| | `resolve_ranked.py` | Resolve Google News URLs → actual article URLs |
+| | `wsj_ingest.py --mark-searched` | Mark items as searched |
+| **3: Crawl** | `crawl_ranked.py` | Crawl articles with quality + relevance checks |
+| **4: Post-process** | `wsj_ingest.py --mark-processed-from-db` | Mark quality crawls as processed |
+| | `wsj_ingest.py --update-domain-status` | Update domain stats, auto-block |
+| **4.5: Embed + Thread** | `embed_and_thread.py` | Article embeddings + story thread assignment |
+| **5: Briefing** | `generate_briefing.py` | Generate EN/KO briefings with TTS audio |
 
-### Crawl Only (`crawl_only=true`)
+**Error handling:** Non-fatal steps use `|| echo "WARN: ..."` to continue on error. Fatal steps (`ingest`, `export`) use `|| exit 1`.
 
-| Job | Timeout | Steps |
-|-----|---------|-------|
-| **tz-guard** | 1 min | Always passes for manual triggers |
-| **crawl-from-db** | 180 min | `crawl_ranked.py --from-db --delay 2` |
-| **save-results-crawl-only** | 5 min | `--mark-processed-from-db` → `--update-domain-status` |
-
-**Manual Trigger Options:** `crawl_only=true` (skip search/rank), `skip_crawl=true` (test search/rank only).
-
-**Optimizations:** `uv` package manager, HuggingFace model caching, Playwright chromium fresh per run, `continue-on-error` on crawl/search steps, artifact passing (7 days retention).
-
-**Secrets:** `SUPABASE_URL`, `SUPABASE_KEY`, `GEMINI_API_KEY`
+**Secrets:** `NEXT_PUBLIC_SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, `GEMINI_API_KEY`, `GOOGLE_APPLICATION_CREDENTIALS`
 
 ---
 
@@ -211,7 +225,7 @@ python scripts/generate_briefing.py --output-dir PATH        # Custom output dir
 
 | Table | Purpose |
 |-------|---------|
-| `wsj_items` | WSJ RSS feed articles with feed_name, category, searched/processed/briefed flags, **slug**, **thread_id** |
+| `wsj_items` | WSJ RSS feed articles with feed_name, category, searched/processed/briefed flags, **slug**, **thread_id**, **extracted_entities/keywords/tickers**, **llm_search_queries** |
 | `wsj_crawl_results` | Crawled backup articles with content, embedding_score, crawl_status, relevance_flag |
 | `wsj_domain_status` | Domain quality tracking — success_rate, weighted_score, auto-block status |
 | `wsj_llm_analysis` | Gemini 2.5 Flash extracted metadata — entities, sentiment, summary, event_type, **importance**, **keywords** |
@@ -306,7 +320,7 @@ GEMINI_API_KEY=
 | `httpx>=0.27.0` | HTTP client |
 | `supabase>=2.0.0` | Supabase client |
 | `python-dotenv>=1.0.0` | Environment variables |
-| `sentence-transformers>=2.2.0` | Embedding models (all-MiniLM-L6-v2 for ranking, BAAI/bge-base-en-v1.5 for article embeddings) |
+| `sentence-transformers>=2.2.0` | Embedding models (BAAI/bge-base-en-v1.5 for ranking + article embeddings) |
 | `vecs>=0.4.0` | pgvector Python client (optional) |
 | `numpy>=1.24.0` | Array operations |
 | `trafilatura>=1.6.0` | Content extraction (preferred) |
@@ -324,6 +338,8 @@ cd scripts && source .venv/bin/activate
 
 # --- Ingestion Pipeline ---
 python wsj_ingest.py                                         # Ingest 6 WSJ RSS feeds
+python wsj_preprocess.py                                     # Extract entities + search queries (Gemini)
+python wsj_preprocess.py --backfill --limit 50               # Backfill existing items
 python wsj_ingest.py --export                                # Export unsearched → JSONL
 python wsj_to_google_news.py --delay-item 2 --delay-query 1  # Search Google News
 python embedding_rank.py --top-k 5 --min-score 0.3           # Rank by similarity
@@ -369,3 +385,5 @@ python scripts/generate_briefing.py --date 2026-02-13         # Specific date
 **Monthly:** ~$9.70/month (daily) or ~$7.10/month (weekdays only)
 
 **LLM analysis (backfill):** ~$0.00016/article (Gemini 2.5 Flash)
+
+**Pre-processing:** ~$0.003/day (Gemini 2.0 Flash-Lite, 60 items), ~$0.10/month

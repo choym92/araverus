@@ -42,7 +42,7 @@ LLM_ENABLED = bool(os.getenv("GEMINI_API_KEY"))
 
 # Load embedding model for relevance check (cached after first load)
 print("Loading embedding model for relevance check...")
-RELEVANCE_MODEL = SentenceTransformer('all-MiniLM-L6-v2')
+RELEVANCE_MODEL = SentenceTransformer('BAAI/bge-base-en-v1.5')
 print("Model loaded.\n")
 
 

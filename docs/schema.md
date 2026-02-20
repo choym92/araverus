@@ -1,4 +1,4 @@
-<!-- Updated: 2026-02-17 -->
+<!-- Updated: 2026-02-20 -->
 <!-- Phase: News UX enhancement (migrations 007-009) -->
 # Database Schema (araverus)
 
@@ -81,6 +81,11 @@ briefed       BOOLEAN       -- set true for all articles used as input to a brie
 briefed_at    TIMESTAMPTZ   -- when briefed was set true
 slug          TEXT UNIQUE   -- URL-friendly slug for /news/[slug] (generated from title)
 thread_id     UUID FK → wsj_story_threads(id)  -- story thread assignment (nullable)
+extracted_entities  TEXT[]   -- Gemini Flash-Lite: company/person/org names from title+desc (pre-search)
+extracted_keywords  TEXT[]   -- Gemini Flash-Lite: 3-5 search terms from title+desc (pre-search)
+extracted_tickers   TEXT[]   -- Gemini Flash-Lite: stock symbols from title+desc (pre-search)
+llm_search_queries  TEXT[]   -- Gemini Flash-Lite: 2-3 optimized Google News queries (pre-search)
+preprocessed_at     TIMESTAMPTZ  -- when preprocessing completed
 created_at    TIMESTAMPTZ   -- auto: now()
 ```
 
@@ -103,7 +108,7 @@ title           TEXT          -- backup article title from Google News RSS
 resolved_url    TEXT UNIQUE   -- final URL after following Google News redirects (resolve_ranked.py)
 resolved_domain TEXT          -- extracted domain from resolved_url (e.g., "finance.yahoo.com")
 embedding_score FLOAT         -- cosine similarity (0-1) between WSJ title+desc and backup title
-                              --   computed by embedding_rank.py using all-MiniLM-L6-v2
+                              --   computed by embedding_rank.py using BAAI/bge-base-en-v1.5
                               --   >=0.5 high, >=0.4 medium, <0.4 low
 crawl_status    TEXT          -- pending → success | failed | skipped | resolve_failed
 crawl_error     TEXT          -- error message if crawl failed
@@ -274,7 +279,8 @@ wsj_domain_status (independent, updated by crawl pipeline)
 ```
 Job 1: ingest-search
   wsj_ingest.py          → wsj_items (insert)
-  wsj_ingest.py --export → JSONL file
+  wsj_preprocess.py      → wsj_items (update: extracted_*, llm_search_queries)
+  wsj_ingest.py --export → JSONL file (includes llm_search_queries)
   wsj_to_google_news.py  → Google News search results JSONL
 
 Job 2: rank-resolve
