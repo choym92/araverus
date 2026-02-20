@@ -77,6 +77,9 @@ export default function BriefingPlayer({
   const [showTranscript, setShowTranscript] = useState(false)
   const [volume, setVolume] = useState(1)
   const [isMuted, setIsMuted] = useState(false)
+  const [userScrolled, setUserScrolled] = useState(false)
+  const userScrollTimeout = useRef<NodeJS.Timeout | null>(null)
+  const transcriptRef = useRef<HTMLDivElement>(null)
 
   // Active language data
   const activeLang = lang === 'ko' && ko ? ko : en
@@ -286,6 +289,22 @@ export default function BriefingPlayer({
     }
   }, [audioUrl])
 
+  // Pause auto-scroll when user scrolls the transcript manually
+  useEffect(() => {
+    const container = transcriptRef.current
+    if (!container) return
+    const onScroll = () => {
+      setUserScrolled(true)
+      if (userScrollTimeout.current) clearTimeout(userScrollTimeout.current)
+      userScrollTimeout.current = setTimeout(() => setUserScrolled(false), 2000)
+    }
+    container.addEventListener('scroll', onScroll, { passive: true })
+    return () => {
+      container.removeEventListener('scroll', onScroll)
+      if (userScrollTimeout.current) clearTimeout(userScrollTimeout.current)
+    }
+  }, [showTranscript])
+
   const progress = audioDuration > 0 ? (currentTime / audioDuration) * 100 : 0
   const remaining = audioDuration - currentTime
   const count = sourceCount || sources.length
@@ -311,6 +330,39 @@ export default function BriefingPlayer({
     }
     return active
   }, [sentences, currentTime])
+
+  // Group sentences by chapter
+  const chapterGroups = useMemo(() => {
+    if (sentences.length === 0) return []
+    if (chapters.length === 0) return [{ title: null, sentences: sentences.map((s, i) => ({ ...s, globalIndex: i })) }]
+
+    const chapterTimes = chapters.map(ch => ch.position * audioDuration)
+    const groups: { title: string | null; sentences: (BriefingSentence & { globalIndex: number })[] }[] =
+      chapters.map(ch => ({ title: ch.title, sentences: [] }))
+
+    sentences.forEach((sent, i) => {
+      let chIdx = 0
+      for (let c = chapterTimes.length - 1; c >= 0; c--) {
+        if (sent.start >= chapterTimes[c]) { chIdx = c; break }
+      }
+      groups[chIdx].sentences.push({ ...sent, globalIndex: i })
+    })
+
+    const filtered = groups.filter(g => g.sentences.length > 0)
+
+    // Split closing sentences from the last chapter
+    const closingPatterns = /여기까지입니다|that'?s all for today|that wraps up|오늘 준비한 소식은|see you|다시 돌아올게|until next time|have a great/i
+    const lastGroup = filtered[filtered.length - 1]
+    if (lastGroup && lastGroup.sentences.length > 1) {
+      const closingIdx = lastGroup.sentences.findIndex(s => closingPatterns.test(s.text))
+      if (closingIdx > 0) {
+        const closingSentences = lastGroup.sentences.splice(closingIdx)
+        filtered.push({ title: '✦', sentences: closingSentences })
+      }
+    }
+
+    return filtered
+  }, [sentences, chapters, audioDuration])
 
   return (
     <div className="rounded-2xl bg-neutral-950 text-white overflow-hidden shadow-xl">
@@ -498,12 +550,12 @@ export default function BriefingPlayer({
       {/* Chapter list */}
       {chapters.length > 0 && (
         <div className="px-5 pb-3">
-          <div className="flex flex-wrap gap-1.5">
+          <div className="flex gap-1.5 overflow-x-auto scrollbar-none pb-1">
             {chapters.map((ch, i) => (
               <button
                 key={i}
                 onClick={() => jumpToChapter(ch.position)}
-                className={`text-[11px] px-2.5 py-1 rounded-full transition-colors ${
+                className={`text-[11px] px-2.5 py-1 rounded-full transition-colors whitespace-nowrap shrink-0 ${
                   activeChapterIndex === i
                     ? 'bg-white/20 text-white font-medium'
                     : 'bg-white/5 text-white/40 hover:bg-white/10 hover:text-white/70'
@@ -535,29 +587,46 @@ export default function BriefingPlayer({
               <p className="text-[11px] font-semibold text-white/40 uppercase tracking-wider mb-2">
                 Transcript
               </p>
-              <div className="max-h-64 overflow-y-auto pr-2 scrollbar-thin scrollbar-thumb-white/10">
+              <div ref={transcriptRef} className="max-h-80 overflow-y-auto pr-2 scrollbar-thin scrollbar-thumb-white/10">
                 {sentences.length > 0 ? (
-                  <p className="text-sm leading-relaxed">
-                    {sentences.map((sent, i) => (
-                      <span
-                        key={i}
-                        ref={i === activeSentenceIndex ? (el) => {
-                          if (el && isPlaying) {
-                            el.scrollIntoView({ behavior: 'smooth', block: 'center' })
-                          }
-                        } : undefined}
-                        className={`transition-colors duration-300 ${
-                          i === activeSentenceIndex
-                            ? 'text-white bg-white/10 rounded px-0.5 -mx-0.5'
-                            : i < activeSentenceIndex
-                              ? 'text-white/50'
-                              : 'text-white/25'
-                        }`}
-                      >
-                        {sent.text}{' '}
-                      </span>
+                  <div className="space-y-4">
+                    {chapterGroups.map((group, gi) => (
+                      <div key={gi}>
+                        {group.title && (
+                          <h4 className={`text-[11px] font-semibold uppercase tracking-wider mb-1.5 transition-colors duration-300 ${
+                            group.sentences.some(s => s.globalIndex === activeSentenceIndex)
+                              ? 'text-blue-400'
+                              : 'text-white/30'
+                          }`}>
+                            {group.title}
+                          </h4>
+                        )}
+                        <p className="text-sm leading-relaxed">
+                          {group.sentences.map((sent) => (
+                            <span
+                              key={sent.globalIndex}
+                              ref={sent.globalIndex === activeSentenceIndex ? (el) => {
+                                if (el && isPlaying && !userScrolled && transcriptRef.current) {
+                                  const container = transcriptRef.current
+                                  const targetTop = el.offsetTop - container.offsetTop - container.clientHeight / 2 + el.clientHeight / 2
+                                  container.scrollTo({ top: targetTop, behavior: 'smooth' })
+                                }
+                              } : undefined}
+                              className={`transition-colors duration-300 ${
+                                sent.globalIndex === activeSentenceIndex
+                                  ? 'text-white bg-white/10 rounded px-0.5 -mx-0.5'
+                                  : sent.globalIndex < activeSentenceIndex
+                                    ? 'text-white/50'
+                                    : 'text-white/25'
+                              }`}
+                            >
+                              {sent.text}{' '}
+                            </span>
+                          ))}
+                        </p>
+                      </div>
                     ))}
-                  </p>
+                  </div>
                 ) : (
                   <p className="text-sm leading-relaxed text-white/70 whitespace-pre-line">
                     {transcript}

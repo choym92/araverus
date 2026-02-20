@@ -1,4 +1,4 @@
-<!-- Updated: 2026-02-19 -->
+<!-- Updated: 2026-02-20 -->
 # News Platform — Frontend
 
 Technical guide for the `/news` page. WSJ-style 3-column layout with in-card thread carousels, bilingual audio briefing player, and keyword filtering. Powered by the existing news pipeline.
@@ -331,8 +331,8 @@ interface BriefingSource {
 - **Volume**: Slider + mute/unmute toggle
 - **Download**: Download current language audio file
 - **EN/KO Toggle**: Switch between English and Korean audio (resets playback position)
-- **Chapters**: Pill buttons below seek bar; dots on seek bar; click to jump
-- **Transcript**: Sentence-level highlighting with auto-scroll during playback
+- **Chapters**: Pill buttons below seek bar (horizontal scroll, no wrap); dots on seek bar; click to jump
+- **Transcript**: Sentence-level highlighting grouped by chapter headings. Auto-scroll uses container-scoped `scrollTo` (never moves the page). User scroll pauses auto-scroll for 2s.
 - **Sources**: Expandable scrollable list (Framer Motion) with numbered articles, categories, external links
 - **Keyboard**: Space (play/pause), Arrow Left/Right (+/-30s), Arrow Up/Down (volume), M (mute)
 - **Resume**: Saves playback position to localStorage per audio URL
