@@ -550,20 +550,20 @@ export default function BriefingPlayer({
       {/* Chapter list */}
       {chapters.length > 0 && (
         <div className="px-5 pb-3">
-          <div className="flex gap-1.5 overflow-x-auto scrollbar-none pb-1">
+          <div className="flex gap-1 items-stretch">
             {chapters.map((ch, i) => (
               <button
                 key={i}
                 onClick={() => jumpToChapter(ch.position)}
-                className={`text-[11px] px-2.5 py-1 rounded-full transition-colors whitespace-nowrap shrink-0 ${
+                className={`text-[11px] leading-snug px-1.5 py-1 rounded-lg transition-colors text-center flex-1 basis-0 min-w-0 h-12 flex flex-col items-center justify-center ${
                   activeChapterIndex === i
                     ? 'bg-white/20 text-white font-medium'
                     : 'bg-white/5 text-white/40 hover:bg-white/10 hover:text-white/70'
                 }`}
               >
-                {ch.title}
+                <span className="block">{ch.title}</span>
                 {audioDuration > 0 && (
-                  <span className="ml-1.5 text-white/30">
+                  <span className="block text-[9px] text-white/25">
                     {formatTime(ch.position * audioDuration)}
                   </span>
                 )}
