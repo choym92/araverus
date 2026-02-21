@@ -16,9 +16,6 @@ from pathlib import Path
 import numpy as np
 from sentence_transformers import SentenceTransformer
 
-# Import shared domain utilities
-from domain_utils import load_blocked_domains, is_blocked_domain
-
 # Load model (downloads on first run, ~80MB)
 print("Loading embedding model...")
 MODEL = SentenceTransformer('BAAI/bge-base-en-v1.5')
@@ -99,11 +96,6 @@ def main():
             results.append(json.loads(line))
 
     print(f"Loaded {len(results)} WSJ items from {input_path.name}")
-
-    # Load blocked domains to filter before ranking
-    blocked_domains = load_blocked_domains()
-    print(f"  Blocked domains: {len(blocked_domains)}")
-
     print(f"Ranking with top_k={top_k}, min_score={min_score}\n")
 
     ranked_results = []
@@ -115,10 +107,7 @@ def main():
         print("=" * 80)
         print(f"[{i+1}/{len(results)}] WSJ: {wsj.get('title', 'N/A')}")
 
-        # Filter out blocked domains before ranking
-        candidates = [c for c in candidates
-                      if not is_blocked_domain(c.get('source_domain', ''), blocked_domains)]
-        print(f"    Candidates: {len(candidates)} (after blocked filter)")
+        print(f"    Candidates: {len(candidates)}")
 
         # Query = WSJ title + description
         query_text = f"{wsj.get('title', '')} {wsj.get('description', '')}"

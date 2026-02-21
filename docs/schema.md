@@ -184,12 +184,14 @@ last_llm_failure TIMESTAMPTZ
 success_rate     NUMERIC      -- computed: success_count / (success_count + fail_count)
 weighted_score   NUMERIC      -- quality score combining success rate and volume
 wilson_score     NUMERIC      -- Wilson score 95% CI lower bound for true success rate
+search_hit_count INT DEFAULT 0 -- Google News appearance count (incremented by wsj_to_google_news.py per run)
 created_at       TIMESTAMPTZ
 updated_at       TIMESTAMPTZ
 ```
 
 **Auto-block rule**: `wilson_score < 0.15` (with `blockable_total >= 5`), where blockable = all failures EXCEPT `low relevance` and `llm rejected` (content mismatch, not the domain's fault).
 **Failure taxonomy** (fail_counts keys): `content too short`, `paywall`, `css/js instead of content`, `copyright or unavailable`, `repeated content`, `empty content`, `http error`, `domain blocked`, `social media`, `too many links`, `navigation/menu content`, `boilerplate content`, `content too long`, `timeout or network error`, `low relevance`, `llm rejected`.
+**Search hit tracking**: `search_hit_count` incremented each time domain appears in Google News results, used to prioritize `-site:` exclusions.
 
 ### `wsj_briefings` — Daily Briefing Output (Phase 2)
 **Written by**: TBD (generate_briefing.py)
