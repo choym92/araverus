@@ -1,207 +1,268 @@
-<!-- Updated: 2026-02-19 -->
+<!-- Updated: 2026-02-21 -->
 # News Platform — Backend & Pipeline
 
-Single source of truth for the finance news pipeline: ingestion, crawling, analysis, briefing generation, and deployment.
+Single source of truth for the finance news pipeline: ingestion, crawling, analysis, briefing generation.
 
 ---
 
-## High-Level Architecture
+## Pipeline Overview
 
-```
-┌──────────┐    ┌──────────┐    ┌──────────┐    ┌──────────┐    ┌──────────┐    ┌──────────┐    ┌──────────┐
-│   RSS    │───▶│  Search  │───▶│  Rank &  │───▶│  Crawl   │───▶│  Post-   │───▶│ Embed &  │───▶│ Briefing │
-│  Ingest  │    │  Google  │    │  Resolve │    │ Articles │    │ Process  │    │  Thread  │    │   Gen    │
-└──────────┘    └──────────┘    └──────────┘    └──────────┘    └──────────┘    └──────────┘    └──────────┘
-     │               │               │               │               │               │               │
-     ▼               ▼               ▼               ▼               ▼               ▼               ▼
-┌──────────┐    ┌──────────┐    ┌──────────┐    ┌──────────┐    ┌──────────┐    ┌──────────┐    ┌──────────┐
-│wsj_items │    │  JSONL   │    │wsj_crawl │    │wsj_crawl │    │ domain   │    │wsj_embed │    │wsj_brief │
-│  (DB)    │    │ (file)   │    │_results  │    │_results  │    │ status   │    │dings +   │    │ ings(DB) │
-│ +slug    │    └──────────┘    │ (pending)│    │(success) │    │  (DB)    │    │ threads  │    │ +audio   │
-└──────────┘                    └──────────┘    └──────────┘    └──────────┘    └──────────┘    └──────────┘
+```mermaid
+flowchart LR
+    subgraph "Phase 1: Ingest + Search"
+        A[wsj_ingest.py] --> B[wsj_preprocess.py]
+        B --> C[wsj_ingest.py --export]
+        C --> D[wsj_to_google_news.py]
+    end
+
+    subgraph "Phase 2: Rank + Resolve"
+        D --> E[embedding_rank.py]
+        E --> F[resolve_ranked.py]
+        F --> G[mark-searched]
+    end
+
+    subgraph "Phase 3: Crawl"
+        G --> H[crawl_ranked.py]
+    end
+
+    subgraph "Phase 4: Post-process"
+        H --> I[mark-processed]
+        I --> J[update-domain-status]
+    end
+
+    subgraph "Phase 4.5: Embed"
+        J --> K[embed_and_thread.py]
+    end
+
+    subgraph "Phase 5: Briefing"
+        K --> L[generate_briefing.py]
+    end
 ```
 
-**Orchestration:** `.github/workflows/finance-pipeline.yml`
-**Schedule:** Daily at 6 AM ET (dual cron with timezone guard)
+**Orchestration:** `scripts/run_pipeline.sh` (Mac Mini launchd cron, daily)
+
+---
+
+## Data Flow
+
+```mermaid
+flowchart TB
+    RSS["WSJ RSS Feeds<br/>(6 feeds)"] --> |wsj_ingest.py| DB_ITEMS[(wsj_items)]
+    DB_ITEMS --> |wsj_preprocess.py<br/>Gemini Flash-Lite| DB_ITEMS
+    DB_ITEMS --> |"--export"| JSONL["JSONL file<br/>(+ llm_search_queries)"]
+    JSONL --> |wsj_to_google_news.py| GNEWS["Google News<br/>search results"]
+    GNEWS --> |embedding_rank.py<br/>bge-base-en-v1.5| RANKED["Ranked candidates"]
+    RANKED --> |resolve_ranked.py| DB_CRAWL[(wsj_crawl_results<br/>status: pending)]
+    DB_CRAWL --> |crawl_ranked.py| DB_CRAWL_OK[(wsj_crawl_results<br/>status: success)]
+    DB_CRAWL_OK --> |llm_analysis.py<br/>Gemini 2.5 Flash| DB_LLM[(wsj_llm_analysis)]
+    DB_ITEMS --> |embed_and_thread.py<br/>bge-base-en-v1.5| DB_EMBED[(wsj_embeddings)]
+    DB_EMBED --> DB_THREADS[(wsj_story_threads)]
+    DB_ITEMS --> |generate_briefing.py<br/>Gemini 2.5 Pro| DB_BRIEF[(wsj_briefings)]
+    DB_CRAWL_OK --> |domain stats| DB_DOMAIN[(wsj_domain_status)]
+```
 
 ---
 
 ## Pipeline Scripts
 
-### `wsj_ingest.py` (1071 lines)
+### Phase 1: Ingest + Search
+
+#### `wsj_ingest.py`
 
 RSS ingestion, export, lifecycle management, domain status.
 
 | Flag | Action |
 |------|--------|
 | *(none)* | Ingest all 6 WSJ RSS feeds |
-| `--export [PATH]` | Export unsearched items to JSONL |
+| `--export` | Export unsearched items to JSONL |
 | `--mark-searched FILE` | Set `searched=true` for items in FILE |
-| `--mark-processed FILE` | Set `processed=true` (old method) |
 | `--mark-processed-from-db` | Set `processed=true` based on DB crawl results |
 | `--update-domain-status` | Aggregate crawl results → domain stats, auto-block |
 | `--retry-low-relevance` | Reactivate backup articles for low-relevance items |
-| `--seed-blocked-from-json` | One-time: migrate JSON blocked domains to DB |
 | `--stats` | Show database statistics |
 
-**Feeds:** 6 WSJ RSS feeds — BUSINESS, MARKETS, WORLD, TECH, ECONOMY, POLITICS. Each feed has a `feed_name` and `feed_url` configured as constants.
+- **Feeds:** BUSINESS, MARKETS, WORLD, TECH, ECONOMY, POLITICS (merged: BUSINESS+MARKETS → BUSINESS_MARKETS)
+- **Dedup:** Title-based, keeps version from feed with fewer items
+- **Category:** Extracted from URL path (~95% accuracy), fallback to `feed_name`
+- **Domain auto-block:** Wilson score < 0.15 (blockable n ≥ 5), content mismatch (`low relevance`, `llm rejected`) excluded
+- **Failure tracking:** Per-reason JSONB (`fail_counts`) — see failure taxonomy below
 
-**Category extraction:** URL-based (~95% accuracy). Parses `/articles/` or `/livecoverage/` URL paths to extract subcategory (e.g., `wsj.com/economy/trade` → `trade`). Falls back to `feed_name` if URL pattern doesn't match. Known gap: ~28% of items still have NULL `subcategory`.
+#### `wsj_preprocess.py`
 
-**Dedup:** Title-based dedup with Levenshtein-like comparison. When a duplicate is found across feeds, keeps the version from the feed with fewer total items (least-count category balancing). Skips lifestyle/arts/opinion content.
+Gemini Flash-Lite extracts metadata from title+description BEFORE search.
 
-**Slug generation:** `slugify(title)[:80]` with date-suffix collision handling (e.g., `-2`, `-3`).
+| Flag | Default | Action |
+|------|---------|--------|
+| *(none)* | — | Process unsearched items |
+| `--limit N` | 200 | Max items |
+| `--dry-run` | — | No DB writes |
+| `--backfill` | — | Include already-searched items |
 
-**Domain auto-block** (via `--update-domain-status`): Two criteria — `fail_count > 5 AND success_rate < 20%` OR `llm_fail_count >= 10 AND success_count < llm_fail_count * 3`. Uses Wilson score for statistical confidence on small sample sizes.
+- **Model:** Gemini 2.5 Flash-Lite (JSON mode, temp 0.1)
+- **Extracts:** entities, keywords, tickers, search_queries → saved to `wsj_items`
+- **Cost:** ~$0.003/day, ~$0.10/month
+- **vs `wsj_llm_analysis`:** Pre-process = title+desc (pre-search). LLM analysis = crawled content (post-crawl).
 
-### `wsj_to_google_news.py` (1078 lines)
+#### `wsj_to_google_news.py`
 
 Searches Google News for free alternatives to each WSJ article.
 
 | Flag | Default | Action |
 |------|---------|--------|
-| `--limit N` | all | Process only N items |
-| `--delay-item S` | 2.0 | Delay between WSJ items |
+| `--limit N` | all | Max items |
+| `--delay-item S` | 2.0 | Delay between items |
 | `--delay-query S` | 1.0 | Delay between queries |
-| `--input PATH` | auto | Custom JSONL input file |
 
-**Key logic:** 4 queries per item (clean title, core keywords, description keywords, entity+event). Dual-phase search: Phase 1 preferred domain `site:` queries, Phase 2 broad search. Date filtering: [-1, +3] days from WSJ pubDate. Non-English/newsletter/blocked domain filtering.
+- Uses LLM-generated queries when available, falls back to clean title
+- Newsletters rely entirely on LLM queries
+- Date filter: ±1 day from WSJ pubDate (3-day window)
 
-### `embedding_rank.py` (232 lines)
+### Phase 2: Rank + Resolve
 
-Ranks Google News candidates by semantic similarity.
+#### `embedding_rank.py`
+
+Ranks candidates by semantic similarity.
 
 | Flag | Default | Action |
 |------|---------|--------|
-| `--top-k N` | 5 | Max results per WSJ item |
-| `--min-score F` | 0.3 | Minimum cosine similarity |
+| `--top-k N` | 10 | Max results per item |
+| `--min-score F` | 0.3 | Min cosine similarity |
 
-**Model:** `all-MiniLM-L6-v2`. Preferred domains bypass min_score threshold.
+- **Model:** BAAI/bge-base-en-v1.5 (768d)
 
-### `resolve_ranked.py` (304 lines)
+#### `resolve_ranked.py`
 
-Resolves Google News redirect URLs to actual article URLs.
+Resolves Google News redirect URLs → actual article URLs.
 
 | Flag | Default | Action |
 |------|---------|--------|
 | `--delay N` | 3.0 | Delay between requests |
-| `--update-db` | — | Save results to Supabase |
+| `--update-db` | — | Save to Supabase |
 
-**3 strategies:** Direct base64 decode → `batchexecute` API POST → follow redirect/canonical URL.
+- **3 strategies:** base64 decode → `batchexecute` API → follow redirect
 
-### `crawl_ranked.py`
+### Phase 3: Crawl
 
-Crawls resolved URLs with quality verification. Maintains `run_blocked` in-memory set (seeded from DB) to skip domains that fail during the current run.
+#### `crawl_ranked.py`
+
+Crawls resolved URLs with quality + relevance verification.
 
 | Flag | Default | Action |
 |------|---------|--------|
-| `--delay N` | 3.0 | Delay between crawls |
-| `--update-db` | — | Save results to Supabase |
-| `--from-db` | — | Crawl pending items from DB (implies --update-db) |
+| `--delay N` | 1.0 | Delay between crawls |
+| `--update-db` | — | Save to Supabase |
+| `--from-db` | — | Crawl pending from DB |
 
-**Key logic:** Candidates sorted by `weighted_score = embedding_score * domain_success_rate`. Per-article pipeline: crawl → garbage check → embedding relevance (≥0.25) → LLM verification → accept or try next backup. `CRAWL_MODE`: `"stealth"` in CI, `"undetected"` locally.
+- Sorted by `weighted_score = embedding_score * domain_success_rate`
+- Per-article: crawl → garbage check → embedding relevance (≥ 0.25) → LLM verify → accept/reject
 
-### `crawl_article.py`
+#### `crawl_article.py`
 
-Core crawling engine. Hybrid newspaper4k + browser fallback. Blocked domain check uses caller-provided `blocked_domains` set (from DB + hardcoded uncrawlable list). Domain blocking via `domain_utils.is_blocked_domain()`.
+Core crawling engine: newspaper4k first (fast HTTP), crawl4ai browser fallback.
 
 | Flag | Default | Action |
 |------|---------|--------|
 | `<url>` | required | Article URL |
 | `[mode]` | undetected | `basic` / `stealth` / `undetected` |
-| `--save` | — | Save full content to file |
-| `--force` | — | Force crawl even if domain blocked |
+| `--save` | — | Save to file |
 
-**Strategy:** newspaper4k first (fast HTTP), then crawl4ai browser fallback. 13 domains with site-specific CSS selectors. Content extraction via trafilatura (preferred). Quality scoring: weighted sum of length, short_line_ratio, link_line_ratio, boilerplate_ratio.
+- 13 domains with site-specific CSS selectors
+- Quality scoring: length, short_line_ratio, link_line_ratio, boilerplate_ratio
 
-### `domain_utils.py` (211 lines)
+### Phase 4.5: Embed + Thread
 
-Shared domain utilities. Blocked domain loading from DB (`wsj_domain_status` table) + hardcoded `UNCRAWLABLE_DOMAINS` (10 SNS/video/aggregator domains that can never contain article content). Substring matching via `is_blocked_domain()`. Hardcoded domains are always included even if DB is unreachable.
+#### `embed_and_thread.py`
 
-### `llm_analysis.py` (280 lines)
+Article embeddings + story thread clustering.
 
-**Gemini 2.5 Flash** content verification + metadata extraction (JSON mode). Extracts: relevance_score, is_same_event, event_type, content_quality, sentiment, geographic_region, key_entities, key_numbers, tickers, people, summary (150-250 words), **importance** (must_read/worth_reading/optional), **keywords** (2-4 free-form). Tracks domain LLM fail/success counts. Requires `GEMINI_API_KEY`.
+| Flag | Action |
+|------|--------|
+| *(none)* | Full run: embed + thread + deactivate stale |
+| `--embed-only` | Skip thread matching |
+| `--dry-run` | Preview only |
 
-### `llm_backfill.py` (222 lines)
+- **Model:** BAAI/bge-base-en-v1.5 (768d)
+- Thread matching: cosine > 0.70 → existing thread, else LLM groups into new threads
+- Threads deactivated after 7 days inactive
 
-Backfill LLM analysis for existing articles. ~$0.00016/article.
+### Phase 5: Briefing
 
-| Flag | Default | Action |
-|------|---------|--------|
-| `--limit N` | all | Process only N articles |
-| `--dry-run` | — | Preview only |
-| `--delay N` | 0.5 | Delay between API calls |
+#### `generate_briefing.py`
 
-### `embed_and_thread.py` (new)
+Daily EN/KO finance briefings with TTS audio.
 
-Embeds articles and assigns to story threads.
-
-| Flag | Default | Action |
-|------|---------|--------|
-| *(none)* | — | Full run: embed + thread match + deactivate stale |
-| `--embed-only` | — | Only embed, skip thread matching |
-| `--dry-run` | — | Preview only |
-
-**Key logic:** BAAI/bge-base-en-v1.5 (768d) embeddings for `title + description`. Thread matching: cosine > 0.70 → assign to existing thread, else LLM (gpt-4o-mini) groups unmatched into new threads. Centroid updated incrementally. Threads inactive after 7 days.
-
-### `backfill_slugs.py` / `backfill_embeddings.py` (run-once)
-
-Backfill scripts for existing articles. Slugs generated from titles with date-suffix collision handling. Embeddings + thread assignment for historical data.
-
-### `generate_briefing.py`
-
-Generates daily EN/KO finance briefings with TTS audio.
-
-**Pipeline steps:** fetch_articles → filter_previously_briefed → fetch_crawl_map → fetch_llm_map → curate_articles (Gemini 2.5 Pro, 3 retries → Flash fallback) → assemble_articles (3 tiers: curated/standard/title-only) → build_briefing_prompt → generate_briefing (Gemini 2.5 Pro, temp 0.6, think 4K) → TTS → save_briefing_to_db → mark_articles_as_briefed.
-
-**TTS providers:**
-- EN: Google Cloud **Chirp 3 HD** (`en-US-Chirp3-HD-Alnilam`), 4K char chunks, 1.1x speed
-- KO: **Gemini 2.5 Pro Preview TTS** (`Kore` voice), single pass
-
-**CLI:**
 ```bash
-python scripts/generate_briefing.py                          # Full run (EN+KO, TTS+DB)
-python scripts/generate_briefing.py --date 2026-02-13        # Specific date
-python scripts/generate_briefing.py --lang ko --skip-tts     # KO only, no audio
-python scripts/generate_briefing.py --dry-run                # Read-only preview
-python scripts/generate_briefing.py --skip-db                # Skip Supabase save
-python scripts/generate_briefing.py --hours 48               # Lookback window
-python scripts/generate_briefing.py --output-dir PATH        # Custom output dir
+python generate_briefing.py                    # Full run (EN+KO)
+python generate_briefing.py --date 2026-02-13  # Specific date
+python generate_briefing.py --lang ko --skip-tts
+python generate_briefing.py --dry-run
 ```
 
-**Output:** `scripts/output/briefings/{date}/` — articles-input, briefing-{lang}.txt, audio-{lang}.mp3
+- **LLM:** Gemini 2.5 Pro (curation + generation, temp 0.6, think 4K)
+- **TTS EN:** Google Cloud Chirp 3 HD (`en-US-Chirp3-HD-Alnilam`)
+- **TTS KO:** Gemini 2.5 Pro Preview TTS (`Kore` voice)
+- **Output:** `scripts/output/briefings/{date}/`
+
+### Shared Utilities
+
+| Script | Purpose |
+|--------|---------|
+| `domain_utils.py` | Blocked domain loading (DB-only), `is_blocked_domain()` |
+| `llm_analysis.py` | Gemini 2.5 Flash content verification + metadata extraction |
+| `llm_backfill.py` | Backfill LLM analysis for existing articles |
 
 ---
 
-## GitHub Actions Workflow
+## Crawl Status Flow
 
-**File:** `.github/workflows/finance-pipeline.yml`
-**Trigger:** Manual (`workflow_dispatch`) or daily at 6 AM US Eastern.
-**Timezone Guard:** Two cron entries (`0 11 * * *` EST, `0 10 * * *` EDT). `tz-guard` job checks `date` in `America/New_York`.
+```mermaid
+stateDiagram-v2
+    [*] --> pending: resolve_ranked.py
 
-### Full Run (`crawl_only=false`)
+    pending --> success: crawl OK
+    pending --> failed: timeout / 404
+    pending --> garbage: CSS / paywall / junk
 
-| Job | Timeout | Steps |
-|-----|---------|-------|
-| **tz-guard** | 1 min | Check if 6 AM Eastern |
-| **ingest-search** | 60 min | `wsj_ingest.py` → `--export` → `wsj_to_google_news.py --delay-item 0.5 --delay-query 0.3` |
-| **rank-resolve** | 45 min | `embedding_rank.py` → `resolve_ranked.py --delay 0.5 --update-db` → `wsj_ingest.py --mark-searched` |
-| **crawl** | 180 min | `crawl_ranked.py --delay 2 --update-db` (with OPENAI_API_KEY) |
-| **save-results** | 5 min | Merge artifacts → upsert to DB → `--mark-processed-from-db` → `--update-domain-status` |
+    success --> flag_ok: LLM accept<br/>(same_event OR score≥6)
+    success --> flag_low: LLM reject
 
-### Crawl Only (`crawl_only=true`)
+    flag_ok --> skipped: mark other backups
+    flag_low --> pending: try next backup
 
-| Job | Timeout | Steps |
-|-----|---------|-------|
-| **tz-guard** | 1 min | Always passes for manual triggers |
-| **crawl-from-db** | 180 min | `crawl_ranked.py --from-db --delay 2` |
-| **save-results-crawl-only** | 5 min | `--mark-processed-from-db` → `--update-domain-status` |
+    failed --> [*]: tracked for domain stats
+    garbage --> [*]: tracked for domain stats
+```
 
-**Manual Trigger Options:** `crawl_only=true` (skip search/rank), `skip_crawl=true` (test search/rank only).
+### Quality Gates
 
-**Optimizations:** `uv` package manager, HuggingFace model caching, Playwright chromium fresh per run, `continue-on-error` on crawl/search steps, artifact passing (7 days retention).
+| Gate | Tool | Threshold |
+|------|------|-----------|
+| Garbage detection | crawl_ranked.py | unique_ratio ≥ 0.1, no CSS/JS/paywall |
+| Content quality | crawl_article.py | ≥ 350 chars, ≤ 50K, link_ratio < 30%, boilerplate < 40% |
+| Embedding relevance | crawl_ranked.py | cosine ≥ 0.25 (bge-base) |
+| LLM verification | llm_analysis.py | `is_same_event=true` OR `score ≥ 6` |
 
-**Secrets:** `SUPABASE_URL`, `SUPABASE_KEY`, `GEMINI_API_KEY`
+### Domain Failure Taxonomy
+
+`wsj_domain_status.fail_counts` tracks per-reason failures as JSONB. Only **blockable** failures count toward auto-blocking.
+
+| Key | Cause | Blockable? |
+|-----|-------|-----------|
+| `content too short` | Crawled but insufficient content (< 350ch) | Yes |
+| `paywall` | Paywall detected | Yes |
+| `css/js instead of content` | HTML/CSS/JS instead of article | Yes |
+| `copyright or unavailable` | Copyright/unavailability message | Yes |
+| `repeated content` | Same text repeated | Yes |
+| `empty content` | Completely empty response | Yes |
+| `http error` | HTTP errors (403, 429, etc.) | Yes |
+| `social media` | Social media, no article | Yes |
+| `too many links` | Link ratio > 30% | Yes |
+| `navigation/menu content` | Menu/nav content > 55% | Yes |
+| `boilerplate content` | Boilerplate > 40% | Yes |
+| `content too long` | Content > 50K chars | Yes |
+| `timeout or network error` | Timeout/network failure | Yes |
+| `low relevance` | Low embedding score (wrong article) | **No** |
+| `llm rejected` | LLM says different event | **No** |
 
 ---
 
@@ -209,93 +270,56 @@ python scripts/generate_briefing.py --output-dir PATH        # Custom output dir
 
 > Full schema: [`docs/schema.md`](schema.md)
 
-| Table | Purpose |
-|-------|---------|
-| `wsj_items` | WSJ RSS feed articles with feed_name, category, searched/processed/briefed flags, **slug**, **thread_id** |
-| `wsj_crawl_results` | Crawled backup articles with content, embedding_score, crawl_status, relevance_flag |
-| `wsj_domain_status` | Domain quality tracking — success_rate, weighted_score, auto-block status |
-| `wsj_llm_analysis` | Gemini 2.5 Flash extracted metadata — entities, sentiment, summary, event_type, **importance**, **keywords** |
-| `wsj_embeddings` | Article embeddings (BAAI/bge-base-en-v1.5, 768d) for semantic similarity |
-| `wsj_story_threads` | Story thread clusters with centroids, member counts, active/inactive status |
-| `wsj_briefings` | Generated briefing text + audio paths, upsert on (date, category) |
-| `wsj_briefing_items` | Junction table linking briefings to source articles |
+```mermaid
+erDiagram
+    wsj_items ||--o{ wsj_crawl_results : "1:N backups"
+    wsj_crawl_results ||--o| wsj_llm_analysis : "1:1 analysis"
+    wsj_items ||--o| wsj_embeddings : "1:1 embedding"
+    wsj_items }o--|| wsj_story_threads : "N:1 thread"
+    wsj_items }o--o{ wsj_briefings : "N:N via wsj_briefing_items"
+    wsj_domain_status : "standalone"
 
----
+    wsj_items {
+        uuid id PK
+        text title
+        text description
+        text[] extracted_entities
+        text[] llm_search_queries
+        bool searched
+        bool processed
+        bool briefed
+    }
 
-## Crawl Status Flow
+    wsj_crawl_results {
+        uuid id PK
+        uuid wsj_item_id FK
+        float embedding_score
+        text crawl_status
+        text relevance_flag
+        text content
+    }
 
-| Status | Meaning | Set By | Next Action |
-|--------|---------|--------|-------------|
-| `pending` | Resolved URL, not yet crawled | resolve_ranked.py | Will be crawled |
-| `success` | Crawled successfully | crawl_ranked.py | Check relevance_flag |
-| `failed` | Crawl error (timeout, 404) | crawl_ranked.py | Try next backup |
-| `error` | Unexpected exception | crawl_ranked.py | Try next backup |
-| `garbage` | CSS/JS, paywall, repeated words | crawl_ranked.py | Try next backup |
-| `skipped` | Another backup succeeded for this WSJ item | crawl_ranked.py | None |
-| `resolve_failed` | Google News URL couldn't be resolved | resolve_ranked.py | Tracked for domain stats |
-
+    wsj_llm_analysis {
+        uuid id PK
+        uuid crawl_result_id FK
+        int relevance_score
+        bool is_same_event
+        text summary
+    }
 ```
-                      ┌─────────┐
-                      │ pending │ ← Created by resolve
-                      └────┬────┘
-                           │
-            ┌──────────────┼──────────────┐
-            │              │              │
-            ▼              ▼              ▼
-      ┌─────────┐   ┌─────────┐   ┌─────────┐
-      │ success │   │ failed  │   │ garbage │
-      └────┬────┘   └─────────┘   └─────────┘
-           │
-  ┌────────┴────────┐
-  │                 │
-  ▼                 ▼
-┌──────────┐  ┌──────────┐
-│ flag=ok  │  │ flag=low │
-└──────────┘  └──────────┘
-  │                 │
-  ▼                 ▼
-Mark other      Try next backup
-backups 'skipped'
-```
-
----
-
-## Quality & Relevance Checks
-
-**Garbage Detection** (`crawl_ranked.py`):
-- Empty content, repeated words (unique_ratio < 0.1), CSS/JS patterns, paywall markers, misc junk strings
-
-**Quality Scoring** (`crawl_article.py`):
-- `quality_score` (0-1): weighted sum of length, short_line_ratio, link_line_ratio, boilerplate_ratio
-- Fail reasons: `TOO_SHORT` (<350 chars/<60 words), `TOO_LONG` (>50k), `LINK_HEAVY` (>30%), `MENU_HEAVY` (>55%), `BOILERPLATE_HEAVY` (>40%)
-- `MAX_CONTENT_LENGTH = 20000` chars (truncated)
-
-**Embedding Relevance**: Cosine similarity ≥ 0.25 → `relevance_flag='ok'`, else `'low'`
-
-**LLM Verification** (Gemini 2.5 Flash): Accept if `is_same_event=true` OR `score >= 6`. Reject otherwise → domain `llm_fail_count` incremented.
 
 ---
 
 ## Environment Variables
 
 ```env
-# Supabase (local dev / Mac Mini)
-NEXT_PUBLIC_SUPABASE_URL=
-SUPABASE_SERVICE_ROLE_KEY=
-
-# Gemini (LLM analysis, embedding thread grouping, briefing generation)
-GEMINI_API_KEY=
-
-# Google Cloud TTS (service account — only needed for briefing audio)
-GOOGLE_APPLICATION_CREDENTIALS=~/credentials/araverus-tts-sa.json
-
-# GitHub Actions secrets
-SUPABASE_URL=
-SUPABASE_KEY=
-GEMINI_API_KEY=
+NEXT_PUBLIC_SUPABASE_URL=        # Supabase project URL
+SUPABASE_SERVICE_ROLE_KEY=       # Supabase service role key
+GEMINI_API_KEY=                  # Gemini (preprocessing, LLM analysis, briefing, TTS)
+GOOGLE_APPLICATION_CREDENTIALS=  # Google Cloud TTS service account (briefing audio only)
 ```
 
-> **Note:** `OPENAI_API_KEY` is no longer used. All LLM calls migrated to Gemini. Mac Mini loads secrets from macOS Keychain via `load_env.sh`.
+Mac Mini loads secrets from `.env.pipeline` or macOS Keychain.
 
 ---
 
@@ -303,69 +327,27 @@ GEMINI_API_KEY=
 
 | Package | Purpose |
 |---------|---------|
-| `httpx>=0.27.0` | HTTP client |
-| `supabase>=2.0.0` | Supabase client |
-| `python-dotenv>=1.0.0` | Environment variables |
-| `sentence-transformers>=2.2.0` | Embedding models (all-MiniLM-L6-v2 for ranking, BAAI/bge-base-en-v1.5 for article embeddings) |
-| `vecs>=0.4.0` | pgvector Python client (optional) |
-| `numpy>=1.24.0` | Array operations |
-| `trafilatura>=1.6.0` | Content extraction (preferred) |
-| `lxml>=4.9.0` | XML parsing |
-| `newspaper4k>=0.9.0` | Fast HTTP extraction + metadata |
-| `crawl4ai>=0.4.0` | Browser-based crawling |
-| `google-genai>=1.0.0` | Gemini API (LLM analysis, briefing, TTS) |
-
----
-
-## CLI Quick Reference
-
-```bash
-cd scripts && source .venv/bin/activate
-
-# --- Ingestion Pipeline ---
-python wsj_ingest.py                                         # Ingest 6 WSJ RSS feeds
-python wsj_ingest.py --export                                # Export unsearched → JSONL
-python wsj_to_google_news.py --delay-item 2 --delay-query 1  # Search Google News
-python embedding_rank.py --top-k 5 --min-score 0.3           # Rank by similarity
-python resolve_ranked.py --delay 3 --update-db               # Resolve URLs → DB
-python wsj_ingest.py --mark-searched output/wsj_items.jsonl   # Mark searched
-
-# --- Crawling ---
-python crawl_ranked.py --delay 3 --update-db                 # Crawl from JSONL
-python crawl_ranked.py --from-db --delay 2                   # Crawl pending from DB
-python crawl_article.py "https://example.com/article" stealth --save  # Single article
-
-# --- Post-Process ---
-python wsj_ingest.py --mark-processed-from-db                # Mark quality crawls processed
-python wsj_ingest.py --update-domain-status                  # Update domain stats + auto-block
-python wsj_ingest.py --retry-low-relevance                   # Retry low-relevance items
-python wsj_ingest.py --stats                                 # Show DB statistics
-
-# --- LLM ---
-python llm_backfill.py --limit 10 --delay 0.5                # Backfill LLM analysis
-python llm_backfill.py --dry-run                              # Preview only
-
-# --- Briefing ---
-python scripts/generate_briefing.py                           # Full run (EN+KO, TTS+DB)
-python scripts/generate_briefing.py --dry-run                 # Read-only preview
-python scripts/generate_briefing.py --lang ko --skip-tts      # KO only, no audio
-python scripts/generate_briefing.py --date 2026-02-13         # Specific date
-```
+| `httpx` | HTTP client |
+| `supabase` | Supabase client |
+| `python-dotenv` | Environment variables |
+| `sentence-transformers` | BAAI/bge-base-en-v1.5 (ranking + embeddings) |
+| `numpy` | Array operations |
+| `trafilatura` | Content extraction |
+| `newspaper4k` | Fast HTTP extraction |
+| `crawl4ai` | Browser-based crawling |
+| `google-genai` | Gemini API (preprocessing, LLM analysis, briefing, TTS) |
 
 ---
 
 ## Cost Summary
 
-**Briefing generation per run (~$0.324):**
-
-| Component | Est. Cost |
-|-----------|-----------|
-| Curation (Gemini Pro, 4K think) | ~$0.006 |
-| EN Briefing (Gemini Pro, 4K think) | ~$0.051 |
-| KO Briefing (Gemini Pro, 4K think) | ~$0.063 |
-| EN TTS (Chirp 3 HD, ~9K chars) | ~$0.144 |
-| KO TTS (Gemini TTS, ~6K chars) | ~$0.060 |
-
-**Monthly:** ~$9.70/month (daily) or ~$7.10/month (weekdays only)
-
-**LLM analysis (backfill):** ~$0.00016/article (Gemini 2.5 Flash)
+| Component | Per Run | Monthly |
+|-----------|---------|---------|
+| Pre-processing (Flash-Lite, 60 items) | $0.003 | $0.10 |
+| LLM analysis (2.5 Flash, per article) | $0.0002 | ~$0.30 |
+| Curation (2.5 Pro) | $0.006 | $0.18 |
+| EN Briefing (2.5 Pro) | $0.051 | $1.53 |
+| KO Briefing (2.5 Pro) | $0.063 | $1.89 |
+| EN TTS (Chirp 3 HD) | $0.144 | $4.32 |
+| KO TTS (Gemini TTS) | $0.060 | $1.80 |
+| **Total** | **~$0.33** | **~$10/month** |

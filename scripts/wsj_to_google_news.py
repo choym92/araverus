@@ -24,7 +24,6 @@ Options:
 """
 import asyncio
 import hashlib
-import html
 import json
 import re
 import sys
@@ -38,7 +37,6 @@ from urllib.parse import quote_plus, urlparse
 
 import httpx
 from dotenv import load_dotenv
-from sklearn.feature_extraction.text import ENGLISH_STOP_WORDS
 
 # Load environment variables
 load_dotenv(Path(__file__).parent.parent / '.env.local')
@@ -49,46 +47,6 @@ from domain_utils import load_blocked_domains as _load_blocked_domains_from_db
 
 # Google News RSS search URL
 GOOGLE_NEWS_RSS = "https://news.google.com/rss/search?q={query}&hl=en-US&gl=US&ceid=US:en"
-
-# Use sklearn's stopwords (318 words)
-STOP_WORDS = set(ENGLISH_STOP_WORDS)
-
-# Vague verbs to exclude from entity extraction
-VAGUE_VERBS = {
-    'says', 'said', 'warns', 'warning', 'seeking', 'looking', 'wants',
-    'gets', 'got', 'makes', 'made', 'takes', 'took', 'gives', 'gave',
-    'sees', 'saw', 'shows', 'shown', 'finds', 'found', 'reports',
-    'announces', 'reveals', 'suggests', 'indicates', 'expects',
-    'plans', 'aims', 'tries', 'attempts', 'considers', 'explores',
-    'edged', 'ahead', 'enough', 'back', 'groove', 'three', 'reasons',
-}
-
-# Noise entities to skip
-NOISE_ENTITIES = {
-    'wsj', 'wall street journal', 'the wall street journal',
-    'reuters', 'bloomberg', 'associated press', 'ap',
-}
-
-# Source name to domain mapping (for blocklist matching)
-SOURCE_NAME_TO_DOMAIN = {
-    'the wall street journal': 'wsj.com',
-    'wall street journal': 'wsj.com',
-    'wsj': 'wsj.com',
-    'reuters': 'reuters.com',
-    'bloomberg': 'bloomberg.com',
-    'bloomberg news': 'bloomberg.com',
-    'financial times': 'ft.com',
-    'ft': 'ft.com',
-    'the new york times': 'nytimes.com',
-    'new york times': 'nytimes.com',
-    'nytimes': 'nytimes.com',
-}
-
-# Additional sources to always exclude (not crawlable or low quality)
-EXCLUDED_SOURCES = {
-    '富途牛牛',  # Futu - aggregator, not original content
-}
-
 
 def is_non_english_source(source_name: str) -> bool:
     """Check if source name contains non-Latin characters (likely non-English)."""
@@ -104,32 +62,10 @@ def is_non_english_source(source_name: str) -> bool:
                 return True
     return False
 
-# PREFERRED_DOMAINS is now loaded dynamically from domain_utils
-# Preferred domain logic removed — pure embedding score ranking only
-
-# Event keywords with priority (higher = more important)
-EVENT_PRIORITY = {
-    'lawsuit': 10, 'sued': 10, 'suing': 10, 'settle': 10, 'settlement': 10,
-    'acquisition': 9, 'deal': 9, 'merger': 9, 'takeover': 9, 'buyout': 9,
-    'ban': 8, 'banned': 8, 'block': 8, 'blocked': 8, 'restrict': 8,
-    'ipo': 7, 'debut': 7, 'trading': 7,
-    'raising': 6, 'raised': 6, 'funding': 6, 'valuation': 6,
-    'launch': 5, 'launched': 5, 'unveil': 5, 'unveiled': 5, 'release': 5,
-    'cut': 4, 'cuts': 4, 'cutting': 4, 'slash': 4, 'slashing': 4,
-}
-
 
 def safe_text(el) -> str:
     """Safely extract text from XML element."""
     return (el.text or "").strip() if el is not None else ""
-
-
-def clean_html(s: str) -> str:
-    """Remove HTML tags and unescape entities."""
-    s = html.unescape(s or "")
-    s = re.sub(r"<[^>]+>", " ", s)
-    s = re.sub(r"\s+", " ", s).strip()
-    return s
 
 
 def normalize_domain(url: str) -> str:
@@ -156,27 +92,13 @@ def load_blocked_domains() -> frozenset[str]:
 
 
 def is_source_blocked(source_name: str, source_domain: str) -> bool:
-    """Check if source is blocked by domain or known name mapping."""
-    # Check non-English sources first (e.g., Arabic, Chinese, etc.)
+    """Check if source is blocked by domain (DB) or non-English name."""
     if is_non_english_source(source_name):
         return True
 
-    # Check excluded sources
-    if source_name in EXCLUDED_SOURCES:
-        return True
-
     blocked_domains = load_blocked_domains()
-
-    # Check domain directly
     if source_domain and source_domain in blocked_domains:
         return True
-
-    # Check source name mapping
-    source_lower = source_name.lower()
-    if source_lower in SOURCE_NAME_TO_DOMAIN:
-        mapped_domain = SOURCE_NAME_TO_DOMAIN[source_lower]
-        if mapped_domain in blocked_domains:
-            return True
 
     return False
 
@@ -194,237 +116,36 @@ def is_newsletter_title(title: str) -> bool:
     return any(re.search(p, title_lower) for p in indicators)
 
 
-def extract_core_entities(text: str) -> list[str]:
+def build_queries(
+    title: str,
+    description: str,
+    llm_queries: list[str] | None = None,
+) -> list[str]:
     """
-    Extract high-quality named entities from text.
-    Prioritizes: Company names, Person names, Product names, Acronyms
+    Build search queries using LLM-generated queries when available,
+    falling back to clean title.
+
+    Args:
+        title: WSJ article title
+        description: WSJ article description
+        llm_queries: Pre-generated search queries from wsj_preprocess.py
     """
-    entities = []
-    seen = set()
+    clean_title = re.sub(
+        r'\s*[-|]\s*(WSJ|Wall Street Journal).*$', '', title, flags=re.IGNORECASE
+    ).strip()
 
-    # Known tech/finance companies (common in WSJ tech)
-    known_companies = {
-        'openai', 'google', 'meta', 'microsoft', 'apple', 'amazon', 'nvidia',
-        'tesla', 'softbank', 'anthropic', 'xai', 'bytedance', 'tiktok',
-        'alibaba', 'tencent', 'samsung', 'intel', 'amd', 'qualcomm',
-        'oracle', 'ibm', 'salesforce', 'adobe', 'netflix', 'uber', 'lyft',
-        'spacex', 'palantir', 'snowflake', 'databricks', 'stripe', 'coinbase',
-    }
+    # Newsletters rely entirely on LLM queries (titles are not searchable)
+    if is_newsletter_title(title) and llm_queries:
+        return llm_queries[:3]
 
-    # Find known companies in text (case-insensitive)
-    text_lower = text.lower()
-    for company in known_companies:
-        if company in text_lower and company not in seen:
-            # Get original casing from text
-            match = re.search(rf'\b{company}\b', text, re.IGNORECASE)
-            if match:
-                entities.append(match.group(0))
-                seen.add(company)
+    queries = [clean_title]
 
-    # Multi-word proper nouns (e.g., "Jensen Huang", "Silicon Valley")
-    multi_word = re.findall(r'\b([A-Z][a-z]+(?:\s+[A-Z][a-z]+)+)\b', text)
-    for entity in multi_word:
-        lower = entity.lower()
-        if lower not in seen and lower not in NOISE_ENTITIES:
-            entities.append(entity)
-            seen.add(lower)
+    if llm_queries:
+        for q in llm_queries[:3]:
+            if q not in queries:
+                queries.append(q)
 
-    # Acronyms (AI, CES, IPO, etc.) - but not common ones
-    common_acronyms = {'US', 'UK', 'EU', 'CEO', 'CFO', 'CTO', 'GMT', 'EST', 'PST', 'AI'}
-    acronyms = re.findall(r'\b([A-Z]{2,5})\b', text)
-    for acr in acronyms:
-        if acr not in seen and acr not in common_acronyms:
-            entities.append(acr)
-            seen.add(acr)
-
-    # Single capitalized words (but be more selective)
-    single_caps = re.findall(r'\b([A-Z][a-z]{2,})\b', text)
-    for word in single_caps:
-        lower = word.lower()
-        if (lower not in seen and
-            lower not in STOP_WORDS and
-            lower not in VAGUE_VERBS and
-            len(word) >= 4):  # Skip short words like "The", "New"
-            entities.append(word)
-            seen.add(lower)
-
-    return entities
-
-
-def extract_core_keywords(text: str, max_tokens: int = 6) -> list[str]:
-    """
-    Extract meaningful keywords (nouns/noun-phrases) for lexical-mismatch resilience.
-    Returns list of significant words, prioritizing domain-relevant nouns.
-    """
-    # Domain-relevant noun patterns (tech/finance/business)
-    domain_nouns = {
-        'shopping', 'commerce', 'retail', 'retailers', 'platform', 'protocol',
-        'agents', 'agent', 'chip', 'chips', 'memory', 'data', 'cloud', 'energy',
-        'investment', 'funding', 'valuation', 'startup', 'acquisition', 'merger',
-        'lawsuit', 'settlement', 'probe', 'ban', 'restriction', 'safety',
-        'nuclear', 'solar', 'battery', 'electric', 'autonomous', 'robotics',
-        'chatbot', 'model', 'training', 'inference', 'search', 'advertising',
-    }
-
-    words = re.findall(r'\b[a-zA-Z]{3,}\b', text.lower())
-    keywords = []
-    seen = set()
-
-    # First pass: domain-relevant nouns
-    for w in words:
-        if w in domain_nouns and w not in seen:
-            keywords.append(w)
-            seen.add(w)
-
-    # Second pass: other significant words (not stopwords, not vague verbs)
-    for w in words:
-        if (w not in seen and
-            w not in STOP_WORDS and
-            w not in VAGUE_VERBS and
-            w not in NOISE_ENTITIES and
-            len(w) >= 4):
-            keywords.append(w)
-            seen.add(w)
-
-    return keywords[:max_tokens]
-
-
-def convert_number_to_or_format(number_str: str) -> str:
-    """
-    Convert number with unit to OR format for better search matching.
-
-    Examples:
-        "$94 billion" → "($94 billion OR $94B)"
-        "10 million" → "(10 million OR 10M)"
-        "15 percent" → "(15 percent OR 15%)"
-        "$2.5 trillion" → "($2.5 trillion OR $2.5T)"
-    """
-    number_str = number_str.strip()
-    lower = number_str.lower()
-
-    # Extract the numeric part (with optional $ and decimal)
-    num_match = re.match(r'(\$?\d+(?:\.\d+)?)\s*', number_str)
-    if not num_match:
-        return number_str
-
-    num_part = num_match.group(1)
-
-    # Map unit words to abbreviations
-    unit_map = {
-        'billion': 'B',
-        'million': 'M',
-        'trillion': 'T',
-        'percent': '%',
-    }
-
-    for unit_word, unit_abbr in unit_map.items():
-        if unit_word in lower:
-            # Handle percent specially (no space before %)
-            if unit_word == 'percent':
-                abbr_form = f"{num_part}%"
-            else:
-                abbr_form = f"{num_part}{unit_abbr}"
-            return f"({number_str} OR {abbr_form})"
-
-    # If already using % symbol, no conversion needed
-    if '%' in number_str:
-        return number_str
-
-    return number_str
-
-
-def build_queries(title: str, description: str) -> list[str]:
-    """
-    Build multiple search queries for better candidate generation.
-
-    Strategy:
-        Q1: Clean title (most reliable - news titles are search-optimized)
-        Q2: Core keywords from title (4-6 tokens, lexical-mismatch resilient)
-        Q3: Core keywords from description (if different from title)
-        Q4: Entity + event/number (structured)
-    """
-    queries = []
-
-    # Clean title (remove WSJ branding)
-    clean_title = re.sub(r'\s*[-|]\s*(WSJ|Wall Street Journal).*$', '', title, flags=re.IGNORECASE)
-    clean_title = clean_title.strip()
-
-    # Check if this is a newsletter/roundup (harder to search)
-    is_newsletter = is_newsletter_title(title)
-
-    # Q1: Title as-is (most reliable for non-newsletters)
-    if not is_newsletter:
-        queries.append(clean_title)
-
-    # Combine title + description for entity extraction
-    title_clean = clean_html(title)
-    desc_clean = clean_html(description)
-    text = f"{title_clean} {desc_clean}"
-
-    # Extract core entities (company names, proper nouns)
-    entities = extract_core_entities(text)
-
-    # Q2: Core keywords from TITLE (lexical-mismatch resilient)
-    # e.g., "Google AI shopping agents retailers" instead of full title
-    title_keywords = extract_core_keywords(title_clean, max_tokens=6)
-    if len(title_keywords) >= 3:
-        # Add primary entity if we have one
-        if entities:
-            q2_parts = [entities[0]] + [k for k in title_keywords if k.lower() != entities[0].lower()][:5]
-        else:
-            q2_parts = title_keywords
-        q2 = ' '.join(q2_parts)
-        if q2 not in queries and q2.lower() != clean_title.lower():
-            queries.append(q2)
-
-    # Q3: Core keywords from DESCRIPTION (often has synonyms/related terms)
-    # e.g., "commerce platform protocol" when title says "shopping retailers"
-    desc_keywords = extract_core_keywords(desc_clean, max_tokens=6)
-    # Only add if description has different keywords than title
-    desc_unique = [k for k in desc_keywords if k not in title_keywords]
-    if len(desc_unique) >= 2:
-        if entities:
-            q3_parts = [entities[0]] + desc_unique[:4]
-        else:
-            q3_parts = desc_keywords[:5]
-        q3 = ' '.join(q3_parts)
-        if q3 not in queries:
-            queries.append(q3)
-
-    # Q4: Entity + event/number (structured, for specific matches)
-    numbers = re.findall(
-        r'\$?\d+(?:\.\d+)?\s*(?:billion|million|trillion|percent|%)',
-        text, re.IGNORECASE
-    )
-    best_event = None
-    best_priority = -1
-    for word in re.findall(r'\b\w+\b', text.lower()):
-        if word in EVENT_PRIORITY and EVENT_PRIORITY[word] > best_priority:
-            best_event = word
-            best_priority = EVENT_PRIORITY[word]
-
-    if len(entities) >= 1 and (best_event or numbers):
-        q4_parts = entities[:2].copy()
-        if best_event:
-            q4_parts.append(best_event)
-        if numbers:
-            # Convert number to OR format: "$94 billion" → "($94 billion OR $94B)"
-            q4_parts.append(convert_number_to_or_format(numbers[0]))
-        q4 = ' '.join(q4_parts)
-        if q4 not in queries:
-            queries.append(q4)
-
-    # For newsletters, add a simpler entity-only query
-    if is_newsletter and entities:
-        simple_q = ' '.join(entities[:3])
-        if simple_q not in queries:
-            queries.append(simple_q)
-
-    # Ensure we have at least one query
-    if not queries:
-        queries.append(clean_title)
-
-    return queries[:4]  # Limit to 4 queries max
+    return queries[:4]
 
 
 def parse_rss_date(date_str: str):
@@ -497,21 +218,7 @@ def load_wsj_jsonl(jsonl_path: str, today_only: bool = False) -> list[dict]:
                     items_by_title[title_lower] = item
                     category_counts[feed_name] += 1
 
-    # Build result list
-    items = []
-    for item in items_by_title.values():
-        items.append({
-            'id': item.get('id'),
-            'title': item.get('title', ''),
-            'description': item.get('description', ''),
-            'link': item.get('link', ''),
-            'pubDate': item.get('pubDate', ''),
-            'creator': item.get('creator'),
-            'feed_name': item.get('feed_name'),
-            'subcategory': item.get('subcategory'),
-        })
-
-    return items
+    return list(items_by_title.values())
 
 
 def parse_wsj_rss(xml_path: str, skip_opinion: bool = True) -> list[dict]:
@@ -589,44 +296,38 @@ async def search_google_news(query: str, client: httpx.AsyncClient) -> list[dict
         return []
 
 
-def add_date_filter(query: str, after_date=None, date_mode: str = "3d") -> str:
-    """Add date filter to Google News query to reduce response size.
+def add_date_filter(query: str, after_date=None) -> str:
+    """Add date filter to Google News query.
 
-    Args:
-        query: The search query
-        after_date: WSJ publish date for date-range filtering
-        date_mode: "3d", "7d", or "none" for fallback levels
+    Uses a tight 3-day window (pubDate ±1 day) for all queries.
+    WSJ articles report same-day or previous-day events; other outlets
+    cover them within the same 24-48h cycle.
 
     Google News RSS supports:
-    - after:YYYY-MM-DD / before:YYYY-MM-DD for specific date ranges
-    - when:7d / when:3d for relative time windows
+    - after:YYYY-MM-DD / before:YYYY-MM-DD in query string
     """
-    if date_mode == "none":
-        return query
+    if not after_date:
+        return f"{query} when:3d"
 
-    if after_date and date_mode == "3d":
-        # WSJ pubDate -1 day to +3 days (5-day window)
-        start = (after_date.date() - timedelta(days=1)).isoformat()
-        end = (after_date.date() + timedelta(days=4)).isoformat()  # +3 days needs before:+4
-        return f"{query} after:{start} before:{end}"
-    elif after_date and date_mode == "7d":
-        # Wider window: -3 day to +4 days (7-day window)
-        start = (after_date.date() - timedelta(days=3)).isoformat()
-        end = (after_date.date() + timedelta(days=4)).isoformat()
-        return f"{query} after:{start} before:{end}"
-
-    # Relative fallback
-    if date_mode == "7d":
-        return f"{query} when:7d"
-    return f"{query} when:3d"
+    start = (after_date.date() - timedelta(days=1)).isoformat()
+    end = (after_date.date() + timedelta(days=2)).isoformat()  # +1 day needs before:+2
+    return f"{query} after:{start} before:{end}"
 
 
 def format_query_with_exclusions(query: str) -> str:
-    """Add -site:wsj.com to exclude paywalled WSJ results."""
-    # Don't add if already has site: operator
+    """Add -site: exclusions for top paywalled domains.
+
+    Only includes the highest-traffic paywalled sources to stay within
+    Google query length limits. Remaining blocked domains are filtered
+    post-fetch by is_source_blocked().
+    """
     if 'site:' in query.lower():
         return query
-    return f"{query} -site:wsj.com"
+    exclusions = (
+        "-site:wsj.com -site:reuters.com -site:bloomberg.com"
+        " -site:ft.com -site:nytimes.com -site:barrons.com"
+    )
+    return f"{query} {exclusions}"
 
 
 async def search_multi_query(
@@ -661,16 +362,6 @@ async def search_multi_query(
         if key in seen_keys:
             return False
 
-        if after_date:
-            article_date = parse_rss_date(article['pubDate'])
-            if article_date is None:
-                return False
-            wsj_date = after_date.date()
-            article_dt = article_date.date()
-            # Allow -1 to +3 days from WSJ pub date
-            if article_dt < wsj_date - timedelta(days=1) or article_dt > wsj_date + timedelta(days=3):
-                return False
-
         seen_keys.add(key)
         all_articles.append(article)
         return True
@@ -679,14 +370,7 @@ async def search_multi_query(
         # Add exclusions
         query_with_excl = format_query_with_exclusions(query)
 
-        # Date filter strategy:
-        # Q1 (i=0): 7-day window - full title, broad but recent
-        # Q2 (i=1): 7-day window - keywords, catches lexical mismatches
-        # Q3+ (i>=2): 3-day window - description keywords, tighter filter
-        if i >= 2:
-            filtered_query = add_date_filter(query_with_excl, after_date, date_mode="3d")
-        else:
-            filtered_query = add_date_filter(query_with_excl, after_date, date_mode="7d")
+        filtered_query = add_date_filter(query_with_excl, after_date)
 
         t0 = time.perf_counter()
         articles = await search_google_news(filtered_query, client)
@@ -695,7 +379,7 @@ async def search_multi_query(
         added_count = sum(1 for a in articles if add_article(a))
 
         instrumentation['queries_executed'].append({
-            'query': filtered_query[:80],
+            'query': filtered_query,
             'results': len(articles),
             'added': added_count,
             'time': round(elapsed, 2),
@@ -789,8 +473,9 @@ async def main():
             # Date filter: only articles from same day as WSJ publish date
             wsj_date = parse_rss_date(wsj['pubDate'])
 
-            # Build multiple queries
-            queries = build_queries(wsj['title'], wsj['description'])
+            # Build search queries (prefer LLM-generated, fall back to title)
+            llm_queries = wsj.get('llm_search_queries') or None
+            queries = build_queries(wsj['title'], wsj['description'], llm_queries=llm_queries)
             print(f"    Queries ({len(queries)}):")
             for j, q in enumerate(queries):
                 print(f"      Q{j+1}: {q[:70]}{'...' if len(q) > 70 else ''}")

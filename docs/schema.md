@@ -1,4 +1,4 @@
-<!-- Updated: 2026-02-17 -->
+<!-- Updated: 2026-02-21 -->
 <!-- Phase: News UX enhancement (migrations 007-009) -->
 # Database Schema (araverus)
 
@@ -81,6 +81,11 @@ briefed       BOOLEAN       -- set true for all articles used as input to a brie
 briefed_at    TIMESTAMPTZ   -- when briefed was set true
 slug          TEXT UNIQUE   -- URL-friendly slug for /news/[slug] (generated from title)
 thread_id     UUID FK → wsj_story_threads(id)  -- story thread assignment (nullable)
+extracted_entities  TEXT[]   -- Gemini Flash-Lite: company/person/org names from title+desc (pre-search)
+extracted_keywords  TEXT[]   -- Gemini Flash-Lite: 3-5 search terms from title+desc (pre-search)
+extracted_tickers   TEXT[]   -- Gemini Flash-Lite: stock symbols from title+desc (pre-search)
+llm_search_queries  TEXT[]   -- Gemini Flash-Lite: 2-3 optimized Google News queries (pre-search)
+preprocessed_at     TIMESTAMPTZ  -- when preprocessing completed
 created_at    TIMESTAMPTZ   -- auto: now()
 ```
 
@@ -103,7 +108,7 @@ title           TEXT          -- backup article title from Google News RSS
 resolved_url    TEXT UNIQUE   -- final URL after following Google News redirects (resolve_ranked.py)
 resolved_domain TEXT          -- extracted domain from resolved_url (e.g., "finance.yahoo.com")
 embedding_score FLOAT         -- cosine similarity (0-1) between WSJ title+desc and backup title
-                              --   computed by embedding_rank.py using all-MiniLM-L6-v2
+                              --   computed by embedding_rank.py using BAAI/bge-base-en-v1.5
                               --   >=0.5 high, >=0.4 medium, <0.4 low
 crawl_status    TEXT          -- pending → success | failed | skipped | resolve_failed
 crawl_error     TEXT          -- error message if crawl failed
@@ -167,13 +172,14 @@ created_at        TIMESTAMPTZ   -- auto: now()
 ```sql
 domain           TEXT PRIMARY KEY  -- e.g., "finance.yahoo.com"
 status           TEXT         -- active | blocked
-failure_type     TEXT         -- type of failure (crawl error category)
+failure_type     TEXT         -- last error text (legacy, kept for compat)
 fail_count       INT          -- total crawl failures
+fail_counts      JSONB        -- per-reason failure counts: {"content too short": 3, "paywall": 1, ...}
 success_count    INT          -- total crawl successes
 last_failure     TIMESTAMPTZ
 last_success     TIMESTAMPTZ
-block_reason     TEXT         -- e.g., "Auto-blocked: 25 failures, 0% success rate"
-llm_fail_count   INT          -- LLM is_same_event=false count (reset on success)
+block_reason     TEXT         -- e.g., "Auto-blocked: wilson=0.05 < 0.15 (2/10 blockable, 20% overall)"
+llm_fail_count   INT          -- (legacy) LLM is_same_event=false count
 last_llm_failure TIMESTAMPTZ
 success_rate     NUMERIC      -- computed: success_count / (success_count + fail_count)
 weighted_score   NUMERIC      -- quality score combining success rate and volume
@@ -182,8 +188,8 @@ created_at       TIMESTAMPTZ
 updated_at       TIMESTAMPTZ
 ```
 
-**Auto-block rule**: `wilson_score < 0.15` (with `total >= 5`) OR `llm_fail_count >= 10 AND success < llm_fail * 3`
-**LLM tracking**: `llm_fail_count` incremented when crawled content doesn't match WSJ event, reset to 0 on success.
+**Auto-block rule**: `wilson_score < 0.15` (with `blockable_total >= 5`), where blockable = all failures EXCEPT `low relevance` and `llm rejected` (content mismatch, not the domain's fault).
+**Failure taxonomy** (fail_counts keys): `content too short`, `paywall`, `css/js instead of content`, `copyright or unavailable`, `repeated content`, `empty content`, `http error`, `domain blocked`, `social media`, `too many links`, `navigation/menu content`, `boilerplate content`, `content too long`, `timeout or network error`, `low relevance`, `llm rejected`.
 
 ### `wsj_briefings` — Daily Briefing Output (Phase 2)
 **Written by**: TBD (generate_briefing.py)
@@ -274,7 +280,8 @@ wsj_domain_status (independent, updated by crawl pipeline)
 ```
 Job 1: ingest-search
   wsj_ingest.py          → wsj_items (insert)
-  wsj_ingest.py --export → JSONL file
+  wsj_preprocess.py      → wsj_items (update: extracted_*, llm_search_queries)
+  wsj_ingest.py --export → JSONL file (includes llm_search_queries)
   wsj_to_google_news.py  → Google News search results JSONL
 
 Job 2: rank-resolve
