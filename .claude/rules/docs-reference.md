@@ -18,6 +18,7 @@
 | Doc | Content |
 |-----|---------|
 | `docs/4-news-backend.md` | Pipeline scripts, GitHub Actions, crawling, briefing generation |
+| `docs/4-news-google-search.md` | Google News search flow, domain blocking layers, -site: logic |
 | `docs/4-news-frontend.md` | `/news` page components, data flow, BriefingPlayer |
 
 **Tooling**
@@ -32,5 +33,6 @@ Before working on a specific area, READ the relevant doc first:
 | Area | Must-read | Why |
 |------|-----------|-----|
 | Pipeline scripts / crawling | `docs/4-news-backend.md` | Script flags, crawl logic, cost |
+| Google News search / domain blocking | `docs/4-news-google-search.md` | Search flow, -site: logic, filtering layers |
 | News frontend / components | `docs/4-news-frontend.md` | Component props, data flow, known hacks |
 | DB schema changes | `docs/schema.md` | Column types, relationships, lifecycle |

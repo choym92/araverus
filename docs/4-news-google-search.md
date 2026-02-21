@@ -1,0 +1,226 @@
+<!-- Updated: 2026-02-20 -->
+# Google News Search Pipeline
+
+Detailed documentation for `wsj_to_google_news.py` — the search stage that finds free article candidates for each WSJ item.
+
+---
+
+## Pipeline Position
+
+```mermaid
+flowchart LR
+    A[wsj_ingest.py\nRSS → DB] --> B[wsj_to_google_news.py\n★ THIS STAGE]
+    B --> C[embedding_rank.py\nSemantic ranking]
+    C --> D[resolve_ranked.py\nURL resolution]
+    D --> E[crawl_ranked.py\nCrawl + verify]
+    E --> F[Post-process\nDomain status update]
+```
+
+---
+
+## End-to-End Flow
+
+```mermaid
+flowchart TD
+    subgraph INPUT
+        WSJ[WSJ Item\ntitle + description + pubDate]
+    end
+
+    subgraph QUERY_BUILD["Query Building (build_queries)"]
+        Q1["Q1: Clean title\n'OpenAI Raises $40B in Funding Round'"]
+        Q2["Q2: Title keywords\n'OpenAI funding valuation round'"]
+        Q3["Q3: Description keywords\n'OpenAI artificial intelligence investment'"]
+        Q4["Q4: Entity + event/number\n'OpenAI funding ($40 billion OR $40B)'"]
+    end
+
+    subgraph SEARCH_FILTER["Search-Level Filtering (format_query_with_exclusions)"]
+        SITE["Add -site: exclusions\n(top 28 blocked domains)\nGoogle removes these from results"]
+        DATE["Add date filter\nQ1-Q2: 7-day window\nQ3-Q4: 3-day window"]
+    end
+
+    subgraph GOOGLE["Google News RSS"]
+        GAPI["Returns ≤100 results per query\n28 -site: domains CANNOT appear\nRemaining 53 blocked CAN appear\n⚠ Slots wasted on these 53"]
+    end
+
+    subgraph POST_FILTER["Post-Search Filtering (add_article)"]
+        BLK["is_source_blocked()\nChecks ALL 81 domains\n+ subdomain matching\n+ source name mapping"]
+        DUP["Dedupe\ntitle + source hash"]
+        DFILTER["Date range check\nWSJ pubDate -1 to +3 days"]
+    end
+
+    subgraph OUTPUT
+        OUT["Candidates\n~80-180 per WSJ item\n→ wsj_google_news_results.jsonl"]
+    end
+
+    WSJ --> Q1 & Q2 & Q3 & Q4
+    Q1 & Q2 & Q3 & Q4 --> SITE
+    SITE --> DATE
+    DATE --> GAPI
+    GAPI --> BLK
+    BLK --> DUP
+    DUP --> DFILTER
+    DFILTER --> OUT
+```
+
+---
+
+## Domain Blocking — Three Layers
+
+```mermaid
+flowchart TD
+    subgraph LAYER1["Layer 1: Search-Level (-site:)"]
+        direction TB
+        L1["28 domains excluded from Google query\nGoogle fills slots with OTHER sources\n✅ Best: prevents slot waste"]
+        L1_LIMIT["⚠ Google limit: ~32 operators/query\nOnly top 28 fit"]
+    end
+
+    subgraph LAYER2["Layer 2: Post-Search Filter (Python)"]
+        direction TB
+        L2["ALL 81 blocked domains checked\n+ subdomain matching\nRemoves results that passed Layer 1"]
+        L2_WASTE["⚠ Slots already wasted\nGoogle returned blocked results\nthat we then throw away"]
+    end
+
+    subgraph LAYER3["Layer 3: Crawl-Level Block"]
+        direction TB
+        L3["blocked_domains set passed to crawler\n+ run_blocked: domains that fail during run\nSkips crawl attempt entirely"]
+    end
+
+    L1 --> L2 --> L3
+```
+
+### What Each Layer Catches
+
+| Domain | Layer 1 (-site:) | Layer 2 (post-filter) | Layer 3 (crawl) | Net result |
+|--------|:-:|:-:|:-:|---|
+| facebook.com | ✅ removed at search | backup check | backup check | Never appears |
+| reuters.com | ❌ not in top 28 | ✅ removed | backup check | Wastes Google slot, then removed |
+| ca.finance.yahoo.com | ✅ via -site:yahoo.com | ✅ subdomain match | ✅ subdomain match | Fully covered |
+| some-new-blocked.com | ❌ just added to DB | ✅ in full blocked set | ✅ in full blocked set | Wastes slot first time, then caught |
+
+---
+
+## Scenarios
+
+### Scenario 1: Typical (e.g., "OpenAI funding")
+
+```
+Google returns 100 results per query × 3 queries = 300 raw
+  - 28 -site: domains: 0 appear (removed at search level)
+  - 53 other blocked: ~40 appear across queries (reuters, nytimes...)
+  - Non-blocked: ~260 appear
+After dedup: ~180 unique
+After post-filter (removes 53 blocked): ~140 usable candidates
+→ Embedding ranking picks top 5 → Crawl with fallback
+✅ Result: Plenty of candidates
+```
+
+### Scenario 2: High-profile news (e.g., "Trump tariffs")
+
+```
+Google returns 100 × 4 queries = 400 raw
+  - 53 other blocked: ~80 appear (big outlets cover this heavily)
+  - Non-blocked: ~320 appear
+After dedup + post-filter: ~100 usable
+→ Top 5 → Crawl
+✅ Result: OK but ~80 slots wasted (reuters/bloomberg/nytimes dominate)
+```
+
+### Scenario 3: Niche topic (e.g., "Myanmar education reform")
+
+```
+Google returns 20 × 2 queries = 40 raw
+  - 53 other blocked: ~15 appear
+  - Non-blocked: ~25 appear
+After dedup + post-filter: ~15 usable
+→ Top 5 → Crawl
+⚠ Result: Tight. 15 wasted slots hurt more here.
+```
+
+### Scenario 4: Worst case (very niche + tight date)
+
+```
+Google returns 8 × 2 queries = 16 raw
+  - 53 other blocked: ~10 appear
+  - Non-blocked: ~6 appear
+After dedup + post-filter: ~4 usable
+→ Maybe 1-2 above embedding threshold
+❌ Result: High risk of no good candidate. WSJ item may fail.
+```
+
+---
+
+## Current Problem: -site: Priority
+
+Google allows ~32 operators per query. We use 28 for `-site:` + 2 for date = 30.
+
+**Which 28 domains get -site: exclusion matters.** Currently sorted by domain name length (shorter first). This is a poor proxy for Google News frequency:
+
+| In -site: (length-sorted) | Google News freq | Should be in? |
+|---|---|---|
+| azat.tv (7 chars) | 0 appearances | ❌ No — never appears |
+| wqow.com (8 chars) | 0 appearances | ❌ No — never appears |
+| reuters.com (11 chars) | 234 appearances | ✅ Yes — high frequency |
+| nytimes.com (11 chars) | 139 appearances | ✅ Yes — high frequency |
+| bloomberg.com (13 chars) | 93 appearances | ✅ Yes — high frequency |
+
+### Why `fail_count` from DB Doesn't Work
+
+`wsj_domain_status.fail_count` tracks **crawl failures**, not search appearances:
+
+```
+reuters.com    → fail_count = 0  (never crawled — blocked before crawl stage)
+bloomberg.com  → fail_count = 0  (same reason)
+facebook.com   → fail_count = 0  (same reason)
+```
+
+Blocked domains are filtered out before crawling, so they never accumulate fail_count.
+
+### Solution: `search_hit_count` Tracking
+
+Implemented in `wsj_to_google_news.py`:
+
+1. **Track**: Module-level `_search_hit_counter` dict counts every domain appearance in Google News results BEFORE the `is_source_blocked()` filter.
+2. **Save**: `save_search_hit_counts()` flushes accumulated counts to `wsj_domain_status.search_hit_count` at end of each pipeline run (additive across runs).
+3. **Prioritize**: `format_query_with_exclusions()` sorts DB-blocked domains by `search_hit_count DESC` (falls back to domain length ASC if column doesn't exist).
+
+```
+DB migration required:
+ALTER TABLE wsj_domain_status ADD COLUMN IF NOT EXISTS search_hit_count INTEGER DEFAULT 0;
+```
+
+After a few pipeline runs, the sort order self-corrects: reuters.com (234 hits) → position 1, azat.tv (0 hits) → dropped off the 28-slot list.
+
+---
+
+## Key Functions
+
+| Function | Purpose | Location |
+|---|---|---|
+| `build_queries()` | Generate 1-4 search queries from WSJ title + description | L337 |
+| `format_query_with_exclusions()` | Add -site: for top 28 blocked domains | L645 |
+| `add_date_filter()` | Add date range to query (3d or 7d window) | L593 |
+| `search_google_news()` | HTTP GET to Google News RSS, parse XML | L557 |
+| `search_multi_query()` | Fire all queries, union + dedup + filter | L638 |
+| `is_source_blocked()` | Check domain against all 81 blocked + subdomains | L173 |
+| `_is_domain_blocked()` | Subdomain-aware domain matching | L161 |
+| `_dedupe_subdomains()` | Remove child domains when parent exists | L645 |
+
+## Query Strategy
+
+| Query | Source | Date window | Purpose |
+|---|---|---|---|
+| Q1 | Clean title as-is | 7 days | Most reliable — news titles are search-optimized |
+| Q2 | Keywords from title | 7 days | Lexical-mismatch resilient |
+| Q3 | Keywords from description | 3 days | Synonyms/related terms from description |
+| Q4 | Entity + event + number | 3 days | Structured: "OpenAI funding $40B" |
+
+---
+
+## Data Flow
+
+```
+Input:  scripts/output/wsj_items.jsonl          (from wsj_ingest.py --export)
+Output: scripts/output/wsj_google_news_results.jsonl  (candidates per WSJ item)
+        scripts/output/wsj_instrumentation.jsonl       (per-query metrics)
+        scripts/output/wsj_processed_ids.json          (IDs to mark as searched)
+```

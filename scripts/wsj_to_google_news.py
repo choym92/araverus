@@ -45,7 +45,10 @@ load_dotenv(Path(__file__).parent.parent / '.env.local')
 
 # Import shared domain utilities
 sys.path.insert(0, str(Path(__file__).parent))
-from domain_utils import load_blocked_domains as _load_blocked_domains_from_db
+from domain_utils import (
+    UNCRAWLABLE_DOMAINS,
+    load_blocked_domains as _load_blocked_domains_from_db,
+)
 
 # Google News RSS search URL
 GOOGLE_NEWS_RSS = "https://news.google.com/rss/search?q={query}&hl=en-US&gl=US&ceid=US:en"
@@ -88,6 +91,15 @@ SOURCE_NAME_TO_DOMAIN = {
 EXCLUDED_SOURCES = {
     '富途牛牛',  # Futu - aggregator, not original content
 }
+
+# Google News limits ~32 search operators per query.
+# Reserve 4 for date/other operators, use up to 28 for -site: exclusions.
+MAX_SITE_EXCLUSIONS = 28
+
+# Track how often each domain appears in Google News results (per pipeline run).
+# Keys: normalized domain, Values: count of appearances.
+# Saved to DB at end of run for -site: prioritization.
+_search_hit_counter: dict[str, int] = {}
 
 
 def is_non_english_source(source_name: str) -> bool:
@@ -155,6 +167,26 @@ def load_blocked_domains() -> frozenset[str]:
     return frozenset(blocked)
 
 
+def _is_domain_blocked(domain: str, blocked_domains: frozenset[str]) -> bool:
+    """Check if domain or any parent domain is in the blocked set.
+
+    Handles subdomains: 'ca.finance.yahoo.com' matches 'yahoo.com'.
+    """
+    if not domain:
+        return False
+    domain_lower = domain.lower()
+    # Exact match
+    if domain_lower in blocked_domains:
+        return True
+    # Subdomain match: walk up the domain hierarchy
+    parts = domain_lower.split('.')
+    for i in range(1, len(parts) - 1):
+        parent = '.'.join(parts[i:])
+        if parent in blocked_domains:
+            return True
+    return False
+
+
 def is_source_blocked(source_name: str, source_domain: str) -> bool:
     """Check if source is blocked by domain or known name mapping."""
     # Check non-English sources first (e.g., Arabic, Chinese, etc.)
@@ -167,15 +199,15 @@ def is_source_blocked(source_name: str, source_domain: str) -> bool:
 
     blocked_domains = load_blocked_domains()
 
-    # Check domain directly
-    if source_domain and source_domain in blocked_domains:
+    # Check domain (with subdomain matching)
+    if _is_domain_blocked(source_domain, blocked_domains):
         return True
 
     # Check source name mapping
     source_lower = source_name.lower()
     if source_lower in SOURCE_NAME_TO_DOMAIN:
         mapped_domain = SOURCE_NAME_TO_DOMAIN[source_lower]
-        if mapped_domain in blocked_domains:
+        if _is_domain_blocked(mapped_domain, blocked_domains):
             return True
 
     return False
@@ -621,12 +653,136 @@ def add_date_filter(query: str, after_date=None, date_mode: str = "3d") -> str:
     return f"{query} when:3d"
 
 
+def _dedupe_subdomains(domains: set[str]) -> set[str]:
+    """Remove subdomains when a parent domain is also in the set.
+
+    Google's -site:yahoo.com already covers finance.yahoo.com,
+    so we don't need both as separate -site: operators.
+    """
+    result = set()
+    sorted_by_depth = sorted(domains, key=lambda d: d.count('.'))
+    for domain in sorted_by_depth:
+        # Check if any already-added domain is a parent of this one
+        parts = domain.split('.')
+        is_child = False
+        for i in range(1, len(parts) - 1):
+            parent = '.'.join(parts[i:])
+            if parent in result:
+                is_child = True
+                break
+        if not is_child:
+            result.add(domain)
+    return result
+
+
+def save_search_hit_counts() -> int:
+    """Flush accumulated search_hit_counter to wsj_domain_status.search_hit_count.
+
+    Increments the DB value by the session count (additive across runs).
+    Returns number of domains updated, or -1 on error.
+    """
+    if not _search_hit_counter:
+        return 0
+
+    from domain_utils import get_supabase_client
+    sb = get_supabase_client()
+    if not sb:
+        print("  Warning: No Supabase client — search_hit_counts not saved")
+        return -1
+
+    updated = 0
+    for domain, count in _search_hit_counter.items():
+        try:
+            # Upsert: if domain exists, increment; if not, only update existing rows
+            row = sb.table('wsj_domain_status') \
+                .select('search_hit_count') \
+                .eq('domain', domain) \
+                .limit(1) \
+                .execute()
+            if row.data:
+                current = row.data[0].get('search_hit_count', 0) or 0
+                sb.table('wsj_domain_status') \
+                    .update({'search_hit_count': current + count}) \
+                    .eq('domain', domain) \
+                    .execute()
+                updated += 1
+        except Exception as e:
+            # Column might not exist yet — log once and stop
+            if '42703' in str(e):
+                print("  Warning: search_hit_count column not in DB yet — skipping save")
+                return -1
+            print(f"  Warning: Could not update search_hit_count for {domain}: {e}")
+
+    return updated
+
+
+@lru_cache(maxsize=1)
+def _load_blocked_with_hits() -> dict[str, int]:
+    """Load blocked domains with their search_hit_count from DB.
+
+    Returns dict: domain → search_hit_count (0 if column missing).
+    """
+    from domain_utils import get_supabase_client, UNCRAWLABLE_DOMAINS as UC
+    sb = get_supabase_client()
+    result: dict[str, int] = {d: 0 for d in UC}
+
+    if not sb:
+        return result
+
+    try:
+        resp = sb.table('wsj_domain_status') \
+            .select('domain, search_hit_count') \
+            .eq('status', 'blocked') \
+            .execute()
+        if resp.data:
+            for row in resp.data:
+                d = row.get('domain')
+                if d:
+                    result[d] = row.get('search_hit_count', 0) or 0
+    except Exception as e:
+        if '42703' in str(e):
+            # Column doesn't exist — fall back to no-hit-count
+            try:
+                resp = sb.table('wsj_domain_status') \
+                    .select('domain') \
+                    .eq('status', 'blocked') \
+                    .execute()
+                if resp.data:
+                    for row in resp.data:
+                        d = row.get('domain')
+                        if d:
+                            result[d] = 0
+            except Exception:
+                pass
+        else:
+            print(f"  Warning: Could not load blocked domains with hits: {e}")
+
+    return result
+
+
 def format_query_with_exclusions(query: str) -> str:
-    """Add -site:wsj.com to exclude paywalled WSJ results."""
-    # Don't add if already has site: operator
+    """Add -site: operators for highest-impact blocked domains.
+
+    Google limits ~32 operators per query, so we cap at MAX_SITE_EXCLUSIONS.
+    Priority: UNCRAWLABLE_DOMAINS first (SNS/video), then DB blocked by
+    search_hit_count DESC (domains that appear most in Google News results).
+    Falls back to domain length ASC if search_hit_count is unavailable.
+    Subdomains are deduped (e.g., finance.yahoo.com removed if yahoo.com exists).
+    The full blocked list still applies post-search via is_source_blocked().
+    """
     if 'site:' in query.lower():
         return query
-    return f"{query} -site:wsj.com"
+    blocked_with_hits = _load_blocked_with_hits()
+    deduped = _dedupe_subdomains(set(blocked_with_hits.keys()))
+    # Prioritize: UNCRAWLABLE first, then DB-only sorted by search_hit_count DESC
+    uncrawlable = sorted(d for d in deduped if d in UNCRAWLABLE_DOMAINS)
+    db_only = sorted(
+        (d for d in deduped if d not in UNCRAWLABLE_DOMAINS),
+        key=lambda d: (-blocked_with_hits.get(d, 0), len(d)),
+    )
+    prioritized = (uncrawlable + db_only)[:MAX_SITE_EXCLUSIONS]
+    exclusions = ' '.join(f'-site:{d}' for d in prioritized)
+    return f"{query} {exclusions}"
 
 
 async def search_multi_query(
@@ -655,7 +811,12 @@ async def search_multi_query(
 
     # Helper to add article with deduplication and date filtering
     def add_article(article: dict) -> bool:
-        if is_source_blocked(article.get('source', ''), article.get('source_domain', '')):
+        # Track domain appearance BEFORE blocking check (for search_hit_count)
+        domain = article.get('source_domain', '')
+        if domain:
+            _search_hit_counter[domain] = _search_hit_counter.get(domain, 0) + 1
+
+        if is_source_blocked(article.get('source', ''), domain):
             return False
         key = dedupe_key(article)
         if key in seen_keys:
@@ -875,6 +1036,13 @@ async def main():
         ids_path = output_dir / 'wsj_processed_ids.json'
         with open(ids_path, 'w') as f:
             json.dump({'ids': processed_ids, 'count': len(processed_ids)}, f, indent=2)
+
+    # Save search_hit_counts to DB for -site: prioritization
+    hit_count_result = save_search_hit_counts()
+    if hit_count_result >= 0:
+        print(f"\nSearch hit counts: {len(_search_hit_counter)} domains tracked, {hit_count_result} updated in DB")
+    else:
+        print(f"\nSearch hit counts: {len(_search_hit_counter)} domains tracked (DB save skipped)")
 
     print("\nResults saved to:")
     print(f"  {jsonl_path}")
