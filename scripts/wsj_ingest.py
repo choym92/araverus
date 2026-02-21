@@ -586,17 +586,35 @@ def cmd_ingest() -> None:
     print(f"  Processed:   {stats['processed']}")
 
 
-def cmd_export(output_path: Optional[Path] = None) -> None:
-    """Export unsearched items to JSONL for Google News search."""
+def cmd_export(output_path: Optional[Path] = None, export_all: bool = False) -> None:
+    """Export WSJ items to JSONL for Google News search.
+
+    Args:
+        output_path: Custom output path (default: output/wsj_items.jsonl)
+        export_all: If True, export all recent items regardless of searched status
+    """
     print("=" * 60)
-    print("Export Unsearched WSJ Items")
+    print(f"Export WSJ Items {'(all recent)' if export_all else '(unsearched only)'}")
     print("=" * 60)
 
     supabase = get_supabase_client()
-    items = get_unprocessed_items(supabase)
+
+    if export_all:
+        # Export all items from last 2 days, ignoring searched flag
+        from datetime import timedelta, timezone
+        cutoff = (datetime.now(timezone.utc) - timedelta(days=2)).isoformat()
+        response = supabase.table('wsj_items') \
+            .select('*') \
+            .gte('published_at', cutoff) \
+            .order('published_at', desc=True) \
+            .limit(500) \
+            .execute()
+        items = response.data or []
+    else:
+        items = get_unprocessed_items(supabase)
 
     if not items:
-        print("No unsearched items to export.")
+        print("No items to export.")
         return
 
     # Default output path
@@ -1124,6 +1142,7 @@ def main():
         print("\nCommands:")
         print("  (default)                Ingest all WSJ feeds to Supabase")
         print("  --export [PATH]          Export unsearched items to JSONL")
+        print("  --export --all [PATH]    Export all recent items (bypass searched flag)")
         print("  --mark-searched FILE     Mark items in JSONL as searched")
         print("  --mark-processed FILE    Mark items in JSONL as processed")
         print("  --mark-processed-from-db Query wsj_crawl_results and mark processed")
@@ -1140,8 +1159,10 @@ def main():
     if args[0] == '--seed-blocked-from-json':
         cmd_seed_blocked_from_json()
     elif args[0] == '--export':
-        output_path = Path(args[1]) if len(args) > 1 else None
-        cmd_export(output_path)
+        export_all = '--all' in args
+        remaining = [a for a in args[1:] if a != '--all']
+        output_path = Path(remaining[0]) if remaining else None
+        cmd_export(output_path, export_all=export_all)
     elif args[0] == '--mark-searched':
         if len(args) < 2:
             print("Error: --mark-searched requires a JSONL file path")
