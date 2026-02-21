@@ -722,6 +722,51 @@ def cmd_mark_searched(jsonl_path: Path) -> None:
     print(f"Marked {updated} items as searched.")
 
 
+# Historical crawl_error → natural language key mapping (for legacy data)
+HISTORICAL_ERROR_MAP = {
+    "TOO_SHORT": "content too short",
+    "LINK_HEAVY": "too many links",
+    "MENU_HEAVY": "navigation/menu content",
+    "BOILERPLATE_HEAVY": "boilerplate content",
+    "TOO_LONG": "content too long",
+    "Content too short": "content too short",
+    "paywall": "paywall",
+    "css_js_code": "css/js instead of content",
+    "copyright_unavailable": "copyright or unavailable",
+    "repeated_words": "repeated content",
+    "empty_content": "empty content",
+    "Domain blocked (DB)": "domain blocked",
+    "low_relevance": "low relevance",
+}
+
+# Content mismatch reasons: NOT the domain's fault, excluded from auto-blocking
+CONTENT_MISMATCH_REASONS = {"low relevance", "llm rejected"}
+
+
+def normalize_historical_error(raw_error: str | None) -> str:
+    """Normalize historical crawl_error to natural language key."""
+    if not raw_error:
+        return "content too short"
+    if raw_error in HISTORICAL_ERROR_MAP:
+        return HISTORICAL_ERROR_MAP[raw_error]
+    # Already a natural language key (new format)
+    if raw_error in CONTENT_MISMATCH_REASONS:
+        return raw_error
+    low = raw_error.lower()
+    if low.startswith("status "):
+        return "http error"
+    if any(code in low for code in ("403", "404", "429", "301", "http")):
+        return "http error"
+    if "timeout" in low or "timed out" in low or "network" in low:
+        return "timeout or network error"
+    return raw_error[:50]
+
+
+def is_blockable_failure(reason: str) -> bool:
+    """Check if a failure reason should count toward domain blocking."""
+    return reason not in CONTENT_MISMATCH_REASONS
+
+
 def wilson_lower_bound(success: int, total: int, z: float = 1.96) -> float:
     """Wilson score 95% CI lower bound."""
     if total == 0:
@@ -737,13 +782,11 @@ def cmd_update_domain_status() -> None:
     """Update wsj_domain_status table from wsj_crawl_results.
 
     Aggregates crawl results by domain and upserts to wsj_domain_status.
-    Auto-blocks domains with:
-    - fail_count > 5 AND success_rate < 20%, OR
-    - llm_fail_count >= 3 (LLM detected wrong content)
+    Tracks per-reason failure counts in fail_counts JSONB column.
 
-    NOTE: 'garbage' and 'low_relevance' crawl statuses count as failures
-    for domain quality assessment, since they indicate the domain
-    consistently returns unusable content.
+    Auto-blocks domains with Wilson score < 0.15 (n >= 5), but only
+    counting "blockable" failures. Content mismatch reasons (low relevance,
+    llm rejected) are excluded from blocking since they're not the domain's fault.
     """
     print("=" * 60)
     print("Update Domain Status from Crawl Results")
@@ -762,9 +805,9 @@ def cmd_update_domain_status() -> None:
         print("No crawl results found.")
         return
 
-    # Aggregate by domain
+    # Aggregate by domain with per-reason fail_counts
     # NOTE: Only count as success if crawl_status='success' AND relevance_flag='ok'
-    # Count 'garbage', 'low_relevance', 'failed', 'error', 'resolve_failed' as failures
+    # All other terminal states are failures, tracked by normalized reason
     domain_stats: dict = {}
     for row in response.data:
         domain = row.get('resolved_domain')
@@ -775,38 +818,33 @@ def cmd_update_domain_status() -> None:
             domain_stats[domain] = {
                 'success_count': 0,
                 'fail_count': 0,
+                'fail_counts': {},  # Per-reason JSONB: {"content too short": 3, ...}
                 'last_error': None,
-                'relevance_scores': [],  # Track scores for avg calculation
+                'relevance_scores': [],
             }
 
         crawl_status = row.get('crawl_status')
         relevance_flag = row.get('relevance_flag')
         relevance_score = row.get('relevance_score')
+        crawl_error = row.get('crawl_error')
 
-        # Only count as success if status='success' AND relevance='ok'
         if crawl_status == 'success' and relevance_flag == 'ok':
             domain_stats[domain]['success_count'] += 1
-            # Track relevance score for weighted_score calculation
             if relevance_score is not None:
                 domain_stats[domain]['relevance_scores'].append(relevance_score)
         elif crawl_status in ('failed', 'error', 'resolve_failed', 'garbage', 'low_relevance'):
+            reason = normalize_historical_error(crawl_error or crawl_status)
             domain_stats[domain]['fail_count'] += 1
-            domain_stats[domain]['last_error'] = row.get('crawl_error') or crawl_status
+            domain_stats[domain]['fail_counts'][reason] = domain_stats[domain]['fail_counts'].get(reason, 0) + 1
+            domain_stats[domain]['last_error'] = crawl_error or crawl_status
         elif crawl_status == 'success' and relevance_flag == 'low':
-            # Old data: success with low relevance also counts as failure
+            # Low relevance or LLM rejected
+            reason = normalize_historical_error(crawl_error) if crawl_error else 'low relevance'
             domain_stats[domain]['fail_count'] += 1
-            domain_stats[domain]['last_error'] = 'low_relevance'
+            domain_stats[domain]['fail_counts'][reason] = domain_stats[domain]['fail_counts'].get(reason, 0) + 1
+            domain_stats[domain]['last_error'] = crawl_error or 'low relevance'
 
     print(f"Found {len(domain_stats)} unique domains")
-
-    # Fetch existing llm_fail_count values
-    llm_fail_response = supabase.table('wsj_domain_status') \
-        .select('domain, llm_fail_count') \
-        .execute()
-    llm_fail_counts = {
-        row['domain']: row.get('llm_fail_count', 0) or 0
-        for row in llm_fail_response.data
-    } if llm_fail_response.data else {}
 
     # Wilson Score thresholds for auto-blocking
     WILSON_THRESHOLD = 0.15
@@ -820,28 +858,23 @@ def cmd_update_domain_status() -> None:
     for domain, stats in domain_stats.items():
         success = stats['success_count']
         fail = stats['fail_count']
+        fail_counts = stats['fail_counts']
         total = success + fail
-        llm_fail = llm_fail_counts.get(domain, 0)
 
-        # Calculate success rate
+        # Calculate success rate (all failures)
         success_rate = success / total if total > 0 else 0
 
-        # Wilson Score: lower bound of 95% CI for true success rate
-        wilson = wilson_lower_bound(success, total)
+        # Blockable failures: exclude content_mismatch reasons (low relevance, llm rejected)
+        blockable_fail = sum(v for k, v in fail_counts.items() if is_blockable_failure(k))
+        blockable_total = success + blockable_fail
+        wilson = wilson_lower_bound(success, blockable_total)
 
-        # Auto-block if:
-        # - Wilson lower bound < threshold with enough data, OR
-        # - llm_fail >= 10 AND success_count < llm_fail * 3 (LLM failure rate > 25%)
-        crawl_block = total >= MIN_ATTEMPTS and wilson < WILSON_THRESHOLD
-        llm_block = llm_fail >= 10 and success < llm_fail * 3
-        should_block = crawl_block or llm_block
+        # Auto-block only if blockable failures are high enough
+        should_block = blockable_total >= MIN_ATTEMPTS and wilson < WILSON_THRESHOLD
         status = 'blocked' if should_block else 'active'
 
-        if crawl_block:
-            block_reason = f"Auto-blocked: wilson={wilson:.3f} < {WILSON_THRESHOLD} ({success}/{total}, {success_rate:.0%})"
-        elif llm_block:
-            llm_rate = llm_fail / (success + llm_fail) if (success + llm_fail) > 0 else 1
-            block_reason = f"Auto-blocked: {llm_fail} LLM failures vs {success} successes ({llm_rate:.0%} LLM fail rate)"
+        if should_block:
+            block_reason = f"Auto-blocked: wilson={wilson:.3f} < {WILSON_THRESHOLD} ({success}/{blockable_total} blockable, {success_rate:.0%} overall)"
         else:
             block_reason = None
 
@@ -855,6 +888,7 @@ def cmd_update_domain_status() -> None:
             'status': status,
             'success_count': success,
             'fail_count': fail,
+            'fail_counts': json.dumps(fail_counts),
             'failure_type': stats['last_error'][:100] if stats['last_error'] else None,
             'block_reason': block_reason,
             'success_rate': round(success_rate, 4),
@@ -881,23 +915,23 @@ def cmd_update_domain_status() -> None:
             print(f"Error updating {domain}: {e}")
 
     print(f"\nUpdated {updated} domains in wsj_domain_status")
-    print(f"Auto-blocked {blocked} domains (wilson < {WILSON_THRESHOLD} OR llm_fail ratio)")
+    print(f"Auto-blocked {blocked} domains (wilson < {WILSON_THRESHOLD}, content_mismatch excluded)")
 
     # Show blocked domains
     if blocked > 0:
-        print("\nNewly blocked domains:")
+        print("\nBlocked domains:")
         for domain, stats in domain_stats.items():
             success = stats['success_count']
-            fail = stats['fail_count']
-            total = success + fail
+            fail_counts = stats['fail_counts']
+            blockable_fail = sum(v for k, v in fail_counts.items() if is_blockable_failure(k))
+            blockable_total = success + blockable_fail
+            total = success + stats['fail_count']
             rate = success / total if total > 0 else 0
-            wilson = wilson_lower_bound(success, total)
-            llm_fail = llm_fail_counts.get(domain, 0)
-            crawl_blocked = total >= MIN_ATTEMPTS and wilson < WILSON_THRESHOLD
-            llm_blocked = llm_fail >= 10 and success < llm_fail * 3
-            if crawl_blocked or llm_blocked:
-                reason = "LLM failures" if llm_blocked else "wilson score"
-                print(f"  {domain}: wilson={wilson:.3f}, {rate:.0%} success ({success}/{total}), {llm_fail} llm_fail ({reason})")
+            wilson = wilson_lower_bound(success, blockable_total)
+            if blockable_total >= MIN_ATTEMPTS and wilson < WILSON_THRESHOLD:
+                top_reasons = sorted(fail_counts.items(), key=lambda x: x[1], reverse=True)[:3]
+                reasons_str = ", ".join(f"{k}={v}" for k, v in top_reasons)
+                print(f"  {domain}: wilson={wilson:.3f}, {rate:.0%} ({success}/{total}), [{reasons_str}]")
 
 
 def cmd_retry_low_relevance() -> None:

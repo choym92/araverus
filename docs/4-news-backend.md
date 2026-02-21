@@ -1,4 +1,4 @@
-<!-- Updated: 2026-02-20 -->
+<!-- Updated: 2026-02-21 -->
 # News Platform — Backend & Pipeline
 
 Single source of truth for the finance news pipeline: ingestion, crawling, analysis, briefing generation.
@@ -84,7 +84,8 @@ RSS ingestion, export, lifecycle management, domain status.
 - **Feeds:** BUSINESS, MARKETS, WORLD, TECH, ECONOMY, POLITICS (merged: BUSINESS+MARKETS → BUSINESS_MARKETS)
 - **Dedup:** Title-based, keeps version from feed with fewer items
 - **Category:** Extracted from URL path (~95% accuracy), fallback to `feed_name`
-- **Domain auto-block:** Wilson score < 0.15 (n ≥ 5) OR llm_fail ≥ 10
+- **Domain auto-block:** Wilson score < 0.15 (blockable n ≥ 5), content mismatch (`low relevance`, `llm rejected`) excluded
+- **Failure tracking:** Per-reason JSONB (`fail_counts`) — see failure taxonomy below
 
 #### `wsj_preprocess.py`
 
@@ -97,7 +98,7 @@ Gemini Flash-Lite extracts metadata from title+description BEFORE search.
 | `--dry-run` | — | No DB writes |
 | `--backfill` | — | Include already-searched items |
 
-- **Model:** Gemini 2.0 Flash-Lite (JSON mode, temp 0.1)
+- **Model:** Gemini 2.5 Flash-Lite (JSON mode, temp 0.1)
 - **Extracts:** entities, keywords, tickers, search_queries → saved to `wsj_items`
 - **Cost:** ~$0.003/day, ~$0.10/month
 - **vs `wsj_llm_analysis`:** Pre-process = title+desc (pre-search). LLM analysis = crawled content (post-crawl).
@@ -114,7 +115,7 @@ Searches Google News for free alternatives to each WSJ article.
 
 - Uses LLM-generated queries when available, falls back to clean title
 - Newsletters rely entirely on LLM queries
-- Date filter: [-1, +3] days from WSJ pubDate
+- Date filter: ±1 day from WSJ pubDate (3-day window)
 
 ### Phase 2: Rank + Resolve
 
@@ -124,7 +125,7 @@ Ranks candidates by semantic similarity.
 
 | Flag | Default | Action |
 |------|---------|--------|
-| `--top-k N` | 5 | Max results per item |
+| `--top-k N` | 10 | Max results per item |
 | `--min-score F` | 0.3 | Min cosine similarity |
 
 - **Model:** BAAI/bge-base-en-v1.5 (768d)
@@ -148,7 +149,7 @@ Crawls resolved URLs with quality + relevance verification.
 
 | Flag | Default | Action |
 |------|---------|--------|
-| `--delay N` | 3.0 | Delay between crawls |
+| `--delay N` | 1.0 | Delay between crawls |
 | `--update-db` | — | Save to Supabase |
 | `--from-db` | — | Crawl pending from DB |
 
@@ -206,7 +207,7 @@ python generate_briefing.py --dry-run
 
 | Script | Purpose |
 |--------|---------|
-| `domain_utils.py` | Blocked domain loading (DB + hardcoded), `is_blocked_domain()` |
+| `domain_utils.py` | Blocked domain loading (DB-only), `is_blocked_domain()` |
 | `llm_analysis.py` | Gemini 2.5 Flash content verification + metadata extraction |
 | `llm_backfill.py` | Backfill LLM analysis for existing articles |
 
@@ -240,6 +241,28 @@ stateDiagram-v2
 | Content quality | crawl_article.py | ≥ 350 chars, ≤ 50K, link_ratio < 30%, boilerplate < 40% |
 | Embedding relevance | crawl_ranked.py | cosine ≥ 0.25 (bge-base) |
 | LLM verification | llm_analysis.py | `is_same_event=true` OR `score ≥ 6` |
+
+### Domain Failure Taxonomy
+
+`wsj_domain_status.fail_counts` tracks per-reason failures as JSONB. Only **blockable** failures count toward auto-blocking.
+
+| Key | Cause | Blockable? |
+|-----|-------|-----------|
+| `content too short` | Crawled but insufficient content (< 350ch) | Yes |
+| `paywall` | Paywall detected | Yes |
+| `css/js instead of content` | HTML/CSS/JS instead of article | Yes |
+| `copyright or unavailable` | Copyright/unavailability message | Yes |
+| `repeated content` | Same text repeated | Yes |
+| `empty content` | Completely empty response | Yes |
+| `http error` | HTTP errors (403, 429, etc.) | Yes |
+| `social media` | Social media, no article | Yes |
+| `too many links` | Link ratio > 30% | Yes |
+| `navigation/menu content` | Menu/nav content > 55% | Yes |
+| `boilerplate content` | Boilerplate > 40% | Yes |
+| `content too long` | Content > 50K chars | Yes |
+| `timeout or network error` | Timeout/network failure | Yes |
+| `low relevance` | Low embedding score (wrong article) | **No** |
+| `llm rejected` | LLM says different event | **No** |
 
 ---
 

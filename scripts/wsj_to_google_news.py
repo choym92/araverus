@@ -48,27 +48,6 @@ from domain_utils import load_blocked_domains as _load_blocked_domains_from_db
 # Google News RSS search URL
 GOOGLE_NEWS_RSS = "https://news.google.com/rss/search?q={query}&hl=en-US&gl=US&ceid=US:en"
 
-# Source name to domain mapping (for blocklist matching)
-SOURCE_NAME_TO_DOMAIN = {
-    'the wall street journal': 'wsj.com',
-    'wall street journal': 'wsj.com',
-    'wsj': 'wsj.com',
-    'reuters': 'reuters.com',
-    'bloomberg': 'bloomberg.com',
-    'bloomberg news': 'bloomberg.com',
-    'financial times': 'ft.com',
-    'ft': 'ft.com',
-    'the new york times': 'nytimes.com',
-    'new york times': 'nytimes.com',
-    'nytimes': 'nytimes.com',
-}
-
-# Additional sources to always exclude (not crawlable or low quality)
-EXCLUDED_SOURCES = {
-    '富途牛牛',  # Futu - aggregator, not original content
-}
-
-
 def is_non_english_source(source_name: str) -> bool:
     """Check if source name contains non-Latin characters (likely non-English)."""
     if not source_name:
@@ -113,27 +92,13 @@ def load_blocked_domains() -> frozenset[str]:
 
 
 def is_source_blocked(source_name: str, source_domain: str) -> bool:
-    """Check if source is blocked by domain or known name mapping."""
-    # Check non-English sources first (e.g., Arabic, Chinese, etc.)
+    """Check if source is blocked by domain (DB) or non-English name."""
     if is_non_english_source(source_name):
         return True
 
-    # Check excluded sources
-    if source_name in EXCLUDED_SOURCES:
-        return True
-
     blocked_domains = load_blocked_domains()
-
-    # Check domain directly
     if source_domain and source_domain in blocked_domains:
         return True
-
-    # Check source name mapping
-    source_lower = source_name.lower()
-    if source_lower in SOURCE_NAME_TO_DOMAIN:
-        mapped_domain = SOURCE_NAME_TO_DOMAIN[source_lower]
-        if mapped_domain in blocked_domains:
-            return True
 
     return False
 
@@ -253,22 +218,7 @@ def load_wsj_jsonl(jsonl_path: str, today_only: bool = False) -> list[dict]:
                     items_by_title[title_lower] = item
                     category_counts[feed_name] += 1
 
-    # Build result list
-    items = []
-    for item in items_by_title.values():
-        items.append({
-            'id': item.get('id'),
-            'title': item.get('title', ''),
-            'description': item.get('description', ''),
-            'link': item.get('link', ''),
-            'pubDate': item.get('pubDate', ''),
-            'creator': item.get('creator'),
-            'feed_name': item.get('feed_name'),
-            'subcategory': item.get('subcategory'),
-            'llm_search_queries': item.get('llm_search_queries'),
-        })
-
-    return items
+    return list(items_by_title.values())
 
 
 def parse_wsj_rss(xml_path: str, skip_opinion: bool = True) -> list[dict]:
@@ -346,44 +296,38 @@ async def search_google_news(query: str, client: httpx.AsyncClient) -> list[dict
         return []
 
 
-def add_date_filter(query: str, after_date=None, date_mode: str = "3d") -> str:
-    """Add date filter to Google News query to reduce response size.
+def add_date_filter(query: str, after_date=None) -> str:
+    """Add date filter to Google News query.
 
-    Args:
-        query: The search query
-        after_date: WSJ publish date for date-range filtering
-        date_mode: "3d", "7d", or "none" for fallback levels
+    Uses a tight 3-day window (pubDate ±1 day) for all queries.
+    WSJ articles report same-day or previous-day events; other outlets
+    cover them within the same 24-48h cycle.
 
     Google News RSS supports:
-    - after:YYYY-MM-DD / before:YYYY-MM-DD for specific date ranges
-    - when:7d / when:3d for relative time windows
+    - after:YYYY-MM-DD / before:YYYY-MM-DD in query string
     """
-    if date_mode == "none":
-        return query
+    if not after_date:
+        return f"{query} when:3d"
 
-    if after_date and date_mode == "3d":
-        # WSJ pubDate -1 day to +3 days (5-day window)
-        start = (after_date.date() - timedelta(days=1)).isoformat()
-        end = (after_date.date() + timedelta(days=4)).isoformat()  # +3 days needs before:+4
-        return f"{query} after:{start} before:{end}"
-    elif after_date and date_mode == "7d":
-        # Wider window: -3 day to +4 days (7-day window)
-        start = (after_date.date() - timedelta(days=3)).isoformat()
-        end = (after_date.date() + timedelta(days=4)).isoformat()
-        return f"{query} after:{start} before:{end}"
-
-    # Relative fallback
-    if date_mode == "7d":
-        return f"{query} when:7d"
-    return f"{query} when:3d"
+    start = (after_date.date() - timedelta(days=1)).isoformat()
+    end = (after_date.date() + timedelta(days=2)).isoformat()  # +1 day needs before:+2
+    return f"{query} after:{start} before:{end}"
 
 
 def format_query_with_exclusions(query: str) -> str:
-    """Add -site:wsj.com to exclude paywalled WSJ results."""
-    # Don't add if already has site: operator
+    """Add -site: exclusions for top paywalled domains.
+
+    Only includes the highest-traffic paywalled sources to stay within
+    Google query length limits. Remaining blocked domains are filtered
+    post-fetch by is_source_blocked().
+    """
     if 'site:' in query.lower():
         return query
-    return f"{query} -site:wsj.com"
+    exclusions = (
+        "-site:wsj.com -site:reuters.com -site:bloomberg.com"
+        " -site:ft.com -site:nytimes.com -site:barrons.com"
+    )
+    return f"{query} {exclusions}"
 
 
 async def search_multi_query(
@@ -418,16 +362,6 @@ async def search_multi_query(
         if key in seen_keys:
             return False
 
-        if after_date:
-            article_date = parse_rss_date(article['pubDate'])
-            if article_date is None:
-                return False
-            wsj_date = after_date.date()
-            article_dt = article_date.date()
-            # Allow -1 to +3 days from WSJ pub date
-            if article_dt < wsj_date - timedelta(days=1) or article_dt > wsj_date + timedelta(days=3):
-                return False
-
         seen_keys.add(key)
         all_articles.append(article)
         return True
@@ -436,14 +370,7 @@ async def search_multi_query(
         # Add exclusions
         query_with_excl = format_query_with_exclusions(query)
 
-        # Date filter strategy:
-        # Q1 (i=0): 7-day window - full title, broad but recent
-        # Q2 (i=1): 7-day window - keywords, catches lexical mismatches
-        # Q3+ (i>=2): 3-day window - description keywords, tighter filter
-        if i >= 2:
-            filtered_query = add_date_filter(query_with_excl, after_date, date_mode="3d")
-        else:
-            filtered_query = add_date_filter(query_with_excl, after_date, date_mode="7d")
+        filtered_query = add_date_filter(query_with_excl, after_date)
 
         t0 = time.perf_counter()
         articles = await search_google_news(filtered_query, client)
@@ -452,7 +379,7 @@ async def search_multi_query(
         added_count = sum(1 for a in articles if add_article(a))
 
         instrumentation['queries_executed'].append({
-            'query': filtered_query[:80],
+            'query': filtered_query,
             'results': len(articles),
             'added': added_count,
             'time': round(elapsed, 2),

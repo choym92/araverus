@@ -561,12 +561,12 @@ export default function BriefingPlayer({
       {/* Chapter list */}
       {chapters.length > 0 && (
         <div className="px-5 pb-3">
-          <div ref={chapterListRef} className="flex gap-1.5 items-stretch overflow-x-auto scrollbar-none md:overflow-x-visible">
+          <div ref={chapterListRef} className="flex flex-wrap gap-1.5 items-stretch md:flex-nowrap md:overflow-x-visible">
             {chapters.map((ch, i) => (
               <button
                 key={i}
                 onClick={() => jumpToChapter(ch.position)}
-                className={`text-[11px] leading-snug px-2 py-1 rounded-lg transition-colors text-center min-w-[4.5rem] shrink-0 h-12 flex flex-col items-center justify-center md:flex-1 md:basis-0 md:min-w-0 md:shrink ${
+                className={`text-[11px] leading-snug px-2 py-1 rounded-lg transition-colors text-center min-w-[4.5rem] h-12 flex flex-col items-center justify-center md:flex-1 md:basis-0 md:min-w-0 md:shrink ${
                   activeChapterIndex === i
                     ? 'bg-white/20 text-white font-medium'
                     : 'bg-white/5 text-white/40 hover:bg-white/10 hover:text-white/70'

@@ -64,7 +64,7 @@ $VENV "$SCRIPTS/wsj_ingest.py" --mark-searched "$SCRIPTS/output/wsj_items.jsonl"
 # ── Phase 3: Crawl ─────────────────────────────────────
 echo ""
 echo ">>> Phase 3: Crawl"
-$VENV "$SCRIPTS/crawl_ranked.py" --delay 2 --update-db || echo "WARN: Crawl had errors (continuing)"
+$VENV "$SCRIPTS/crawl_ranked.py" --delay 1 --update-db || echo "WARN: Crawl had errors (continuing)"
 
 # ── Phase 4: Post-process ──────────────────────────────
 echo ""

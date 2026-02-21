@@ -36,6 +36,45 @@ CRAWL_MODE = "stealth" if IS_CI else "undetected"
 RELEVANCE_THRESHOLD = 0.25  # Flag if below this
 RELEVANCE_CHARS = 800       # Characters from crawled content to compare
 
+# Error normalization: map internal codes to natural language keys for fail_counts
+CRAWL_ERROR_MAP = {
+    "TOO_SHORT": "content too short",
+    "LINK_HEAVY": "too many links",
+    "MENU_HEAVY": "navigation/menu content",
+    "BOILERPLATE_HEAVY": "boilerplate content",
+    "TOO_LONG": "content too long",
+    "Content too short": "content too short",
+    "paywall": "paywall",
+    "css_js_code": "css/js instead of content",
+    "copyright_unavailable": "copyright or unavailable",
+    "repeated_words": "repeated content",
+    "empty_content": "empty content",
+    "Domain blocked (DB)": "domain blocked",
+    "Could not resolve Google News URL": "http error",
+}
+
+
+def normalize_crawl_error(raw_error: str | None) -> str:
+    """Normalize crawl error to a natural language key for fail_counts tracking."""
+    if not raw_error:
+        return "content too short"
+    # Direct mapping
+    if raw_error in CRAWL_ERROR_MAP:
+        return CRAWL_ERROR_MAP[raw_error]
+    # HTTP status codes (e.g., "Status 202", "Status 403")
+    low = raw_error.lower()
+    if low.startswith("status "):
+        return "http error"
+    if any(code in low for code in ("403", "404", "429", "301", "http")):
+        return "http error"
+    if "social" in low or "twitter" in low or "facebook" in low:
+        return "social media"
+    if "timeout" in low or "timed out" in low or "network" in low:
+        return "timeout or network error"
+    # Fallback: use the raw error but truncated
+    return raw_error[:50]
+
+
 # LLM analysis settings
 LLM_ENABLED = bool(os.getenv("GEMINI_API_KEY"))
 # LLM analysis: Accept if same_event=true OR score >= 6 (complementary articles)
@@ -252,7 +291,7 @@ def mark_other_articles_skipped(supabase, wsj_item_id: str, success_url: str) ->
 
 async def main():
     # Parse arguments
-    delay = 3.0
+    delay = 1.0
     update_db = False
     from_db = False
     args = sys.argv[1:]
@@ -410,6 +449,7 @@ async def main():
                         # Mark as success but with low relevance flag
                         # This allows domain tracking while enabling backup retries
                         article["crawl_status"] = "success"
+                        article["crawl_error"] = "low relevance"
                         article["relevance_flag"] = "low"
                         article["crawl_length"] = result.get("markdown_length", 0)
                         article["crawl_markdown"] = crawled_content  # Save content for reference
@@ -453,6 +493,7 @@ async def main():
 
                                 # Mark as success but low relevance (LLM failed)
                                 article["crawl_status"] = "success"
+                                article["crawl_error"] = "llm rejected"
                                 article["relevance_flag"] = "low"
                                 article["llm_same_event"] = False
                                 article["llm_score"] = llm_score
@@ -511,7 +552,7 @@ async def main():
                 else:
                     # Failed - mark and try next; track domain for this run
                     article["crawl_status"] = "failed"
-                    article["crawl_error"] = result.get("skip_reason", "Content too short")
+                    article["crawl_error"] = normalize_crawl_error(result.get("skip_reason"))
                     run_blocked.add(domain)
                     print(f"✗ {result.get('skip_reason', 'Too short')[:30]}")
 
@@ -521,7 +562,7 @@ async def main():
 
             except Exception as e:
                 article["crawl_status"] = "error"
-                article["crawl_error"] = str(e)[:100]
+                article["crawl_error"] = normalize_crawl_error(str(e)[:100])
                 run_blocked.add(domain)
                 print(f"✗ {str(e)[:30]}")
 
