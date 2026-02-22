@@ -15,7 +15,6 @@ Options:
     --delay-query S   Delay between queries in seconds (default: 1.0)
     --input PATH      Specify custom JSONL input file
 """
-import asyncio
 import hashlib
 import json
 import re
@@ -254,12 +253,12 @@ def load_wsj_jsonl(jsonl_path: str) -> list[dict]:
     return list(items_by_title.values())
 
 
-async def search_google_news(query: str, client: httpx.AsyncClient) -> list[dict]:
+def search_google_news(query: str, client: httpx.Client) -> list[dict]:
     """Search Google News RSS, extracting source URL for domain matching."""
     url = GOOGLE_NEWS_RSS.format(query=quote_plus(query))
 
     try:
-        response = await client.get(url, timeout=10.0)
+        response = client.get(url, timeout=10.0)
         response.raise_for_status()
 
         root = ET.fromstring(response.text)
@@ -417,9 +416,9 @@ def format_query_with_exclusions(query: str) -> str:
     return f"{query} {exclusions}"
 
 
-async def search_multi_query(
+def search_multi_query(
     queries: list[str],
-    client: httpx.AsyncClient,
+    client: httpx.Client,
     after_date=None,
     delay_query: float = 1.0,
 ) -> tuple[list[dict], dict]:
@@ -465,7 +464,7 @@ async def search_multi_query(
         filtered_query = add_date_filter(query_with_excl, after_date)
 
         t0 = time.perf_counter()
-        articles = await search_google_news(filtered_query, client)
+        articles = search_google_news(filtered_query, client)
         elapsed = time.perf_counter() - t0
 
         added_count = sum(1 for a in articles if add_article(a))
@@ -479,12 +478,12 @@ async def search_multi_query(
         print(f"      Q{i+1}: +{added_count} new articles ({len(articles)} total)")
 
         if i < len(queries) - 1:
-            await asyncio.sleep(delay_query)
+            time.sleep(delay_query)
 
     return all_articles, instrumentation
 
 
-async def main():
+def main():
     import argparse
     parser = argparse.ArgumentParser(description="WSJ → Google News search pipeline")
     parser.add_argument('--limit', type=int, default=None, help='Process only N items')
@@ -528,7 +527,7 @@ async def main():
     all_instrumentation = []
     searched_ids = []  # Track IDs for marking searched later
 
-    async with httpx.AsyncClient() as client:
+    with httpx.Client() as client:
         for i, wsj in enumerate(wsj_items):
             print("=" * 80)
             print(f"[{i+1}/{len(wsj_items)}] WSJ: {wsj['title']}")
@@ -545,7 +544,7 @@ async def main():
                 print(f"      Q{j+1}: {q[:70]}{'...' if len(q) > 70 else ''}")
 
             # Search with all queries
-            articles, instr = await search_multi_query(
+            articles, instr = search_multi_query(
                 queries, client, wsj_date, delay_query
             )
             print(f"    Found: {len(articles)} articles")
@@ -569,7 +568,7 @@ async def main():
                 searched_ids.append(wsj['id'])
 
             if i < len(wsj_items) - 1:
-                await asyncio.sleep(delay_item)
+                time.sleep(delay_item)
 
     # Filter results: keep only items with at least 1 article found
     results_with_articles = [r for r in results if len(r['google_news']) > 0]
@@ -643,4 +642,4 @@ async def main():
 
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    main()
