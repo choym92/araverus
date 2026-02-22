@@ -150,6 +150,7 @@ Crawls resolved URLs with quality + relevance verification.
 
 - Sorted by `weighted_score = embedding_score * laplace_smoothed_rate` where rate = (success+1)/(total+2)
 - Per-article: crawl → garbage check → embedding relevance (≥ 0.25) → LLM verify (gemini-2.5-flash-lite) → accept/reject
+- Short-but-real fallback: articles ≥150ch AND >1.5× WSJ description length bypass TOO_SHORT, still pass embedding+LLM gates
 - `--concurrent 5` = 5 WSJ items processed in parallel (each item's candidates still sequential)
 - Per-domain rate limiter: min 3s between requests to the same domain across concurrent items
 

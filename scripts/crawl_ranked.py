@@ -1,17 +1,18 @@
 #!/usr/bin/env python3
 """
-Crawl resolved URLs from embedding-ranked results.
+Phase 3 · Crawl — Crawl resolved URLs from embedding-ranked results.
 
 Strategy: Crawl 1 article per WSJ item, with fallback to next if failed.
 Relevance check: Compares crawled content to WSJ title using sentence embeddings.
 
 Usage:
-    python scripts/crawl_ranked.py [--delay N] [--no-relevance] [--from-db] [--update-db]
+    python scripts/crawl_ranked.py [--delay N] [--from-db] [--update-db] [--concurrent N]
 """
 import asyncio
 import json
 import os
 import sys
+import time
 from pathlib import Path
 
 import numpy as np
@@ -83,6 +84,31 @@ LLM_ENABLED = bool(os.getenv("GEMINI_API_KEY"))
 print("Loading embedding model for relevance check...")
 RELEVANCE_MODEL = SentenceTransformer('BAAI/bge-base-en-v1.5')
 print("Model loaded.\n")
+
+# Per-domain rate limiter: prevents concurrent items from hammering the same domain.
+# Each domain gets an asyncio.Lock + last-request timestamp.
+DOMAIN_MIN_INTERVAL = 3.0  # seconds between requests to the same domain
+_domain_locks: dict[str, asyncio.Lock] = {}
+_domain_last_request: dict[str, float] = {}
+
+
+async def domain_rate_limit(domain: str) -> None:
+    """Ensure minimum interval between requests to the same domain.
+
+    Uses per-domain locks so concurrent items wait their turn.
+    """
+    if not domain:
+        return
+    if domain not in _domain_locks:
+        _domain_locks[domain] = asyncio.Lock()
+
+    async with _domain_locks[domain]:
+        now = time.monotonic()
+        last = _domain_last_request.get(domain, 0)
+        wait = DOMAIN_MIN_INTERVAL - (now - last)
+        if wait > 0:
+            await asyncio.sleep(wait)
+        _domain_last_request[domain] = time.monotonic()
 
 
 def compute_relevance_score(wsj_text: str, crawled_text: str) -> float:
@@ -289,11 +315,225 @@ def mark_other_articles_skipped(supabase, wsj_item_id: str, success_url: str) ->
         return 0
 
 
+async def process_wsj_item(
+    idx: int,
+    total: int,
+    data: dict,
+    *,
+    delay: float,
+    supabase,
+    domain_success_rates: dict,
+    run_blocked: set,
+    semaphore: asyncio.Semaphore,
+) -> dict:
+    """Process a single WSJ item: crawl candidates until one succeeds.
+
+    Returns dict with keys: success (bool), attempts (int).
+    Shared state (run_blocked) is mutated in-place (safe in asyncio single-thread).
+    """
+    async with semaphore:
+        wsj = data.get("wsj", {})
+        wsj_title = wsj.get("title", "Unknown")
+        wsj_description = wsj.get("description", "")
+        wsj_text = f"{wsj_title} {wsj_description}".strip()
+        articles = data.get("ranked", [])
+
+        # Filter to articles with resolved URLs
+        crawlable = [a for a in articles if a.get("resolved_url")]
+
+        # Sort by weighted score: embedding_score * domain_success_rate
+        def weighted_score(article):
+            emb_score = article.get("embedding_score") or 0.5
+            domain = article.get("resolved_domain", "")
+            success_rate = domain_success_rates.get(domain, 0.5)
+            return emb_score * success_rate
+
+        crawlable.sort(key=weighted_score, reverse=True)
+
+        print(f"\n[{idx+1}/{total}] WSJ: {wsj_title[:60]}...")
+        print(f"  Candidates: {len(crawlable)} (sorted by weighted score)")
+
+        if not crawlable:
+            print("  ✗ No resolved URLs")
+            return {"success": False, "attempts": 0}
+
+        # Try each article until one succeeds
+        success = False
+        attempts = 0
+        for j, article in enumerate(crawlable):
+            url = article["resolved_url"]
+            domain = article.get("resolved_domain", "")
+            w_score = weighted_score(article)
+
+            attempts += 1
+
+            # Per-domain rate limit: wait if another concurrent item recently hit this domain
+            await domain_rate_limit(domain)
+
+            print(f"  Trying [{j+1}/{len(crawlable)}]: {domain} (w:{w_score:.2f})...", end=" ", flush=True)
+
+            try:
+                result = await asyncio.wait_for(
+                    crawl_article(url, mode=CRAWL_MODE, blocked_domains=run_blocked),
+                    timeout=90
+                )
+
+                content = result.get("markdown", "")
+                content_len = result.get("markdown_length", 0) or len(content)
+                wsj_desc = wsj.get("description", "") or ""
+                is_quality_ok = result.get("success") and content_len > 500
+                # Short but has more info than WSJ RSS description?
+                skip_reason = result.get("skip_reason", "")
+                is_short_but_real = (
+                    not is_quality_ok
+                    and content_len >= 150
+                    and len(wsj_desc) > 0
+                    and content_len > len(wsj_desc) * 1.5
+                    and skip_reason in ("TOO_SHORT", "Content too short", "")
+                )
+
+                if is_quality_ok or is_short_but_real:
+                    crawled_content = content
+                    if is_short_but_real:
+                        print(f"↳ Short ({content_len}ch, {content_len/len(wsj_desc):.1f}x desc) — checking gates...", end=" ")
+
+                    # Step 1: Check for garbage content
+                    is_garbage, garbage_reason = is_garbage_content(crawled_content)
+                    if is_garbage:
+                        article["crawl_status"] = "garbage"
+                        article["crawl_error"] = garbage_reason
+                        article["crawl_length"] = result.get("markdown_length", 0)
+                        remaining = len(crawlable) - j - 1
+                        print(f"✗ Garbage: {garbage_reason} ({remaining} backups remaining)")
+                        if supabase:
+                            save_crawl_result_to_db(supabase, article, wsj)
+                        if j < len(crawlable) - 1:
+                            await asyncio.sleep(delay)
+                        continue
+
+                    # Step 2: Check relevance score
+                    relevance = compute_relevance_score(wsj_text, crawled_content)
+                    article["relevance_score"] = round(relevance, 4)
+
+                    if relevance < RELEVANCE_THRESHOLD:
+                        article["crawl_status"] = "success"
+                        article["crawl_error"] = "low relevance"
+                        article["relevance_flag"] = "low"
+                        article["crawl_length"] = result.get("markdown_length", 0)
+                        article["crawl_markdown"] = crawled_content
+                        remaining = len(crawlable) - j - 1
+                        print(f"⚠ Low embedding relevance: {relevance:.2f} ({remaining} backups remaining)")
+                        if supabase:
+                            save_crawl_result_to_db(supabase, article, wsj)
+                        if j < len(crawlable) - 1:
+                            await asyncio.sleep(delay)
+                        continue
+
+                    # Step 3: LLM verification (if enabled)
+                    llm_passed = True
+                    llm_analysis = None
+
+                    if LLM_ENABLED and supabase:
+                        print("    → LLM verification...", end=" ")
+                        llm_analysis = analyze_content(
+                            wsj_title=wsj.get("title", ""),
+                            wsj_description=wsj.get("description", ""),
+                            crawled_content=crawled_content,
+                        )
+
+                        if llm_analysis:
+                            llm_score = llm_analysis.get("relevance_score", 0)
+                            is_same_event = llm_analysis.get("is_same_event", False)
+                            content_quality = llm_analysis.get("content_quality", "")
+
+                            print(f"score={llm_score}, same_event={is_same_event}, quality={content_quality}")
+
+                            if not is_same_event and llm_score < 6:
+                                llm_passed = False
+                                remaining = len(crawlable) - j - 1
+                                print(f"    ⚠ LLM rejected ({remaining} backups remaining)")
+
+                                article["crawl_status"] = "success"
+                                article["crawl_error"] = "llm rejected"
+                                article["relevance_flag"] = "low"
+                                article["llm_same_event"] = False
+                                article["llm_score"] = llm_score
+                                article["crawl_length"] = result.get("markdown_length", 0)
+                                article["crawl_markdown"] = crawled_content
+
+                                crawl_result_id = save_crawl_result_to_db(supabase, article, wsj)
+                                if crawl_result_id:
+                                    save_analysis_to_db(supabase, crawl_result_id, llm_analysis)
+
+                                update_domain_llm_failure(supabase, article.get("resolved_domain"))
+
+                                if j < len(crawlable) - 1:
+                                    await asyncio.sleep(delay)
+                                continue
+                        else:
+                            print("failed (continuing without LLM)")
+
+                    # Step 4: All checks passed - mark as success
+                    article["crawl_status"] = "success"
+                    article["crawl_title"] = result.get("title", "")
+                    article["crawl_markdown"] = crawled_content
+                    article["crawl_length"] = result.get("markdown_length", 0)
+                    article["relevance_flag"] = "ok"
+                    article["top_image"] = result.get("top_image")
+                    if llm_analysis:
+                        article["llm_same_event"] = llm_analysis.get("is_same_event", True)
+                        article["llm_score"] = llm_analysis.get("relevance_score", 0)
+
+                    llm_indicator = "LLM✓" if LLM_ENABLED and llm_analysis else ""
+                    print(f"✓ {result.get('markdown_length', 0):,} chars | rel:{relevance:.2f} {llm_indicator} ✓")
+
+                    if supabase:
+                        crawl_result_id = save_crawl_result_to_db(supabase, article, wsj)
+
+                        if llm_analysis and crawl_result_id:
+                            save_analysis_to_db(supabase, crawl_result_id, llm_analysis)
+                            reset_domain_llm_success(supabase, article.get("resolved_domain"))
+
+                        skipped = mark_other_articles_skipped(supabase, wsj.get('id'), url)
+                        if skipped > 0:
+                            print(f"    → Marked {skipped} backup articles as skipped")
+
+                    success = True
+                    break  # Stop trying more articles for this WSJ
+                else:
+                    article["crawl_status"] = "failed"
+                    article["crawl_error"] = normalize_crawl_error(result.get("skip_reason"))
+                    run_blocked.add(domain)
+                    print(f"✗ {result.get('skip_reason', 'Too short')[:30]}")
+
+                    if supabase:
+                        save_crawl_result_to_db(supabase, article, wsj)
+
+            except Exception as e:
+                article["crawl_status"] = "error"
+                article["crawl_error"] = normalize_crawl_error(str(e)[:100])
+                run_blocked.add(domain)
+                print(f"✗ {str(e)[:30]}")
+
+                if supabase:
+                    save_crawl_result_to_db(supabase, article, wsj)
+
+            # Rate limit before next attempt
+            if j < len(crawlable) - 1:
+                await asyncio.sleep(delay)
+
+        if not success:
+            print("  → All candidates failed")
+
+        return {"success": success, "attempts": attempts}
+
+
 async def main():
     # Parse arguments
-    delay = 1.0
+    delay = 1.5
     update_db = False
     from_db = False
+    concurrent = 1
     args = sys.argv[1:]
     i = 0
     while i < len(args):
@@ -307,6 +547,9 @@ async def main():
             from_db = True
             update_db = True  # --from-db implies --update-db
             i += 1
+        elif args[i] == "--concurrent" and i + 1 < len(args):
+            concurrent = max(1, int(args[i + 1]))
+            i += 2
         else:
             i += 1
 
@@ -317,20 +560,21 @@ async def main():
         print("Required: NEXT_PUBLIC_SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY")
         return
 
-    # Fetch domain success rates for weighted ranking
+    # Fetch domain success rates for weighted ranking (Laplace-smoothed)
     domain_success_rates = {}
     if supabase:
         try:
             domain_response = supabase.table('wsj_domain_status') \
-                .select('domain, success_rate') \
+                .select('domain, success_count, fail_count') \
                 .eq('status', 'active') \
                 .execute()
             if domain_response.data:
                 domain_success_rates = {
-                    row['domain']: row.get('success_rate') or 0.5
+                    row['domain']: ((row.get('success_count') or 0) + 1)
+                    / ((row.get('success_count') or 0) + (row.get('fail_count') or 0) + 2)
                     for row in domain_response.data
                 }
-                print(f"Loaded success rates for {len(domain_success_rates)} domains")
+                print(f"Loaded Laplace-smoothed rates for {len(domain_success_rates)} domains")
         except Exception as e:
             print(f"Warning: Could not load domain success rates: {e}")
 
@@ -366,221 +610,31 @@ async def main():
         print(f"Loaded {len(all_data)} WSJ items from file")
     print("Strategy: 1 article per WSJ, fallback on failure")
     print(f"Crawl mode: {CRAWL_MODE} ({'CI detected' if IS_CI else 'local'})")
-    print(f"Delay: {delay}s")
+    print(f"Delay: {delay}s | Concurrent: {concurrent}")
     print("=" * 80)
 
-    # Track results
-    wsj_success = 0
-    wsj_failed = 0
-    total_attempts = 0
+    # Process items (parallel with semaphore, or sequential when concurrent=1)
+    semaphore = asyncio.Semaphore(concurrent)
 
-    for i, data in enumerate(all_data):
-        wsj = data.get("wsj", {})
-        wsj_title = wsj.get("title", "Unknown")
-        wsj_description = wsj.get("description", "")
-        wsj_text = f"{wsj_title} {wsj_description}".strip()
-        articles = data.get("ranked", [])
+    tasks = [
+        process_wsj_item(
+            idx=i,
+            total=len(all_data),
+            data=data,
+            delay=delay,
+            supabase=supabase,
+            domain_success_rates=domain_success_rates,
+            run_blocked=run_blocked,
+            semaphore=semaphore,
+        )
+        for i, data in enumerate(all_data)
+    ]
 
-        # Filter to articles with resolved URLs
-        crawlable = [a for a in articles if a.get("resolved_url")]
+    results = await asyncio.gather(*tasks)
 
-        # Sort by weighted score: embedding_score * domain_success_rate
-        # This prioritizes articles from domains with higher success rates
-        def weighted_score(article):
-            emb_score = article.get("embedding_score") or 0.5
-            domain = article.get("resolved_domain", "")
-            success_rate = domain_success_rates.get(domain, 0.5)  # Default 0.5 for new domains
-            return emb_score * success_rate
-
-        crawlable.sort(key=weighted_score, reverse=True)
-
-        print(f"\n[{i+1}/{len(all_data)}] WSJ: {wsj_title[:60]}...")
-        print(f"  Candidates: {len(crawlable)} (sorted by weighted score)")
-
-        if not crawlable:
-            print("  ✗ No resolved URLs")
-            wsj_failed += 1
-            continue
-
-        # Try each article until one succeeds
-        success = False
-        for j, article in enumerate(crawlable):
-            url = article["resolved_url"]
-            source = article.get("source", "Unknown")
-            domain = article.get("resolved_domain", "")
-            domain_rate = domain_success_rates.get(domain, 0.5)
-            w_score = weighted_score(article)
-
-            total_attempts += 1
-            print(f"  Trying [{j+1}/{len(crawlable)}]: {domain} (w:{w_score:.2f})...", end=" ", flush=True)
-
-            try:
-                result = await asyncio.wait_for(
-                    crawl_article(url, mode=CRAWL_MODE, blocked_domains=run_blocked),
-                    timeout=90
-                )
-
-                if result.get("success") and result.get("markdown_length", 0) > 500:
-                    crawled_content = result.get("markdown", "")
-
-                    # Step 1: Check for garbage content (paywall, CSS/JS, repeated words)
-                    is_garbage, garbage_reason = is_garbage_content(crawled_content)
-                    if is_garbage:
-                        article["crawl_status"] = "garbage"
-                        article["crawl_error"] = garbage_reason
-                        article["crawl_length"] = result.get("markdown_length", 0)
-                        remaining = len(crawlable) - j - 1
-                        print(f"✗ Garbage: {garbage_reason} ({remaining} backups remaining)")
-
-                        # Save garbage result to DB and try next backup
-                        if supabase:
-                            save_crawl_result_to_db(supabase, article, wsj)
-
-                        # Rate limit before next attempt
-                        if j < len(crawlable) - 1:
-                            await asyncio.sleep(delay)
-                        continue  # Try next backup article
-
-                    # Step 2: Check relevance score
-                    relevance = compute_relevance_score(wsj_text, crawled_content)
-                    article["relevance_score"] = round(relevance, 4)
-
-                    if relevance < RELEVANCE_THRESHOLD:
-                        # Mark as success but with low relevance flag
-                        # This allows domain tracking while enabling backup retries
-                        article["crawl_status"] = "success"
-                        article["crawl_error"] = "low relevance"
-                        article["relevance_flag"] = "low"
-                        article["crawl_length"] = result.get("markdown_length", 0)
-                        article["crawl_markdown"] = crawled_content  # Save content for reference
-                        remaining = len(crawlable) - j - 1
-                        print(f"⚠ Low embedding relevance: {relevance:.2f} ({remaining} backups remaining)")
-
-                        # Save low relevance result to DB and try next backup
-                        if supabase:
-                            save_crawl_result_to_db(supabase, article, wsj)
-
-                        # Rate limit before next attempt
-                        if j < len(crawlable) - 1:
-                            await asyncio.sleep(delay)
-                        continue  # Try next backup article
-
-                    # Step 3: LLM verification (if enabled)
-                    llm_passed = True
-                    llm_analysis = None
-
-                    if LLM_ENABLED and supabase:
-                        print("    → LLM verification...", end=" ")
-                        llm_analysis = analyze_content(
-                            wsj_title=wsj.get("title", ""),
-                            wsj_description=wsj.get("description", ""),
-                            crawled_content=crawled_content,
-                        )
-
-                        if llm_analysis:
-                            llm_score = llm_analysis.get("relevance_score", 0)
-                            is_same_event = llm_analysis.get("is_same_event", False)
-                            content_quality = llm_analysis.get("content_quality", "")
-
-                            print(f"score={llm_score}, same_event={is_same_event}, quality={content_quality}")
-
-                            # Accept if: same event OR (different event but score >= 6, i.e. complementary)
-                            # Reject if: different event AND score < 6
-                            if not is_same_event and llm_score < 6:
-                                llm_passed = False
-                                remaining = len(crawlable) - j - 1
-                                print(f"    ⚠ LLM rejected ({remaining} backups remaining)")
-
-                                # Mark as success but low relevance (LLM failed)
-                                article["crawl_status"] = "success"
-                                article["crawl_error"] = "llm rejected"
-                                article["relevance_flag"] = "low"
-                                article["llm_same_event"] = False
-                                article["llm_score"] = llm_score
-                                article["crawl_length"] = result.get("markdown_length", 0)
-                                article["crawl_markdown"] = crawled_content
-
-                                # Save crawl result and LLM analysis
-                                crawl_result_id = save_crawl_result_to_db(supabase, article, wsj)
-                                if crawl_result_id:
-                                    save_analysis_to_db(supabase, crawl_result_id, llm_analysis)
-
-                                # Update domain LLM failure count
-                                update_domain_llm_failure(supabase, article.get("resolved_domain"))
-
-                                # Rate limit before next attempt
-                                if j < len(crawlable) - 1:
-                                    await asyncio.sleep(delay)
-                                continue  # Try next backup article
-                        else:
-                            # LLM call failed - continue without LLM check (fallback)
-                            print("failed (continuing without LLM)")
-
-                    # Step 4: All checks passed - mark as success
-                    article["crawl_status"] = "success"
-                    article["crawl_title"] = result.get("title", "")
-                    article["crawl_markdown"] = crawled_content
-                    article["crawl_length"] = result.get("markdown_length", 0)
-                    article["relevance_flag"] = "ok"
-                    article["top_image"] = result.get("top_image")
-                    if llm_analysis:
-                        article["llm_same_event"] = llm_analysis.get("is_same_event", True)
-                        article["llm_score"] = llm_analysis.get("relevance_score", 0)
-
-                    # Output with success indicator
-                    llm_indicator = "LLM✓" if LLM_ENABLED and llm_analysis else ""
-                    print(f"✓ {result.get('markdown_length', 0):,} chars | rel:{relevance:.2f} {llm_indicator} ✓")
-
-                    # Save to DB immediately
-                    if supabase:
-                        crawl_result_id = save_crawl_result_to_db(supabase, article, wsj)
-
-                        # Save LLM analysis if we have it
-                        if llm_analysis and crawl_result_id:
-                            save_analysis_to_db(supabase, crawl_result_id, llm_analysis)
-                            # Reset domain LLM failure count on success
-                            reset_domain_llm_success(supabase, article.get("resolved_domain"))
-
-                        # Mark other pending articles for this WSJ as skipped
-                        skipped = mark_other_articles_skipped(supabase, wsj.get('id'), url)
-                        if skipped > 0:
-                            print(f"    → Marked {skipped} backup articles as skipped")
-
-                    success = True
-                    wsj_success += 1
-                    break  # Stop trying more articles for this WSJ
-                else:
-                    # Failed - mark and try next; track domain for this run
-                    article["crawl_status"] = "failed"
-                    article["crawl_error"] = normalize_crawl_error(result.get("skip_reason"))
-                    run_blocked.add(domain)
-                    print(f"✗ {result.get('skip_reason', 'Too short')[:30]}")
-
-                    # Save failure to DB
-                    if supabase:
-                        save_crawl_result_to_db(supabase, article, wsj)
-
-            except Exception as e:
-                article["crawl_status"] = "error"
-                article["crawl_error"] = normalize_crawl_error(str(e)[:100])
-                run_blocked.add(domain)
-                print(f"✗ {str(e)[:30]}")
-
-                # Save error to DB
-                if supabase:
-                    save_crawl_result_to_db(supabase, article, wsj)
-
-            # Rate limit before next attempt
-            if j < len(crawlable) - 1:
-                await asyncio.sleep(delay)
-
-        if not success:
-            print("  → All candidates failed")
-            wsj_failed += 1
-
-        # Rate limit between WSJ items
-        if i < len(all_data) - 1:
-            await asyncio.sleep(delay)
+    wsj_success = sum(1 for r in results if r["success"])
+    wsj_failed = sum(1 for r in results if not r["success"])
+    total_attempts = sum(r["attempts"] for r in results)
 
     # Write back to file (only when reading from file, not --from-db)
     if not from_db:

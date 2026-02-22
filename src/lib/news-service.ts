@@ -235,7 +235,7 @@ export class NewsService {
         published_at,
         slug,
         thread_id,
-        wsj_crawl_results!inner (
+        wsj_crawl_results (
           top_image,
           relevance_flag,
           source,
@@ -248,7 +248,6 @@ export class NewsService {
         )
       `)
       .eq('thread_id', threadId)
-      .eq('wsj_crawl_results.relevance_flag', 'ok')
       .order('published_at', { ascending: true })
       .limit(20)
 
@@ -256,7 +255,10 @@ export class NewsService {
 
     return data.map((item: Record<string, unknown>) => {
       const crawlResults = item.wsj_crawl_results as Record<string, unknown>[]
-      const crawl = Array.isArray(crawlResults) ? crawlResults[0] : crawlResults
+      // Prefer 'ok' crawl result, fall back to first available
+      const crawl = Array.isArray(crawlResults)
+        ? crawlResults.find((c) => c.relevance_flag === 'ok') ?? crawlResults[0] ?? null
+        : crawlResults ?? null
       const analysis = crawl?.wsj_llm_analysis as Record<string, unknown>[] | Record<string, unknown> | undefined
       const llm = Array.isArray(analysis) ? analysis[0] : analysis
 
