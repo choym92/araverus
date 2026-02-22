@@ -1,0 +1,4 @@
+- FilterPanel.tsx + FilterButton.tsx: new right-slide overlay for multi-select topic filtering
+- KeywordPills.tsx: activeKeyword→activeKeywords (string[]), multi-select toggle links with comma-separated keywords param
+- ArticleCard.tsx: activeKeyword→activeKeywords prop, renamed local activeKeywords→displayKeywords to avoid shadowing
+- page.tsx: keyword→keywords (comma-separated) URL param, OR filtering logic, removed topics bar, added FilterButton in nav
