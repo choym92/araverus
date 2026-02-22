@@ -1,4 +1,4 @@
-<!-- Updated: 2026-02-20 -->
+<!-- Updated: 2026-02-21 -->
 # News Platform — Frontend
 
 Technical guide for the `/news` page. WSJ-style 3-column layout with in-card thread carousels, bilingual audio briefing player, and keyword filtering. Powered by the existing news pipeline.
@@ -31,7 +31,8 @@ graph TB
         SHELL[NewsShell<br/>Header + Sidebar wrapper]
         PLAYER[BriefingPlayer<br/>HTML5 Audio + Framer Motion<br/>EN/KO toggle, chapters, transcript]
         CARDS[ArticleCard 🖥️<br/>featured / standard<br/>+ thread carousel]
-        KWPILLS[KeywordPills<br/>Filterable keyword tags]
+        KWPILLS[KeywordPills<br/>Inline dot-separated keyword text]
+        FILTER[FilterButton 🖥️<br/>Dropdown: subcategory + keyword pills]
     end
 
     DB_ITEMS --> SVC
@@ -48,6 +49,7 @@ graph TB
     PAGE --> PLAYER
     PAGE --> CARDS
     PAGE --> KWPILLS
+    PAGE --> FILTER
 ```
 
 ---
@@ -67,7 +69,7 @@ graph LR
 
         PAGE --> TABS[Tab Nav<br/>Today / Stories / Search]
         PAGE --> CATS[Category Pills<br/>All / Markets / Tech / ...]
-        PAGE --> KW[KeywordPills<br/>Topic filter bar]
+        PAGE --> FB[FilterButton 🖥️<br/>Dropdown with subcategory + keyword pills]
         PAGE --> BP[BriefingPlayer 🔊<br/>Client Component<br/>EN/KO + chapters + transcript]
         PAGE --> AC[ArticleCard 🖥️<br/>Client Component<br/>featured / standard + thread carousel]
         PAGE --> BELOW[Below-fold grid<br/>Remaining articles]
@@ -91,9 +93,7 @@ graph LR
 │ Header (shared) — Logo | Toggle | Search | Login                  │
 ├───────────────────────────────────────────────────────────────────┤
 │ [Today]  [Stories (Soon)]  [Search (Soon)]                        │  ← tabs
-│ [All] [Markets] [Tech] [Economy] [World] [Politics]               │  ← category pills
-├───────────────────────────────────────────────────────────────────┤
-│ Topics: [Fed(5)] [AI(4)] [Tariff(3)] [Nvidia(3)] [...]           │  ← keyword filter
+│ [All] [Markets] [Tech] [Economy] [World] [Politics]  [⊞ Filter]  │  ← category pills + filter btn
 ├───────────────────────────────────────────────────────────────────┤
 │                                                                    │
 │  ┌─ Left 3/12 ──┐  ┌─ Center 6/12 ──────────┐  ┌─ Right 3/12 ─┐│
@@ -173,7 +173,7 @@ sequenceDiagram
     participant DB as Supabase
     participant FS as Local FS (temp)
 
-    Browser->>Page: GET /news?category=TECH&keyword=Fed
+    Browser->>Page: GET /news?category=TECH&keywords=Fed,Trade
 
     par Parallel fetches (batch 1)
         Page->>Svc: getLatestBriefings()
@@ -189,7 +189,7 @@ sequenceDiagram
         DB-->>Svc: allItems: NewsItem[]
     end
 
-    Note over Page: Merge: today first, then older backfill (deduped)<br/>aggregateKeywords(items) → keyword counts
+    Note over Page: Merge: today first, then older backfill (deduped)<br/>aggregateKeywords(items) + aggregateSubcategories(items)
 
     par Parallel fetches (batch 2)
         Page->>Svc: getBriefingSources(briefingId)
@@ -228,7 +228,8 @@ sequenceDiagram
 | `src/app/news/_components/NewsShell.tsx` | Client | Header + Sidebar wrapper (sidebar starts closed, shifts content on open) |
 | `src/app/news/_components/BriefingPlayer.tsx` | Client | Bilingual audio player with chapters, transcript, sticky mini-player, theme object |
 | `src/app/news/_components/ArticleCard.tsx` | Client | Article display (featured/standard) + framer-motion thread carousel |
-| `src/app/news/_components/KeywordPills.tsx` | Server | Reusable keyword pills with optional link behavior + active state |
+| `src/app/news/_components/FilterButton.tsx` | Client | Filter dropdown with subcategory + keyword pill sections, multi-select toggle |
+| `src/app/news/_components/KeywordPills.tsx` | Server | Inline dot-separated keyword text with optional link behavior + active state |
 | ~~`src/app/news/_components/ThreadSection.tsx`~~ | ~~Client~~ | **Deleted** — replaced by in-card thread carousels |
 | `src/lib/news-service.ts` | Server | `NewsService` class (Supabase queries, bilingual briefings, threads, related articles) |
 | `src/app/globals.css` | Shared | WSJ design tokens (`--color-news-*`) |
@@ -245,6 +246,9 @@ Defined in `src/app/news/page.tsx` (server-side, not exported):
 ### `aggregateKeywords(items: NewsItem[])`
 Collects keywords from all articles, counts occurrences, returns top 20 sorted by frequency.
 
+### `aggregateSubcategories(items: NewsItem[])`
+Collects subcategories from all articles, capitalizes for display (short names like "ai" → "AI", others → "Trade"), returns all sorted by frequency.
+
 ### `threadPropsFor(item: NewsItem)`
 Returns `{ id, threadTimeline, threadTitle }` for an article. Looks up pre-fetched `threadTimelines` Map and `threadMeta` Map. Returns `null` for articles without `thread_id`.
 
@@ -256,9 +260,10 @@ Returns `{ id, threadTimeline, threadTitle }` for an article. Looks up pre-fetch
 |-------|---------|---------|
 | `category` | `?category=TECH` | Filter articles by `feed_name` |
 | `tab` | `?tab=stories` | Switch tab (default: `today`) |
-| `keyword` | `?keyword=Fed` | Filter articles by keyword match |
+| `keywords` | `?keywords=Fed,Trade` | Multi-select OR filter by keyword/subcategory (comma-separated) |
+| `keyword` | `?keyword=Fed` | Legacy single-keyword filter (auto-migrated to `keywords`) |
 
-All parameters are combinable: `/news?category=TECH&keyword=AI&tab=today`
+All parameters are combinable: `/news?category=TECH&keywords=AI,Trade&tab=today`
 
 ### Tab Structure
 
@@ -392,7 +397,7 @@ interface ArticleCardProps {
   slug?: string | null           // links to /news/[slug] if present
   importance?: string | null     // must_read / worth_reading / optional
   keywords?: string[] | null
-  activeKeyword?: string | null
+  activeKeywords?: string[]      // multi-select filter keywords
   id?: string                    // article ID for carousel position
   threadTimeline?: NewsItem[] | null  // full thread timeline
   threadTitle?: string | null    // thread display name
@@ -400,7 +405,7 @@ interface ArticleCardProps {
 ```
 
 - **featured**: Large image, centered headline, full summary
-- **standard**: Optional image, headline (line-clamp-2) + summary + keywords + source. Cards with thread carousel use fixed height (`h-44` + `overflow-hidden`) to prevent layout shift on arrow navigation.
+- **standard**: Optional image, headline (line-clamp-2) + summary + keywords + source. Cards with thread carousel use fixed height (`h-36` + `overflow-hidden`) to prevent layout shift on arrow navigation. `must_read` articles get glow shadow styling instead of border-left.
 - **Thread carousel**: When `threadTimeline.length > 1`, shows ◀ N/M ▶ indicator at card bottom. Starts at latest article (end of timeline). Framer Motion slide animation.
 - **ImportanceBadge**: Star icon for `must_read` articles
 
@@ -409,10 +414,28 @@ interface ArticleCardProps {
 ```typescript
 interface KeywordPillsProps {
   keywords: string[]
-  activeKeyword?: string | null
-  linkable?: boolean  // when true, pills are links with ?keyword= param
+  activeKeywords?: string[]  // multi-select active keywords
+  linkable?: boolean  // when true, keywords are links toggling ?keywords= param
 }
 ```
+
+Renders as inline dot-separated text (not pills): `Trade · AI · Earnings`. Alphabetically sorted, capitalized. Active keywords shown bold with ×.
+
+### FilterButton (Client Component)
+
+```typescript
+interface FilterButtonProps {
+  allSubcategories: { keyword: string; count: number }[]
+  allKeywords: { keyword: string; count: number }[]
+  activeKeywords: string[]
+}
+```
+
+Dropdown box anchored to a `⊞ Filter` button in the nav bar. Two sections separated by a divider:
+- **Subcategory**: Aggregated from `wsj_items.subcategory` (capitalized: "ai" → "AI", "trade" → "Trade")
+- **Keywords**: Aggregated from article keywords (top 20 by frequency)
+
+Each pill is a toggle button — click to add/remove from `?keywords=` URL param. OR filtering: articles matching ANY selected keyword or subcategory are shown. Outside click / ESC to close.
 
 ---
 
@@ -526,7 +549,7 @@ classDiagram
 | Category + Keyword coexistence | Categories filter articles, keywords filter within | Single unified view, not separate modes |
 | Article ordering | Today (24h) first, then older backfill (deduped) | Fresh content always on top; layout always filled |
 | DB query filter | No `processed` or `relevance_flag` filter | Show all articles including uncrawled (RSS title + description only) |
-| Keyword filter | Top 20 keywords by frequency, clickable pills | Information scent — users spot topics instantly |
+| Keyword filter | Filter dropdown with subcategory + keyword pill sections, multi-select OR | Replaced horizontal pill bar — cleaner default, powerful on demand |
 | Thread titles | From `wsj_story_threads.title` (Gemini-generated) | More meaningful than "N Related Articles" |
 
 ### Audio Player
@@ -731,7 +754,7 @@ graph LR
 - [x] Page renders with real data from Supabase
 - [x] Thread groups show with titles, sorted by heat score
 - [x] Thread expand/collapse works (first expanded, rest collapsed)
-- [x] Keyword filter bar shows top keywords, clicking filters articles
+- [x] Filter dropdown shows subcategories + keywords, multi-select OR filtering works
 - [x] Category pills filter articles by feed_name
 - [x] Tab navigation (Today active, Stories/Search placeholder)
 - [x] Audio player plays WAV files from `public/audio/`

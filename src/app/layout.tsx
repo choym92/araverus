@@ -1,5 +1,5 @@
 // src/app/layout.tsx
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Inter, Geist_Mono, Playfair_Display } from "next/font/google";
 import "./globals.css";
 
@@ -19,6 +19,11 @@ const playfair = Playfair_Display({
   style: ["normal", "italic"],
 });
 
+
+/* ---------- viewport (iOS safe area) ---------- */
+export const viewport: Viewport = {
+  viewportFit: 'cover',
+};
 
 /* ---------- <head> metadata ---------- */
 export const metadata: Metadata = {

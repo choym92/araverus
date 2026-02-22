@@ -1,4 +1,6 @@
 import type { Metadata } from 'next'
+import { BriefingProvider } from './_components/BriefingContext'
+import BriefingMiniPlayer from './_components/BriefingMiniPlayer'
 
 export const metadata: Metadata = {
   title: 'News | Paul Cho',
@@ -10,5 +12,11 @@ export default function NewsLayout({
 }: {
   children: React.ReactNode
 }) {
-  return <>{children}</>
+  return (
+    <BriefingProvider>
+      {children}
+      {/* Standalone mini-player for article pages (full player passes its own visibility) */}
+      <BriefingMiniPlayer />
+    </BriefingProvider>
+  )
 }
