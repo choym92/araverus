@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Phase 3 · Article Crawler (library) — Crawl article content using hybrid approach: newspaper4k + crawl4ai fallback.
+Phase 3 · Library · Article Crawler — Crawl article content using hybrid approach: newspaper4k + crawl4ai fallback.
 
 Features:
 - HYBRID APPROACH: Try newspaper4k first (fast + metadata), fall back to browser
@@ -22,8 +22,6 @@ As a module:
     # result includes: extraction_method, authors, publish_date (when available)
 """
 import asyncio
-import base64
-import json
 import re
 import sys
 from dataclasses import dataclass, asdict
@@ -33,6 +31,13 @@ from urllib.parse import urlparse
 
 import httpx
 from crawl4ai import AsyncWebCrawler, BrowserConfig, CrawlerRunConfig
+
+# Import shared Google News resolver (sync — called briefly from async context)
+sys.path.insert(0, str(Path(__file__).parent))
+from google_news_resolver import (
+    is_google_news_url,
+    resolve_google_news_url as _resolve_google_news_url,
+)
 
 # Optional: trafilatura for better content extraction
 try:
@@ -212,231 +217,6 @@ def _extract_with_trafilatura(html: str, url: str = None) -> tuple[str, str]:
     return "", "trafilatura_failed"
 
 
-# ============================================================================
-# Google News URL Resolution
-# ============================================================================
-
-def is_google_news_url(url: str) -> bool:
-    """Check if URL is a Google News redirect URL."""
-    return "news.google.com" in url and "/articles/" in url
-
-
-def decode_google_news_url_direct(google_url: str) -> str | None:
-    """
-    Strategy 1: Direct decode for old-format Google News URLs.
-    Decodes the base64 article ID and extracts embedded URL.
-    """
-    try:
-        match = re.search(r"/articles/([^/?]+)", google_url)
-        if not match:
-            return None
-
-        encoded = match.group(1)
-        # Convert URL-safe base64 to standard base64
-        base64_str = encoded.replace("-", "+").replace("_", "/")
-        # Add padding if needed
-        padding = 4 - len(base64_str) % 4
-        if padding != 4:
-            base64_str += "=" * padding
-
-        decoded = base64.b64decode(base64_str)
-        content = decoded.decode("latin-1")
-
-        # Check for protobuf prefix markers and strip
-        prefix = bytes([0x08, 0x13, 0x22]).decode("latin-1")
-        if content.startswith(prefix):
-            content = content[len(prefix):]
-
-        # Remove known suffix if present
-        suffix = bytes([0xD2, 0x01, 0x00]).decode("latin-1")
-        if content.endswith(suffix):
-            content = content[:-len(suffix)]
-
-        # Parse length byte and extract inner content
-        length_byte = ord(content[0])
-        if length_byte >= 0x80:
-            content = content[2:length_byte + 2]
-        else:
-            content = content[1:length_byte + 1]
-
-        # Check if this is new format that needs batchexecute API
-        if content.startswith("AU_yqL"):
-            return None  # Signal to use batchexecute
-
-        # Old format: look for URL directly
-        url_match = re.search(r"https?://[^\s\x00-\x1f\"<>]+", content)
-        if url_match:
-            return re.sub(r"[\x00-\x1f\x7f-\xff]+$", "", url_match.group(0))
-
-        return None
-    except Exception:
-        return None
-
-
-async def fetch_google_news_batchexecute(article_id: str, client: httpx.AsyncClient) -> str | None:
-    """
-    Strategy 2: Use Google's batchexecute API for new-format URLs.
-    2-step process: fetch page for signature/timestamp, then call batchexecute.
-    """
-    try:
-        # Step 1: Fetch article page to get signature and timestamp
-        article_url = f"https://news.google.com/articles/{article_id}"
-        resp = await client.get(article_url, follow_redirects=True)
-
-        if resp.status_code != 200:
-            return None
-
-        html = resp.text
-
-        # Extract signature and timestamp
-        sig_match = re.search(r'data-n-a-sg="([^"]+)"', html)
-        ts_match = re.search(r'data-n-a-ts="([^"]+)"', html)
-
-        if not sig_match or not ts_match:
-            return None
-
-        signature = sig_match.group(1)
-        timestamp = ts_match.group(1)
-
-        # Step 2: Call batchexecute with signature and timestamp
-        payload = json.dumps([
-            [
-                [
-                    "Fbv4je",
-                    json.dumps([
-                        "garturlreq",
-                        [
-                            ["X", "X", ["X", "X"], None, None, 1, 1, "US:en", None, 1, None, None, None, None, None, 0, 1],
-                            "X",
-                            "X",
-                            1,
-                            [1, 1, 1],
-                            1,
-                            1,
-                            None,
-                            0,
-                            0,
-                            None,
-                            0,
-                        ],
-                        article_id,
-                        int(timestamp),
-                        signature,
-                    ]),
-                ],
-            ],
-        ])
-
-        batch_resp = await client.post(
-            "https://news.google.com/_/DotsSplashUi/data/batchexecute?rpcids=Fbv4je",
-            headers={
-                "Content-Type": "application/x-www-form-urlencoded;charset=UTF-8",
-                "Referer": "https://news.google.com/",
-            },
-            content=f"f.req={payload}",
-        )
-
-        if batch_resp.status_code != 200:
-            return None
-
-        text = batch_resp.text
-
-        # Parse URL from response
-        # Response format: ["garturlres","URL",1] but may be escaped inside JSON string
-        # Pattern 1: Direct format
-        url_match = re.search(r'\["garturlres","(https?:[^"]+)"', text)
-        if url_match:
-            url = url_match.group(1)
-            url = url.replace("\\u003d", "=").replace("\\u0026", "&")
-            return url
-
-        # Pattern 2: Escaped format (inside JSON string)
-        url_match = re.search(r'\[\\?"garturlres\\?",\\?"(https?:[^"\\]+)\\?"', text)
-        if url_match:
-            url = url_match.group(1)
-            url = url.replace("\\u003d", "=").replace("\\u0026", "&")
-            return url
-
-        return None
-    except Exception:
-        return None
-
-
-async def fetch_google_news_canonical(google_url: str, client: httpx.AsyncClient) -> str | None:
-    """
-    Strategy 3: Follow redirect and extract canonical URL from HTML.
-    """
-    try:
-        resp = await client.get(google_url, follow_redirects=True)
-
-        # If redirected to non-Google URL, that's our answer
-        final_url = str(resp.url)
-        if "news.google.com" not in final_url:
-            return final_url
-
-        html = resp.text
-
-        # Try canonical URL
-        canonical_match = re.search(
-            r'<link[^>]+rel=["\']canonical["\'][^>]+href=["\']([^"\']+)["\']',
-            html, re.IGNORECASE
-        )
-        if canonical_match and "news.google.com" not in canonical_match.group(1):
-            return canonical_match.group(1)
-
-        # Try og:url
-        og_match = re.search(
-            r'<meta[^>]+property=["\']og:url["\'][^>]+content=["\']([^"\']+)["\']',
-            html, re.IGNORECASE
-        )
-        if og_match and "news.google.com" not in og_match.group(1):
-            return og_match.group(1)
-
-        return None
-    except Exception:
-        return None
-
-
-async def resolve_google_news_url(google_url: str) -> str | None:
-    """
-    Resolve a Google News URL to the actual article URL.
-    Uses 3 strategies in order:
-    1. Direct base64 decode (old format)
-    2. batchexecute API (new format)
-    3. Follow redirect / canonical URL
-    """
-    # Sanitize URL
-    clean_url = google_url.strip()
-    if re.search(r"\s", clean_url):
-        return None  # Corrupted URL
-
-    # Strategy 1: Direct decode
-    decoded = decode_google_news_url_direct(clean_url)
-    if decoded and "news.google.com" not in decoded:
-        return decoded
-
-    # Strategies 2 & 3 need HTTP client
-    async with httpx.AsyncClient(
-        timeout=15,
-        headers={
-            "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36"
-        }
-    ) as client:
-        # Strategy 2: batchexecute API
-        match = re.search(r"/articles/([^/?]+)", clean_url)
-        if match:
-            article_id = match.group(1)
-            batch_url = await fetch_google_news_batchexecute(article_id, client)
-            if batch_url and "news.google.com" not in batch_url:
-                return batch_url
-
-        # Strategy 3: Follow redirect / canonical
-        canonical = await fetch_google_news_canonical(clean_url, client)
-        if canonical:
-            return canonical
-
-    return None
-
 
 # Domain-specific config for article extraction
 # css_selector: targets article content directly (most effective)
@@ -608,13 +388,14 @@ async def crawl_article(
     original_url = url
     resolved_url = None
 
-    # Auto-resolve Google News URLs
+    # Auto-resolve Google News URLs (sync resolver, brief block is fine)
     if is_google_news_url(url):
-        resolved_url = await resolve_google_news_url(url)
-        if resolved_url:
+        with httpx.Client(timeout=15) as client:
+            result = _resolve_google_news_url(url, client)
+        if result.success:
+            resolved_url = result.resolved_url
             url = resolved_url
         else:
-            # Resolution failed - return error
             return {
                 "success": False,
                 "status_code": 0,
@@ -1242,49 +1023,38 @@ def save_article(result: dict, url: str, output_dir: str = None) -> Path:
 
 
 async def main():
-    if len(sys.argv) < 2:
-        print("Usage: python scripts/crawl_article.py <url> [mode] [--save] [--force] [--no-domain-selector]")
-        print("Modes: basic, stealth, undetected (default)")
-        print("Options:")
-        print("  --save                Save full content to file")
-        print("  --force               Force crawl even if domain is blocked")
-        print("  --no-domain-selector  Disable domain-specific CSS selectors")
-        print("\nBlocked domains are tracked in wsj_domain_status (Supabase)")
-        sys.exit(1)
+    import argparse
+    parser = argparse.ArgumentParser(description="Crawl article content using hybrid approach")
+    parser.add_argument('url', help='Article URL to crawl')
+    parser.add_argument('mode', nargs='?', default='undetected', choices=['basic', 'stealth', 'undetected'], help='Crawl mode')
+    parser.add_argument('--save', action='store_true', help='Save full content to file')
+    parser.add_argument('--force', action='store_true', help='Force crawl even if domain is blocked')
+    parser.add_argument('--no-domain-selector', action='store_true', help='Disable domain-specific CSS selectors')
+    args = parser.parse_args()
 
-    url = sys.argv[1]
-    mode = "undetected"
-    save_to_file = False
-    use_domain_selector = True
-    skip_blocked = True
+    url = args.url
+    mode = args.mode
+    save_to_file = args.save
+    use_domain_selector = not args.no_domain_selector
+    skip_blocked = not args.force
 
-    for arg in sys.argv[2:]:
-        if arg == "--save":
-            save_to_file = True
-        elif arg == "--force":
-            skip_blocked = False
-        elif arg == "--no-domain-selector":
-            use_domain_selector = False
-        elif arg in ["basic", "stealth", "undetected"]:
-            mode = arg
-
-    # Handle Google News URLs first
+    # Handle Google News URLs first (sync resolver, brief block)
     if is_google_news_url(url):
         print(f"Google News URL detected: {url[:80]}...")
         print("Resolving to actual article URL...")
-        resolved = await resolve_google_news_url(url)
-        if resolved:
-            print(f"Resolved to: {resolved}")
-            url = resolved
+        with httpx.Client(timeout=15) as client:
+            resolve_result = _resolve_google_news_url(url, client)
+        if resolve_result.success:
+            print(f"Resolved to: {resolve_result.resolved_url}")
+            url = resolve_result.resolved_url
         else:
-            print("ERROR: Could not resolve Google News URL")
+            print(f"ERROR: Could not resolve Google News URL ({resolve_result.reason_code.value})")
             sys.exit(1)
 
     domain = get_domain(url)
     is_known_domain = get_domain_config(url) is not None
 
     # Load blocked domains from DB
-    sys.path.insert(0, str(Path(__file__).parent))
     from domain_utils import load_blocked_domains, is_blocked_domain
     db_blocked = load_blocked_domains()
 
