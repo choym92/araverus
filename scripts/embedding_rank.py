@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Phase 2 · Embedding Rank — Embedding-based ranking for WSJ → Google News candidates.
+Phase 2 · Step 1 · Embedding Rank — Embedding-based ranking for WSJ → Google News candidates.
 
 Uses sentence-transformers (BAAI/bge-base-en-v1.5) for semantic similarity.
 Ranks backup articles by cosine similarity to WSJ title + description.
@@ -14,12 +14,19 @@ import sys
 from pathlib import Path
 
 import numpy as np
-from sentence_transformers import SentenceTransformer
 
-# Load model (downloads on first run, ~80MB)
-print("Loading embedding model...")
-MODEL = SentenceTransformer('BAAI/bge-base-en-v1.5')
-print("Model loaded.\n")
+_model = None
+
+
+def _get_model():
+    """Lazy-load sentence-transformer model (first call only)."""
+    global _model
+    if _model is None:
+        from sentence_transformers import SentenceTransformer
+        print("Loading embedding model...")
+        _model = SentenceTransformer('BAAI/bge-base-en-v1.5')
+        print("Model loaded.\n")
+    return _model
 
 
 def normalize_title(title: str) -> str:
@@ -49,7 +56,7 @@ def rank_candidates(
         return []
 
     # Encode query
-    query_vec = MODEL.encode(query_text, normalize_embeddings=True)
+    query_vec = _get_model().encode(query_text, normalize_embeddings=True)
 
     # Encode all candidates at once (batch for efficiency)
     doc_texts = []
@@ -58,7 +65,7 @@ def rank_candidates(
         source = c.get('source', '')
         doc_texts.append(f"{title} {source}")
 
-    doc_vecs = MODEL.encode(doc_texts, normalize_embeddings=True)
+    doc_vecs = _get_model().encode(doc_texts, normalize_embeddings=True)
 
     # Compute cosine similarities (normalized vectors → dot product = cosine)
     scores = np.dot(doc_vecs, query_vec)
@@ -74,15 +81,14 @@ def rank_candidates(
 
 
 def main():
-    top_k = 10
-    min_score = 0.3
+    import argparse
+    parser = argparse.ArgumentParser(description="Embedding-based ranking for WSJ → Google News candidates")
+    parser.add_argument('--top-k', type=int, default=10, help='Max results per WSJ item')
+    parser.add_argument('--min-score', type=float, default=0.3, help='Minimum cosine similarity')
+    args = parser.parse_args()
 
-    args = sys.argv[1:]
-    for i, arg in enumerate(args):
-        if arg == '--top-k' and i + 1 < len(args):
-            top_k = int(args[i + 1])
-        elif arg == '--min-score' and i + 1 < len(args):
-            min_score = float(args[i + 1])
+    top_k = args.top_k
+    min_score = args.min_score
 
     # Read candidates
     input_path = Path(__file__).parent / 'output' / 'wsj_google_news_results.jsonl'
@@ -139,7 +145,6 @@ def main():
                 'link': article.get('link', ''),
                 'pubDate': article.get('pubDate', ''),
                 'embedding_score': round(score, 4),
-                'crawl_status': 'pending',
             })
 
         ranked_results.append({
