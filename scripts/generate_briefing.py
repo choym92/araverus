@@ -934,29 +934,177 @@ def generate_tts_ko(
 # ---------------------------------------------------------------------------
 
 
-def extract_sentences(mp3_path: Path, lang: str) -> list[dict]:
-    """Run Whisper on TTS audio and return sentence-level timestamps."""
+def _split_original_into_sentences(text: str) -> list[str]:
+    """Split original briefing text into sentences."""
+    parts = re.split(r"(?<=[.!?\u3002\uff1f\uff01])\s+", text.strip())
+    return [p.strip() for p in parts if p.strip()]
+
+
+def _extract_sentences_ctc(mp3_path: Path, original_text: str, lang_iso: str) -> list[dict]:
+    """CTC forced alignment — accurate sentence timestamps from known text + audio.
+
+    Uses ctc-forced-aligner (ONNX MMS model). Best for non-English TTS audio
+    where Whisper transcription is inaccurate.
+    """
+    from ctc_forced_aligner import (  # noqa: F811
+        generate_emissions, get_alignments, get_spans,
+        load_audio, postprocess_results, preprocess_text,
+        ensure_onnx_model, MODEL_URL, Tokenizer,
+    )
+    import onnxruntime
+
+    model_path = os.path.expanduser("~/.cache/ctc_forced_aligner/model.onnx")
+    ensure_onnx_model(model_path, MODEL_URL)
+    session = onnxruntime.InferenceSession(model_path)
+    tokenizer = Tokenizer()
+
+    audio_waveform = load_audio(str(mp3_path))
+    tokens_starred, text_starred = preprocess_text(
+        original_text, romanize=True, language=lang_iso, split_size="sentence",
+    )
+    emissions, stride = generate_emissions(session, audio_waveform)
+    segments, scores, blank = get_alignments(emissions, tokens_starred, tokenizer)
+    spans = get_spans(tokens_starred, segments, blank)
+    results = postprocess_results(text_starred, spans, stride, scores)
+
+    # Replace CTC-normalized text with original sentences
+    original_sentences = _split_original_into_sentences(original_text)
+    sentences = []
+    for i, r in enumerate(results):
+        text = original_sentences[i] if i < len(original_sentences) else r["text"]
+        sentences.append({"text": text, "start": round(r["start"], 2), "end": round(r["end"], 2)})
+    return sentences
+
+
+_NONWORD_RE = re.compile(r"[\W_]+")
+
+
+def _content_len(text: str) -> int:
+    """Character count excluding punctuation/whitespace (for alignment ratio)."""
+    return len(_NONWORD_RE.sub("", text))
+
+
+def _align_original_with_timestamps(
+    original_sentences: list[str],
+    whisper_sentences: list[dict],
+    whisper_words: list[dict],
+) -> list[dict]:
+    """Replace Whisper text with original text, keeping timestamps.
+
+    If sentence counts match: 1:1 swap (best accuracy).
+    If they differ: use Whisper word-level timestamps to interpolate
+    sentence boundaries based on content-character-position mapping.
+    """
+    n_orig = len(original_sentences)
+    n_whis = len(whisper_sentences)
+
+    if n_orig == n_whis:
+        return [
+            {"text": orig, "start": ws["start"], "end": ws["end"]}
+            for orig, ws in zip(original_sentences, whisper_sentences)
+        ]
+
+    log.info(
+        "Sentence count mismatch (original=%d, whisper=%d) — using word-level interpolation",
+        n_orig, n_whis,
+    )
+
+    if whisper_words:
+        cum_chars = 0
+        char_times: list[tuple[int, float, float]] = []
+        for w in whisper_words:
+            cum_chars += _content_len(w["text"])
+            char_times.append((cum_chars, w["start"], w["end"]))
+        total_wchars = cum_chars
+        total_duration = whisper_words[-1]["end"]
+    else:
+        total_wchars = 0
+        total_duration = whisper_sentences[-1]["end"] if whisper_sentences else 0
+
+    total_ochars = sum(_content_len(s) for s in original_sentences) or 1
+
+    def _time_at_char_pos(char_pos: int) -> float:
+        if not whisper_words or total_wchars == 0:
+            return (char_pos / total_ochars) * total_duration
+        scaled = (char_pos / total_ochars) * total_wchars
+        prev_cum = 0
+        prev_end = 0.0
+        for cum, _ws, we in char_times:
+            if scaled <= cum:
+                span = cum - prev_cum
+                frac = (scaled - prev_cum) / span if span > 0 else 0
+                return prev_end + frac * (we - prev_end)
+            prev_cum = cum
+            prev_end = we
+        return total_duration
+
+    aligned = []
+    cum = 0
+    for s in original_sentences:
+        t_start = _time_at_char_pos(cum)
+        cum += _content_len(s)
+        t_end = _time_at_char_pos(cum)
+        aligned.append({"text": s, "start": round(t_start, 2), "end": round(t_end, 2)})
+    return aligned
+
+
+def extract_sentences(mp3_path: Path, lang: str, original_text: str = "") -> list[dict]:
+    """Extract sentence-level timestamps from TTS audio.
+
+    Strategy:
+    - KO: CTC forced alignment (accurate phoneme-level alignment)
+    - EN: Whisper transcription + original text swap
+    """
+    start_t = time.time()
+
+    # KO: use CTC forced alignment (Whisper is inaccurate for Korean)
+    if lang == "ko" and original_text:
+        try:
+            sentences = _extract_sentences_ctc(mp3_path, original_text, "kor")
+            elapsed = time.time() - start_t
+            log.info("CTC alignment for KO: %d sentences in %.1fs", len(sentences), elapsed)
+            return sentences
+        except Exception as e:
+            log.warning("CTC alignment failed for KO, falling back to Whisper: %s", e)
+
+    # EN (and fallback): Whisper-based alignment
     try:
         import whisper
     except ImportError:
         log.warning("whisper not installed — skipping sentence extraction")
         return []
 
-    start = time.time()
     whisper_lang = "en" if lang == "en" else "ko"
     log.info("Whisper alignment for %s: %s...", lang.upper(), mp3_path.name)
 
     model = whisper.load_model("base")
     result = model.transcribe(str(mp3_path), language=whisper_lang, word_timestamps=True, verbose=False)
 
-    # Merge segments into full sentences
+    # Merge segments into full sentences (for count comparison / 1:1 swap)
     segments = [
         {"text": s["text"].strip(), "start": round(s["start"], 2), "end": round(s["end"], 2)}
         for s in result["segments"]
     ]
-    sentences = _merge_into_sentences(segments)
+    whisper_sentences = _merge_into_sentences(segments)
 
-    elapsed = time.time() - start
+    # Extract flat word timeline for interpolation fallback
+    whisper_words: list[dict] = []
+    for seg in result["segments"]:
+        for w in seg.get("words", []):
+            txt = w.get("word", "").strip()
+            if txt:
+                whisper_words.append({"text": txt, "start": w["start"], "end": w["end"]})
+
+    # Replace Whisper text with original text
+    if original_text:
+        original_sentences = _split_original_into_sentences(original_text)
+        sentences = _align_original_with_timestamps(
+            original_sentences, whisper_sentences, whisper_words,
+        )
+    else:
+        sentences = whisper_sentences
+
+    elapsed = time.time() - start_t
     log.info("Whisper: %d sentences extracted in %.1fs", len(sentences), elapsed)
     return sentences
 
@@ -1285,7 +1433,7 @@ def main() -> None:
         sentences = None
         if tts_result:
             try:
-                sentences = extract_sentences(tts_result.path, lang)
+                sentences = extract_sentences(tts_result.path, lang, original_text=result.text)
             except Exception as e:
                 log.warning("Whisper alignment failed for %s: %s", lang.upper(), e)
 
