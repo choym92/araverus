@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Crawl article content using hybrid approach: newspaper4k + crawl4ai fallback.
+Phase 3 · Article Crawler (library) — Crawl article content using hybrid approach: newspaper4k + crawl4ai fallback.
 
 Features:
 - HYBRID APPROACH: Try newspaper4k first (fast + metadata), fall back to browser

@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-LLM-based content analysis for crawled articles.
+Phase 3 · LLM Analysis (library) — LLM-based content analysis for crawled articles.
 
 Uses Gemini 2.5 Flash to verify if crawled content matches WSJ headline
 and extract rich metadata (entities, sentiment, summary, etc.).
@@ -78,7 +78,7 @@ def analyze_content(
     wsj_title: str,
     wsj_description: str,
     crawled_content: str,
-    model: str = "gemini-2.5-flash",
+    model: str = "gemini-2.5-flash-lite",
 ) -> Optional[dict]:
     """
     Analyze crawled content against WSJ headline using LLM.
@@ -203,7 +203,7 @@ def save_analysis_to_db(supabase, crawl_result_id: str, analysis: dict) -> bool:
         "importance": importance,
         "keywords": keywords,
         "raw_response": analysis,
-        "model_used": analysis.get("model_used", "gemini-2.5-flash"),
+        "model_used": analysis.get("model_used", "gemini-2.5-flash-lite"),
         "input_tokens": analysis.get("input_tokens"),
         "output_tokens": analysis.get("output_tokens"),
     }

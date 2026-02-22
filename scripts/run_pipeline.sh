@@ -59,7 +59,7 @@ echo ""
 echo ">>> Phase 2: Rank + Resolve"
 $VENV "$SCRIPTS/embedding_rank.py" || { echo "ERROR: Embedding rank failed"; exit 1; }
 $VENV "$SCRIPTS/resolve_ranked.py" --delay 0.5 --update-db || { echo "ERROR: Resolve failed"; exit 1; }
-$VENV "$SCRIPTS/wsj_ingest.py" --mark-searched "$SCRIPTS/output/wsj_items.jsonl" || echo "WARN: mark-searched failed"
+$VENV "$SCRIPTS/domain_utils.py" --mark-searched "$SCRIPTS/output/wsj_items.jsonl" || echo "WARN: mark-searched failed"
 
 # ── Phase 3: Crawl ─────────────────────────────────────
 echo ""
@@ -69,8 +69,8 @@ $VENV "$SCRIPTS/crawl_ranked.py" --delay 1 --update-db || echo "WARN: Crawl had 
 # ── Phase 4: Post-process ──────────────────────────────
 echo ""
 echo ">>> Phase 4: Post-process"
-$VENV "$SCRIPTS/wsj_ingest.py" --mark-processed-from-db || echo "WARN: mark-processed failed"
-$VENV "$SCRIPTS/wsj_ingest.py" --update-domain-status || echo "WARN: domain-status failed"
+$VENV "$SCRIPTS/domain_utils.py" --mark-processed-from-db || echo "WARN: mark-processed failed"
+$VENV "$SCRIPTS/domain_utils.py" --update-domain-status || echo "WARN: domain-status failed"
 
 # ── Phase 4.5: Embed + Thread ────────────────────────
 echo ""

@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-WSJ RSS to Google News search pipeline.
+Phase 1 · Google News Search — WSJ RSS to Google News search pipeline.
 
 Takes WSJ RSS items and searches Google News for related free articles.
 Uses multi-query strategy for better candidate generation.
@@ -755,7 +755,7 @@ async def main():
     if processed_ids:
         print(f"  {ids_path}")
         print("\nTo mark items as processed in Supabase:")
-        print(f"  python scripts/wsj_ingest.py --mark-processed {jsonl_path}")
+        print(f"  python scripts/domain_utils.py --mark-processed {jsonl_path}")
 
 
 if __name__ == "__main__":

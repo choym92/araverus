@@ -289,7 +289,7 @@ Job 1: ingest-search
 Job 2: rank-resolve
   embedding_rank.py      → ranked results JSONL (adds embedding_score)
   resolve_ranked.py      → wsj_crawl_results (insert, crawl_status='pending')
-  wsj_ingest.py --mark-searched → wsj_items.searched=true
+  domain_utils.py --mark-searched → wsj_items.searched=true
 
 Job 3: crawl
   crawl_ranked.py        → wsj_crawl_results (upsert: content, crawl_status, relevance_flag)

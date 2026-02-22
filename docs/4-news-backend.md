@@ -1,4 +1,4 @@
-<!-- Updated: 2026-02-21 -->
+<!-- Updated: 2026-02-22 -->
 # News Platform — Backend & Pipeline
 
 Single source of truth for the finance news pipeline: ingestion, crawling, analysis, briefing generation.
@@ -69,23 +69,17 @@ flowchart TB
 
 #### `wsj_ingest.py`
 
-RSS ingestion, export, lifecycle management, domain status.
+RSS ingestion and export only.
 
 | Flag | Action |
 |------|--------|
 | *(none)* | Ingest all 6 WSJ RSS feeds |
 | `--export` | Export unsearched items to JSONL |
-| `--mark-searched FILE` | Set `searched=true` for items in FILE |
-| `--mark-processed-from-db` | Set `processed=true` based on DB crawl results |
-| `--update-domain-status` | Aggregate crawl results → domain stats, auto-block |
-| `--retry-low-relevance` | Reactivate backup articles for low-relevance items |
-| `--stats` | Show database statistics |
+| `--export --all` | Export all recent items (bypass searched flag) |
 
 - **Feeds:** BUSINESS, MARKETS, WORLD, TECH, ECONOMY, POLITICS (merged: BUSINESS+MARKETS → BUSINESS_MARKETS)
 - **Dedup:** Title-based, keeps version from feed with fewer items
 - **Category:** Extracted from URL path (~95% accuracy), fallback to `feed_name`
-- **Domain auto-block:** Wilson score < 0.15 (blockable n ≥ 5), content mismatch (`low relevance`, `llm rejected`) excluded
-- **Failure tracking:** Per-reason JSONB (`fail_counts`) — see failure taxonomy below
 
 #### `wsj_preprocess.py`
 
@@ -149,12 +143,15 @@ Crawls resolved URLs with quality + relevance verification.
 
 | Flag | Default | Action |
 |------|---------|--------|
-| `--delay N` | 1.0 | Delay between crawls |
+| `--delay N` | 1.5 | Delay between crawls |
 | `--update-db` | — | Save to Supabase |
 | `--from-db` | — | Crawl pending from DB |
+| `--concurrent N` | 1 | Parallel WSJ items via asyncio.Semaphore |
 
-- Sorted by `weighted_score = embedding_score * domain_success_rate`
-- Per-article: crawl → garbage check → embedding relevance (≥ 0.25) → LLM verify → accept/reject
+- Sorted by `weighted_score = embedding_score * laplace_smoothed_rate` where rate = (success+1)/(total+2)
+- Per-article: crawl → garbage check → embedding relevance (≥ 0.25) → LLM verify (gemini-2.5-flash-lite) → accept/reject
+- `--concurrent 5` = 5 WSJ items processed in parallel (each item's candidates still sequential)
+- Per-domain rate limiter: min 3s between requests to the same domain across concurrent items
 
 #### `crawl_article.py`
 
@@ -168,6 +165,26 @@ Core crawling engine: newspaper4k first (fast HTTP), crawl4ai browser fallback.
 
 - 13 domains with site-specific CSS selectors
 - Quality scoring: length, short_line_ratio, link_line_ratio, boilerplate_ratio
+
+### Phase 4: Domain & Post-process
+
+#### `domain_utils.py`
+
+Domain status management, lifecycle flags, and recovery operations.
+
+| Flag | Action |
+|------|--------|
+| `--mark-searched FILE` | Set `searched=true` for items in FILE |
+| `--mark-processed FILE` | Mark items in JSONL/JSON as processed |
+| `--mark-processed-from-db` | Set `processed=true` based on DB crawl results |
+| `--update-domain-status` | Aggregate crawl results → domain stats, auto-block |
+| `--retry-low-relevance` | Reactivate backup articles for low-relevance items |
+| `--stats` | Show database statistics |
+| `--seed-blocked-from-json` | One-time: migrate JSON blocked domains to DB |
+
+- **Domain auto-block:** Wilson score < 0.15 (blockable n ≥ 5), content mismatch (`low relevance`, `llm rejected`) excluded
+- **Failure tracking:** Per-reason JSONB (`fail_counts`) — see failure taxonomy below
+- Also provides `load_blocked_domains()` and `is_blocked_domain()` used by other scripts
 
 ### Phase 4.5: Embed + Thread
 
@@ -207,7 +224,7 @@ python generate_briefing.py --dry-run
 
 | Script | Purpose |
 |--------|---------|
-| `domain_utils.py` | Blocked domain loading (DB-only), `is_blocked_domain()` |
+| `domain_utils.py` | Domain status, lifecycle flags, recovery, stats (Phase 2/4) |
 | `llm_analysis.py` | Gemini 2.5 Flash content verification + metadata extraction |
 | `llm_backfill.py` | Backfill LLM analysis for existing articles |
 

@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Daily finance briefing generator.
+Phase 5 · Briefing — Daily finance briefing generator.
 
 Pipeline: query articles → LLM curation → EN/KO briefing generation → TTS audio → save to DB.
 

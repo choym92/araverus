@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Resolve Google News URLs for embedding-ranked results.
+Phase 2 · URL Resolve — Resolve Google News URLs for embedding-ranked results.
 
 Adds resolved_url, resolve_status, resolve_reason_code, resolve_strategy_used
 fields to each article in wsj_ranked_results.jsonl.

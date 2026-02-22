@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Embed articles and assign to story threads.
+Phase 4.5 · Embed & Thread — Embed articles and assign to story threads.
 
 Pipeline step: runs after crawl phase.
 1. Embeds title+description for articles missing embeddings (BAAI/bge-base-en-v1.5)

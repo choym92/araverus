@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Embedding-based ranking for WSJ → Google News candidates.
+Phase 2 · Embedding Rank — Embedding-based ranking for WSJ → Google News candidates.
 
 Uses sentence-transformers (BAAI/bge-base-en-v1.5) for semantic similarity.
 Ranks backup articles by cosine similarity to WSJ title + description.
