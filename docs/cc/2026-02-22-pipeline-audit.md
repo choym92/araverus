@@ -106,31 +106,30 @@ Added **Python Pipeline Rules** section (7 rules):
 
 ## Remaining Work
 
-### Audit Still To Do (4/8 complete)
-- [ ] #5: resolve_ranked.py (~300 LOC) — URL resolution, async (needs checking)
-- [ ] #6: domain_utils.py (~700 LOC, recently refactored) — Phase 2/4 lifecycle ops
-- [ ] #7: crawl_ranked.py (~500 LOC) — Playwright crawling
-- [ ] #8: crawl_article.py (~1300 LOC) — HTML parsing, largest
+### Audit Complete (8/8)
+- [x] #1: wsj_ingest.py — Phase 1 only, moved lifecycle to domain_utils
+- [x] #2: wsj_preprocess.py — dataclass, removed Supabase dup
+- [x] #3: wsj_to_google_news.py — removed async, argparse, dead code
+- [x] #4: embedding_rank.py — lazy model load, argparse, removed crawl_status
+- [x] #5: resolve_ranked.py — removed async (both files), argparse, centralized Supabase
+- [x] #6: domain_utils.py — argparse, fixed Phase label, renamed error normalization
+- [x] #7: crawl_ranked.py — lazy model, consolidated error normalization, argparse
+- [x] #8: crawl_article.py — removed 220 LOC duplicate resolver, argparse
 
 ### Documentation Cleanup
 - [ ] `docs/4-news-google-search.md` still mentions "6 top paywall sites" (actually 28, sorted by search_hit_count) — full rewrite needed
 - [ ] `docs/cc/google-news-search-flow.md` has outdated query types section
-- [ ] Create `docs/cc/pipeline-audit/` index if not exists
 
-### Post-Audit Tasks (after all 8 scripts)
-- [ ] Create common `scripts/shared_utils.py` for boilerplate (Supabase client, argparse base, env loading) — low priority, consolidate after audit
-- [ ] Update `.claude/rules/` with pipeline audit findings
+### Post-Audit Tasks
+- [ ] `get_supabase_client()` still duplicated in wsj_ingest.py — single remaining copy outside domain_utils
+- [ ] Consider `extract_domain()` consolidation (google_news_resolver vs crawl_article `get_domain`)
+- [ ] `--seed-blocked-from-json` — confirm migration was run, then remove dead code + data file
 
 ---
 
 ## Blockers / Questions
 
-None currently. Pipeline runs successfully on main — all changes are backward compatible.
-
-**Known Deferred:**
-- `get_supabase_client()` still duplicated in wsj_ingest.py and domain_utils.py (will address in Phase 4 audit)
-- `resolve_ranked.py` uses `asyncio` — needs verification if it's necessary (like wsj_to_google_news was)
-- 6 remaining scripts in audit queue — substantial work ahead
+None. All 8 scripts audited, committed, and pushed. Pipeline backward compatible.
 
 ---
 
