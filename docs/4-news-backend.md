@@ -184,7 +184,8 @@ Domain status management, lifecycle flags, and recovery operations.
 | `--stats` | Show database statistics |
 | `--seed-blocked-from-json` | One-time: migrate JSON blocked domains to DB |
 
-- **Domain auto-block:** Wilson score < 0.15 (blockable n ≥ 5), content mismatch (`low relevance`, `llm rejected`) excluded
+- **Domain auto-block:** Wilson score < 0.15 (blockable n ≥ 5), only `http error` and `timeout or network error` count as blockable
+- **Manual block protection:** Domains with non-"Auto-blocked:" block_reason are never overwritten
 - **Failure tracking:** Per-reason JSONB (`fail_counts`) — see failure taxonomy below
 - Also provides `load_blocked_domains()` and `is_blocked_domain()` used by other scripts
 
@@ -263,25 +264,26 @@ stateDiagram-v2
 
 ### Domain Failure Taxonomy
 
-`wsj_domain_status.fail_counts` tracks per-reason failures as JSONB. Only **blockable** failures count toward auto-blocking.
+`wsj_domain_status.fail_counts` tracks per-reason failures as JSONB. Only **infrastructure failures** count toward auto-blocking — parser/content issues are not the domain's fault.
 
 | Key | Cause | Blockable? |
 |-----|-------|-----------|
-| `content too short` | Crawled but insufficient content (< 350ch) | Yes |
-| `paywall` | Paywall detected | Yes |
-| `css/js instead of content` | HTML/CSS/JS instead of article | Yes |
-| `copyright or unavailable` | Copyright/unavailability message | Yes |
-| `repeated content` | Same text repeated | Yes |
-| `empty content` | Completely empty response | Yes |
-| `http error` | HTTP errors (403, 429, etc.) | Yes |
-| `social media` | Social media, no article | Yes |
-| `too many links` | Link ratio > 30% | Yes |
-| `navigation/menu content` | Menu/nav content > 55% | Yes |
-| `boilerplate content` | Boilerplate > 40% | Yes |
-| `content too long` | Content > 50K chars | Yes |
-| `timeout or network error` | Timeout/network failure | Yes |
-| `low relevance` | Low embedding score (wrong article) | **No** |
-| `llm rejected` | LLM says different event | **No** |
+| `http error` | HTTP errors (403, 429, etc.) | **Yes** |
+| `timeout or network error` | Timeout/network failure | **Yes** |
+| `content too short` | Crawled but insufficient content (< 350ch) | No |
+| `paywall` | Paywall detected | No |
+| `css/js instead of content` | HTML/CSS/JS instead of article | No |
+| `copyright or unavailable` | Copyright/unavailability message | No |
+| `repeated content` | Same text repeated | No |
+| `empty content` | Completely empty response | No |
+| `social media` | Social media, no article | No |
+| `too many links` | Link ratio > 30% | No |
+| `navigation/menu content` | Menu/nav content > 55% | No |
+| `boilerplate content` | Boilerplate > 40% | No |
+| `content too long` | Content > 50K chars | No |
+| `domain blocked` | Circular: already blocked | No |
+| `low relevance` | Low embedding score (wrong article) | No |
+| `llm rejected` | LLM says different event | No |
 
 ---
 

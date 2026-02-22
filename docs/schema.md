@@ -1,4 +1,4 @@
-<!-- Updated: 2026-02-21 -->
+<!-- Updated: 2026-02-22 -->
 <!-- Phase: News UX enhancement (migrations 007-009) -->
 # Database Schema (araverus)
 
@@ -189,7 +189,8 @@ created_at       TIMESTAMPTZ
 updated_at       TIMESTAMPTZ
 ```
 
-**Auto-block rule**: `wilson_score < 0.15` (with `blockable_total >= 5`), where blockable = all failures EXCEPT `low relevance` and `llm rejected` (content mismatch, not the domain's fault).
+**Auto-block rule**: `wilson_score < 0.15` (with `blockable_total >= 5`), where blockable = ONLY `http error` and `timeout or network error`. All other failures (parser issues, content mismatches, circular "domain blocked") are excluded — they're not the domain's fault.
+**Manual block protection**: Domains with `block_reason` not starting with "Auto-blocked:" are never overwritten by auto-block logic (preserves JSON-migrated and hand-added blocks).
 **Failure taxonomy** (fail_counts keys): `content too short`, `paywall`, `css/js instead of content`, `copyright or unavailable`, `repeated content`, `empty content`, `http error`, `domain blocked`, `social media`, `too many links`, `navigation/menu content`, `boilerplate content`, `content too long`, `timeout or network error`, `low relevance`, `llm rejected`.
 **Search hit tracking**: `search_hit_count` incremented each time domain appears in Google News results, used to prioritize `-site:` exclusions.
 

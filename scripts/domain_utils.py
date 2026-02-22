@@ -139,8 +139,10 @@ CRAWL_ERROR_MAP = {
     "Could not resolve Google News URL": "http error",
 }
 
-# Content mismatch reasons: NOT the domain's fault, excluded from auto-blocking
-CONTENT_MISMATCH_REASONS = {"low relevance", "llm rejected"}
+# Only infrastructure failures count toward auto-blocking.
+# Parser failures, content mismatches, and circular "domain blocked"
+# errors are excluded — they're not the domain's fault.
+BLOCKABLE_FAILURES = {"http error", "timeout or network error"}
 
 
 def normalize_crawl_error(raw_error: str | None) -> str:
@@ -150,7 +152,7 @@ def normalize_crawl_error(raw_error: str | None) -> str:
     if raw_error in CRAWL_ERROR_MAP:
         return CRAWL_ERROR_MAP[raw_error]
     # Already a natural language key (new format)
-    if raw_error in CONTENT_MISMATCH_REASONS:
+    if raw_error in BLOCKABLE_FAILURES:
         return raw_error
     low = raw_error.lower()
     if low.startswith("status "):
@@ -166,7 +168,7 @@ def normalize_crawl_error(raw_error: str | None) -> str:
 
 def is_blockable_failure(reason: str) -> bool:
     """Check if a failure reason should count toward domain blocking."""
-    return reason not in CONTENT_MISMATCH_REASONS
+    return reason in BLOCKABLE_FAILURES
 
 
 def wilson_lower_bound(success: int, total: int, z: float = 1.96) -> float:
@@ -290,8 +292,12 @@ def cmd_update_domain_status() -> None:
     Tracks per-reason failure counts in fail_counts JSONB column.
 
     Auto-blocks domains with Wilson score < 0.15 (n >= 5), but only
-    counting "blockable" failures. Content mismatch reasons (low relevance,
-    llm rejected) are excluded from blocking since they're not the domain's fault.
+    counting "blockable" failures (http error, timeout/network error).
+    Parser failures, content mismatches, and circular "domain blocked"
+    errors are excluded — they're not the domain's fault.
+
+    Manually blocked domains (block_reason not starting with "Auto-blocked:")
+    are preserved and never overwritten by auto-block logic.
     """
     print("=" * 60)
     print("Update Domain Status from Crawl Results")
@@ -363,10 +369,23 @@ def cmd_update_domain_status() -> None:
     WILSON_THRESHOLD = 0.15
     MIN_ATTEMPTS = 5
 
+    # Load existing blocked domains to protect manual blocks from overwrite
+    existing_blocked: dict[str, str] = {}  # {domain: block_reason}
+    try:
+        response = supabase.table('wsj_domain_status') \
+            .select('domain, block_reason') \
+            .eq('status', 'blocked') \
+            .execute()
+        for row in (response.data or []):
+            existing_blocked[row['domain']] = row.get('block_reason') or ''
+    except Exception as e:
+        print(f"Warning: Could not load existing blocked domains: {e}")
+
     # Upsert to wsj_domain_status
     now = datetime.now(timezone.utc).isoformat()
     updated = 0
     blocked = 0
+    manual_preserved = 0
 
     for domain, stats in domain_stats.items():
         success = stats['success_count']
@@ -390,6 +409,16 @@ def cmd_update_domain_status() -> None:
             block_reason = f"Auto-blocked: wilson={wilson:.3f} < {WILSON_THRESHOLD} ({success}/{blockable_total} blockable, {success_rate:.0%} overall)"
         else:
             block_reason = None
+
+        # Preserve manually blocked domains (block_reason not starting with "Auto-blocked:")
+        was_manually_blocked = (
+            domain in existing_blocked
+            and not existing_blocked[domain].startswith('Auto-blocked:')
+        )
+        if was_manually_blocked:
+            status = 'blocked'
+            block_reason = existing_blocked[domain]
+            manual_preserved += 1
 
         record = {
             'domain': domain,
@@ -422,7 +451,9 @@ def cmd_update_domain_status() -> None:
             print(f"Error updating {domain}: {e}")
 
     print(f"\nUpdated {updated} domains in wsj_domain_status")
-    print(f"Auto-blocked {blocked} domains (wilson < {WILSON_THRESHOLD}, content_mismatch excluded)")
+    print(f"Auto-blocked {blocked} domains (wilson < {WILSON_THRESHOLD}, only http/timeout failures count)")
+    if manual_preserved:
+        print(f"Preserved {manual_preserved} manually blocked domains")
 
     # Show blocked domains
     if blocked > 0:
