@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Phase 3 · Crawl — Crawl resolved URLs from embedding-ranked results.
+Phase 3 · Step 1 · Crawl — Crawl resolved URLs from embedding-ranked results.
 
 Strategy: Crawl 1 article per WSJ item, with fallback to next if failed.
 Relevance check: Compares crawled content to WSJ title using sentence embeddings.
@@ -16,7 +16,6 @@ import time
 from pathlib import Path
 
 import numpy as np
-from sentence_transformers import SentenceTransformer
 
 # Import the crawler and LLM analysis
 sys.path.insert(0, str(Path(__file__).parent))
@@ -27,7 +26,7 @@ from llm_analysis import (
     update_domain_llm_failure,
     reset_domain_llm_success,
 )
-from domain_utils import load_blocked_domains
+from domain_utils import load_blocked_domains, get_supabase_client, normalize_crawl_error
 
 # Use stealth mode in CI (headless), undetected locally (better evasion)
 IS_CI = os.environ.get("CI") == "true" or os.environ.get("GITHUB_ACTIONS") == "true"
@@ -37,53 +36,22 @@ CRAWL_MODE = "stealth" if IS_CI else "undetected"
 RELEVANCE_THRESHOLD = 0.25  # Flag if below this
 RELEVANCE_CHARS = 800       # Characters from crawled content to compare
 
-# Error normalization: map internal codes to natural language keys for fail_counts
-CRAWL_ERROR_MAP = {
-    "TOO_SHORT": "content too short",
-    "LINK_HEAVY": "too many links",
-    "MENU_HEAVY": "navigation/menu content",
-    "BOILERPLATE_HEAVY": "boilerplate content",
-    "TOO_LONG": "content too long",
-    "Content too short": "content too short",
-    "paywall": "paywall",
-    "css_js_code": "css/js instead of content",
-    "copyright_unavailable": "copyright or unavailable",
-    "repeated_words": "repeated content",
-    "empty_content": "empty content",
-    "Domain blocked (DB)": "domain blocked",
-    "Could not resolve Google News URL": "http error",
-}
-
-
-def normalize_crawl_error(raw_error: str | None) -> str:
-    """Normalize crawl error to a natural language key for fail_counts tracking."""
-    if not raw_error:
-        return "content too short"
-    # Direct mapping
-    if raw_error in CRAWL_ERROR_MAP:
-        return CRAWL_ERROR_MAP[raw_error]
-    # HTTP status codes (e.g., "Status 202", "Status 403")
-    low = raw_error.lower()
-    if low.startswith("status "):
-        return "http error"
-    if any(code in low for code in ("403", "404", "429", "301", "http")):
-        return "http error"
-    if "social" in low or "twitter" in low or "facebook" in low:
-        return "social media"
-    if "timeout" in low or "timed out" in low or "network" in low:
-        return "timeout or network error"
-    # Fallback: use the raw error but truncated
-    return raw_error[:50]
-
-
 # LLM analysis settings
 LLM_ENABLED = bool(os.getenv("GEMINI_API_KEY"))
-# LLM analysis: Accept if same_event=true OR score >= 6 (complementary articles)
 
-# Load embedding model for relevance check (cached after first load)
-print("Loading embedding model for relevance check...")
-RELEVANCE_MODEL = SentenceTransformer('BAAI/bge-base-en-v1.5')
-print("Model loaded.\n")
+# Lazy-load embedding model for relevance check
+_relevance_model = None
+
+
+def _get_relevance_model():
+    """Lazy-load sentence-transformer model (first call only)."""
+    global _relevance_model
+    if _relevance_model is None:
+        from sentence_transformers import SentenceTransformer
+        print("Loading embedding model for relevance check...")
+        _relevance_model = SentenceTransformer('BAAI/bge-base-en-v1.5')
+        print("Model loaded.\n")
+    return _relevance_model
 
 # Per-domain rate limiter: prevents concurrent items from hammering the same domain.
 # Each domain gets an asyncio.Lock + last-request timestamp.
@@ -128,7 +96,7 @@ def compute_relevance_score(wsj_text: str, crawled_text: str) -> float:
     crawled_truncated = crawled_text[:RELEVANCE_CHARS]
 
     # Encode both texts
-    embeddings = RELEVANCE_MODEL.encode(
+    embeddings = _get_relevance_model().encode(
         [wsj_text, crawled_truncated],
         normalize_embeddings=True
     )
@@ -188,20 +156,6 @@ def is_garbage_content(text: str) -> tuple[bool, str | None]:
 
     return False, None
 
-
-def get_supabase_client():
-    """Get Supabase client if credentials are available."""
-    from dotenv import load_dotenv
-    load_dotenv(Path(__file__).parent.parent / '.env.local')
-
-    supabase_url = os.getenv("NEXT_PUBLIC_SUPABASE_URL") or os.getenv("SUPABASE_URL")
-    supabase_key = os.getenv("SUPABASE_SERVICE_ROLE_KEY") or os.getenv("SUPABASE_KEY")
-
-    if not supabase_url or not supabase_key:
-        return None
-
-    from supabase import create_client
-    return create_client(supabase_url, supabase_key)
 
 
 def get_pending_items_from_db(supabase) -> list[dict]:
@@ -529,29 +483,21 @@ async def process_wsj_item(
 
 
 async def main():
-    # Parse arguments
-    delay = 1.5
-    update_db = False
-    from_db = False
-    concurrent = 1
-    args = sys.argv[1:]
-    i = 0
-    while i < len(args):
-        if args[i] == "--delay" and i + 1 < len(args):
-            delay = float(args[i + 1])
-            i += 2
-        elif args[i] == "--update-db":
-            update_db = True
-            i += 1
-        elif args[i] == "--from-db":
-            from_db = True
-            update_db = True  # --from-db implies --update-db
-            i += 1
-        elif args[i] == "--concurrent" and i + 1 < len(args):
-            concurrent = max(1, int(args[i + 1]))
-            i += 2
-        else:
-            i += 1
+    import argparse
+    parser = argparse.ArgumentParser(description="Crawl resolved URLs from embedding-ranked results")
+    parser.add_argument('--delay', type=float, default=1.5, help='Delay between requests in seconds')
+    parser.add_argument('--from-db', action='store_true', help='Load pending items from database (implies --update-db)')
+    parser.add_argument('--update-db', action='store_true', help='Save crawl results to Supabase')
+    parser.add_argument('--concurrent', type=int, default=1, help='Max concurrent WSJ items')
+    args = parser.parse_args()
+
+    if args.from_db:
+        args.update_db = True
+
+    delay = args.delay
+    from_db = args.from_db
+    update_db = args.update_db
+    concurrent = max(1, args.concurrent)
 
     # Initialize Supabase client
     supabase = get_supabase_client() if (update_db or from_db) else None

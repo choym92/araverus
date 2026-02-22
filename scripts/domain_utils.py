@@ -120,8 +120,9 @@ def is_blocked_domain(domain: str, blocked_domains: set[str]) -> bool:
 # Error Normalization & Wilson Score
 # ============================================================
 
-# Historical crawl_error → natural language key mapping (for legacy data)
-HISTORICAL_ERROR_MAP = {
+# Crawl error → natural language key mapping (single source of truth)
+# Used by both crawl_ranked.py (at crawl time) and cmd_update_domain_status (aggregation)
+CRAWL_ERROR_MAP = {
     "TOO_SHORT": "content too short",
     "LINK_HEAVY": "too many links",
     "MENU_HEAVY": "navigation/menu content",
@@ -135,18 +136,19 @@ HISTORICAL_ERROR_MAP = {
     "empty_content": "empty content",
     "Domain blocked (DB)": "domain blocked",
     "low_relevance": "low relevance",
+    "Could not resolve Google News URL": "http error",
 }
 
 # Content mismatch reasons: NOT the domain's fault, excluded from auto-blocking
 CONTENT_MISMATCH_REASONS = {"low relevance", "llm rejected"}
 
 
-def normalize_historical_error(raw_error: str | None) -> str:
-    """Normalize historical crawl_error to natural language key."""
+def normalize_crawl_error(raw_error: str | None) -> str:
+    """Normalize crawl_error to natural language key for fail_counts tracking."""
     if not raw_error:
         return "content too short"
-    if raw_error in HISTORICAL_ERROR_MAP:
-        return HISTORICAL_ERROR_MAP[raw_error]
+    if raw_error in CRAWL_ERROR_MAP:
+        return CRAWL_ERROR_MAP[raw_error]
     # Already a natural language key (new format)
     if raw_error in CONTENT_MISMATCH_REASONS:
         return raw_error
@@ -155,6 +157,8 @@ def normalize_historical_error(raw_error: str | None) -> str:
         return "http error"
     if any(code in low for code in ("403", "404", "429", "301", "http")):
         return "http error"
+    if "social" in low or "twitter" in low or "facebook" in low:
+        return "social media"
     if "timeout" in low or "timed out" in low or "network" in low:
         return "timeout or network error"
     return raw_error[:50]
@@ -342,13 +346,13 @@ def cmd_update_domain_status() -> None:
         if crawl_status == 'success' and relevance_flag == 'ok':
             domain_stats[domain]['success_count'] += 1
         elif crawl_status in ('failed', 'error', 'resolve_failed', 'garbage', 'low_relevance'):
-            reason = normalize_historical_error(crawl_error or crawl_status)
+            reason = normalize_crawl_error(crawl_error or crawl_status)
             domain_stats[domain]['fail_count'] += 1
             domain_stats[domain]['fail_counts'][reason] = domain_stats[domain]['fail_counts'].get(reason, 0) + 1
             domain_stats[domain]['last_error'] = crawl_error or crawl_status
         elif crawl_status == 'success' and relevance_flag == 'low':
             # Low relevance or LLM rejected
-            reason = normalize_historical_error(crawl_error) if crawl_error else 'low relevance'
+            reason = normalize_crawl_error(crawl_error) if crawl_error else 'low relevance'
             domain_stats[domain]['fail_count'] += 1
             domain_stats[domain]['fail_counts'][reason] = domain_stats[domain]['fail_counts'].get(reason, 0) + 1
             domain_stats[domain]['last_error'] = crawl_error or 'low relevance'
