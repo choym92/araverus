@@ -106,7 +106,7 @@ export function BriefingProvider({ children }: { children: ReactNode }) {
   const [isPlaying, setIsPlaying] = useState(false)
   const [currentTime, setCurrentTime] = useState(0)
   const [audioDuration, setAudioDuration] = useState(0)
-  const [speedIndex, setSpeedIndex] = useState(0)
+  const [speedIndex, setSpeedIndex] = useState(1)
   const [volume, setVolume] = useState(1)
   const [isMuted, setIsMuted] = useState(false)
 
@@ -235,6 +235,7 @@ export function BriefingProvider({ children }: { children: ReactNode }) {
     if (audio.duration && isFinite(audio.duration)) {
       setAudioDuration(audio.duration)
     }
+    audio.playbackRate = SPEEDS[speedIndex]
 
     return () => {
       audio.removeEventListener('timeupdate', onTimeUpdate)

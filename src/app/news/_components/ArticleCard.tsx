@@ -154,7 +154,7 @@ export default function ArticleCard({
           ? 'bg-white rounded-xl shadow-[0_2px_20px_rgba(245,158,11,0.2)] hover:shadow-[0_4px_25px_rgba(245,158,11,0.3)] transition-shadow p-4'
           : ''
       }`}>
-        <CardWrapper slug={activeSlug} link={activeLink} className="group block text-center">
+        <CardWrapper slug={activeSlug} link={activeLink} className="group block">
           <AnimatePresence custom={direction} mode="wait">
             <motion.div
               key={carouselIndex}
@@ -165,6 +165,11 @@ export default function ArticleCard({
               exit="exit"
               transition={{ duration: 0.25 }}
             >
+              <p className="text-xs text-neutral-400 mb-2">
+                <span className="font-semibold text-neutral-500 uppercase tracking-wide">{categoryLabel(activeCategory)}</span>
+                {' '}<span>{timeAgo(activeTimestamp)}</span>
+                {activeSource && <span> · via {activeSource}</span>}
+              </p>
               {activeImage && (
                 <div className="relative w-full aspect-[4/3] mb-5 overflow-hidden rounded">
                   <Image
@@ -176,26 +181,21 @@ export default function ArticleCard({
                   />
                 </div>
               )}
-              <div className="flex items-center justify-center gap-2 mb-2">
+              <div className="flex items-center gap-2 mb-2">
                 {isMustRead && <ImportanceBadge importance="must_read" />}
                 <h2 className="font-serif text-2xl md:text-3xl leading-tight text-neutral-900 group-hover:text-neutral-600 transition-colors">
                   {activeHeadline}
                 </h2>
               </div>
               {activeSummary && (
-                <p className="text-base text-neutral-500 leading-relaxed line-clamp-3 max-w-lg mx-auto mb-2">
+                <p className="text-base text-neutral-500 leading-relaxed line-clamp-3 mb-2">
                   {activeSummary}
                 </p>
               )}
               {displayKeywords && displayKeywords.length > 0 && (
-                <div className="flex justify-center mt-2">
+                <div className="flex mt-2">
                   <KeywordPills keywords={displayKeywords} activeKeywords={activeKeywords} />
                 </div>
-              )}
-              {activeSource && (
-                <p className="text-xs text-neutral-400 mt-2">
-                  via {activeSource}
-                </p>
               )}
             </motion.div>
           </AnimatePresence>

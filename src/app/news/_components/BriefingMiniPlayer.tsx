@@ -109,15 +109,27 @@ export default function BriefingMiniPlayer() {
 
             {/* Play/Pause + Volume + Speed — grouped tight */}
             <div className="flex items-center gap-1.5 shrink-0">
-              {/* Volume */}
+              {/* Play/Pause — first (left of volume) */}
+              <button
+                onClick={togglePlay}
+                className={`w-8 h-8 rounded-full ${T.miniPlayBtn} flex items-center justify-center hover:scale-105 active:scale-95 transition-transform`}
+                aria-label={isPlaying ? 'Pause' : 'Play'}
+              >
+                {isPlaying ? <Pause size={14} fill="currentColor" /> : <Play size={14} fill="currentColor" className="ml-0.5" />}
+              </button>
+
+              {/* Volume — desktop: hover popup, mobile: tap popup */}
               {!isMiniMinimized && (
                 <div
                   className="relative flex items-center"
-                  onMouseEnter={() => setMiniVolumeOpen(true)}
-                  onMouseLeave={() => setMiniVolumeOpen(false)}
+                  onMouseEnter={() => { if (window.innerWidth >= 640) setMiniVolumeOpen(true) }}
+                  onMouseLeave={() => { if (window.innerWidth >= 640) setMiniVolumeOpen(false) }}
                 >
                   <button
-                    onClick={toggleMute}
+                    onClick={() => {
+                      if (window.innerWidth < 640) { setMiniVolumeOpen(v => !v); setMiniSpeedOpen(false) }
+                      else toggleMute()
+                    }}
                     className={`w-7 h-7 flex items-center justify-center rounded ${T.surfaceHover} transition-colors ${T.muted}`}
                     aria-label={isMuted ? 'Unmute' : 'Mute'}
                   >
@@ -148,15 +160,18 @@ export default function BriefingMiniPlayer() {
                 </div>
               )}
 
-              {/* Speed */}
+              {/* Speed — desktop: hover popup, mobile: tap popup */}
               {!isMiniMinimized && (
                 <div
                   className="relative flex items-center"
-                  onMouseEnter={() => setMiniSpeedOpen(true)}
-                  onMouseLeave={() => setMiniSpeedOpen(false)}
+                  onMouseEnter={() => { if (window.innerWidth >= 640) setMiniSpeedOpen(true) }}
+                  onMouseLeave={() => { if (window.innerWidth >= 640) setMiniSpeedOpen(false) }}
                 >
                   <button
-                    onClick={() => selectSpeed((speedIndex + 1) % SPEEDS.length)}
+                    onClick={() => {
+                      if (window.innerWidth < 640) { setMiniSpeedOpen(v => !v); setMiniVolumeOpen(false) }
+                      else selectSpeed((speedIndex + 1) % SPEEDS.length)
+                    }}
                     className={`h-7 flex items-center justify-center text-[10px] font-medium px-2 rounded-full ${T.speedBtn}`}
                   >
                     {SPEEDS[speedIndex]}x
@@ -173,7 +188,7 @@ export default function BriefingMiniPlayer() {
                         {SPEEDS.map((s, i) => (
                           <button
                             key={s}
-                            onClick={() => selectSpeed(i)}
+                            onClick={() => { selectSpeed(i); setMiniSpeedOpen(false) }}
                             className={`block w-full text-[11px] font-medium px-3 py-1.5 text-center transition-colors ${
                               speedIndex === i ? 'text-white bg-white/15' : 'text-white/70 hover:text-white hover:bg-white/10'
                             }`}
@@ -186,15 +201,6 @@ export default function BriefingMiniPlayer() {
                   </AnimatePresence>
                 </div>
               )}
-
-              {/* Play/Pause */}
-              <button
-                onClick={togglePlay}
-                className={`w-8 h-8 rounded-full ${T.miniPlayBtn} flex items-center justify-center hover:scale-105 active:scale-95 transition-transform`}
-                aria-label={isPlaying ? 'Pause' : 'Play'}
-              >
-                {isPlaying ? <Pause size={14} fill="currentColor" /> : <Play size={14} fill="currentColor" className="ml-0.5" />}
-              </button>
             </div>
 
             {/* EN/KO toggle (hidden when minimized) */}
