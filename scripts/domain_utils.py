@@ -27,7 +27,7 @@ import json
 import math
 import os
 import sys
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 
 
@@ -195,7 +195,7 @@ def mark_items_searched(supabase, ids: list[str], batch_size: int = 100) -> int:
         response = supabase.table('wsj_items') \
             .update({
                 'searched': True,
-                'searched_at': datetime.utcnow().isoformat(),
+                'searched_at': datetime.now(timezone.utc).isoformat(),
             }) \
             .in_('id', batch) \
             .execute()
@@ -234,27 +234,27 @@ def get_stats(supabase) -> dict:
 # ============================================================
 
 def load_ids_from_file(file_path: Path) -> list[str]:
-    """Load item IDs from JSONL or JSON file."""
+    """Load item IDs from JSONL or JSON file.
+
+    Dispatches on file extension: .jsonl → line-by-line, .json → single parse.
+    """
     ids = []
 
     with open(file_path) as f:
         content = f.read().strip()
 
-    # Try JSON format first (wsj_searched_ids.json style)
-    if content.startswith('{'):
+    if file_path.suffix == '.jsonl':
+        for line in content.split('\n'):
+            if line.strip():
+                item = json.loads(line)
+                if 'id' in item:
+                    ids.append(item['id'])
+    else:
         data = json.loads(content)
         if 'ids' in data:
             return data['ids']
         if 'id' in data:
             return [data['id']]
-        return []
-
-    # JSONL format
-    for line in content.split('\n'):
-        if line.strip():
-            item = json.loads(line)
-            if 'id' in item:
-                ids.append(item['id'])
 
     return ids
 
@@ -270,7 +270,7 @@ def mark_items_processed(supabase, ids: list[str], batch_size: int = 100) -> int
         response = supabase.table('wsj_items') \
             .update({
                 'processed': True,
-                'processed_at': datetime.utcnow().isoformat(),
+                'processed_at': datetime.now(timezone.utc).isoformat(),
             }) \
             .in_('id', batch) \
             .execute()
@@ -364,7 +364,7 @@ def cmd_update_domain_status() -> None:
     MIN_ATTEMPTS = 5
 
     # Upsert to wsj_domain_status
-    now = datetime.utcnow().isoformat()
+    now = datetime.now(timezone.utc).isoformat()
     updated = 0
     blocked = 0
 
@@ -691,7 +691,7 @@ def cmd_seed_blocked_from_json() -> None:
     print(f"Found {len(blocked)} blocked domains in JSON")
 
     supabase = require_supabase_client()
-    now = datetime.utcnow().isoformat()
+    now = datetime.now(timezone.utc).isoformat()
     inserted = 0
 
     for domain, info in blocked.items():
