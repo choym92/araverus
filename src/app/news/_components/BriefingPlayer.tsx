@@ -101,10 +101,13 @@ export default function BriefingPlayer({
   const chapterListRef = useRef<HTMLDivElement>(null)
   const lastTapRef = useRef<{ time: number; side: 'left' | 'right' } | null>(null)
   const userScrollTimeout = useRef<NodeJS.Timeout | null>(null)
+  const isAutoScrolling = useRef(false)
 
   const [mainSpeedOpen, setMainSpeedOpen] = useState(false)
   const [chapterDropdownOpen, setChapterDropdownOpen] = useState(false)
   const [volumePopupOpen, setVolumePopupOpen] = useState(false)
+  const [mobileSpeedOpen, setMobileSpeedOpen] = useState(false)
+  const [mobileVolumeOpen, setMobileVolumeOpen] = useState(false)
   const [seekHover, setSeekHover] = useState<{ ratio: number; x: number } | null>(null)
   const [isExpanded, setIsExpanded] = useState(false)
   const [showTranscript, setShowTranscript] = useState(true)
@@ -144,9 +147,10 @@ export default function BriefingPlayer({
     const container = transcriptRef.current
     if (!container) return
     const onScroll = () => {
+      if (isAutoScrolling.current) return
       setUserScrolled(true)
       if (userScrollTimeout.current) clearTimeout(userScrollTimeout.current)
-      userScrollTimeout.current = setTimeout(() => setUserScrolled(false), 2000)
+      userScrollTimeout.current = setTimeout(() => setUserScrolled(false), 4000)
     }
     container.addEventListener('scroll', onScroll, { passive: true })
     return () => {
@@ -213,7 +217,7 @@ export default function BriefingPlayer({
             {sources.length > 0 && (
               <button
                 onClick={() => setIsExpanded(!isExpanded)}
-                className={`flex items-center gap-1 px-1.5 py-1 rounded-lg ${T.surfaceHover} transition-colors ${T.dim} text-[11px]`}
+                className={`flex items-center gap-1 px-1.5 py-1 rounded-lg ${T.surfaceHover} transition-colors ${isExpanded ? T.text : T.dim} text-[11px]`}
                 aria-label={isExpanded ? 'Collapse sources' : 'Expand sources'}
               >
                 <Layers size={13} />
@@ -287,7 +291,7 @@ export default function BriefingPlayer({
             >
               <button
                 onClick={toggleMute}
-                className={`p-1 rounded ${T.surfaceHover} transition-colors ${T.muted}`}
+                className={`h-7 w-7 flex items-center justify-center rounded-full ${T.speedBtn}`}
                 aria-label={isMuted ? 'Unmute' : 'Mute'}
               >
                 {isMuted || volume === 0 ? <VolumeX size={14} /> : <Volume2 size={14} />}
@@ -322,7 +326,7 @@ export default function BriefingPlayer({
             >
               <button
                 onClick={() => selectSpeed((speedIndex + 1) % SPEEDS.length)}
-                className={`text-[11px] font-medium px-2 py-0.5 rounded-full ${T.speedBtn}`}
+                className={`h-7 flex items-center justify-center text-[11px] font-medium px-2.5 rounded-full ${T.speedBtn}`}
                 aria-label={`Playback speed ${SPEEDS[speedIndex]}x`}
               >
                 {SPEEDS[speedIndex]}x
@@ -354,25 +358,74 @@ export default function BriefingPlayer({
           </div>
         </div>
 
-        {/* Mobile only: Volume, Speed, EN/KO row (tap to cycle, no popups) */}
+        {/* Mobile only: Volume, Speed, EN/KO row (tap to open popup) */}
         <div className="flex sm:hidden items-center justify-center gap-3 mb-2">
-          {/* Volume — tap to mute/unmute */}
-          <button
-            onClick={toggleMute}
-            className={`p-1.5 rounded ${T.surfaceHover} transition-colors ${T.muted}`}
-            aria-label={isMuted ? 'Unmute' : 'Mute'}
-          >
-            {isMuted || volume === 0 ? <VolumeX size={16} /> : <Volume2 size={16} />}
-          </button>
+          {/* Volume — tap to open popup */}
+          <div className="relative">
+            <button
+              onClick={() => { setMobileVolumeOpen(v => !v); setMobileSpeedOpen(false) }}
+              className={`h-7 w-7 flex items-center justify-center rounded-full ${T.speedBtn}`}
+              aria-label="Volume"
+            >
+              {isMuted || volume === 0 ? <VolumeX size={14} /> : <Volume2 size={14} />}
+            </button>
+            <AnimatePresence>
+              {mobileVolumeOpen && (
+                <motion.div
+                  initial={{ opacity: 0, y: 8 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: 8 }}
+                  transition={{ duration: 0.15 }}
+                  className="absolute bottom-full mb-1 left-1/2 -translate-x-1/2 bg-neutral-950 border border-white/15 rounded-lg shadow-2xl px-3 py-4 z-10 flex flex-col items-center"
+                >
+                  <input
+                    type="range"
+                    min={0}
+                    max={1}
+                    step={0.05}
+                    value={isMuted ? 0 : volume}
+                    onChange={handleVolumeChange}
+                    className={`h-20 w-1 ${T.volumeTrack} rounded-full appearance-none cursor-pointer [writing-mode:vertical-lr] [direction:rtl] [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-3 [&::-webkit-slider-thumb]:h-3 [&::-webkit-slider-thumb]:rounded-full ${T.volumeThumb}`}
+                    aria-label="Volume"
+                  />
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </div>
 
-          {/* Speed — tap to cycle */}
-          <button
-            onClick={() => selectSpeed((speedIndex + 1) % SPEEDS.length)}
-            className={`text-[11px] font-medium px-2.5 py-1 rounded-full ${T.speedBtn}`}
-            aria-label={`Playback speed ${SPEEDS[speedIndex]}x`}
-          >
-            {SPEEDS[speedIndex]}x
-          </button>
+          {/* Speed — tap to open popup */}
+          <div className="relative">
+            <button
+              onClick={() => { setMobileSpeedOpen(v => !v); setMobileVolumeOpen(false) }}
+              className={`h-7 flex items-center justify-center text-[11px] font-medium px-2.5 rounded-full ${T.speedBtn}`}
+              aria-label={`Playback speed ${SPEEDS[speedIndex]}x`}
+            >
+              {SPEEDS[speedIndex]}x
+            </button>
+            <AnimatePresence>
+              {mobileSpeedOpen && (
+                <motion.div
+                  initial={{ opacity: 0, y: 8 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: 8 }}
+                  transition={{ duration: 0.15 }}
+                  className="absolute bottom-full mb-2 left-1/2 -translate-x-1/2 bg-neutral-950 border border-white/15 rounded-lg shadow-2xl py-1 min-w-[4rem] z-10"
+                >
+                  {SPEEDS.map((s, i) => (
+                    <button
+                      key={s}
+                      onClick={() => { selectSpeed(i); setMobileSpeedOpen(false) }}
+                      className={`block w-full text-[11px] font-medium px-3 py-1.5 text-center transition-colors ${
+                        speedIndex === i ? 'text-white bg-white/15' : 'text-white/70 hover:text-white hover:bg-white/10'
+                      }`}
+                    >
+                      {s}x
+                    </button>
+                  ))}
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </div>
 
           {/* EN/KO */}
           {hasToggle && (
@@ -585,12 +638,12 @@ export default function BriefingPlayer({
                                   const container = transcriptRef.current
                                   const elRect = el.getBoundingClientRect()
                                   const containerRect = container.getBoundingClientRect()
-                                  const isMobile = window.innerWidth < 640
-                                  const targetTop = container.scrollTop + (elRect.top - containerRect.top) - (isMobile ? 8 : container.clientHeight / 3)
+                                  const targetTop = container.scrollTop + (elRect.top - containerRect.top) - 8
                                   const start = container.scrollTop
                                   const distance = targetTop - start
                                   const dur = 800
                                   let startTime: number | null = null
+                                  isAutoScrolling.current = true
                                   const step = (timestamp: number) => {
                                     if (!startTime) startTime = timestamp
                                     const elapsed = timestamp - startTime
@@ -598,6 +651,7 @@ export default function BriefingPlayer({
                                     const ease = t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2
                                     container.scrollTop = start + distance * ease
                                     if (t < 1) requestAnimationFrame(step)
+                                    else isAutoScrolling.current = false
                                   }
                                   requestAnimationFrame(step)
                                 }

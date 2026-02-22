@@ -346,8 +346,8 @@ export default async function NewsPage({ searchParams }: NewsPageProps) {
                 />
               </div>
 
-              {/* Left column — text stories */}
-              <div className="lg:col-span-3 lg:row-start-1 lg:row-span-2 lg:border-r lg:border-neutral-200 lg:pr-6">
+              {/* Left column — text stories (order-2 on mobile: after center) */}
+              <div className="order-2 lg:order-none lg:col-span-3 lg:row-start-1 lg:row-span-2 lg:border-r lg:border-neutral-200 lg:pr-6">
                 {leftStories.map((item) => (
                   <ArticleCard
                     key={item.id}
@@ -368,8 +368,8 @@ export default async function NewsPage({ searchParams }: NewsPageProps) {
                 ))}
               </div>
 
-              {/* Center — featured hero + below-fold */}
-              <div className="lg:col-start-4 lg:col-span-6 lg:row-start-2 lg:px-6">
+              {/* Center — featured hero + below-fold (order-1 on mobile: right after player) */}
+              <div className="order-1 lg:order-none lg:col-start-4 lg:col-span-6 lg:row-start-2 lg:px-6">
                 {featured && (
                   <ArticleCard
                     headline={featured.title}
@@ -412,8 +412,8 @@ export default async function NewsPage({ searchParams }: NewsPageProps) {
                 )}
               </div>
 
-              {/* Right column — standard cards with thread carousels */}
-              <div className="lg:col-span-3 lg:row-start-1 lg:row-span-2 lg:border-l lg:border-neutral-200 lg:pl-6">
+              {/* Right column — standard cards with thread carousels (order-3 on mobile: after left) */}
+              <div className="order-3 lg:order-none lg:col-span-3 lg:row-start-1 lg:row-span-2 lg:border-l lg:border-neutral-200 lg:pl-6">
                 {rightStories.map((item) => (
                   <ArticleCard
                     key={item.id}

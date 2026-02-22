@@ -51,7 +51,7 @@ export default function Header({ sidebarOpen, onToggleSidebar }: HeaderProps) {
           {/* Logo only - OpenAI style */}
           <Link href="/" className="flex items-center">
             <Image
-              src="/logo.png"
+              src="/logo.svg"
               alt="Logo"
               width={40}
               height={40}
