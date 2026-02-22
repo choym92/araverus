@@ -17,7 +17,7 @@ Usage:
 import json
 import os
 import sys
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Optional
 
@@ -511,7 +511,7 @@ def assign_threads(supabase: Client, dry_run: bool = False) -> dict:
                 new_centroid = np.mean(update['embeddings'], axis=0)
                 new_centroid = new_centroid / np.linalg.norm(new_centroid)
 
-            last_seen = max(update['dates']) if update['dates'] else datetime.utcnow().strftime('%Y-%m-%d')
+            last_seen = max(update['dates']) if update['dates'] else datetime.now(timezone.utc).strftime('%Y-%m-%d')
 
             try:
                 supabase.table('wsj_story_threads') \
@@ -519,7 +519,7 @@ def assign_threads(supabase: Client, dry_run: bool = False) -> dict:
                         'member_count': thread['member_count'] + update['count'],
                         'centroid': new_centroid.tolist(),
                         'last_seen': last_seen,
-                        'updated_at': datetime.utcnow().isoformat(),
+                        'updated_at': datetime.now(timezone.utc).isoformat(),
                     }) \
                     .eq('id', thread_id) \
                     .execute()
@@ -532,7 +532,7 @@ def assign_threads(supabase: Client, dry_run: bool = False) -> dict:
     rejected_count = 0
 
     # For daily mode, limit LLM input to recent articles (last 2 days)
-    cutoff = (datetime.utcnow() - timedelta(days=2)).strftime('%Y-%m-%d')
+    cutoff = (datetime.now(timezone.utc) - timedelta(days=2)).strftime('%Y-%m-%d')
     recent_unmatched = [a for a in unmatched if a.get('published_at', '')[:10] >= cutoff]
 
     if len(recent_unmatched) >= 2:
@@ -561,8 +561,8 @@ def assign_threads(supabase: Client, dry_run: bool = False) -> dict:
                 centroid = centroid / np.linalg.norm(centroid)
 
                 dates = [a['published_at'][:10] for a in member_articles if a.get('published_at')]
-                first_seen = min(dates) if dates else datetime.utcnow().strftime('%Y-%m-%d')
-                last_seen = max(dates) if dates else datetime.utcnow().strftime('%Y-%m-%d')
+                first_seen = min(dates) if dates else datetime.now(timezone.utc).strftime('%Y-%m-%d')
+                last_seen = max(dates) if dates else datetime.now(timezone.utc).strftime('%Y-%m-%d')
 
                 # Merge check: find best matching existing thread above threshold
                 merge_target = None
@@ -602,7 +602,7 @@ def assign_threads(supabase: Client, dry_run: bool = False) -> dict:
                         'member_count': merge_target['member_count'] + len(group['article_ids']),
                         'centroid': old_c.tolist(),
                         'last_seen': last_seen,
-                        'updated_at': datetime.utcnow().isoformat(),
+                        'updated_at': datetime.now(timezone.utc).isoformat(),
                     }).eq('id', merge_id).execute()
 
                     merged_count += 1
@@ -651,7 +651,7 @@ def assign_threads(supabase: Client, dry_run: bool = False) -> dict:
 
 def deactivate_stale_threads(supabase: Client, days: int = THREAD_ARCHIVE_DAYS, dry_run: bool = False) -> int:
     """Mark threads with last_seen > N days ago as archived (inactive)."""
-    cutoff = (datetime.utcnow() - timedelta(days=days)).strftime('%Y-%m-%d')
+    cutoff = (datetime.now(timezone.utc) - timedelta(days=days)).strftime('%Y-%m-%d')
 
     response = supabase.table('wsj_story_threads') \
         .select('id, title, last_seen') \
@@ -673,7 +673,7 @@ def deactivate_stale_threads(supabase: Client, days: int = THREAD_ARCHIVE_DAYS, 
     for t in stale:
         try:
             supabase.table('wsj_story_threads') \
-                .update({'active': False, 'updated_at': datetime.utcnow().isoformat()}) \
+                .update({'active': False, 'updated_at': datetime.now(timezone.utc).isoformat()}) \
                 .eq('id', t['id']) \
                 .execute()
         except Exception as e:
@@ -824,7 +824,7 @@ def backfill_by_date(supabase: Client, dry_run: bool = False, limit_days: int | 
                             'member_count': new_count,
                             'centroid': old_c.tolist(),
                             'last_seen': last_seen,
-                            'updated_at': datetime.utcnow().isoformat(),
+                            'updated_at': datetime.now(timezone.utc).isoformat(),
                         }).eq('id', thread_id).execute()
                         # Update in-memory count so subsequent days use correct size penalty
                         thread['member_count'] = new_count
@@ -891,7 +891,7 @@ def backfill_by_date(supabase: Client, dry_run: bool = False, limit_days: int | 
                                 'member_count': merge_target['member_count'] + len(group['article_ids']),
                                 'centroid': old_c.tolist(),
                                 'last_seen': max(dates) if dates else date_str,
-                                'updated_at': datetime.utcnow().isoformat(),
+                                'updated_at': datetime.now(timezone.utc).isoformat(),
                             }).eq('id', mid).execute()
                             merge_count += 1
                         else:

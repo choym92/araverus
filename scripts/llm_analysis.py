@@ -14,6 +14,7 @@ Usage:
 """
 import json
 import os
+import re
 from typing import Optional
 
 _client = None
@@ -125,6 +126,19 @@ def analyze_content(
         return result
 
     except json.JSONDecodeError as e:
+        # Try to extract JSON object from malformed response
+        match = re.search(r'\{[\s\S]*\}', response.text)
+        if match:
+            try:
+                result = json.loads(match.group())
+                usage = response.usage_metadata
+                result["input_tokens"] = usage.prompt_token_count if usage else None
+                result["output_tokens"] = usage.candidates_token_count if usage else None
+                result["model_used"] = model
+                result["raw_response"] = response.text
+                return result
+            except json.JSONDecodeError:
+                pass
         print(f"LLM JSON parse error: {e}")
         return None
     except Exception as e:

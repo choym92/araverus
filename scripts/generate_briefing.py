@@ -940,6 +940,124 @@ def _split_original_into_sentences(text: str) -> list[str]:
     return [p.strip() for p in parts if p.strip()]
 
 
+def _get_audio_duration(mp3_path: Path) -> float:
+    """Get audio duration in seconds using ffprobe."""
+    import subprocess
+
+    result = subprocess.run(
+        ["ffprobe", "-v", "quiet", "-show_entries", "format=duration",
+         "-of", "default=noprint_wrappers=1:nokey=1", str(mp3_path)],
+        capture_output=True, text=True,
+    )
+    return float(result.stdout.strip())
+
+
+def _fix_ctc_drift(sentences: list[dict], audio_duration: float) -> list[dict]:
+    """Fix CTC timestamp issues: gap-at-end drift and mixed-language compression.
+
+    Two failure modes:
+    1. Gap drift: CTC ends well before audio ends (timestamps compressed overall).
+    2. Rate anomaly: CTC compresses mixed-language sentences (English/digits in Korean)
+       causing the transcript to run ahead of audio in those sections.
+    """
+    if len(sentences) < 10 or audio_duration <= 0:
+        return sentences
+
+    # --- Mode 1: Gap drift (CTC doesn't reach audio end) ---
+    last_end = sentences[-1]["end"]
+    gap = audio_duration - last_end
+
+    if gap > 5.0:
+        log.info("CTC gap drift: last=%.1fs, audio=%.1fs (gap=%.1fs)", last_end, audio_duration, gap)
+        good_count = int(len(sentences) * 0.7)
+        good_durs = sorted(s["end"] - s["start"] for s in sentences[:good_count])
+        median_dur = good_durs[len(good_durs) // 2]
+
+        drift_idx = len(sentences)
+        streak = 0
+        for i in range(good_count, len(sentences)):
+            dur = sentences[i]["end"] - sentences[i]["start"]
+            if dur < median_dur * 0.3:
+                streak += 1
+                if streak >= 3:
+                    drift_idx = i - streak + 1
+                    break
+            else:
+                streak = 0
+
+        if drift_idx >= len(sentences):
+            sentences[-1]["end"] = round(audio_duration, 2)
+        else:
+            start_t = sentences[drift_idx]["start"]
+            avail = audio_duration - start_t
+            total_c = sum(len(s["text"]) for s in sentences[drift_idx:]) or 1
+            t = start_t
+            for s in sentences[drift_idx:]:
+                s["start"] = round(t, 2)
+                t += avail * (len(s["text"]) / total_c)
+                s["end"] = round(t, 2)
+            log.info("Gap drift: redistributed %d-%d over %.1fs", drift_idx, len(sentences) - 1, avail)
+        return sentences
+
+    # --- Mode 2: Rate anomaly (mixed-language compression) ---
+    # Baseline: median chars/sec from substantial pure-Korean sentences in first 70%
+    good_count = int(len(sentences) * 0.7)
+    latin_re = re.compile(r"[a-zA-Z0-9]")
+    rates: list[float] = []
+    for s in sentences[:good_count]:
+        dur = s["end"] - s["start"]
+        if dur > 1.0 and len(s["text"]) > 20 and not latin_re.search(s["text"]):
+            rates.append(len(s["text"]) / dur)
+
+    if len(rates) < 5:
+        return sentences
+
+    rates.sort()
+    baseline = rates[len(rates) // 2]
+    threshold = baseline * 1.6
+
+    # Find first run of 2+ consecutive mixed-content sentences above threshold
+    mid = len(sentences) // 2
+    fast_start = None
+    streak = 0
+    streak_start = 0
+    for i in range(mid, len(sentences)):
+        s = sentences[i]
+        dur = s["end"] - s["start"]
+        if dur > 0.3 and len(s["text"]) > 20 and latin_re.search(s["text"]):
+            rate = len(s["text"]) / dur
+            if rate > threshold:
+                if streak == 0:
+                    streak_start = i
+                streak += 1
+                if streak >= 2:
+                    fast_start = streak_start
+                    break
+                continue
+        streak = 0
+
+    if fast_start is None:
+        return sentences
+
+    # Redistribute from fast_start to audio end by text length
+    zone_start = sentences[fast_start]["start"]
+    avail = audio_duration - zone_start
+    zone = sentences[fast_start:]
+    total_c = sum(len(s["text"]) for s in zone) or 1
+
+    t = zone_start
+    for s in zone:
+        s["start"] = round(t, 2)
+        t += avail * (len(s["text"]) / total_c)
+        s["end"] = round(t, 2)
+
+    log.info(
+        "Rate fix: sentences %d-%d, baseline=%.1f c/s, threshold=%.1f c/s, zone=%.1fs",
+        fast_start, len(sentences) - 1, baseline, threshold, avail,
+    )
+    return sentences
+
+
 def _extract_sentences_ctc(mp3_path: Path, original_text: str, lang_iso: str) -> list[dict]:
     """CTC forced alignment — accurate sentence timestamps from known text + audio.
 
@@ -973,6 +1091,11 @@ def _extract_sentences_ctc(mp3_path: Path, original_text: str, lang_iso: str) ->
     for i, r in enumerate(results):
         text = original_sentences[i] if i < len(original_sentences) else r["text"]
         sentences.append({"text": text, "start": round(r["start"], 2), "end": round(r["end"], 2)})
+
+    # Fix drift zones where mixed-language text caused CTC compression
+    audio_duration = _get_audio_duration(mp3_path)
+    sentences = _fix_ctc_drift(sentences, audio_duration)
+
     return sentences
 
 
@@ -1077,7 +1200,10 @@ def extract_sentences(mp3_path: Path, lang: str, original_text: str = "") -> lis
     whisper_lang = "en" if lang == "en" else "ko"
     log.info("Whisper alignment for %s: %s...", lang.upper(), mp3_path.name)
 
-    model = whisper.load_model("base")
+    import torch
+    device = "mps" if torch.backends.mps.is_available() else "cpu"
+    model = whisper.load_model("base", device=device)
+    log.info("Whisper device: %s", device)
     result = model.transcribe(str(mp3_path), language=whisper_lang, word_timestamps=True, verbose=False)
 
     # Merge segments into full sentences (for count comparison / 1:1 swap)
