@@ -1,12 +1,15 @@
 #!/usr/bin/env python3
 """
-Phase 4 · Domain & Post-process — Domain status management and post-processing.
+Shared Utility · Domain & Lifecycle — Domain status management and pipeline lifecycle operations.
 
-Provides:
-- Blocked domain loading from DB (wsj_domain_status)
-- Domain matching utilities
-- Domain status aggregation from crawl results
-- Post-processing: mark items processed, retry low relevance
+Used across multiple phases:
+- Phase 2: --mark-searched (after Google News search)
+- Phase 4: --mark-processed-from-db, --update-domain-status
+
+Library exports (imported by other scripts):
+- get_supabase_client() / require_supabase_client() — DB client
+- load_blocked_domains() / is_blocked_domain() — domain filtering
+- wilson_lower_bound() — auto-blocking score
 
 All blocked domains are managed in the wsj_domain_status table.
 No hardcoded domain lists — add/remove via DB.
@@ -711,44 +714,34 @@ def cmd_seed_blocked_from_json() -> None:
 # ============================================================
 
 def main():
-    args = sys.argv[1:]
+    import argparse
+    parser = argparse.ArgumentParser(
+        description="Domain status management and pipeline lifecycle operations"
+    )
+    group = parser.add_mutually_exclusive_group(required=True)
+    group.add_argument('--mark-searched', metavar='FILE', help='Mark items in JSONL/JSON as searched')
+    group.add_argument('--mark-processed', metavar='FILE', help='Mark items in JSONL/JSON as processed')
+    group.add_argument('--mark-processed-from-db', action='store_true', help='Query wsj_crawl_results and mark processed')
+    group.add_argument('--update-domain-status', action='store_true', help='Aggregate crawl results to wsj_domain_status')
+    group.add_argument('--retry-low-relevance', action='store_true', help='Reactivate backups for low-relevance items')
+    group.add_argument('--stats', action='store_true', help='Show database statistics')
+    group.add_argument('--seed-blocked-from-json', action='store_true', help='One-time: migrate JSON blocked domains to DB')
+    args = parser.parse_args()
 
-    if not args or args[0] == '--help':
-        print(__doc__)
-        print("\nCommands:")
-        print("  --mark-searched FILE     Mark items in JSONL as searched")
-        print("  --mark-processed FILE    Mark items in JSONL as processed")
-        print("  --mark-processed-from-db Query wsj_crawl_results and mark processed")
-        print("  --update-domain-status   Aggregate crawl results to wsj_domain_status")
-        print("  --retry-low-relevance    Reactivate backups for low-relevance items")
-        print("  --stats                  Show database statistics")
-        print("  --seed-blocked-from-json One-time: migrate JSON blocked domains to DB")
-        return
-
-    if args[0] == '--mark-searched':
-        if len(args) < 2:
-            print("Error: --mark-searched requires a JSONL file path")
-            sys.exit(1)
-        cmd_mark_searched(Path(args[1]))
-    elif args[0] == '--mark-processed':
-        if len(args) < 2:
-            print("Error: --mark-processed requires a JSONL file path")
-            sys.exit(1)
-        cmd_mark_processed(Path(args[1]))
-    elif args[0] == '--mark-processed-from-db':
+    if args.mark_searched:
+        cmd_mark_searched(Path(args.mark_searched))
+    elif args.mark_processed:
+        cmd_mark_processed(Path(args.mark_processed))
+    elif args.mark_processed_from_db:
         cmd_mark_processed_from_db()
-    elif args[0] == '--update-domain-status':
+    elif args.update_domain_status:
         cmd_update_domain_status()
-    elif args[0] == '--retry-low-relevance':
+    elif args.retry_low_relevance:
         cmd_retry_low_relevance()
-    elif args[0] == '--stats':
+    elif args.stats:
         cmd_stats()
-    elif args[0] == '--seed-blocked-from-json':
+    elif args.seed_blocked_from_json:
         cmd_seed_blocked_from_json()
-    else:
-        print(f"Unknown command: {args[0]}")
-        print("Run with --help for usage.")
-        sys.exit(1)
 
 
 if __name__ == "__main__":
