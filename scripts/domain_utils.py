@@ -233,7 +233,7 @@ def load_ids_from_file(file_path: Path) -> list[str]:
     with open(file_path) as f:
         content = f.read().strip()
 
-    # Try JSON format first (wsj_processed_ids.json style)
+    # Try JSON format first (wsj_searched_ids.json style)
     if content.startswith('{'):
         data = json.loads(content)
         if 'ids' in data:

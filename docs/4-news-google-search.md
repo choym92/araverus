@@ -1,4 +1,4 @@
-<!-- Updated: 2026-02-20 -->
+<!-- Updated: 2026-02-22 -->
 # Google News Search Pipeline
 
 Detailed documentation for `wsj_to_google_news.py` — the search stage that finds free article candidates for each WSJ item.
@@ -194,25 +194,27 @@ After a few pipeline runs, the sort order self-corrects: reuters.com (234 hits) 
 
 ## Key Functions
 
-| Function | Purpose | Location |
-|---|---|---|
-| `build_queries()` | Generate 1-4 search queries from WSJ title + description | L337 |
-| `format_query_with_exclusions()` | Add -site: for top 28 blocked domains | L645 |
-| `add_date_filter()` | Add date range to query (3d or 7d window) | L593 |
-| `search_google_news()` | HTTP GET to Google News RSS, parse XML | L557 |
-| `search_multi_query()` | Fire all queries, union + dedup + filter | L638 |
-| `is_source_blocked()` | Check domain against all 81 blocked + subdomains | L173 |
-| `_is_domain_blocked()` | Subdomain-aware domain matching | L161 |
-| `_dedupe_subdomains()` | Remove child domains when parent exists | L645 |
+| Function | Purpose |
+|---|---|
+| `build_queries()` | Generate 1-4 search queries (clean title + LLM queries) |
+| `format_query_with_exclusions()` | Add -site: for top 28 blocked domains (sorted by search_hit_count) |
+| `add_date_filter()` | Add date range to query (±1 day = 3-day window) |
+| `search_google_news()` | HTTP GET to Google News RSS, parse XML |
+| `search_multi_query()` | Fire all queries, union + dedup + filter |
+| `is_source_blocked()` | Check domain against all blocked + subdomains + non-English |
+| `_is_domain_blocked()` | Subdomain-aware domain matching |
+| `_dedupe_subdomains()` | Remove child domains when parent exists |
 
 ## Query Strategy
 
-| Query | Source | Date window | Purpose |
-|---|---|---|---|
-| Q1 | Clean title as-is | 7 days | Most reliable — news titles are search-optimized |
-| Q2 | Keywords from title | 7 days | Lexical-mismatch resilient |
-| Q3 | Keywords from description | 3 days | Synonyms/related terms from description |
-| Q4 | Entity + event + number | 3 days | Structured: "OpenAI funding $40B" |
+| Query | Source | Purpose |
+|---|---|---|
+| Q1 | Clean title (strip "- WSJ" branding) | Most reliable — news titles are search-optimized |
+| Q2 | `llm_search_queries[0]` (from wsj_preprocess.py) | LLM-optimized alternative phrasing |
+| Q3 | `llm_search_queries[1]` | Different angle / entities |
+| Q4 | `llm_search_queries[2]` | Broader coverage |
+
+All queries use 3-day window (pubDate ±1 day). If no LLM queries, only Q1 is used.
 
 ---
 
@@ -222,5 +224,5 @@ After a few pipeline runs, the sort order self-corrects: reuters.com (234 hits) 
 Input:  scripts/output/wsj_items.jsonl          (from wsj_ingest.py --export)
 Output: scripts/output/wsj_google_news_results.jsonl  (candidates per WSJ item)
         scripts/output/wsj_instrumentation.jsonl       (per-query metrics)
-        scripts/output/wsj_processed_ids.json          (IDs to mark as searched)
+        scripts/output/wsj_searched_ids.json           (IDs to mark as searched)
 ```

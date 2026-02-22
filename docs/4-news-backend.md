@@ -106,6 +106,7 @@ Searches Google News for free alternatives to each WSJ article.
 | `--limit N` | all | Max items |
 | `--delay-item S` | 2.0 | Delay between items |
 | `--delay-query S` | 1.0 | Delay between queries |
+| `--input PATH` | `output/wsj_items.jsonl` | Custom JSONL input |
 
 - Uses LLM-generated queries when available, falls back to clean title
 - Newsletters rely entirely on LLM queries

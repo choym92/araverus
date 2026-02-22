@@ -144,7 +144,7 @@ scripts/output/
 │
 ├── wsj_google_news_results.txt     → Human-readable debug view
 ├── wsj_instrumentation.jsonl       → Per-query performance (results count, added count, time)
-└── wsj_processed_ids.json          → WSJ item IDs to mark as searched=true in DB
+└── wsj_searched_ids.json            → WSJ item IDs to mark as searched=true in DB
 ```
 
 ---

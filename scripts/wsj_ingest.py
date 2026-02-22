@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Phase 1 · RSS Ingest — WSJ RSS Feed Ingestion Pipeline.
+Phase 1 · Step 1 · RSS Ingest — WSJ RSS Feed Ingestion Pipeline.
 
 Fetches all 6 WSJ RSS feeds, saves to Supabase with deduplication,
 and exports unprocessed items to JSONL for the ML pipeline.

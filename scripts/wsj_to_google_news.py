@@ -1,25 +1,18 @@
 #!/usr/bin/env python3
 """
-Phase 1 · Google News Search — WSJ RSS to Google News search pipeline.
+Phase 1 · Step 3 · Google News Search — WSJ RSS to Google News search pipeline.
 
-Takes WSJ RSS items and searches Google News for related free articles.
-Uses multi-query strategy for better candidate generation.
+Takes WSJ items (JSONL) and searches Google News for related free articles.
+Uses multi-query strategy with LLM-generated queries for better coverage.
 
 Usage:
-    # Read from Supabase export (default)
     python scripts/wsj_to_google_news.py [--limit N]
-
-    # Read from local XML file (legacy)
-    python scripts/wsj_to_google_news.py --xml [--limit N]
-
-    # Specify custom JSONL input
     python scripts/wsj_to_google_news.py --input path/to/items.jsonl
 
 Options:
     --limit N         Process only N items (default: all)
     --delay-item S    Delay between items in seconds (default: 2.0)
     --delay-query S   Delay between queries in seconds (default: 1.0)
-    --xml             Use legacy XML file instead of JSONL
     --input PATH      Specify custom JSONL input file
 """
 import asyncio
@@ -61,11 +54,6 @@ SOURCE_NAME_TO_DOMAIN = {
     'the new york times': 'nytimes.com',
     'new york times': 'nytimes.com',
     'nytimes': 'nytimes.com',
-}
-
-# Additional sources to always exclude (not crawlable or low quality)
-EXCLUDED_SOURCES = {
-    '富途牛牛',  # Futu - aggregator, not original content
 }
 
 # Google News limits ~32 search operators per query.
@@ -144,10 +132,6 @@ def _is_domain_blocked(domain: str, blocked_domains: frozenset[str]) -> bool:
 def is_source_blocked(source_name: str, source_domain: str) -> bool:
     """Check if source is blocked by domain (DB) or non-English name."""
     if is_non_english_source(source_name):
-        return True
-
-    # Check excluded sources
-    if source_name in EXCLUDED_SOURCES:
         return True
 
     blocked_domains = load_blocked_domains()
@@ -231,24 +215,17 @@ def parse_rss_date(date_str: str):
         return None
 
 
-def load_wsj_jsonl(jsonl_path: str, today_only: bool = False) -> list[dict]:
+def load_wsj_jsonl(jsonl_path: str) -> list[dict]:
     """Load WSJ items from JSONL file (exported from Supabase).
 
     Deduplicates by title using least-count category balancing: when a
     duplicate is found, it is assigned to whichever category currently has
     fewer articles.
 
-    Args:
-        jsonl_path: Path to JSONL file
-        today_only: If True, only include items published today (default: False)
-
     Note: Date filtering for Google News results happens via add_date_filter(),
     which uses WSJ pubDate to create an appropriate date range for search results.
     """
     from collections import Counter
-    from datetime import date
-
-    today = date.today()
 
     category_counts: Counter = Counter()
     items_by_title: dict[str, dict] = {}
@@ -261,13 +238,6 @@ def load_wsj_jsonl(jsonl_path: str, today_only: bool = False) -> list[dict]:
             item = json.loads(line)
             title = item.get('title', '')
             title_lower = title.lower().strip()
-
-            # Filter by publish date if today_only
-            if today_only:
-                pub_date = parse_rss_date(item.get('pubDate', ''))
-                if pub_date is None or pub_date.date() != today:
-                    continue
-
             feed_name = item.get('feed_name', '')
 
             if title_lower not in items_by_title:
@@ -282,45 +252,6 @@ def load_wsj_jsonl(jsonl_path: str, today_only: bool = False) -> list[dict]:
                     category_counts[feed_name] += 1
 
     return list(items_by_title.values())
-
-
-def parse_wsj_rss(xml_path: str, skip_opinion: bool = True) -> list[dict]:
-    """Parse WSJ RSS XML file with deduplication and optional opinion filtering."""
-    tree = ET.parse(xml_path)
-    root = tree.getroot()
-
-    # Dublin Core namespace for dc:creator
-    namespaces = {'dc': 'http://purl.org/dc/elements/1.1/'}
-
-    items = []
-    seen_titles = set()
-
-    for item in root.findall('.//item'):
-        title = safe_text(item.find('title'))
-
-        # Skip duplicates (same title)
-        title_lower = title.lower().strip()
-        if title_lower in seen_titles:
-            continue
-        seen_titles.add(title_lower)
-
-        # Skip opinion pieces if requested
-        if skip_opinion and title.startswith('Opinion |'):
-            continue
-
-        # Extract dc:creator (author) - may be None
-        creator_el = item.find('dc:creator', namespaces)
-        creator = safe_text(creator_el) if creator_el is not None else None
-
-        items.append({
-            'title': title,
-            'description': safe_text(item.find('description')),
-            'link': safe_text(item.find('link')),
-            'pubDate': safe_text(item.find('pubDate')),
-            'creator': creator,
-        })
-
-    return items
 
 
 async def search_google_news(query: str, client: httpx.AsyncClient) -> list[dict]:
@@ -431,10 +362,6 @@ def save_search_hit_counts() -> int:
                     .execute()
                 updated += 1
         except Exception as e:
-            # Column might not exist yet — log once and stop
-            if '42703' in str(e):
-                print("  Warning: search_hit_count column not in DB yet — skipping save")
-                return -1
             print(f"  Warning: Could not update search_hit_count for {domain}: {e}")
 
     return updated
@@ -464,22 +391,7 @@ def _load_blocked_with_hits() -> dict[str, int]:
                 if d:
                     result[d] = row.get('search_hit_count', 0) or 0
     except Exception as e:
-        if '42703' in str(e):
-            # Column doesn't exist — fall back to no-hit-count
-            try:
-                resp = sb.table('wsj_domain_status') \
-                    .select('domain') \
-                    .eq('status', 'blocked') \
-                    .execute()
-                if resp.data:
-                    for row in resp.data:
-                        d = row.get('domain')
-                        if d:
-                            result[d] = 0
-            except Exception:
-                pass
-        else:
-            print(f"  Warning: Could not load blocked domains with hits: {e}")
+        print(f"  Warning: Could not load blocked domains with hits: {e}")
 
     return result
 
@@ -573,59 +485,31 @@ async def search_multi_query(
 
 
 async def main():
-    limit = None  # Process all by default
-    delay_item = 2.0
-    delay_query = 1.0
-    use_xml = False
-    custom_input = None
+    import argparse
+    parser = argparse.ArgumentParser(description="WSJ → Google News search pipeline")
+    parser.add_argument('--limit', type=int, default=None, help='Process only N items')
+    parser.add_argument('--delay-item', type=float, default=2.0, help='Delay between items (seconds)')
+    parser.add_argument('--delay-query', type=float, default=1.0, help='Delay between queries (seconds)')
+    parser.add_argument('--input', type=Path, default=None, dest='custom_input', help='Custom JSONL input file')
+    args = parser.parse_args()
 
-    args = sys.argv[1:]
-    i = 0
-    while i < len(args):
-        arg = args[i]
-        if arg == '--limit' and i + 1 < len(args):
-            limit = int(args[i + 1])
-            i += 2
-        elif arg == '--delay-item' and i + 1 < len(args):
-            delay_item = float(args[i + 1])
-            i += 2
-        elif arg == '--delay-query' and i + 1 < len(args):
-            delay_query = float(args[i + 1])
-            i += 2
-        elif arg == '--delay' and i + 1 < len(args):  # Legacy support
-            delay_item = float(args[i + 1])
-            i += 2
-        elif arg == '--xml':
-            use_xml = True
-            i += 1
-        elif arg == '--input' and i + 1 < len(args):
-            custom_input = Path(args[i + 1])
-            i += 2
-        else:
-            i += 1
+    limit = args.limit
+    delay_item = args.delay_item
+    delay_query = args.delay_query
 
     # Determine input source
-    if custom_input:
-        # Custom JSONL input
-        if not custom_input.exists():
-            print(f"Error: Input file not found: {custom_input}")
+    if args.custom_input:
+        if not args.custom_input.exists():
+            print(f"Error: Input file not found: {args.custom_input}")
             sys.exit(1)
-        wsj_items = load_wsj_jsonl(custom_input)
-        print(f"Loaded {len(wsj_items)} WSJ items from: {custom_input}")
-    elif use_xml:
-        # Legacy XML input
-        rss_path = Path(__file__).parent / 'data' / 'wsj-tech-rss.xml'
-        if not rss_path.exists():
-            print(f"Error: RSS file not found at {rss_path}")
-            sys.exit(1)
-        wsj_items = parse_wsj_rss(rss_path)
-        print(f"Loaded {len(wsj_items)} WSJ items from XML: {rss_path}")
+        wsj_items = load_wsj_jsonl(args.custom_input)
+        print(f"Loaded {len(wsj_items)} WSJ items from: {args.custom_input}")
     else:
         # Default: JSONL from Supabase export
         jsonl_path = Path(__file__).parent / 'output' / 'wsj_items.jsonl'
         if not jsonl_path.exists():
             print(f"Error: JSONL export not found at {jsonl_path}")
-            print("Run 'python scripts/wsj_ingest.py --export' first, or use --xml for legacy mode.")
+            print("Run 'python scripts/wsj_ingest.py --export' first.")
             sys.exit(1)
         wsj_items = load_wsj_jsonl(jsonl_path)
         print(f"Loaded {len(wsj_items)} WSJ items from: {jsonl_path}")
@@ -642,7 +526,7 @@ async def main():
 
     results = []
     all_instrumentation = []
-    processed_ids = []  # Track IDs for marking processed later
+    searched_ids = []  # Track IDs for marking searched later
 
     async with httpx.AsyncClient() as client:
         for i, wsj in enumerate(wsj_items):
@@ -680,9 +564,9 @@ async def main():
                 'instrumentation': instr,
             })
 
-            # Track ID for marking processed
+            # Track ID for marking searched
             if wsj.get('id'):
-                processed_ids.append(wsj['id'])
+                searched_ids.append(wsj['id'])
 
             if i < len(wsj_items) - 1:
                 await asyncio.sleep(delay_item)
@@ -736,10 +620,10 @@ async def main():
             f.write(json.dumps(item, ensure_ascii=False) + '\n')
 
     # Save processed IDs for marking in Supabase
-    if processed_ids:
-        ids_path = output_dir / 'wsj_processed_ids.json'
+    if searched_ids:
+        ids_path = output_dir / 'wsj_searched_ids.json'
         with open(ids_path, 'w') as f:
-            json.dump({'ids': processed_ids, 'count': len(processed_ids)}, f, indent=2)
+            json.dump({'ids': searched_ids, 'count': len(searched_ids)}, f, indent=2)
 
     # Save search_hit_counts to DB for -site: prioritization
     hit_count_result = save_search_hit_counts()
@@ -752,10 +636,10 @@ async def main():
     print(f"  {jsonl_path}")
     print(f"  {txt_path}")
     print(f"  {instr_path}")
-    if processed_ids:
+    if searched_ids:
         print(f"  {ids_path}")
-        print("\nTo mark items as processed in Supabase:")
-        print(f"  python scripts/domain_utils.py --mark-processed {jsonl_path}")
+        print("\nTo mark items as searched in Supabase:")
+        print(f"  python scripts/domain_utils.py --mark-searched {jsonl_path}")
 
 
 if __name__ == "__main__":

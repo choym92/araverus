@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Phase 1 · Pre-process — WSJ item pre-processing with Gemini Flash-Lite.
+Phase 1 · Step 2 · Pre-process — WSJ item pre-processing with Gemini Flash-Lite.
 
 Analyzes WSJ title + description to extract entities, keywords, tickers,
 and optimized Google News search queries BEFORE the search step.
