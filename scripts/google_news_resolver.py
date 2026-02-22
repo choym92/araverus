@@ -11,6 +11,7 @@ Returns structured results with reason codes for debugging.
 """
 
 import base64
+import json
 import re
 import time
 from dataclasses import dataclass
@@ -188,9 +189,9 @@ def extract_article_id(google_url: str) -> str | None:
     return match.group(1) if match else None
 
 
-async def fetch_decoded_batch_execute(
+def fetch_decoded_batch_execute(
     article_id: str,
-    client: httpx.AsyncClient
+    client: httpx.Client
 ) -> tuple[str | None, ReasonCode, int | None]:
     """
     Decode Google News URL using the batchexecute API.
@@ -200,7 +201,7 @@ async def fetch_decoded_batch_execute(
     article_url = f"https://news.google.com/articles/{article_id}"
 
     try:
-        response = await client.get(
+        response = client.get(
             article_url,
             headers={
                 "User-Agent": USER_AGENT,
@@ -238,7 +239,6 @@ async def fetch_decoded_batch_execute(
     timestamp = ts_match.group(1)
 
     # Step 2: Call batchexecute with signature and timestamp
-    import json
     payload = json.dumps([
         [
             [
@@ -268,7 +268,7 @@ async def fetch_decoded_batch_execute(
     ])
 
     try:
-        response = await client.post(
+        response = client.post(
             "https://news.google.com/_/DotsSplashUi/data/batchexecute?rpcids=Fbv4je",
             headers={
                 "Content-Type": "application/x-www-form-urlencoded;charset=UTF-8",
@@ -305,16 +305,16 @@ async def fetch_decoded_batch_execute(
     return None, ReasonCode.BATCH_PARSE_FAIL, 200
 
 
-async def fetch_canonical_from_html(
+def fetch_canonical_from_html(
     google_url: str,
-    client: httpx.AsyncClient
+    client: httpx.Client
 ) -> tuple[str | None, ReasonCode, int | None]:
     """
     Fallback: Parse canonical URL from HTML page.
     Returns (url, reason_code, http_status).
     """
     try:
-        response = await client.get(
+        response = client.get(
             google_url,
             headers={
                 "User-Agent": USER_AGENT,
@@ -364,9 +364,9 @@ async def fetch_canonical_from_html(
     return None, ReasonCode.CANONICAL_NOT_FOUND, response.status_code
 
 
-async def resolve_google_news_url(
+def resolve_google_news_url(
     url: str,
-    client: httpx.AsyncClient
+    client: httpx.Client
 ) -> ResolveResult:
     """
     Resolve a Google News URL to get the canonical URL.
@@ -421,7 +421,7 @@ async def resolve_google_news_url(
     if needs_batch_execute(clean_url):
         article_id = extract_article_id(clean_url)
         if article_id:
-            batch_url, batch_reason, batch_status = await fetch_decoded_batch_execute(
+            batch_url, batch_reason, batch_status = fetch_decoded_batch_execute(
                 article_id, client
             )
             if batch_url and "news.google.com" not in batch_url:
@@ -445,7 +445,7 @@ async def resolve_google_news_url(
         last_status = None
 
     # Strategy 3: Fallback - GET HTML and parse canonical URL
-    canonical_url, canonical_reason, canonical_status = await fetch_canonical_from_html(
+    canonical_url, canonical_reason, canonical_status = fetch_canonical_from_html(
         clean_url, client
     )
     if canonical_url:
@@ -486,15 +486,3 @@ def extract_domain(url: str | None) -> str:
         return hostname
     except Exception:
         return ""
-
-
-# Legacy function for backward compatibility
-async def resolve_google_news_url_legacy(google_url: str, client: httpx.AsyncClient) -> str:
-    """
-    Legacy interface that raises exception on failure.
-    Use resolve_google_news_url() for structured results.
-    """
-    result = await resolve_google_news_url(google_url, client)
-    if result.success:
-        return result.resolved_url
-    raise Exception(f"{result.reason_code.value}: {result.error_detail or 'Resolution failed'}")
