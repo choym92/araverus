@@ -13,41 +13,34 @@ Usage:
 """
 import argparse
 import json
-import os
 import sys
+from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Optional
 
 from dotenv import load_dotenv
-from supabase import create_client, Client
+from supabase import Client
 
 # Load environment variables
 load_dotenv(Path(__file__).parent.parent / '.env.local')
 
-# Reuse Gemini client from llm_analysis
+# Reuse shared modules from scripts/
 sys.path.insert(0, str(Path(__file__).parent))
+from domain_utils import require_supabase_client
 from llm_analysis import get_gemini_client
 
 # ============================================================
 # Types
 # ============================================================
 
+@dataclass
 class PreprocessResult:
     """Result of preprocessing a single WSJ item."""
-    __slots__ = ('entities', 'keywords', 'tickers', 'search_queries')
-
-    def __init__(
-        self,
-        entities: list[str],
-        keywords: list[str],
-        tickers: list[str],
-        search_queries: list[str],
-    ):
-        self.entities = entities
-        self.keywords = keywords
-        self.tickers = tickers
-        self.search_queries = search_queries
+    entities: list[str]
+    keywords: list[str]
+    tickers: list[str]
+    search_queries: list[str]
 
 
 # ============================================================
@@ -115,18 +108,6 @@ def preprocess_item(title: str, description: str) -> Optional[PreprocessResult]:
 # Database Operations
 # ============================================================
 
-def get_supabase_client() -> Client:
-    """Create Supabase client from environment variables."""
-    url = os.getenv('NEXT_PUBLIC_SUPABASE_URL') or os.getenv('SUPABASE_URL')
-    key = os.getenv('SUPABASE_SERVICE_ROLE_KEY')
-    if not url or not key:
-        raise ValueError(
-            "Missing Supabase credentials. Set NEXT_PUBLIC_SUPABASE_URL and "
-            "SUPABASE_SERVICE_ROLE_KEY in .env.local"
-        )
-    return create_client(url, key)
-
-
 def get_items_to_preprocess(
     supabase: Client, backfill: bool = False, limit: int = 200
 ) -> list[dict]:
@@ -172,7 +153,7 @@ def main():
     print("WSJ Pre-processing (Gemini Flash-Lite)")
     print("=" * 60)
 
-    supabase = get_supabase_client()
+    supabase = require_supabase_client()
     items = get_items_to_preprocess(supabase, backfill=args.backfill, limit=args.limit)
 
     if not items:
