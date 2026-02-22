@@ -111,7 +111,8 @@ export default function BriefingPlayer({
   const [seekHover, setSeekHover] = useState<{ ratio: number; x: number } | null>(null)
   const [isExpanded, setIsExpanded] = useState(false)
   const [showTranscript, setShowTranscript] = useState(true)
-  const [userScrolled, setUserScrolled] = useState(false)
+  const userScrolledRef = useRef(false)
+  const lastScrolledSentence = useRef(-1)
   const [transcriptExpanded, setTranscriptExpanded] = useState(false)
 
   const remaining = audioDuration - currentTime
@@ -142,19 +143,22 @@ export default function BriefingPlayer({
     container.scrollTo({ left, behavior: 'smooth' })
   }, [activeChapterIndex])
 
-  // Pause auto-scroll when user scrolls transcript manually
+  // Pause auto-scroll when user interacts with transcript (touch/wheel/mousedown)
   useEffect(() => {
     const container = transcriptRef.current
     if (!container) return
-    const onScroll = () => {
-      if (isAutoScrolling.current) return
-      setUserScrolled(true)
+    const onUserInteract = () => {
+      userScrolledRef.current = true
       if (userScrollTimeout.current) clearTimeout(userScrollTimeout.current)
-      userScrollTimeout.current = setTimeout(() => setUserScrolled(false), 4000)
+      userScrollTimeout.current = setTimeout(() => { userScrolledRef.current = false }, 2000)
     }
-    container.addEventListener('scroll', onScroll, { passive: true })
+    container.addEventListener('touchstart', onUserInteract, { passive: true })
+    container.addEventListener('wheel', onUserInteract, { passive: true })
+    container.addEventListener('mousedown', onUserInteract)
     return () => {
-      container.removeEventListener('scroll', onScroll)
+      container.removeEventListener('touchstart', onUserInteract)
+      container.removeEventListener('wheel', onUserInteract)
+      container.removeEventListener('mousedown', onUserInteract)
       if (userScrollTimeout.current) clearTimeout(userScrollTimeout.current)
     }
   }, [showTranscript])
@@ -634,14 +638,23 @@ export default function BriefingPlayer({
                             <React.Fragment key={sent.globalIndex}>
                             <span
                               ref={sent.globalIndex === activeSentenceIndex ? (el) => {
-                                if (el && !userScrolled && transcriptRef.current) {
-                                  const container = transcriptRef.current
-                                  const elRect = el.getBoundingClientRect()
-                                  const containerRect = container.getBoundingClientRect()
-                                  const targetTop = container.scrollTop + (elRect.top - containerRect.top) - 8
-                                  const start = container.scrollTop
-                                  const distance = targetTop - start
-                                  const dur = 800
+                                if (!el || userScrolledRef.current || !transcriptRef.current) return
+                                if (lastScrolledSentence.current === activeSentenceIndex) return
+                                lastScrolledSentence.current = activeSentenceIndex
+                                const container = transcriptRef.current
+                                const elRect = el.getBoundingClientRect()
+                                const containerRect = container.getBoundingClientRect()
+                                const targetTop = container.scrollTop + (elRect.top - containerRect.top) - 8
+                                const start = container.scrollTop
+                                const distance = targetTop - start
+                                const absDist = Math.abs(distance)
+                                if (absDist < 2) return
+                                if (absDist > container.clientHeight) {
+                                  isAutoScrolling.current = true
+                                  container.scrollTop = targetTop
+                                  requestAnimationFrame(() => { isAutoScrolling.current = false })
+                                } else {
+                                  const dur = Math.min(400, absDist * 3)
                                   let startTime: number | null = null
                                   isAutoScrolling.current = true
                                   const step = (timestamp: number) => {
