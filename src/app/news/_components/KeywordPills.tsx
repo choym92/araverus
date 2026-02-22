@@ -2,43 +2,70 @@ import Link from 'next/link'
 
 interface KeywordPillsProps {
   keywords: string[]
-  activeKeyword?: string | null
+  activeKeywords?: string[]
   linkable?: boolean
+}
+
+/** Build a keywords param string toggling `kw` in/out of the current set */
+function toggleKeywordsParam(kw: string, activeKeywords: string[]): string {
+  const set = new Set(activeKeywords.map((k) => k.toLowerCase()))
+  const kwLower = kw.toLowerCase()
+  if (set.has(kwLower)) {
+    set.delete(kwLower)
+  } else {
+    set.add(kwLower)
+  }
+  // Build using original-cased values where possible
+  const remaining = activeKeywords.filter((k) => set.has(k.toLowerCase()))
+  if (!set.has(kwLower) || remaining.some((k) => k.toLowerCase() === kwLower)) {
+    // kw was removed or already in remaining
+  } else {
+    remaining.push(kw)
+  }
+  if (remaining.length === 0) return '/news'
+  return `/news?keywords=${encodeURIComponent(remaining.join(','))}`
 }
 
 export default function KeywordPills({
   keywords,
-  activeKeyword,
+  activeKeywords = [],
   linkable = false,
 }: KeywordPillsProps) {
   if (!keywords.length) return null
 
+  const activeSet = new Set(activeKeywords.map((k) => k.toLowerCase()))
+  const capitalize = (s: string) =>
+    s.replace(/\b\w/g, (c) => c.toUpperCase())
+
+  const sorted = [...keywords].sort((a, b) => a.localeCompare(b, 'en', { sensitivity: 'base' }))
+
   return (
-    <div className="flex flex-wrap gap-1.5">
-      {keywords.map((kw) => {
-        const isActive = activeKeyword === kw
-        const baseClasses =
-          'inline-block px-2.5 py-0.5 text-xs rounded-full transition-colors'
-        const activeClasses = isActive
-          ? 'bg-neutral-900 text-white'
-          : 'bg-neutral-100 text-neutral-600 hover:bg-neutral-200'
+    <div className="text-xs text-neutral-400 truncate">
+      {sorted.map((kw, i) => {
+        const label = capitalize(kw)
+        const isActive = activeSet.has(kw.toLowerCase())
 
         if (linkable) {
           return (
-            <Link
-              key={kw}
-              href={isActive ? '/news' : `/news?keyword=${encodeURIComponent(kw)}`}
-              className={`${baseClasses} ${activeClasses}`}
-            >
-              {kw}
-              {isActive && ' ×'}
-            </Link>
+            <span key={kw}>
+              {i > 0 && <span className="mx-1">&middot;</span>}
+              <Link
+                href={toggleKeywordsParam(kw, activeKeywords)}
+                className={`hover:text-neutral-600 transition-colors ${isActive ? 'text-neutral-900 font-medium' : ''}`}
+              >
+                {label}
+                {isActive && ' ×'}
+              </Link>
+            </span>
           )
         }
 
         return (
-          <span key={kw} className={`${baseClasses} ${activeClasses}`}>
-            {kw}
+          <span key={kw}>
+            {i > 0 && <span className="mx-1">&middot;</span>}
+            <span className={isActive ? 'text-neutral-900 font-medium' : ''}>
+              {label}
+            </span>
           </span>
         )
       })}

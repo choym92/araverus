@@ -6,7 +6,7 @@ import type { NewsItem } from '@/lib/news-service'
 import NewsShell from './_components/NewsShell'
 import BriefingPlayer from './_components/BriefingPlayer'
 import ArticleCard from './_components/ArticleCard'
-import KeywordPills from './_components/KeywordPills'
+import FilterButton from './_components/FilterButton'
 import Link from 'next/link'
 import { readFile } from 'fs/promises'
 import path from 'path'
@@ -27,7 +27,7 @@ const TABS = [
 ] as const
 
 interface NewsPageProps {
-  searchParams: Promise<{ category?: string; tab?: string; keyword?: string }>
+  searchParams: Promise<{ category?: string; tab?: string; keywords?: string; keyword?: string }>
 }
 
 /** Aggregate keywords from articles with counts, sorted by frequency */
@@ -46,11 +46,33 @@ function aggregateKeywords(items: NewsItem[]): { keyword: string; count: number 
     .slice(0, 20)
 }
 
+/** Aggregate subcategories from articles with counts, sorted by frequency */
+function aggregateSubcategories(items: NewsItem[]): { keyword: string; count: number }[] {
+  const counts = new Map<string, number>()
+  for (const item of items) {
+    if (item.subcategory) {
+      // Capitalize for display: "ai" → "AI", "trade" → "Trade"
+      const label = item.subcategory.length <= 3
+        ? item.subcategory.toUpperCase()
+        : item.subcategory.charAt(0).toUpperCase() + item.subcategory.slice(1)
+      counts.set(label, (counts.get(label) || 0) + 1)
+    }
+  }
+  return Array.from(counts.entries())
+    .map(([keyword, count]) => ({ keyword, count }))
+    .sort((a, b) => b.count - a.count)
+}
+
 export default async function NewsPage({ searchParams }: NewsPageProps) {
   const params = await searchParams
   const category = params.category
   const tab = params.tab || 'today'
-  const activeKeyword = params.keyword || null
+  // Support both ?keywords=A,B (new) and ?keyword=A (legacy)
+  const activeKeywords: string[] = params.keywords
+    ? params.keywords.split(',').map((k) => k.trim()).filter(Boolean)
+    : params.keyword
+      ? [params.keyword]
+      : []
   const supabase = await createClient()
   const service = new NewsService(supabase)
 
@@ -84,11 +106,21 @@ export default async function NewsPage({ searchParams }: NewsPageProps) {
     koBriefing.sentences = parseJsonField(koBriefing.sentences) ?? null
   }
 
-  // Filter by keyword if active
-  const filteredItems = activeKeyword
-    ? items.filter((item) =>
-        item.keywords?.some((kw) => kw.toLowerCase() === activeKeyword.toLowerCase())
-      )
+  // Filter by keywords/subcategory (OR match) — show article if ANY keyword or subcategory matches
+  const activeSet = new Set(activeKeywords.map((k) => k.toLowerCase()))
+  const filteredItems = activeSet.size > 0
+    ? items.filter((item) => {
+        // Match against keywords
+        if (item.keywords?.some((kw) => activeSet.has(kw.toLowerCase()))) return true
+        // Match against subcategory (capitalized form used in filter pills)
+        if (item.subcategory) {
+          const label = item.subcategory.length <= 3
+            ? item.subcategory.toUpperCase()
+            : item.subcategory.charAt(0).toUpperCase() + item.subcategory.slice(1)
+          if (activeSet.has(label.toLowerCase())) return true
+        }
+        return false
+      })
     : items
 
   // Collect visible thread IDs for timeline fetches
@@ -120,6 +152,7 @@ export default async function NewsPage({ searchParams }: NewsPageProps) {
 
   // Aggregate keywords for filter bar
   const allKeywords = aggregateKeywords(items)
+  const allSubcategories = aggregateSubcategories(items)
 
   // Sort: importance → crawled → threaded → recency
   const importanceRank: Record<string, number> = { must_read: 0, worth_reading: 1, optional: 2 }
@@ -159,11 +192,11 @@ export default async function NewsPage({ searchParams }: NewsPageProps) {
 
   // Build URL helper for tab switching
   const buildTabUrl = (tabValue: string) => {
-    const params = new URLSearchParams()
-    if (tabValue !== 'today') params.set('tab', tabValue)
-    if (category) params.set('category', category)
-    if (activeKeyword) params.set('keyword', activeKeyword)
-    const qs = params.toString()
+    const p = new URLSearchParams()
+    if (tabValue !== 'today') p.set('tab', tabValue)
+    if (category) p.set('category', category)
+    if (activeKeywords.length > 0) p.set('keywords', activeKeywords.join(','))
+    const qs = p.toString()
     return `/news${qs ? `?${qs}` : ''}`
   }
 
@@ -208,55 +241,57 @@ export default async function NewsPage({ searchParams }: NewsPageProps) {
             })}
           </div>
 
-          {/* Category pills */}
-          <div className="flex items-center gap-1 overflow-x-auto py-2">
-            {CATEGORIES.map((cat) => {
-              const isActive = cat.slug === '' ? !category : category === cat.slug
-              const href = cat.slug
-                ? `/news?category=${cat.slug}${activeKeyword ? `&keyword=${encodeURIComponent(activeKeyword)}` : ''}`
-                : `/news${activeKeyword ? `?keyword=${encodeURIComponent(activeKeyword)}` : ''}`
-              return (
-                <Link
-                  key={cat.slug}
-                  href={href}
-                  className={`px-3 py-1.5 text-xs font-medium whitespace-nowrap rounded-full transition-colors ${
-                    isActive
-                      ? 'bg-neutral-900 text-white'
-                      : 'bg-neutral-100 text-neutral-600 hover:bg-neutral-200'
-                  }`}
-                >
-                  {cat.label}
-                </Link>
-              )
-            })}
+          {/* Category pills + filter button */}
+          <div className="flex items-center gap-1 py-2">
+            <div className="flex items-center gap-1 overflow-x-auto flex-1 min-w-0">
+              {CATEGORIES.map((cat) => {
+                const isActive = cat.slug === '' ? !category : category === cat.slug
+                const kwParam = activeKeywords.length > 0 ? `keywords=${encodeURIComponent(activeKeywords.join(','))}` : ''
+                const href = cat.slug
+                  ? `/news?category=${cat.slug}${kwParam ? `&${kwParam}` : ''}`
+                  : `/news${kwParam ? `?${kwParam}` : ''}`
+                return (
+                  <Link
+                    key={cat.slug}
+                    href={href}
+                    className={`px-3 py-1.5 text-xs font-medium whitespace-nowrap rounded-full transition-colors ${
+                      isActive
+                        ? 'bg-neutral-900 text-white'
+                        : 'bg-neutral-100 text-neutral-600 hover:bg-neutral-200'
+                    }`}
+                  >
+                    {cat.label}
+                  </Link>
+                )
+              })}
+            </div>
+            {/* Filter button — outside overflow container so dropdown is visible */}
+            {(allSubcategories.length > 0 || allKeywords.length > 0) && (
+              <FilterButton allSubcategories={allSubcategories} allKeywords={allKeywords} activeKeywords={activeKeywords} />
+            )}
           </div>
         </div>
       </nav>
 
       <div className="px-6 md:px-12 lg:px-16 py-6">
-        {/* Keyword filter bar */}
-        {allKeywords.length > 0 && (
-          <div className="mb-6 flex items-center gap-3 overflow-x-auto pb-2">
-            <span className="text-xs text-neutral-400 font-medium shrink-0">Topics:</span>
-            <KeywordPills
-              keywords={allKeywords.map((k) => k.keyword)}
-              activeKeyword={activeKeyword}
-              linkable
-            />
-          </div>
-        )}
 
         {/* Active filter indicator */}
-        {activeKeyword && (
-          <div className="mb-4 flex items-center gap-2">
+        {activeKeywords.length > 0 && (
+          <div className="mb-4 flex items-center gap-2 flex-wrap">
             <span className="text-sm text-neutral-500">
-              Filtering by: <strong className="text-neutral-900">{activeKeyword}</strong>
+              Filtering by:{' '}
+              {activeKeywords.map((kw, i) => (
+                <span key={kw}>
+                  {i > 0 && ', '}
+                  <strong className="text-neutral-900">{kw}</strong>
+                </span>
+              ))}
             </span>
             <Link
               href={`/news${category ? `?category=${category}` : ''}`}
               className="text-xs text-neutral-400 hover:text-neutral-600 underline"
             >
-              Clear filter
+              ×Clear
             </Link>
             <span className="text-xs text-neutral-400">
               ({filteredItems.length} article{filteredItems.length !== 1 ? 's' : ''})
@@ -268,12 +303,12 @@ export default async function NewsPage({ searchParams }: NewsPageProps) {
         {filteredItems.length === 0 && (
           <div className="text-center py-16">
             <p className="text-neutral-500 text-lg">
-              {activeKeyword
-                ? `No articles found for "${activeKeyword}".`
+              {activeKeywords.length > 0
+                ? `No articles found for "${activeKeywords.join(', ')}".`
                 : 'No articles available yet.'}
             </p>
             <p className="text-neutral-400 text-sm mt-2">
-              {activeKeyword ? (
+              {activeKeywords.length > 0 ? (
                 <Link href="/news" className="underline hover:text-neutral-600">
                   Clear filter
                 </Link>
@@ -327,7 +362,7 @@ export default async function NewsPage({ searchParams }: NewsPageProps) {
                     slug={item.slug}
                     importance={item.importance}
                     keywords={item.keywords}
-                    activeKeyword={activeKeyword}
+                    activeKeywords={activeKeywords}
                     {...threadPropsFor(item)}
                   />
                 ))}
@@ -348,7 +383,7 @@ export default async function NewsPage({ searchParams }: NewsPageProps) {
                     slug={featured.slug}
                     importance={featured.importance}
                     keywords={featured.keywords}
-                    activeKeyword={activeKeyword}
+                    activeKeywords={activeKeywords}
                     {...threadPropsFor(featured)}
                   />
                 )}
@@ -369,7 +404,7 @@ export default async function NewsPage({ searchParams }: NewsPageProps) {
                         slug={item.slug}
                         importance={item.importance}
                         keywords={item.keywords}
-                        activeKeyword={activeKeyword}
+                        activeKeywords={activeKeywords}
                         {...threadPropsFor(item)}
                       />
                     ))}
@@ -393,7 +428,7 @@ export default async function NewsPage({ searchParams }: NewsPageProps) {
                     slug={item.slug}
                     importance={item.importance}
                     keywords={item.keywords}
-                    activeKeyword={activeKeyword}
+                    activeKeywords={activeKeywords}
                     {...threadPropsFor(item)}
                   />
                 ))}
@@ -417,7 +452,7 @@ export default async function NewsPage({ searchParams }: NewsPageProps) {
                     slug={item.slug}
                     importance={item.importance}
                     keywords={item.keywords}
-                    activeKeyword={activeKeyword}
+                    activeKeywords={activeKeywords}
                     {...threadPropsFor(item)}
                   />
                 ))}
