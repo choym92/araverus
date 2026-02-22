@@ -47,20 +47,6 @@ Edit code → Run lint → Fix errors → Repeat until green
 
 ---
 
-## Python Pipeline Rules
-When writing or modifying `scripts/*.py` pipeline scripts:
-
-1) **No unnecessary async**: Only use `async/await` if requests are genuinely concurrent. Sequential HTTP calls with delays → use sync `httpx.Client` + `time.sleep`.
-2) **Lazy-load heavy deps**: Never load ML models or expensive clients at module level. Use a lazy singleton (`_get_model()` pattern) so `--help` and library imports stay fast.
-3) **argparse, not sys.argv**: All CLI scripts must use `argparse`. No manual argv parsing.
-4) **One Supabase client**: Use `domain_utils.require_supabase_client()` for CLI commands (fail-fast) or `domain_utils.get_supabase_client()` for optional DB access (returns None). Never duplicate the client creation code.
-5) **Correct lifecycle names**: `searched` ≠ `processed` ≠ `briefed`. Use the right term for the pipeline stage. Check `docs/schema.md` for column meanings.
-6) **Separation of concerns**: Each script owns one phase. Don't set downstream state (e.g., embedding_rank shouldn't set `crawl_status`).
-7) **Step numbering**: Docstrings use `Phase N · Step M · Name` format when multiple scripts share a phase.
-8) **Kill dead code**: Remove legacy flags, unused parameters, column-missing fallbacks for completed migrations. Don't keep code "just in case".
-
----
-
 ## Anti-Patterns
 - Never break public API/URL/DB schema without asking first.
 - Never create new files when a focused edit to an existing file suffices.
