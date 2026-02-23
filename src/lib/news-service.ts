@@ -13,7 +13,7 @@ export interface NewsItem {
   summary: string | null
   source: string | null
   slug: string | null
-  importance: string | null // 'must_read' | 'worth_reading' | 'optional'
+  importance: string | null // 'must_read' | 'worth_reading' | 'optional' (prefers importance_reranked over importance)
   keywords: string[] | null
   thread_id: string | null
   resolved_url: string | null
@@ -106,6 +106,7 @@ export class NewsService {
           wsj_llm_analysis (
             summary,
             importance,
+            importance_reranked,
             keywords
           )
         )
@@ -144,7 +145,7 @@ export class NewsService {
         summary: (llm?.summary as string) || null,
         source: (crawl?.source as string) || null,
         slug: (item.slug as string) || null,
-        importance: (llm?.importance as string) || null,
+        importance: (llm?.importance_reranked as string) || (llm?.importance as string) || null,
         keywords: (llm?.keywords as string[]) || null,
         thread_id: (item.thread_id as string) || null,
         resolved_url: (crawl?.resolved_url as string) || null,
@@ -173,6 +174,7 @@ export class NewsService {
           wsj_llm_analysis (
             summary,
             importance,
+            importance_reranked,
             keywords
           )
         )
@@ -243,6 +245,7 @@ export class NewsService {
           wsj_llm_analysis (
             summary,
             importance,
+            importance_reranked,
             keywords
           )
         )
@@ -275,7 +278,7 @@ export class NewsService {
         summary: (llm?.summary as string) || null,
         source: (crawl?.source as string) || null,
         slug: (item.slug as string) || null,
-        importance: (llm?.importance as string) || null,
+        importance: (llm?.importance_reranked as string) || (llm?.importance as string) || null,
         keywords: (llm?.keywords as string[]) || null,
         thread_id: (item.thread_id as string) || null,
         resolved_url: (crawl?.resolved_url as string) || null,

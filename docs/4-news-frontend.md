@@ -1,4 +1,4 @@
-<!-- Updated: 2026-02-21 -->
+<!-- Updated: 2026-02-24 -->
 # News Platform — Frontend
 
 Technical guide for the `/news` page. WSJ-style 3-column layout with in-card thread carousels, bilingual audio briefing player, and keyword filtering. Powered by the existing news pipeline.
@@ -110,7 +110,7 @@ graph LR
 #### Article Sorting (importance-based)
 
 Articles are sorted before slicing into columns:
-1. **Importance**: `must_read` → `worth_reading` → `optional` (null treated as optional)
+1. **Importance**: Uses `importance_reranked` (2차 relative re-rank) when available, falls back to `importance` (1차 per-article). `must_read` → `worth_reading` → `optional` (null treated as optional)
 2. **Crawled**: Articles with `summary` (crawled + LLM analyzed) rank higher — richer card content
 3. **Thread preference**: Articles with `thread_id` rank higher (threaded stories are more significant)
 4. **Recency**: Newer articles first within the same tier
@@ -485,6 +485,7 @@ classDiagram
         source: string | null
         slug: string | null
         importance: string | null
+        importance_reranked: string | null
         keywords: string[] | null
         thread_id: string | null
         resolved_url: string | null

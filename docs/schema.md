@@ -1,4 +1,4 @@
-<!-- Updated: 2026-02-23 -->
+<!-- Updated: 2026-02-24 -->
 <!-- Phase: News UX enhancement (migrations 007-009) -->
 # Database Schema (araverus)
 
@@ -156,7 +156,10 @@ sentiment         TEXT          -- positive | negative | neutral | mixed
 geographic_region TEXT          -- US | China | Europe | Asia | Global | Other
 time_horizon      TEXT          -- immediate | short_term | long_term
 summary           TEXT          -- 1-2 sentence LLM-generated summary of crawled article
-importance        TEXT          -- must_read | worth_reading | optional (market impact classification)
+importance        TEXT          -- must_read | worth_reading | optional (1차 per-article, absolute classification)
+importance_reranked TEXT        -- must_read | worth_reading | optional (2차 relative re-rank during curation)
+                                --   set by generate_briefing.py curate_articles()
+                                --   compares all articles in batch for relative importance
 keywords          TEXT[]        -- 2-4 free-form topic keywords (e.g., {"Fed","interest rates"})
 raw_response      JSONB         -- full LLM JSON response (for debugging)
 model_used        TEXT          -- "gpt-4o-mini"

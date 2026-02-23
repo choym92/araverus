@@ -1,4 +1,4 @@
-<!-- Updated: 2026-02-23 -->
+<!-- Updated: 2026-02-24 -->
 # News Platform — Backend & Pipeline
 
 Single source of truth for the finance news pipeline: ingestion, crawling, analysis, briefing generation.
@@ -219,7 +219,10 @@ python generate_briefing.py --dry-run
 python generate_briefing.py --date 2026-02-23 --regen-audio  # Redo TTS+timestamps from existing DB text
 ```
 
-- **LLM:** Gemini 2.5 Pro (curation + generation, temp 0.6, think 4K)
+- **Curation + Importance Re-rank:** Combined in one Gemini 2.5 Pro call (temp 0.1, think 2K). Picks 10-15 curated articles AND assigns relative importance (must_read/worth_reading/optional) to ALL articles. Saves `importance_reranked` to `wsj_llm_analysis`. Response format: `{"curated": [...], "importance": [...]}`
+- **2-stage importance:** 1차 per-article (absolute, Gemini Flash during crawl → `importance`) + 2차 batch re-rank (relative, Gemini Pro during curation → `importance_reranked`). Frontend uses `importance_reranked` when available.
+- **Summary fallback chain:** Curated articles get full content → summary → description. Standard articles get summary → content[:800] → description. Title-only articles get description → title.
+- **LLM:** Gemini 2.5 Pro (curation + briefing generation, temp 0.6, think 4K)
 - **TTS EN:** Google Cloud Chirp 3 HD (`en-US-Chirp3-HD-Alnilam`), Whisper alignment (CPU)
 - **TTS KO:** Google Cloud Chirp 3 HD (`ko-KR-Chirp3-HD-Kore`), byte-aware chunking (4800 byte limit), CTC forced alignment + Whisper hybrid correction
 - **Timestamps:** KO uses CTC forced alignment (ctc-forced-aligner) with Whisper drift correction; EN uses Whisper transcription with original text mapping
@@ -333,6 +336,8 @@ erDiagram
         int relevance_score
         bool is_same_event
         text summary
+        text importance
+        text importance_reranked
     }
 ```
 
