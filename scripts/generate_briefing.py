@@ -49,12 +49,9 @@ EN_TTS_SAMPLE_RATE = 24000
 EN_TTS_SPEAKING_RATE = 1.1
 EN_TTS_MAX_CHARS = 4000
 EN_TTS_MAX_SENTENCE = 500
-KO_TTS_MODEL = "gemini-2.5-pro-preview-tts"
-KO_TTS_VOICE = "Kore"
-KO_TTS_STYLE_PREFIX = (
-    "[차분하고 또렷한 팟캐스트 진행자 톤, "
-    "문장 사이에 자연스러운 호흡을 넣고, 적당한 속도로 명확하게] "
-)
+KO_TTS_VOICE = "ko-KR-Chirp3-HD-Kore"
+KO_TTS_SPEAKING_RATE = 1.0
+KO_TTS_MAX_CHARS = 3000
 
 # Approximate costs per 1M tokens (USD) for tracking
 COST_PER_1M = {
@@ -64,7 +61,6 @@ COST_PER_1M = {
     "gemini-2.5-flash-input": 0.15,
     "gemini-2.5-flash-output": 0.60,
     "chirp3-hd-per-1m-chars": 16.0,
-    "gemini-tts-per-1m-chars": 10.0,  # preview pricing estimate
 }
 
 # ---------------------------------------------------------------------------
@@ -293,9 +289,9 @@ class CostTracker:
         cost += self.briefing_input_tokens / 1e6 * COST_PER_1M["gemini-2.5-pro-input"]
         cost += self.briefing_output_tokens / 1e6 * COST_PER_1M["gemini-2.5-pro-output"]
         cost += self.briefing_thinking_tokens / 1e6 * COST_PER_1M["gemini-2.5-pro-thinking"]
-        # TTS
+        # TTS (both EN and KO use Chirp 3 HD, billed per character)
         cost += self.en_tts_chars / 1e6 * COST_PER_1M["chirp3-hd-per-1m-chars"]
-        cost += self.ko_tts_chars / 1e6 * COST_PER_1M["gemini-tts-per-1m-chars"]
+        cost += self.ko_tts_chars / 1e6 * COST_PER_1M["chirp3-hd-per-1m-chars"]
         return cost
 
 
@@ -319,7 +315,7 @@ def setup_logging() -> None:
 def validate_env_vars(langs: list[str], skip_tts: bool) -> None:
     """Exit early if required env vars are missing."""
     required = ["NEXT_PUBLIC_SUPABASE_URL", "SUPABASE_SERVICE_ROLE_KEY", "GEMINI_API_KEY"]
-    if not skip_tts and "en" in langs:
+    if not skip_tts and ("en" in langs or "ko" in langs):
         required.append("GOOGLE_APPLICATION_CREDENTIALS")
     missing = [v for v in required if not os.getenv(v)]
     if missing:
@@ -342,7 +338,7 @@ def init_clients(langs: list[str], skip_tts: bool) -> tuple:
     gemini = genai.Client(api_key=os.getenv("GEMINI_API_KEY"))
 
     chirp = None
-    if not skip_tts and "en" in langs:
+    if not skip_tts and ("en" in langs or "ko" in langs):
         from google.cloud import texttospeech
 
         chirp = texttospeech.TextToSpeechClient()
@@ -868,43 +864,76 @@ def generate_tts_en(
 
 
 def generate_tts_ko(
-    gemini, text: str, out_path: Path, cost: CostTracker
+    chirp, text: str, out_path: Path, cost: CostTracker
 ) -> Optional[TTSResult]:
-    """Generate KO audio using Gemini Pro Preview TTS (single pass)."""
-    from google.genai import types  # noqa: F811
+    """Generate KO audio using Google Cloud Chirp 3 HD (chunked)."""
+    from google.cloud import texttospeech
 
-    tts_input = KO_TTS_STYLE_PREFIX + text
-    cost.ko_tts_chars += len(tts_input)
+    cost.ko_tts_chars += len(text)
 
-    log.info("KO TTS: %d chars (model: %s, voice: %s)", len(tts_input), KO_TTS_MODEL, KO_TTS_VOICE)
+    # Split into sentences, then group into evenly-sized chunks
+    raw_sentences = re.split(r"(?<=[.!?])\s+", text)
+    num_chunks = max(1, -(-len(text) // KO_TTS_MAX_CHARS))  # ceil division
+    target_len = len(text) // num_chunks
+    chunks: list[str] = []
+    current = ""
+    for s in raw_sentences:
+        if len(current) + len(s) + 1 > target_len and current and len(chunks) < num_chunks - 1:
+            chunks.append(current.strip())
+            current = s
+        else:
+            current = (current + " " + s).strip()
+    if current:
+        chunks.append(current.strip())
+
+    log.info(
+        "KO TTS: %d chars, %d chunks (voice: %s)",
+        len(text), len(chunks), KO_TTS_VOICE,
+    )
     start = time.time()
 
-    try:
-        resp = gemini.models.generate_content(
-            model=KO_TTS_MODEL,
-            contents=tts_input,
-            config=types.GenerateContentConfig(
-                response_modalities=["AUDIO"],
-                speech_config=types.SpeechConfig(
-                    voice_config=types.VoiceConfig(
-                        prebuilt_voice_config=types.PrebuiltVoiceConfig(
-                            voice_name=KO_TTS_VOICE,
-                        )
-                    )
-                ),
-            ),
-        )
-        audio_data = resp.candidates[0].content.parts[0].inline_data.data
-    except Exception as e:
-        log.error("KO TTS failed: %s: %s", e.__class__.__name__, e)
-        return None
+    audio_parts: list[bytes] = []
+    for i, chunk_text in enumerate(chunks):
+        for attempt in range(3):
+            try:
+                resp = chirp.synthesize_speech(
+                    input=texttospeech.SynthesisInput(text=chunk_text),
+                    voice=texttospeech.VoiceSelectionParams(
+                        language_code="ko-KR",
+                        name=KO_TTS_VOICE,
+                    ),
+                    audio_config=texttospeech.AudioConfig(
+                        audio_encoding=texttospeech.AudioEncoding.LINEAR16,
+                        sample_rate_hertz=EN_TTS_SAMPLE_RATE,
+                        speaking_rate=KO_TTS_SPEAKING_RATE,
+                    ),
+                )
+                audio_parts.append(resp.audio_content)
+                log.info("  Chunk %d/%d done (%d chars)", i + 1, len(chunks), len(chunk_text))
+                break
+            except Exception as e:
+                if attempt < 2:
+                    wait = 2 ** (attempt + 1)
+                    log.warning("  Chunk %d failed (%s), retrying in %ds...", i + 1, e.__class__.__name__, wait)
+                    time.sleep(wait)
+                else:
+                    log.error("  Chunk %d failed after 3 attempts: %s", i + 1, e)
+                    break
 
-    elapsed = time.time() - start
+    if not audio_parts:
+        log.error("KO TTS: no audio generated")
+        return None
 
     import subprocess
     import tempfile
 
-    duration = len(audio_data) / (24000 * 2)
+    # Merge WAV chunks — extract PCM frames
+    all_pcm = b""
+    for part in audio_parts:
+        with wave.open(io.BytesIO(part), "rb") as wf:
+            all_pcm += wf.readframes(wf.getnframes())
+
+    duration = len(all_pcm) / (EN_TTS_SAMPLE_RATE * 2)
     out_path.parent.mkdir(parents=True, exist_ok=True)
 
     # Write temp WAV, convert to MP3
@@ -913,8 +942,8 @@ def generate_tts_ko(
         with wave.open(tmp_wav, "wb") as wf:
             wf.setnchannels(1)
             wf.setsampwidth(2)
-            wf.setframerate(24000)
-            wf.writeframes(audio_data)
+            wf.setframerate(EN_TTS_SAMPLE_RATE)
+            wf.writeframes(all_pcm)
 
     mp3_path = out_path.with_suffix(".mp3")
     subprocess.run(
@@ -923,9 +952,10 @@ def generate_tts_ko(
     )
     os.unlink(tmp_wav)
 
+    elapsed = time.time() - start
     size_kb = mp3_path.stat().st_size / 1024
 
-    log.info("KO TTS done: %.1fs, %.0fKB (~%.1fmin), saved as MP3", elapsed, size_kb, duration / 60)
+    log.info("KO TTS done: %.1fs, %d chunks, %.0fKB (~%.1fmin), saved as MP3", elapsed, len(chunks), size_kb, duration / 60)
     return TTSResult(path=mp3_path, duration_sec=duration, size_kb=size_kb, elapsed_sec=elapsed)
 
 
@@ -952,110 +982,199 @@ def _get_audio_duration(mp3_path: Path) -> float:
     return float(result.stdout.strip())
 
 
-def _fix_ctc_drift(sentences: list[dict], audio_duration: float) -> list[dict]:
-    """Fix CTC timestamp issues: gap-at-end drift and mixed-language compression.
+_LATIN_RE = re.compile(r"[a-zA-Z0-9]")
+_KOREAN_WORD_RE = re.compile(r"[\uAC00-\uD7A3]{2,}")
 
-    Two failure modes:
-    1. Gap drift: CTC ends well before audio ends (timestamps compressed overall).
-    2. Rate anomaly: CTC compresses mixed-language sentences (English/digits in Korean)
-       causing the transcript to run ahead of audio in those sections.
+
+def _detect_rate_anomaly(sentences: list[dict]) -> int | None:
+    """Find where CTC starts compressing mixed-language sentences.
+
+    Returns the index of the first sentence in the fast zone, or None.
     """
-    if len(sentences) < 10 or audio_duration <= 0:
-        return sentences
+    if len(sentences) < 15:
+        return None
 
-    # --- Mode 1: Gap drift (CTC doesn't reach audio end) ---
-    last_end = sentences[-1]["end"]
-    gap = audio_duration - last_end
-
-    if gap > 5.0:
-        log.info("CTC gap drift: last=%.1fs, audio=%.1fs (gap=%.1fs)", last_end, audio_duration, gap)
-        good_count = int(len(sentences) * 0.7)
-        good_durs = sorted(s["end"] - s["start"] for s in sentences[:good_count])
-        median_dur = good_durs[len(good_durs) // 2]
-
-        drift_idx = len(sentences)
-        streak = 0
-        for i in range(good_count, len(sentences)):
-            dur = sentences[i]["end"] - sentences[i]["start"]
-            if dur < median_dur * 0.3:
-                streak += 1
-                if streak >= 3:
-                    drift_idx = i - streak + 1
-                    break
-            else:
-                streak = 0
-
-        if drift_idx >= len(sentences):
-            sentences[-1]["end"] = round(audio_duration, 2)
-        else:
-            start_t = sentences[drift_idx]["start"]
-            avail = audio_duration - start_t
-            total_c = sum(len(s["text"]) for s in sentences[drift_idx:]) or 1
-            t = start_t
-            for s in sentences[drift_idx:]:
-                s["start"] = round(t, 2)
-                t += avail * (len(s["text"]) / total_c)
-                s["end"] = round(t, 2)
-            log.info("Gap drift: redistributed %d-%d over %.1fs", drift_idx, len(sentences) - 1, avail)
-        return sentences
-
-    # --- Mode 2: Rate anomaly (mixed-language compression) ---
-    # Baseline: median chars/sec from substantial pure-Korean sentences in first 70%
     good_count = int(len(sentences) * 0.7)
-    latin_re = re.compile(r"[a-zA-Z0-9]")
     rates: list[float] = []
     for s in sentences[:good_count]:
         dur = s["end"] - s["start"]
-        if dur > 1.0 and len(s["text"]) > 20 and not latin_re.search(s["text"]):
+        if dur > 1.0 and len(s["text"]) > 20 and not _LATIN_RE.search(s["text"]):
             rates.append(len(s["text"]) / dur)
 
     if len(rates) < 5:
-        return sentences
+        return None
 
     rates.sort()
     baseline = rates[len(rates) // 2]
     threshold = baseline * 1.6
 
-    # Find first run of 2+ consecutive mixed-content sentences above threshold
     mid = len(sentences) // 2
-    fast_start = None
     streak = 0
     streak_start = 0
     for i in range(mid, len(sentences)):
         s = sentences[i]
         dur = s["end"] - s["start"]
-        if dur > 0.3 and len(s["text"]) > 20 and latin_re.search(s["text"]):
+        if dur > 0.3 and len(s["text"]) > 20 and _LATIN_RE.search(s["text"]):
             rate = len(s["text"]) / dur
             if rate > threshold:
                 if streak == 0:
                     streak_start = i
                 streak += 1
                 if streak >= 2:
-                    fast_start = streak_start
-                    break
+                    return streak_start
                 continue
         streak = 0
+    return None
 
+
+def _get_whisper_words(mp3_path: Path, lang: str) -> list[dict]:
+    """Run Whisper and return word-level timestamps."""
+    import whisper
+
+    model = whisper.load_model("base", device="cpu")
+    result = model.transcribe(
+        str(mp3_path), language=lang, word_timestamps=True, verbose=False,
+    )
+    words: list[dict] = []
+    for seg in result["segments"]:
+        for w in seg.get("words", []):
+            txt = w.get("word", "").strip()
+            if txt:
+                words.append({"text": txt, "start": w["start"], "end": w["end"]})
+    return words
+
+
+def _fix_ctc_with_whisper(
+    sentences: list[dict],
+    whisper_words: list[dict],
+    audio_duration: float,
+    fast_start: int,
+) -> list[dict]:
+    """Correct CTC timestamps using Whisper word-level keyword matching.
+
+    For the anomaly zone (fast_start onwards), match each sentence's first
+    Korean keyword to Whisper words to get audio-accurate start times.
+    Unmatched sentences get proportional distribution of remaining time.
+    """
+    zone_start_time = sentences[fast_start]["start"]
+    zone_words = [w for w in whisper_words if w["end"] > zone_start_time - 1]
+
+    if not zone_words:
+        log.warning("No Whisper words in zone — skipping correction")
+        return sentences
+
+    # Step 1: Match each zone sentence to Whisper words by first Korean keyword
+    w_idx = 0
+    # anchor_times[i] = Whisper start time for zone sentence i, or None
+    anchor_times: list[float | None] = []
+
+    for sent in sentences[fast_start:]:
+        keywords = _KOREAN_WORD_RE.findall(sent["text"])
+        target = keywords[0] if keywords else None
+        found_time = None
+
+        if target:
+            for j in range(w_idx, min(w_idx + 40, len(zone_words))):
+                w_korean = "".join(_KOREAN_WORD_RE.findall(zone_words[j]["text"]))
+                if len(w_korean) >= 2 and target[:3] == w_korean[:3]:
+                    found_time = zone_words[j]["start"]
+                    w_idx = j + 1
+                    break
+
+        anchor_times.append(found_time)
+
+    matched = sum(1 for t in anchor_times if t is not None)
+    log.info("Whisper keyword matching: %d/%d sentences matched", matched, len(anchor_times))
+
+    # Step 2: Fill gaps between anchors with proportional interpolation
+    zone_sents = sentences[fast_start:]
+    n = len(zone_sents)
+    start_times: list[float] = [0.0] * n
+
+    # First pass: place anchors
+    for i in range(n):
+        start_times[i] = anchor_times[i] if anchor_times[i] is not None else -1.0
+
+    # Second pass: interpolate gaps between anchors
+    # Process each gap (run of -1s between two anchors or boundaries)
+    i = 0
+    while i < n:
+        if start_times[i] >= 0:
+            i += 1
+            continue
+        # Found a gap — find its extent
+        gap_start = i
+        while i < n and start_times[i] < 0:
+            i += 1
+        gap_end = i  # exclusive
+
+        # Boundaries for interpolation
+        prev_t = start_times[gap_start - 1] if gap_start > 0 else zone_start_time
+        next_t = start_times[gap_end] if gap_end < n else audio_duration
+
+        # Distribute gap proportionally by text length
+        gap_sents = zone_sents[gap_start:gap_end]
+        avail = next_t - prev_t
+        # Include the previous sentence's remaining duration
+        total_c = sum(len(s["text"]) for s in gap_sents) or 1
+        t = prev_t
+        for j, s in enumerate(gap_sents):
+            start_times[gap_start + j] = t
+            t += avail * len(s["text"]) / total_c
+
+    # Step 3: Build result — each sentence runs from start[i] to start[i+1]
+    result = list(sentences[:fast_start])
+    for i in range(n):
+        end_t = start_times[i + 1] if i + 1 < n else audio_duration
+        if end_t <= start_times[i]:
+            end_t = start_times[i] + 0.3
+        result.append({
+            "text": zone_sents[i]["text"],
+            "start": round(start_times[i], 2),
+            "end": round(end_t, 2),
+        })
+
+    return result
+
+
+def _fix_ctc_drift(
+    sentences: list[dict],
+    audio_duration: float,
+    mp3_path: Path | None = None,
+) -> list[dict]:
+    """Fix CTC timestamp issues using Whisper word timestamps as correction.
+
+    Detects rate anomaly (mixed-language compression), then runs Whisper to
+    get audio-accurate word timestamps and corrects CTC via keyword matching.
+    """
+    if len(sentences) < 10 or audio_duration <= 0:
+        return sentences
+
+    # Gap drift: CTC doesn't reach audio end
+    gap = audio_duration - sentences[-1]["end"]
+    if gap > 5.0:
+        log.info("CTC gap drift: gap=%.1fs — extending last sentence", gap)
+        sentences[-1]["end"] = round(audio_duration, 2)
+
+    # Detect rate anomaly
+    fast_start = _detect_rate_anomaly(sentences)
     if fast_start is None:
         return sentences
 
-    # Redistribute from fast_start to audio end by text length
-    zone_start = sentences[fast_start]["start"]
-    avail = audio_duration - zone_start
-    zone = sentences[fast_start:]
-    total_c = sum(len(s["text"]) for s in zone) or 1
+    log.info("Rate anomaly at sentence %d — running Whisper for correction", fast_start)
 
-    t = zone_start
-    for s in zone:
-        s["start"] = round(t, 2)
-        t += avail * (len(s["text"]) / total_c)
-        s["end"] = round(t, 2)
+    if mp3_path is None:
+        log.warning("No mp3_path for Whisper correction — skipping")
+        return sentences
 
-    log.info(
-        "Rate fix: sentences %d-%d, baseline=%.1f c/s, threshold=%.1f c/s, zone=%.1fs",
-        fast_start, len(sentences) - 1, baseline, threshold, avail,
-    )
-    return sentences
+    try:
+        whisper_words = _get_whisper_words(mp3_path, "ko")
+        log.info("Whisper: %d words (last at %.1fs)", len(whisper_words), whisper_words[-1]["end"])
+    except Exception as e:
+        log.warning("Whisper failed: %s — skipping correction", e)
+        return sentences
+
+    return _fix_ctc_with_whisper(sentences, whisper_words, audio_duration, fast_start)
 
 
 def _extract_sentences_ctc(mp3_path: Path, original_text: str, lang_iso: str) -> list[dict]:
@@ -1094,7 +1213,7 @@ def _extract_sentences_ctc(mp3_path: Path, original_text: str, lang_iso: str) ->
 
     # Fix drift zones where mixed-language text caused CTC compression
     audio_duration = _get_audio_duration(mp3_path)
-    sentences = _fix_ctc_drift(sentences, audio_duration)
+    sentences = _fix_ctc_drift(sentences, audio_duration, mp3_path=mp3_path)
 
     return sentences
 
@@ -1355,7 +1474,7 @@ def print_cost_summary(cost: CostTracker) -> None:
     if cost.en_tts_chars:
         log.info("EN TTS (Chirp 3 HD): %s chars", f"{cost.en_tts_chars:,}")
     if cost.ko_tts_chars:
-        log.info("KO TTS (Gemini):     %s chars", f"{cost.ko_tts_chars:,}")
+        log.info("KO TTS (Chirp 3 HD): %s chars", f"{cost.ko_tts_chars:,}")
     log.info("-" * 50)
     log.info("Estimated total: $%.4f", cost.total_usd())
     log.info("=" * 50)
@@ -1552,8 +1671,8 @@ def main() -> None:
             audio_path = day_dir / f"audio-{lang}-{date_str}.mp3"
             if lang == "en" and chirp:
                 tts_result = generate_tts_en(chirp, result.text, audio_path, cost)
-            elif lang == "ko":
-                tts_result = generate_tts_ko(gemini, result.text, audio_path, cost)
+            elif lang == "ko" and chirp:
+                tts_result = generate_tts_ko(chirp, result.text, audio_path, cost)
 
         # Whisper sentence alignment
         sentences = None

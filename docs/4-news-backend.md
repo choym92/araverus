@@ -220,7 +220,7 @@ python generate_briefing.py --dry-run
 
 - **LLM:** Gemini 2.5 Pro (curation + generation, temp 0.6, think 4K)
 - **TTS EN:** Google Cloud Chirp 3 HD (`en-US-Chirp3-HD-Alnilam`)
-- **TTS KO:** Gemini 2.5 Pro Preview TTS (`Kore` voice)
+- **TTS KO:** Google Cloud Chirp 3 HD (`ko-KR-Chirp3-HD-Kore`)
 - **Output:** `scripts/output/briefings/{date}/`
 
 ### Shared Utilities
@@ -370,5 +370,6 @@ Mac Mini loads secrets from `.env.pipeline` or macOS Keychain.
 | EN Briefing (2.5 Pro) | $0.051 | $1.53 |
 | KO Briefing (2.5 Pro) | $0.063 | $1.89 |
 | EN TTS (Chirp 3 HD) | $0.144 | $4.32 |
-| KO TTS (Gemini TTS) | $0.060 | $1.80 |
-| **Total** | **~$0.33** | **~$10/month** |
+| ~~KO TTS (Gemini Pro Preview TTS)~~ | ~~$0.360~~ | ~~$10.80~~ |
+| KO TTS (Chirp 3 HD) | $0.080 | $2.40 |
+| **Total** | **~$0.35** | **~$11/month** |

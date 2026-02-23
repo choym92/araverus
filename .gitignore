@@ -50,8 +50,8 @@ __pycache__/
 # Scripts output (generated files)
 scripts/output/
 
-# Pipeline logs
-logs/
+# Pipeline logs (tracked for debugging)
+# logs/
 
 # Audio files (large binaries — served locally or via Supabase Storage)
 public/audio/
