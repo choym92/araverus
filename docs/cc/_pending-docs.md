@@ -1,5 +1,0 @@
-- domain_utils.py: load_ids_from_file() now dispatches on file extension (.jsonl vs .json) instead of first char
-- llm_analysis.py: added regex-based JSON extraction fallback in analyze_content()
-- domain_utils.py, embed_and_thread.py: replaced all datetime.utcnow() with datetime.now(timezone.utc)
-- generate_briefing.py: Whisper now uses MPS device on Apple Silicon
-- generate_briefing.py: KO TTS switched from Gemini Pro Preview to Chirp 3 HD (same as EN). Removed KO_TTS_MODEL, KO_TTS_STYLE_PREFIX. CostTracker now uses ko_tts_chars instead of ko_tts_input_tokens/ko_tts_audio_sec.

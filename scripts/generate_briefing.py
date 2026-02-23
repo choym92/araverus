@@ -51,7 +51,7 @@ EN_TTS_MAX_CHARS = 4000
 EN_TTS_MAX_SENTENCE = 500
 KO_TTS_VOICE = "ko-KR-Chirp3-HD-Kore"
 KO_TTS_SPEAKING_RATE = 1.0
-KO_TTS_MAX_CHARS = 3000
+KO_TTS_MAX_BYTES = 4800  # Chirp limit is 5000 bytes; Korean UTF-8 ≈ 3 bytes/char
 
 # Approximate costs per 1M tokens (USD) for tracking
 COST_PER_1M = {
@@ -67,7 +67,10 @@ COST_PER_1M = {
 # Prompts
 # ---------------------------------------------------------------------------
 
-CURATION_PROMPT = """You are a senior financial news editor. From the article list below, pick the 10-15 most important stories that deserve deep coverage in a daily briefing.
+CURATION_PROMPT = """You are a senior financial news editor. From the article list below:
+
+1. Pick the 10-15 most important stories for a daily briefing ("curated").
+2. Assign an importance level to EVERY article by relative comparison.
 
 Selection criteria (in priority order):
 1. Macroeconomic impact: interest rates, inflation, GDP, employment, central bank decisions
@@ -75,18 +78,34 @@ Selection criteria (in priority order):
 3. Market-wide impact: major M&A, significant earnings beats/misses, policy changes
 4. Geopolitical events with direct market implications
 
-Mandatory inclusion:
-- ALWAYS include ALL articles tagged [TECH] or related to AI/technology, unless they are purely lifestyle/opinion pieces with no market relevance.
+Tech rule:
+- Prioritize articles categorized under Technology or AI-related topics for curation.
+- If including all tech articles would exceed 15 total, keep the highest-impact ones within the 10-15 limit.
 
 Exclusion:
-- SKIP executive personnel stories (CEO/CFO/lawyer hired, fired, stepped down, pay raises) unless the departure signals a major corporate crisis or strategic shift.
-- SKIP "Roundup: Market Talk" digest articles — they are low-value summaries.
+- SKIP executive personnel stories (hired, fired, stepped down, pay raises) unless it signals a major corporate crisis or strategic shift.
+- SKIP "Roundup: Market Talk" digest articles — low-value summaries.
 
-Rules:
-- If multiple articles cover the same event, pick only the one with the richest detail.
-- Return ONLY a JSON array of article numbers (1-indexed), nothing else.
-- No explanation, no text before or after. Just the array.
-- Example: [3, 7, 12, 15, 22, 28, 33, 41, 45, 50, 55]
+Deduplication:
+- If multiple articles cover the same event, curate only the best one for the briefing.
+- IMPORTANT: The primary article for a major event MUST keep its true importance level. Only demote secondary/follow-up angles to worth_reading or optional. Never demote a major story to optional just because duplicates exist.
+
+Importance criteria (relative — compare articles against each other):
+- must_read: Day's most impactful stories. Typically 3-5, but allow up to 7 on heavy news days (e.g., major court rulings, Fed decisions). On quiet days, 1-2 is fine. Never inflate.
+- worth_reading: Notable sector trends, mid-cap developments, regulatory proposals, tech partnerships.
+- optional: Routine updates, follow-ups rehashing known info, opinion without new data, minor/regional stories.
+
+Recency tie-break:
+- When two articles are similarly impactful, favor the more recent one (check the time ago).
+
+Context availability:
+- Some articles only have a title and description (no entities or extra detail). Do NOT penalize them for having less context. Judge importance by the EVENT itself, not by how much information is provided.
+
+Return ONLY valid JSON:
+{"curated": [3, 7, 12, ...], "importance": ["optional", "worth_reading", "must_read", ...]}
+
+- "curated": indices (1-indexed) of the 10-15 articles for the briefing.
+- "importance": array of length N where importance[i-1] is the label for article i. Every article MUST have a label.
 """
 
 BRIEFING_SYSTEM_EN = """You are the host of a daily finance podcast that's smart but never stuffy. Think of yourself as that friend who reads everything and gives you the rundown over coffee — sharp, a little witty, and genuinely interested in making sense of the chaos.
@@ -408,7 +427,7 @@ def fetch_llm_map(sb, crawl_ids: list[str]) -> dict[str, dict]:
         batch = crawl_ids[i : i + 100]
         analyses = (
             sb.table("wsj_llm_analysis")
-            .select("crawl_result_id,summary,key_entities,key_numbers,event_type,sentiment")
+            .select("crawl_result_id,summary,key_entities,key_numbers,event_type,sentiment,importance,keywords")
             .in_("crawl_result_id", batch)
             .execute()
         )
@@ -455,17 +474,35 @@ def _try_curation(gemini, model: str, config, curation_input: str, label: str):
 
 def curate_articles(
     gemini, items: list[dict], crawl_map: dict, llm_map: dict, cost: CostTracker
-) -> set[str]:
-    """Use LLM to pick top 10-15 articles. Returns set of wsj_item_ids."""
+) -> tuple[set[str], list[str]]:
+    """Use LLM to pick top 10-15 articles and re-rank importance.
+
+    Returns (curated_ids, importance_array) where importance_array[i] is the
+    re-ranked importance for items[i].
+    """
     from google.genai import types  # noqa: F811
 
-    # Build article list for curation
+    # Build article list for curation (with recency signal)
     lines = []
     for i, item in enumerate(items, 1):
         crawl = crawl_map.get(item["id"])
         llm = llm_map.get(crawl["id"]) if crawl and crawl["id"] in llm_map else {}
         entities = ", ".join(llm.get("key_entities", []))[:80]
+        # Recency signal
+        time_str = ""
+        pub = item.get("published_at", "")
+        if pub:
+            try:
+                dt = datetime.fromisoformat(pub.replace("Z", "+00:00"))
+                from datetime import timezone
+
+                hours_ago = (datetime.now(timezone.utc) - dt).total_seconds() / 3600
+                time_str = f"{int(hours_ago)}h ago" if hours_ago < 48 else f"{int(hours_ago / 24)}d ago"
+            except Exception:
+                pass
         line = f"{i}. [{item['feed_name']}] {item['title']}"
+        if time_str:
+            line += f" | {time_str}"
         if item.get("description"):
             line += f" — {item['description'][:120]}"
         if entities:
@@ -474,7 +511,7 @@ def curate_articles(
 
     curation_input = CURATION_PROMPT + "\n\n" + "\n".join(lines)
 
-    log.info("Curating %d articles...", len(items))
+    log.info("Curating + re-ranking %d articles...", len(items))
     raw = None
     resp = None
 
@@ -485,9 +522,10 @@ def curate_articles(
             gemini,
             CURATION_MODEL_PRIMARY,
             types.GenerateContentConfig(
-                max_output_tokens=4096,
+                max_output_tokens=8192,
                 temperature=0.1,
-                thinking_config=types.ThinkingConfig(thinking_budget=1024),
+                response_mime_type="application/json",
+                thinking_config=types.ThinkingConfig(thinking_budget=2048),
             ),
             curation_input,
             f"Pro attempt {attempt + 1}",
@@ -503,8 +541,9 @@ def curate_articles(
             gemini,
             CURATION_MODEL_FALLBACK,
             types.GenerateContentConfig(
-                max_output_tokens=1024,
+                max_output_tokens=4096,
                 temperature=0.0,
+                response_mime_type="application/json",
             ),
             curation_input,
             "Flash",
@@ -514,15 +553,18 @@ def curate_articles(
         log.error("Curation failed on both Pro and Flash")
         sys.exit(1)
 
-    # Parse JSON array
+    # Parse combined JSON response: {"curated": [...], "importance": [...]}
     cleaned = re.sub(r"```json\s*", "", raw.strip())
     cleaned = re.sub(r"```\s*", "", cleaned).strip()
-    match = re.search(r"\[[\d,\s]+\]", cleaned)
-    if not match:
-        log.error("Could not parse JSON array from curation: %s", raw[:200])
+    try:
+        parsed = json.loads(cleaned)
+    except json.JSONDecodeError:
+        log.error("Could not parse JSON from curation: %s", raw[:200])
         sys.exit(1)
 
-    curated_indices = json.loads(match.group())
+    curated_indices = parsed.get("curated", [])
+    importance_array = parsed.get("importance", [])
+
     curated_ids = set(
         items[i - 1]["id"] for i in curated_indices if 1 <= i <= len(items)
     )
@@ -541,9 +583,14 @@ def curate_articles(
     log.info("Curated %d articles (model: %s)", len(curated_ids), cost.curation_model)
     for i in sorted(curated_indices):
         if 1 <= i <= len(items):
-            log.info("  %3d. [%-18s] %s", i, items[i - 1]["feed_name"], items[i - 1]["title"][:70])
+            imp = importance_array[i - 1] if i - 1 < len(importance_array) else "?"
+            log.info("  %3d. [%-14s] [%-18s] %s", i, imp, items[i - 1]["feed_name"], items[i - 1]["title"][:60])
 
-    return curated_ids
+    # Log importance distribution
+    dist = Counter(importance_array)
+    log.info("Importance distribution: %s", dict(dist))
+
+    return curated_ids, importance_array
 
 
 # ---------------------------------------------------------------------------
@@ -557,8 +604,16 @@ def assemble_articles(
     llm_map: dict[str, dict],
     curated_ids: set[str],
 ) -> list[Article]:
-    """Assemble articles with tiered content: curated (full), standard (truncated), title-only."""
+    """Assemble articles with tiered content using summary fallback chain.
+
+    Curated: full content → summary → description
+    Standard: summary → content[:800] → description
+    Title-only: description → title
+    """
     articles: list[Article] = []
+    curated_full = curated_summary = curated_titleonly = 0
+    std_summary = std_truncated = title_only = 0
+
     for item in items:
         wid = item["id"]
         crawl = crawl_map.get(wid)
@@ -570,45 +625,69 @@ def assemble_articles(
             same_event = crawl.get("llm_same_event", False)
             has_quality = score >= RELEVANCE_THRESHOLD or same_event
 
-        if has_quality:
-            llm = llm_map.get(crawl["id"], {})
-            content = crawl.get("content") or ""
-            if not is_curated:
-                content = content[:CONTENT_TRUNCATE_STD]
-            articles.append(
-                Article(
-                    id=wid,
-                    title=item["title"],
-                    description=item.get("description") or "",
-                    category=item["feed_name"],
-                    published_at=item.get("published_at", ""),
-                    has_quality_crawl=True,
-                    is_curated=is_curated,
-                    content=content,
-                    key_entities=llm.get("key_entities", []),
-                    key_numbers=[str(n) for n in llm.get("key_numbers", [])],
-                    event_type=llm.get("event_type", ""),
-                )
-            )
-        else:
-            articles.append(
-                Article(
-                    id=wid,
-                    title=item["title"],
-                    description=item.get("description") or "",
-                    category=item["feed_name"],
-                    published_at=item.get("published_at", ""),
-                    has_quality_crawl=False,
-                    is_curated=False,
-                )
-            )
+        # Get LLM data if available
+        llm = {}
+        if crawl and crawl.get("id") in llm_map:
+            llm = llm_map[crawl["id"]]
 
-    curated_count = sum(1 for a in articles if a.is_curated and a.has_quality_crawl)
-    quality_count = sum(1 for a in articles if a.has_quality_crawl)
-    title_count = sum(1 for a in articles if not a.has_quality_crawl)
+        summary = llm.get("summary") or ""
+        full_content = (crawl.get("content") or "") if crawl else ""
+        desc = item.get("description") or ""
+
+        base_kwargs = dict(
+            id=wid,
+            title=item["title"],
+            description=desc,
+            category=item["feed_name"],
+            published_at=item.get("published_at", ""),
+            key_entities=llm.get("key_entities", []),
+            key_numbers=[str(n) for n in llm.get("key_numbers", [])],
+            event_type=llm.get("event_type", ""),
+        )
+
+        if is_curated:
+            # Curated: full content → summary → description
+            if has_quality and full_content:
+                base_kwargs["content"] = full_content
+                base_kwargs["has_quality_crawl"] = True
+                curated_full += 1
+            elif summary:
+                base_kwargs["content"] = summary
+                base_kwargs["has_quality_crawl"] = True
+                curated_summary += 1
+            else:
+                base_kwargs["content"] = desc
+                base_kwargs["has_quality_crawl"] = False
+                curated_titleonly += 1
+            base_kwargs["is_curated"] = True
+        elif has_quality:
+            # Standard: summary → content[:800] → description
+            if summary:
+                base_kwargs["content"] = summary
+                std_summary += 1
+            elif full_content:
+                base_kwargs["content"] = full_content[:CONTENT_TRUNCATE_STD]
+                std_truncated += 1
+            else:
+                base_kwargs["content"] = desc
+            base_kwargs["has_quality_crawl"] = True
+            base_kwargs["is_curated"] = False
+        else:
+            # Title-only: description → title
+            base_kwargs["content"] = desc or item["title"]
+            base_kwargs["has_quality_crawl"] = False
+            base_kwargs["is_curated"] = False
+            title_only += 1
+
+        articles.append(Article(**base_kwargs))
+
+    total_curated = curated_full + curated_summary + curated_titleonly
+    total_std = std_summary + std_truncated
     log.info(
-        "Assembled %d articles: %d curated, %d standard, %d title-only",
-        len(articles), curated_count, quality_count - curated_count, title_count,
+        "Assembled %d articles: curated=%d (full=%d, summary=%d, titleonly=%d), "
+        "std=%d (summary=%d, truncated=%d), title-only=%d",
+        len(articles), total_curated, curated_full, curated_summary, curated_titleonly,
+        total_std, std_summary, std_truncated, title_only,
     )
     return articles
 
@@ -871,18 +950,18 @@ def generate_tts_ko(
 
     cost.ko_tts_chars += len(text)
 
-    # Split into sentences, then group into evenly-sized chunks
+    # Split into sentences, then group into byte-safe chunks
+    # Chirp 3 HD limit is 5000 bytes; Korean UTF-8 ≈ 3 bytes/char
     raw_sentences = re.split(r"(?<=[.!?])\s+", text)
-    num_chunks = max(1, -(-len(text) // KO_TTS_MAX_CHARS))  # ceil division
-    target_len = len(text) // num_chunks
     chunks: list[str] = []
     current = ""
     for s in raw_sentences:
-        if len(current) + len(s) + 1 > target_len and current and len(chunks) < num_chunks - 1:
+        candidate = (current + " " + s).strip() if current else s
+        if len(candidate.encode("utf-8")) > KO_TTS_MAX_BYTES and current:
             chunks.append(current.strip())
             current = s
         else:
-            current = (current + " " + s).strip()
+            current = candidate
     if current:
         chunks.append(current.strip())
 
@@ -1319,10 +1398,9 @@ def extract_sentences(mp3_path: Path, lang: str, original_text: str = "") -> lis
     whisper_lang = "en" if lang == "en" else "ko"
     log.info("Whisper alignment for %s: %s...", lang.upper(), mp3_path.name)
 
-    import torch
-    device = "mps" if torch.backends.mps.is_available() else "cpu"
-    model = whisper.load_model("base", device=device)
-    log.info("Whisper device: %s", device)
+    # MPS crashes on float64 (whisper dtypes_once workaround not reliable)
+    model = whisper.load_model("base", device="cpu")
+    log.info("Whisper device: cpu")
     result = model.transcribe(str(mp3_path), language=whisper_lang, word_timestamps=True, verbose=False)
 
     # Merge segments into full sentences (for count comparison / 1:1 swap)
@@ -1435,6 +1513,34 @@ def save_briefing_to_db(
     return bid
 
 
+def save_importance_reranked(
+    sb, items: list[dict], crawl_map: dict, importance_array: list[str]
+) -> None:
+    """Save re-ranked importance to wsj_llm_analysis.importance_reranked."""
+    if not importance_array:
+        log.warning("No importance_array to save — skipping")
+        return
+
+    updated = 0
+    for i, imp in enumerate(importance_array):
+        if i >= len(items):
+            break
+        wid = items[i]["id"]
+        crawl = crawl_map.get(wid)
+        if not crawl:
+            continue
+        crawl_id = crawl["id"]
+        try:
+            sb.table("wsj_llm_analysis").update(
+                {"importance_reranked": imp}
+            ).eq("crawl_result_id", crawl_id).execute()
+            updated += 1
+        except Exception as e:
+            log.warning("Failed to update importance_reranked for crawl %s: %s", crawl_id, e)
+
+    log.info("Saved importance_reranked for %d/%d articles", updated, len(importance_array))
+
+
 def mark_articles_as_briefed(sb, articles: list[Article]) -> None:
     """Mark all articles used in the briefing as briefed in wsj_items."""
     if not articles:
@@ -1518,6 +1624,11 @@ def parse_args() -> argparse.Namespace:
         help=f"Lookback window in hours (default: {DEFAULT_LOOKBACK_HOURS})",
     )
     parser.add_argument(
+        "--regen-audio",
+        action="store_true",
+        help="Regenerate TTS audio + timestamps from existing DB briefing text (skips article fetch/curation/LLM)",
+    )
+    parser.add_argument(
         "--output-dir",
         type=Path,
         default=Path("scripts/output/briefings"),
@@ -1542,11 +1653,101 @@ def main() -> None:
              "skip" if args.skip_db else "on")
     if args.dry_run:
         log.info("DRY RUN — no LLM/TTS/DB calls")
+    if args.regen_audio:
+        log.info("REGEN AUDIO — TTS + timestamps from existing DB text")
     log.info("=" * 50)
 
     # Load env
     env_path = Path(".env.local")
     load_dotenv(env_path)
+
+    # --- Regen-audio mode: fetch existing briefing text, redo TTS + timestamps ---
+    if args.regen_audio:
+        validate_env_vars(args.lang, skip_tts=False)
+        from google.cloud import texttospeech
+        from supabase import create_client
+
+        sb = create_client(
+            os.getenv("NEXT_PUBLIC_SUPABASE_URL"),
+            os.getenv("SUPABASE_SERVICE_ROLE_KEY"),
+        )
+        chirp = texttospeech.TextToSpeechClient()
+        day_dir = args.output_dir / date_str
+        day_dir.mkdir(parents=True, exist_ok=True)
+
+        for lang in args.lang:
+            log.info("-" * 40)
+            log.info("Regen audio: %s...", lang.upper())
+
+            # Fetch existing briefing from DB
+            existing = (
+                sb.table("wsj_briefings")
+                .select("id,briefing_text,chapters,item_count,model")
+                .eq("date", str(target))
+                .eq("category", lang.upper())
+                .execute()
+            )
+            if not existing.data:
+                log.error("No existing %s briefing in DB for %s — skipping", lang.upper(), date_str)
+                continue
+
+            row = existing.data[0]
+            briefing_text = row["briefing_text"]
+            chapters = row.get("chapters")
+            log.info("%s briefing text: %d chars", lang.upper(), len(briefing_text))
+
+            # TTS
+            audio_path = day_dir / f"audio-{lang}-{date_str}.mp3"
+            tts_result = None
+            if lang == "en":
+                tts_result = generate_tts_en(chirp, briefing_text, audio_path, cost)
+            elif lang == "ko":
+                tts_result = generate_tts_ko(chirp, briefing_text, audio_path, cost)
+
+            if not tts_result:
+                log.error("%s TTS failed — skipping", lang.upper())
+                continue
+
+            # Sentence timestamps
+            sentences = None
+            try:
+                sentences = extract_sentences(tts_result.path, lang, original_text=briefing_text)
+            except Exception as e:
+                log.warning("Alignment failed for %s: %s", lang.upper(), e)
+
+            # Upload audio
+            audio_url = None
+            if not args.skip_db:
+                try:
+                    audio_url = upload_audio_to_storage(sb, tts_result.path, lang)
+                except Exception as e:
+                    log.warning("Audio upload failed for %s: %s", lang.upper(), e)
+
+            # Update DB (upsert with existing text + new audio/sentences)
+            if not args.skip_db:
+                record: dict = {
+                    "date": str(target),
+                    "category": lang.upper(),
+                    "briefing_text": briefing_text,
+                    "item_count": row["item_count"],
+                    "model": row["model"],
+                }
+                if tts_result:
+                    record["audio_duration"] = int(tts_result.duration_sec)
+                if chapters is not None:
+                    record["chapters"] = chapters
+                if audio_url:
+                    record["audio_url"] = audio_url
+                if sentences is not None:
+                    record["sentences"] = sentences
+                sb.table("wsj_briefings").upsert(
+                    record, on_conflict="date,category"
+                ).execute()
+                log.info("Updated %s briefing in DB (audio + sentences)", lang.upper())
+
+        print_cost_summary(cost)
+        log.info("Regen audio done!")
+        return
 
     if not args.dry_run:
         validate_env_vars(args.lang, args.skip_tts)
@@ -1603,8 +1804,12 @@ def main() -> None:
         log.info("DRY RUN complete — %d articles would be used", len(articles))
         return
 
-    # --- Step 3: LLM curation ---
-    curated_ids = curate_articles(gemini, items, crawl_map, llm_map, cost)
+    # --- Step 3: LLM curation + importance re-rank ---
+    curated_ids, importance_array = curate_articles(gemini, items, crawl_map, llm_map, cost)
+
+    # Save re-ranked importance to DB
+    if not args.skip_db and importance_array:
+        save_importance_reranked(sb, items, crawl_map, importance_array)
 
     # --- Step 4: Assemble articles ---
     articles = assemble_articles(items, crawl_map, llm_map, curated_ids)
