@@ -1,0 +1,275 @@
+================================================================================
+WSJ TITLE: Walmart Sales Climb, Driven by Grocery and Online Gains
+QUERY:     Walmart sales grocery
+MATCHED:   YES
+
+--- Result 1 ---
+Title:       Walmart, Dollar Stores Beat Traditional Grocers' Reach As Affordability Crunch Intensifies, Report Finds
+Source:      Benzinga
+Date:        2026-02-18T13:28:47Z
+URL:         https://www.benzinga.com/news/retail-sales/26/02/50683948/walmart-dollar-stores-beat-traditional-grocers-reach-as-affordability-crunch-intensifies-report-finds
+Image:       https://cdn.benzinga.com/files/images/story/2026/02/18/Nov-23--2019-Mountain-View-----Ca----Usa.jpeg?width=1200&height=800&fit=crop
+
+DESCRIPTION (219 chars):
+As financial insecurity among Americans aged 18-54 continues to rise, Walmart (NYSE: WMT) has seen its grocery penetration in the U.S. reach a record 72%, according to the latest dunnhumby Consumer Trends Tracker (CTT).
+
+FULL CONTENT (266 chars):
+A new Consumer Trends Tracker from data analytics firm dunnhumby released on Wednesday shows that more U.S. households are reorganizing where they shop in response to tightening budgets.
+Mass-market retailers and dollar stores are drawing more custom... [2582 chars]
+
+--- Result 2 ---
+Title:       Walmart, Target earnings put focus on new CEOs Furner, Fiddelke
+Source:      CNBC
+Date:        2026-02-18T12:00:01Z
+URL:         https://www.cnbc.com/2026/02/18/walmart-target-earnings-new-ceos-furner-fiddelke.html
+Image:       https://image.cnbcfm.com/api/v1/image/108265150-1770920796303-Untitled-4.jpg?v=1771370241&w=1920&h=1080
+
+DESCRIPTION (127 chars):
+The two big-box retailers are contending with the same economic backdrop, yet Target is trying to prove it can make a comeback.
+
+FULL CONTENT (266 chars):
+Walmart (L) | Getty Images (R)
+When Walmart and Target report holiday earnings this quarter, investors may quickly brush off those results.
+Instead, they will likely focus more on the two big-box retailers' futures under new CEOs and the outlook for ... [8946 chars]
+
+--- Result 3 ---
+Title:       Mega Millions Tuesday, Feb. 17, Mardi Gras jackpot at $395 million
+Source:      Gainesville Sun
+Date:        2026-02-17T23:30:33Z
+URL:         https://www.gainesville.com/story/news/2026/02/17/how-much-mega-millions-jackpot-mardi-gras-fat-tuesday-winning-lottery-numbers/88709354007/
+Image:       https://www.gainesville.com/gcdn/authoring/authoring-images/2026/02/05/USAT/88517847007-2115750628-1.jpg?crop=2999,1687,x0,y312&width=2999&height=1687&format=pjpg&auto=webp
+
+DESCRIPTION (147 chars):
+The Mardi Gras Mega Millions jackpot sits at $395 million for the Fat Tuesday drawing on Feb. 17, 2026. Check your tickets for the winning numbers!
+
+FULL CONTENT (266 chars):
+The Mega Millions jackpot has climbed to $395 million for the Fat Tuesday drawing.
+The cash option for the current jackpot is an estimated $183.3 million before taxes.
+The last time the Mega Millions jackpot was won was on December 2, 2025, for $90 m... [7829 chars]
+
+
+================================================================================
+WSJ TITLE: Klarna Swings to Loss Despite Jump in Revenue
+QUERY:     Klarna loss revenue
+MATCHED:   NO
+(no results)
+
+================================================================================
+WSJ TITLE: U.S. Trade Deficit Grew in December
+QUERY:     US trade deficit
+MATCHED:   YES
+
+--- Result 1 ---
+Title:       Trump claims 78 per cent drop in US trade deficit; credits tariffs for economic shift
+Source:      The Tribune
+Date:        2026-02-19T04:10:53Z
+URL:         https://www.tribuneindia.com/news/world/trump-claims-78-per-cent-drop-in-us-trade-deficit-credits-tariffs-for-economic-shift/
+Image:       https://www.tribuneindia.com/sortd-service/imaginary/v22-01/jpg/large/high?url=dGhldHJpYnVuZS1zb3J0ZC1wcm8tcHJvZC1zb3J0ZC9tZWRpYWZmODNhNTIwLTBkNDgtMTFmMS1hN2NkLWExNzYyOTNmNDNjZS5qcGc=
+
+DESCRIPTION (337 chars):
+President Donald Trump claimed the US trade deficit shrank by 78 per cent due to tariffs. However, official data showed the deficit rebounded sharply in November last year. Reports highlighted trade volatility, falling exports, rising imports, and economists' warnings about temporary fluctuations and potential risks to economic growth.
+
+FULL CONTENT (266 chars):
+Washington, DC [US], February 19 (ANI): US President Donald Trump on Wednesday (local time) claimed that the nation's trade deficit has witnessed a sharp contraction of 78 per cent. He attributed the shift to the implementation of tariffs on various ... [2555 chars]
+
+--- Result 2 ---
+Title:       Trump says tariffs reduced US trade deficit by 78%, predicts surplus in 2026
+Source:      Moneycontrol
+Date:        2026-02-19T02:22:44Z
+URL:         https://www.moneycontrol.com/world/trump-says-tariffs-reduced-us-trade-deficit-by-78-predicts-surplus-in-2026-article-13834960.html
+Image:       https://images.moneycontrol.com/static-mcnews/2026/02/20260206210938_trumponinran.png
+
+DESCRIPTION (128 chars):
+Donald Trump said US tariffs cut the trade deficit by 78% and predicted the country could enter trade surplus territory by 2026.
+
+FULL CONTENT (265 chars):
+US President Donald Trump has claimed that American trade tariffs have sharply reduced the country’s trade deficit and that the United States could record its first trade surplus in decades by 2026.
+In a post on social media, Trump said the US trade ... [337 chars]
+
+--- Result 3 ---
+Title:       Donald Trump lauds ‘Liberation Day’ tariffs, says trade deficit contracted 78% ahead of official data release
+Source:      Livemint
+Date:        2026-02-19T02:05:34Z
+URL:         https://www.livemint.com/news/us-news/donald-trump-us-trade-deficit-trade-data-trump-tariffs-export-data-11771464891857.html
+Image:       https://www.livemint.com/lm-img/img/2026/02/19/1600x900/logo/Trump-19_1770858000094_1770858010153_1771466703216.jpg
+
+DESCRIPTION (299 chars):
+Donald Trump claims the US trade deficit has fallen 78% due to tariffs and may turn positive this year. However, 2025 data show continued deficits despite lower Chinese imports. A Federal Reserve study finds that most tariff costs were borne by US businesses and consumers, not by foreign exporters.
+
+FULL CONTENT (266 chars):
+US President Donald Trump on Wednesday (local time) said the country's trade deficit has contracted sharply by 78% due to tariffs imposed on companies and countries, calling it a first in many decades.
+In a post on Truth Social, he wrote, “The United... [3929 chars]
+
+
+================================================================================
+WSJ TITLE: Etsy Posts Lower Profit Despite Higher Revenue
+QUERY:     Etsy profit revenue
+MATCHED:   NO
+(no results)
+
+================================================================================
+WSJ TITLE: Hims & Hers to Acquire Eucalyptus in $1.15 Billion Deal
+QUERY:     Hims Hers Eucalyptus
+MATCHED:   NO
+(no results)
+
+================================================================================
+WSJ TITLE: Former Prince Andrew Arrested Amid Epstein Probe
+QUERY:     Prince Andrew arrested Epstein
+MATCHED:   YES
+
+--- Result 1 ---
+Title:       prince Andrew in historic blow to royal family
+Source:      Breitbart News Network
+Date:        2026-02-19T05:56:26Z
+URL:         https://www.breitbart.com/news/uk-police-arrest-ex-prince-andrew-in-historic-blow-to-royal-family/
+Image:       https://media.breitbart.com/media/2026/02/wi/afp/epstein-accuser-virginia-giuffre-claimed-trafficked-sex-andrew-times-including-640x335.jpg
+
+DESCRIPTION (146 chars):
+Britain's former prince Andrew was arrested Thursday on suspicion of misconduct during his time as a trade envoy, as UK police investigations into
+
+FULL CONTENT (266 chars):
+Britain’s former prince Andrew was arrested Thursday on suspicion of misconduct during his time as a trade envoy, as UK police investigations into allegations emerging from the Jeffrey Epstein files gathered pace.
+The arrest of a royal family member ... [4432 chars]
+
+--- Result 2 ---
+Title:       Former prince Andrew, a historic downfall
+Source:      Breitbart News Network
+Date:        2026-02-19T04:56:38Z
+URL:         https://www.breitbart.com/news/former-prince-andrew-a-historic-downfall/
+Image:       https://media.breitbart.com/media/2026/02/wi/afp/andrew-mountbatten-windsors-arrest-marks-royal-arrest-modern-era-andrew-mountbatten-windsor-arrest-640x335.jpg
+
+DESCRIPTION (154 chars):
+Former British prince Andrew's inexorable fall from grace has reached an extraordinary new low as he becomes the first member of the UK royal family to be
+
+FULL CONTENT (266 chars):
+Former British prince Andrew’s inexorable fall from grace has reached an extraordinary new low as he becomes the first member of the UK royal family to be arrested in the modern era.
+Andrew Mountbatten-Windsor, as he is now known, had already been st... [4501 chars]
+
+--- Result 3 ---
+Title:       The former Prince Andrew went from helicopter pilot to trade envoy to royal pariah
+Source:      Breitbart News Network
+Date:        2026-02-19T04:41:50Z
+URL:         https://www.breitbart.com/news/the-former-prince-andrew-went-from-helicopter-pilot-to-trade-envoy-to-royal-pariah/
+Image:       https://media.breitbart.com/media/2026/02/wi/ap/britain-epstein-andrew-26201-britain-epstein-andrew-prince-andrew-leaves-st-giles-cathedral-arrival-640x335.jpg
+
+DESCRIPTION (153 chars):
+The former Prince Andrew is the first senior British royal in modern history to be arrested by police The former Prince Andrew went from helicopter pilot
+
+FULL CONTENT (266 chars):
+The former Prince Andrew is the first senior British royal in modern history to be arrested by police
+The former Prince Andrew went from helicopter pilot to trade envoy to royal pariahBy JILL LAWLESSAssociated PressThe Associated PressLONDON
+LONDON (... [2957 chars]
+
+
+================================================================================
+WSJ TITLE: Wayfair Loss Narrows as Revenue Rises on U.S. Growth
+QUERY:     Wayfair loss revenue
+MATCHED:   NO
+(no results)
+
+================================================================================
+WSJ TITLE: Rio Tinto Spotlights Growth Plans After Failed Glencore Megadeal Talks
+QUERY:     Rio Tinto Glencore
+MATCHED:   YES
+
+--- Result 1 ---
+Title:       Rio Tinto Annual Net Profit Down 14%; Underlying Earnings, Payout Flat
+Source:      MarketScreener
+Date:        2026-02-19T06:14:20Z
+URL:         https://www.marketscreener.com/news/rio-tinto-annual-net-profit-down-14-underlying-earnings-payout-flat-ce7e5ddfdc8ef42c
+Image:       https://www.marketscreener.com/images/twitter_MS_fdblanc.png
+
+DESCRIPTION (187 chars):
+By Rhiannon Hoyle
+Rio Tinto on Thursday reported a 14% drop in annual net profit, but kept its full-year payout to shareholders flat as underlying earnings remained steady.
+The world's...
+
+FULL CONTENT (266 chars):
+By Rhiannon Hoyle
+Rio Tinto on Thursday reported a 14% drop in annual net profit, but kept its full-year payout to shareholders flat as underlying earnings remained steady.
+The world's second-biggest miner by market value said it made a net profit of... [2000 chars]
+
+--- Result 2 ---
+Title:       Rio Tinto misses profit view on iron ore challenges
+Source:      PerthNow
+Date:        2026-02-19T06:11:59Z
+URL:         https://www.perthnow.com.au/news/business/rio-tinto-misses-profit-view-on-iron-ore-challenges-c-21690967
+Image:       https://images.perthnow.com.au/publication/C-21690967/bd0a20c74625f908a353f99b880aeaa3d3be223c-16x9-x0y0w1280h720.jpg?imwidth=1200
+
+DESCRIPTION (149 chars):
+Weaker iron ore prices have dug into mining giant Rio Tinto's underlying profit, although stronger copper prices ensured the fall wasn't more severe.
+
+FULL CONTENT (266 chars):
+Rio Tinto has missed expectations for annual underlying profit as weaker iron ore prices amid rising global supply weighed on its core business, though stronger copper prices and output limited the impact.
+The world's largest iron ore producer, which... [1224 chars]
+
+--- Result 3 ---
+Title:       Rio Tinto's annual profit flat as copper strength offsets weaker iron ore
+Source:      Reuters
+Date:        2026-02-19T05:29:39Z
+URL:         https://www.reuters.com/business/rio-tintos-annual-profit-flat-copper-strength-offsets-weaker-iron-ore-2026-02-19/
+Image:       https://www.reuters.com/resizer/v2/7LQBJOT4QNP7DM32OKOJ5GQPQA.jpg?auth=d1bc53a9103b271fc85af7432162001fe01a65d848c3e86bb57a00f3f1d2932b&height=1005&width=1920&quality=80&smart=true
+
+DESCRIPTION (221 chars):
+Rio Tinto , posted a flat full‑year profit on Thursday as stronger copper prices and higher output countered softer iron ore markets, with its flagship iron ore division still feeling the impact of mounting global supply.
+
+FULL CONTENT (265 chars):
+Feb 19 (Reuters) - Rio Tinto (RIO.AX), opens new tab, (RIO.L), opens new tab posted a flat full‑year profit on Thursday as stronger copper prices and higher output countered softer iron ore markets, with its flagship iron ore division still feeling t... [434 chars]
+
+
+================================================================================
+WSJ TITLE: Elizabeth Warren Has Questions About the Shake-Up Inside the Fed's Banking Regulator
+QUERY:     Elizabeth Warren Fed regulator
+MATCHED:   NO
+(no results)
+
+================================================================================
+WSJ TITLE: Nestle to Shed Ice-Cream Business in Shakeup
+QUERY:     Nestle ice cream business
+MATCHED:   YES
+
+--- Result 1 ---
+Title:       Nestle reports better-than-expected Q4 sales growth, plans ice cream sale
+Source:      Reuters
+Date:        2026-02-19T06:10:41Z
+URL:         https://www.reuters.com/business/nestle-reports-better-than-expected-q4-sales-growth-plans-ice-cream-sale-2026-02-19/
+Image:       https://www.reuters.com/resizer/v2/SGLHOCWJWNKFZCWCPJKCURUAVU.jpg?auth=9937e42a927cce78968a17bfaf267b444f24a5424d9e5151ead0b2d06d0a7000&height=1005&width=1920&quality=80&smart=true
+
+DESCRIPTION (260 chars):
+Nestle reported better than expected fourth-quarter sales growth on Thursday and said it was sharpening its focus to four businesses led by its strongest brands, a strategy that includes plans to sell off its remaining ice cream business to JV partner Froneri.
+
+FULL CONTENT (266 chars):
+Nestle, the maker of Maggi stock cubes and Nescafe coffee, said it was expecting 2026 full-year organic sales to be in the range of 3-4%, and forecast an improvement in its underlying trading operating profit margin this year, from 16.1% in 2025.
+Sig... [1554 chars]
+
+--- Result 2 ---
+Title:       Nestle weighs reducing exposure to ice cream business, Bloomberg News reports
+Source:      Reuters
+Date:        2026-02-18T19:24:34Z
+URL:         https://www.reuters.com/business/nestle-weighs-reducing-exposure-ice-cream-business-bloomberg-news-reports-2026-02-18/
+Image:       https://www.reuters.com/resizer/v2/SGLHOCWJWNKFZCWCPJKCURUAVU.jpg?auth=9937e42a927cce78968a17bfaf267b444f24a5424d9e5151ead0b2d06d0a7000&height=1005&width=1920&quality=80&smart=true
+
+DESCRIPTION (189 chars):
+Nestle is weighing a smaller presence in the ice cream business and has been reviewing options, including a possible reduction of its stake in Froneri, Bloomberg News reported on Wednesday.
+
+FULL CONTENT (265 chars):
+The Switzerland-based food and drink maker may also consider selling some of its remaining fully-owned ice cream operations to the Froneri venture, the report added, citing people with knowledge of the matter.
+Sign up here.
+Nestle declined to comment... [489 chars]
+
+--- Result 3 ---
+Title:       Nestlé Weighs Reducing Exposure to Ice Cream Business
+Source:      Bloomberg
+Date:        2026-02-18T17:58:46Z
+URL:         https://www.bloomberg.com/news/articles/2026-02-18/nestle-weighs-reducing-exposure-to-ice-cream-business
+Image:       https://assets.bwbx.io/images/users/iqjWHBFdfxIU/iRPQTWAugc4g/v1/1200x800.jpg
+
+DESCRIPTION (216 chars):
+Nestlé SA is considering further reducing its footprint in the ice cream business, as new Chief Executive Officer Philipp Navratil reviews the company’s sprawling operations, people with knowledge of the matter said.
+
+FULL CONTENT (265 chars):
+Nestlé SA is considering further reducing its footprint in the ice cream business, as new Chief Executive Officer Philipp Navratil reviews the company’s sprawling operations, people with knowledge of the matter said.
+The Swiss food giant has been stu... [337 chars]
+
+
