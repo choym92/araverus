@@ -827,6 +827,143 @@ def upload_audio_to_storage(sb, mp3_path: Path, lang: str) -> str:
 
 
 # ---------------------------------------------------------------------------
+# Korean number preprocessing for TTS
+# ---------------------------------------------------------------------------
+
+# Digits and positional units for Korean number system
+_KO_DIGITS = ["", "일", "이", "삼", "사", "오", "육", "칠", "팔", "구"]
+_KO_SMALL_UNITS = ["", "십", "백", "천"]
+_KO_BIG_UNITS = ["", "만", "억", "조"]
+
+# English proper nouns with numbers — protect from conversion
+_PROTECTED_NOUNS_RE = re.compile(
+    r"(?:S&P\s*500|Nasdaq\s*100|Fortune\s*500|Russell\s*2000|401\s*\(?\s*k\s*\)?)",
+    re.IGNORECASE,
+)
+
+
+def _int_to_ko(n: int) -> str:
+    """Convert a non-negative integer to Korean reading (sino-Korean).
+
+    Examples: 0 → '영', 1 → '일', 10 → '십', 1330 → '천삼백삼십'
+    """
+    if n == 0:
+        return "영"
+    if n < 0:
+        return "마이너스 " + _int_to_ko(-n)
+
+    result = ""
+    big_idx = 0
+
+    while n > 0:
+        chunk = n % 10000
+        n //= 10000
+
+        if chunk > 0:
+            chunk_str = ""
+            for pos in range(4):
+                digit = chunk % 10
+                chunk //= 10
+                if digit == 0:
+                    continue
+                unit = _KO_SMALL_UNITS[pos]
+                # Drop leading 일 for 십/백/천 (e.g., 십 not 일십)
+                if digit == 1 and pos > 0:
+                    chunk_str = unit + chunk_str
+                else:
+                    chunk_str = _KO_DIGITS[digit] + unit + chunk_str
+
+            big_unit = _KO_BIG_UNITS[big_idx]
+            result = chunk_str + big_unit + result
+
+        big_idx += 1
+
+    return result
+
+
+def _preprocess_ko_numbers(text: str) -> str:
+    """Convert numeric patterns in Korean text to Korean words for TTS.
+
+    Processing order matters — specific patterns first, generic last.
+    Protects English proper nouns (S&P 500, Nasdaq 100, etc.).
+    """
+    # Step 0: Protect English proper nouns with placeholder tokens
+    protected: list[str] = []
+
+    def _protect(m: re.Match) -> str:
+        protected.append(m.group(0))
+        return f"\x00PROT{len(protected) - 1}\x00"
+
+    text = _PROTECTED_NOUNS_RE.sub(_protect, text)
+
+    # Step 1: Dates — YYYY년, M월, D일
+    def _date_year(m: re.Match) -> str:
+        return _int_to_ko(int(m.group(1).replace(",", ""))) + "년"
+
+    def _date_month(m: re.Match) -> str:
+        return _int_to_ko(int(m.group(1))) + "월"
+
+    def _date_day(m: re.Match) -> str:
+        return _int_to_ko(int(m.group(1))) + "일"
+
+    text = re.sub(r"(\d{4})년", _date_year, text)
+    text = re.sub(r"(\d{1,2})월", _date_month, text)
+    # Negative lookbehind: don't convert "억일" (unit+일) — only standalone N일
+    text = re.sub(r"(?<![조억만천백십])(\d{1,2})일", _date_day, text)
+
+    # Step 2: Percentages — N% or N.N%
+    def _pct(m: re.Match) -> str:
+        num_str = m.group(1).replace(",", "")
+        if "." in num_str:
+            integer, decimal = num_str.split(".", 1)
+            ko = _int_to_ko(int(integer)) + "점"
+            ko += "".join(_KO_DIGITS[int(d)] if d.isdigit() else d for d in decimal)
+        else:
+            ko = _int_to_ko(int(num_str))
+        return ko + " 퍼센트"
+
+    text = re.sub(r"(\d[\d,]*\.?\d*)%", _pct, text)
+
+    # Step 3: Korean unit numbers — N조, N억, N만, N천, N백
+    def _unit_num(m: re.Match) -> str:
+        num_str = m.group(1).replace(",", "")
+        unit = m.group(2)
+        if "." in num_str:
+            integer, decimal = num_str.split(".", 1)
+            ko = _int_to_ko(int(integer)) + "점"
+            ko += "".join(_KO_DIGITS[int(d)] if d.isdigit() else d for d in decimal)
+        else:
+            ko = _int_to_ko(int(num_str))
+        return ko + unit
+
+    text = re.sub(r"(\d[\d,]*\.?\d*)(조|억|만|천|백)", _unit_num, text)
+
+    # Step 4: Comma-separated numbers without unit (e.g., 1,234)
+    def _comma_num(m: re.Match) -> str:
+        num_str = m.group(0).replace(",", "")
+        return _int_to_ko(int(num_str))
+
+    text = re.sub(r"\d{1,3}(?:,\d{3})+(?![.\d%조억만천백])", _comma_num, text)
+
+    # Step 5: Decimal numbers (e.g., 71.01) — only multi-digit to avoid false positives
+    def _decimal(m: re.Match) -> str:
+        integer, decimal = m.group(1), m.group(2)
+        ko = _int_to_ko(int(integer)) + "점"
+        ko += "".join(_KO_DIGITS[int(d)] if d.isdigit() else d for d in decimal)
+        return ko
+
+    text = re.sub(r"(\d{2,})\.(\d+)", _decimal, text)
+
+    # Step 6: Restore protected tokens
+    def _restore(m: re.Match) -> str:
+        return protected[int(m.group(1))]
+
+    text = re.sub(r"\x00PROT(\d+)\x00", _restore, text)
+
+    return text
+
+
+# ---------------------------------------------------------------------------
 # TTS generation
 # ---------------------------------------------------------------------------
 
@@ -949,6 +1086,7 @@ def generate_tts_ko(
     from google.cloud import texttospeech
 
     cost.ko_tts_chars += len(text)
+    text = _preprocess_ko_numbers(text)
 
     # Split into sentences, then group into byte-safe chunks
     # Chirp 3 HD limit is 5000 bytes; Korean UTF-8 ≈ 3 bytes/char
