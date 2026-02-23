@@ -1,4 +1,4 @@
-<!-- Updated: 2026-02-22 -->
+<!-- Updated: 2026-02-23 -->
 # News Platform — Backend & Pipeline
 
 Single source of truth for the finance news pipeline: ingestion, crawling, analysis, briefing generation.
@@ -216,11 +216,14 @@ python generate_briefing.py                    # Full run (EN+KO)
 python generate_briefing.py --date 2026-02-13  # Specific date
 python generate_briefing.py --lang ko --skip-tts
 python generate_briefing.py --dry-run
+python generate_briefing.py --date 2026-02-23 --regen-audio  # Redo TTS+timestamps from existing DB text
 ```
 
 - **LLM:** Gemini 2.5 Pro (curation + generation, temp 0.6, think 4K)
-- **TTS EN:** Google Cloud Chirp 3 HD (`en-US-Chirp3-HD-Alnilam`)
-- **TTS KO:** Google Cloud Chirp 3 HD (`ko-KR-Chirp3-HD-Kore`)
+- **TTS EN:** Google Cloud Chirp 3 HD (`en-US-Chirp3-HD-Alnilam`), Whisper alignment (CPU)
+- **TTS KO:** Google Cloud Chirp 3 HD (`ko-KR-Chirp3-HD-Kore`), byte-aware chunking (4800 byte limit), CTC forced alignment + Whisper hybrid correction
+- **Timestamps:** KO uses CTC forced alignment (ctc-forced-aligner) with Whisper drift correction; EN uses Whisper transcription with original text mapping
+- **`--regen-audio`:** Fetches existing briefing text from DB, regenerates TTS + timestamps + uploads without re-running article fetch/curation/LLM
 - **Output:** `scripts/output/briefings/{date}/`
 
 ### Shared Utilities
@@ -264,7 +267,11 @@ stateDiagram-v2
 
 ### Domain Failure Taxonomy
 
-`wsj_domain_status.fail_counts` tracks per-reason failures as JSONB. Only **infrastructure failures** count toward auto-blocking — parser/content issues are not the domain's fault.
+`wsj_domain_status.fail_counts` tracks per-reason failures as JSONB. Auto-blocking triggers on:
+1. **Infrastructure failures** (wilson < 0.15): only `http error` and `timeout or network error`
+2. **Content quality** (avg_llm_score < 3.0, ≥5 samples): crawl succeeds but content is consistently irrelevant
+
+"domain blocked" errors are excluded from counts entirely (circular). Parser/content issues don't count toward blocking.
 
 | Key | Cause | Blockable? |
 |-----|-------|-----------|
@@ -370,6 +377,6 @@ Mac Mini loads secrets from `.env.pipeline` or macOS Keychain.
 | EN Briefing (2.5 Pro) | $0.051 | $1.53 |
 | KO Briefing (2.5 Pro) | $0.063 | $1.89 |
 | EN TTS (Chirp 3 HD) | $0.144 | $4.32 |
-| ~~KO TTS (Gemini Pro Preview TTS)~~ | ~~$0.360~~ | ~~$10.80~~ |
+| ~~KO TTS (Gemini Pro Preview)~~ | ~~$0.360~~ | ~~$10.80~~ |
 | KO TTS (Chirp 3 HD) | $0.080 | $2.40 |
 | **Total** | **~$0.35** | **~$11/month** |

@@ -166,8 +166,8 @@ created_at        TIMESTAMPTZ   -- auto: now()
 ```
 
 ### `wsj_domain_status` — Domain Quality Tracking
-**Written by**: `wsj_ingest.py` → `cmd_update_domain_status()` and `llm_analysis.py` → `update_domain_llm_failure()`
-**Pipeline step**: Job 4 (save-results) — `python wsj_ingest.py --update-domain-status`
+**Written by**: `domain_utils.py` → `cmd_update_domain_status()` (aggregation) and `reset_domain_status.py` (one-time reset)
+**Pipeline step**: Job 4 (save-results) — `python domain_utils.py --update-domain-status`
 
 ```sql
 domain              TEXT PRIMARY KEY  -- e.g., "finance.yahoo.com"
