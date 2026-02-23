@@ -1,4 +1,4 @@
-<!-- Updated: 2026-02-22 -->
+<!-- Updated: 2026-02-23 -->
 <!-- Phase: News UX enhancement (migrations 007-009) -->
 # Database Schema (araverus)
 
@@ -170,28 +170,32 @@ created_at        TIMESTAMPTZ   -- auto: now()
 **Pipeline step**: Job 4 (save-results) — `python wsj_ingest.py --update-domain-status`
 
 ```sql
-domain           TEXT PRIMARY KEY  -- e.g., "finance.yahoo.com"
-status           TEXT         -- active | blocked
-failure_type     TEXT         -- last error text (legacy, kept for compat)
-fail_count       INT          -- total crawl failures
-fail_counts      JSONB        -- per-reason failure counts: {"content too short": 3, "paywall": 1, ...}
-success_count    INT          -- total crawl successes
-last_failure     TIMESTAMPTZ
-last_success     TIMESTAMPTZ
-block_reason     TEXT         -- e.g., "Auto-blocked: wilson=0.05 < 0.15 (2/10 blockable, 20% overall)"
-llm_fail_count   INT          -- (legacy) LLM is_same_event=false count
-last_llm_failure TIMESTAMPTZ
-success_rate     NUMERIC      -- computed: success_count / (success_count + fail_count)
-weighted_score   NUMERIC      -- quality score combining success rate and volume
-wilson_score     NUMERIC      -- Wilson score 95% CI lower bound for true success rate
-search_hit_count INT DEFAULT 0 -- Google News appearance count (incremented by wsj_to_google_news.py per run)
-created_at       TIMESTAMPTZ
-updated_at       TIMESTAMPTZ
+domain              TEXT PRIMARY KEY  -- e.g., "finance.yahoo.com"
+status              TEXT         -- active | blocked
+fail_count          INT          -- total crawl failures (excludes "domain blocked" errors)
+fail_counts         JSONB        -- per-reason failure counts: {"content too short": 3, "paywall": 1, ...}
+success_count       INT          -- total crawl successes
+last_failure        TIMESTAMPTZ  -- actual crawl time (from crawl_results.created_at)
+last_success        TIMESTAMPTZ  -- actual crawl time (from crawl_results.created_at)
+block_reason        TEXT         -- e.g., "Auto-blocked: wilson=0.05 < 0.15 (...)"
+success_rate        NUMERIC      -- computed: success_count / (success_count + fail_count)
+wilson_score        NUMERIC      -- Wilson score 95% CI lower bound for true success rate
+avg_crawl_length    INT          -- average content length in chars (success crawls only)
+avg_embedding_score NUMERIC      -- average title embedding similarity (all crawls)
+avg_llm_score       NUMERIC      -- average LLM relevance score 0-10 (success + low_relevance)
+search_hit_count    INT DEFAULT 0 -- Google News appearance count (incremented per pipeline run)
+created_at          TIMESTAMPTZ
+updated_at          TIMESTAMPTZ
+-- Dropped columns (2026-02-23): failure_type, llm_fail_count, last_llm_failure, weighted_score
 ```
 
-**Auto-block rule**: `wilson_score < 0.15` (with `blockable_total >= 5`), where blockable = ONLY `http error` and `timeout or network error`. All other failures (parser issues, content mismatches, circular "domain blocked") are excluded — they're not the domain's fault.
+**Auto-block rules** (either triggers blocking):
+1. `wilson_score < 0.15` (with `blockable_total >= 5`), where blockable = ONLY `http error` and `timeout or network error`
+2. `avg_llm_score < 3.0` (with `>= 5` LLM-scored samples) — crawl succeeds but content is consistently irrelevant
+
 **Manual block protection**: Domains with `block_reason` not starting with "Auto-blocked:" are never overwritten by auto-block logic (preserves JSON-migrated and hand-added blocks).
-**Failure taxonomy** (fail_counts keys): `content too short`, `paywall`, `css/js instead of content`, `copyright or unavailable`, `repeated content`, `empty content`, `http error`, `domain blocked`, `social media`, `too many links`, `navigation/menu content`, `boilerplate content`, `content too long`, `timeout or network error`, `low relevance`, `llm rejected`.
+**"domain blocked" handling**: Rows with `crawl_error = "Domain blocked (DB)"` are excluded from success/fail counts (circular), but the domain is preserved as `status='blocked'`.
+**Failure taxonomy** (fail_counts keys): `content too short`, `paywall`, `css/js instead of content`, `copyright or unavailable`, `repeated content`, `empty content`, `http error`, `social media`, `too many links`, `navigation/menu content`, `boilerplate content`, `content too long`, `timeout or network error`, `low relevance`, `llm rejected`.
 **Search hit tracking**: `search_hit_count` incremented each time domain appears in Google News results, used to prioritize `-site:` exclusions.
 
 ### `wsj_briefings` — Daily Briefing Output (Phase 2)

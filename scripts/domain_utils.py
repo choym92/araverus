@@ -312,7 +312,7 @@ def cmd_update_domain_status() -> None:
     batch_size = 1000
     while True:
         response = supabase.table('wsj_crawl_results') \
-            .select('resolved_domain, crawl_status, crawl_error, relevance_flag') \
+            .select('resolved_domain, crawl_status, crawl_error, relevance_flag, created_at, crawl_length, embedding_score, llm_score') \
             .not_.is_('resolved_domain', 'null') \
             .range(offset, offset + batch_size - 1) \
             .execute()
@@ -332,9 +332,20 @@ def cmd_update_domain_status() -> None:
     # NOTE: Only count as success if crawl_status='success' AND relevance_flag='ok'
     # All other terminal states are failures, tracked by normalized reason
     domain_stats: dict = {}
+    skipped_blocked = 0
+    domains_with_block_errors: set[str] = set()  # Domains that had "domain blocked" crawl errors
     for row in all_rows:
         domain = row.get('resolved_domain')
         if not domain:
+            continue
+
+        crawl_error = row.get('crawl_error')
+
+        # "domain blocked" rows: don't count as success or fail (circular),
+        # but track the domain so it stays blocked
+        if normalize_crawl_error(crawl_error) == "domain blocked":
+            skipped_blocked += 1
+            domains_with_block_errors.add(domain)
             continue
 
         if domain not in domain_stats:
@@ -343,27 +354,48 @@ def cmd_update_domain_status() -> None:
                 'fail_count': 0,
                 'fail_counts': {},  # Per-reason JSONB: {"content too short": 3, ...}
                 'last_error': None,
+                'last_success_at': None,  # Actual crawl timestamp
+                'last_failure_at': None,  # Actual crawl timestamp
+                'crawl_lengths': [],      # For avg_crawl_length (success only)
+                'embedding_scores': [],   # For avg_embedding_score (all rows)
+                'llm_scores': [],         # For avg_llm_score (success only)
             }
 
         crawl_status = row.get('crawl_status')
         relevance_flag = row.get('relevance_flag')
-        crawl_error = row.get('crawl_error')
+        row_ts = row.get('created_at')  # Actual crawl time from DB
+
+        # Collect scores for averages (regardless of success/fail)
+        if row.get('embedding_score') is not None:
+            domain_stats[domain]['embedding_scores'].append(row['embedding_score'])
 
         if crawl_status == 'success' and relevance_flag == 'ok':
             domain_stats[domain]['success_count'] += 1
+            if row.get('crawl_length'):
+                domain_stats[domain]['crawl_lengths'].append(row['crawl_length'])
+            if row.get('llm_score') is not None:
+                domain_stats[domain]['llm_scores'].append(row['llm_score'])
+            if row_ts and (not domain_stats[domain]['last_success_at'] or row_ts > domain_stats[domain]['last_success_at']):
+                domain_stats[domain]['last_success_at'] = row_ts
         elif crawl_status in ('failed', 'error', 'resolve_failed', 'garbage', 'low_relevance'):
             reason = normalize_crawl_error(crawl_error or crawl_status)
             domain_stats[domain]['fail_count'] += 1
             domain_stats[domain]['fail_counts'][reason] = domain_stats[domain]['fail_counts'].get(reason, 0) + 1
             domain_stats[domain]['last_error'] = crawl_error or crawl_status
+            if row_ts and (not domain_stats[domain]['last_failure_at'] or row_ts > domain_stats[domain]['last_failure_at']):
+                domain_stats[domain]['last_failure_at'] = row_ts
         elif crawl_status == 'success' and relevance_flag == 'low':
             # Low relevance or LLM rejected
             reason = normalize_crawl_error(crawl_error) if crawl_error else 'low relevance'
             domain_stats[domain]['fail_count'] += 1
             domain_stats[domain]['fail_counts'][reason] = domain_stats[domain]['fail_counts'].get(reason, 0) + 1
             domain_stats[domain]['last_error'] = crawl_error or 'low relevance'
+            if row.get('llm_score') is not None:
+                domain_stats[domain]['llm_scores'].append(row['llm_score'])
+            if row_ts and (not domain_stats[domain]['last_failure_at'] or row_ts > domain_stats[domain]['last_failure_at']):
+                domain_stats[domain]['last_failure_at'] = row_ts
 
-    print(f"Found {len(domain_stats)} unique domains")
+    print(f"Found {len(domain_stats)} unique domains (skipped {skipped_blocked} 'domain blocked' rows)")
 
     # Wilson Score thresholds for auto-blocking
     WILSON_THRESHOLD = 0.15
@@ -387,6 +419,9 @@ def cmd_update_domain_status() -> None:
     blocked = 0
     manual_preserved = 0
 
+    LLM_SCORE_BLOCK_THRESHOLD = 3.0  # Block if avg_llm_score below this (with enough data)
+    LLM_SCORE_MIN_SAMPLES = 5        # Need at least this many LLM scores to block on quality
+
     for domain, stats in domain_stats.items():
         success = stats['success_count']
         fail = stats['fail_count']
@@ -396,17 +431,39 @@ def cmd_update_domain_status() -> None:
         # Calculate success rate (all failures)
         success_rate = success / total if total > 0 else 0
 
+        # Compute averages for new columns
+        avg_crawl_length = (
+            round(sum(stats['crawl_lengths']) / len(stats['crawl_lengths']))
+            if stats['crawl_lengths'] else None
+        )
+        avg_embedding_score = (
+            round(sum(stats['embedding_scores']) / len(stats['embedding_scores']), 4)
+            if stats['embedding_scores'] else None
+        )
+        avg_llm_score = (
+            round(sum(stats['llm_scores']) / len(stats['llm_scores']), 2)
+            if stats['llm_scores'] else None
+        )
+
         # Blockable failures: exclude content_mismatch reasons (low relevance, llm rejected)
         blockable_fail = sum(v for k, v in fail_counts.items() if is_blockable_failure(k))
         blockable_total = success + blockable_fail
         wilson = wilson_lower_bound(success, blockable_total)
 
-        # Auto-block only if blockable failures are high enough
-        should_block = blockable_total >= MIN_ATTEMPTS and wilson < WILSON_THRESHOLD
+        # Auto-block: Wilson score on http/timeout failures OR consistently low LLM quality
+        should_block_wilson = blockable_total >= MIN_ATTEMPTS and wilson < WILSON_THRESHOLD
+        should_block_quality = (
+            avg_llm_score is not None
+            and len(stats['llm_scores']) >= LLM_SCORE_MIN_SAMPLES
+            and avg_llm_score < LLM_SCORE_BLOCK_THRESHOLD
+        )
+        should_block = should_block_wilson or should_block_quality
         status = 'blocked' if should_block else 'active'
 
-        if should_block:
+        if should_block_wilson:
             block_reason = f"Auto-blocked: wilson={wilson:.3f} < {WILSON_THRESHOLD} ({success}/{blockable_total} blockable, {success_rate:.0%} overall)"
+        elif should_block_quality:
+            block_reason = f"Auto-blocked: avg_llm_score={avg_llm_score:.1f} < {LLM_SCORE_BLOCK_THRESHOLD} ({len(stats['llm_scores'])} samples)"
         else:
             block_reason = None
 
@@ -426,18 +483,20 @@ def cmd_update_domain_status() -> None:
             'success_count': success,
             'fail_count': fail,
             'fail_counts': json.dumps(fail_counts),
-            'failure_type': stats['last_error'][:100] if stats['last_error'] else None,
             'block_reason': block_reason,
             'success_rate': round(success_rate, 4),
             'wilson_score': round(wilson, 4),
+            'avg_crawl_length': avg_crawl_length,
+            'avg_embedding_score': avg_embedding_score,
+            'avg_llm_score': avg_llm_score,
             'updated_at': now,
         }
 
-        # Add timestamps based on status
-        if success > 0:
-            record['last_success'] = now
-        if fail > 0:
-            record['last_failure'] = now
+        # Use actual crawl timestamps from DB (not aggregation run time)
+        if stats['last_success_at']:
+            record['last_success'] = stats['last_success_at']
+        if stats['last_failure_at']:
+            record['last_failure'] = stats['last_failure_at']
 
         try:
             supabase.table('wsj_domain_status').upsert(
@@ -450,14 +509,38 @@ def cmd_update_domain_status() -> None:
         except Exception as e:
             print(f"Error updating {domain}: {e}")
 
+    # Ensure domains with "domain blocked" errors stay blocked
+    # (they had no real crawl data, so they weren't in domain_stats)
+    block_preserved = 0
+    for domain in domains_with_block_errors:
+        if domain in domain_stats:
+            continue  # Already handled by main upsert
+        try:
+            supabase.table('wsj_domain_status').upsert(
+                {
+                    'domain': domain,
+                    'status': 'blocked',
+                    'block_reason': existing_blocked.get(domain) or 'Auto-blocked: only "domain blocked" crawl errors',
+                    'success_count': 0,
+                    'fail_count': 0,
+                    'updated_at': now,
+                },
+                on_conflict='domain',
+            ).execute()
+            block_preserved += 1
+        except Exception as e:
+            print(f"Error preserving blocked domain {domain}: {e}")
+
     print(f"\nUpdated {updated} domains in wsj_domain_status")
-    print(f"Auto-blocked {blocked} domains (wilson < {WILSON_THRESHOLD}, only http/timeout failures count)")
+    print(f"Auto-blocked {blocked} domains (wilson < {WILSON_THRESHOLD} or avg_llm_score < {LLM_SCORE_BLOCK_THRESHOLD})")
+    if block_preserved:
+        print(f"Preserved {block_preserved} domains with only 'domain blocked' errors")
     if manual_preserved:
         print(f"Preserved {manual_preserved} manually blocked domains")
 
-    # Show blocked domains
+    # Show auto-blocked domains
     if blocked > 0:
-        print("\nBlocked domains:")
+        print("\nAuto-blocked domains:")
         for domain, stats in domain_stats.items():
             success = stats['success_count']
             fail_counts = stats['fail_counts']
@@ -466,10 +549,18 @@ def cmd_update_domain_status() -> None:
             total = success + stats['fail_count']
             rate = success / total if total > 0 else 0
             wilson = wilson_lower_bound(success, blockable_total)
-            if blockable_total >= MIN_ATTEMPTS and wilson < WILSON_THRESHOLD:
-                top_reasons = sorted(fail_counts.items(), key=lambda x: x[1], reverse=True)[:3]
-                reasons_str = ", ".join(f"{k}={v}" for k, v in top_reasons)
-                print(f"  {domain}: wilson={wilson:.3f}, {rate:.0%} ({success}/{total}), [{reasons_str}]")
+            avg_llm = sum(stats['llm_scores']) / len(stats['llm_scores']) if stats['llm_scores'] else None
+
+            is_wilson_blocked = blockable_total >= MIN_ATTEMPTS and wilson < WILSON_THRESHOLD
+            is_quality_blocked = (
+                avg_llm is not None
+                and len(stats['llm_scores']) >= LLM_SCORE_MIN_SAMPLES
+                and avg_llm < LLM_SCORE_BLOCK_THRESHOLD
+            )
+            if is_wilson_blocked or is_quality_blocked:
+                reason = "wilson" if is_wilson_blocked else "quality"
+                llm_str = f", llm={avg_llm:.1f}" if avg_llm is not None else ""
+                print(f"  {domain}: [{reason}] wilson={wilson:.3f}, {rate:.0%} ({success}/{total}){llm_str}")
 
 
 def cmd_mark_searched(jsonl_path: Path) -> None:

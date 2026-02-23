@@ -1,4 +1,4 @@
-<!-- Updated: 2026-02-22 -->
+<!-- Updated: 2026-02-23 -->
 # Google News Search Pipeline
 
 Detailed documentation for `wsj_to_google_news.py` — the search stage that finds free article candidates for each WSJ item.
@@ -174,6 +174,8 @@ facebook.com   → fail_count = 0  (same reason)
 ```
 
 Blocked domains are filtered out before crawling, so they never accumulate fail_count.
+
+**Note**: As of 2026-02-23, "domain blocked" crawl errors are excluded from `fail_count`/`success_count` aggregation. Previously, circular blocking (domain blocked → error recorded → fail_count increases) inflated failure counts for domains like facebook.com (58 failures / 0 successes, yet still "active"). The aggregation now skips these rows from counts but still ensures the domain stays `status='blocked'` — if a domain has only "domain blocked" errors and no real crawl data, it's preserved as blocked.
 
 ### Solution: `search_hit_count` Tracking
 
