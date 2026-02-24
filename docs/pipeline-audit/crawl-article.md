@@ -40,7 +40,7 @@ URL → newspaper4k (fast, 0.5s)
 | `--force` | false | Crawl even if domain is blocked |
 | `--no-domain-selector` | false | Disable domain-specific CSS selectors |
 
-Not called by `run_pipeline.sh` — this is a library imported by `crawl_ranked.py`.
+Not called by `run_pipeline.sh` — this is a library imported by `6_crawl_ranked.py`.
 
 ---
 
@@ -58,7 +58,7 @@ Not called by `run_pipeline.sh` — this is a library imported by `crawl_ranked.
 - `_cut_at_section_markers()` — Cut at "Related Articles", "References", etc.
 
 ### Crawling
-- `crawl_article()` — Main entry point (async, used by crawl_ranked.py)
+- `crawl_article()` — Main entry point (async, used by 6_crawl_ranked.py)
 - `_do_crawl()` → `_crawl_basic()` / `_crawl_stealth()` / `_crawl_undetected()`
 
 ### Domain Configuration
@@ -70,7 +70,7 @@ Not called by `run_pipeline.sh` — this is a library imported by `crawl_ranked.
 ## Data Flow
 
 ```
-URL (from crawl_ranked.py)
+URL (from 6_crawl_ranked.py)
     │
     ├── Google News URL? → resolve via google_news_resolver (sync)
     │

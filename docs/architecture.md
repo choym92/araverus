@@ -30,9 +30,9 @@ Paul Cho's personal website, blog, and news briefing platform.
 │   (Next.js)     │                      │   (Python + GH Actions)    │
 ├─────────────────┼──────────────────────┼────────────────────────────┤
 │ Landing page    │ content/blog/        │ scripts/                   │
-│ /resume         │ ├── slug/index.mdx   │ ├── wsj_ingest.py          │
-│ /blog           │ └── public/blog/     │ ├── crawl_ranked.py        │
-│ /news           │                      │ ├── generate_briefing.py   │
+│ /resume         │ ├── slug/index.mdx   │ ├── 1_wsj_ingest.py          │
+│ /blog           │ └── public/blog/     │ ├── 6_crawl_ranked.py        │
+│ /news           │                      │ ├── 8_generate_briefing.py   │
 │ /admin          │ Categories:          │ └── ...9 scripts total     │
 │ /login          │ Publication,Tutorial │                            │
 │ /dashboard      │ Insight, Release     │ Daily at 6 AM ET           │

@@ -1,5 +1,5 @@
 <!-- Created: 2026-02-22 -->
-# Audit: wsj_preprocess.py
+# Audit: 2_wsj_preprocess.py
 
 Phase 1 · Pre-process — 196 LOC (post-refactor)
 
@@ -11,7 +11,7 @@ WSJ RSS feeds give us headlines + descriptions, but searching Google News with r
 
 With LLM-generated queries, search accuracy jumps to ~70-80%. Cost: ~$0.003/day.
 
-Without this script, `wsj_to_google_news.py` falls back to the clean title as the only search query — it works, but misses many relevant backup articles.
+Without this script, `3_wsj_to_google_news.py` falls back to the clean title as the only search query — it works, but misses many relevant backup articles.
 
 ---
 
@@ -29,10 +29,10 @@ Without this script, `wsj_to_google_news.py` falls back to the clean title as th
 
 **Pipeline call** (`run_pipeline.sh` L53):
 ```bash
-$VENV "$SCRIPTS/wsj_preprocess.py" || echo "WARN: Preprocess had errors (continuing)"
+$VENV "$SCRIPTS/2_wsj_preprocess.py" || echo "WARN: Preprocess had errors (continuing)"
 ```
 
-Non-fatal — if preprocessing fails, the pipeline continues and `wsj_to_google_news.py` uses clean title as fallback.
+Non-fatal — if preprocessing fails, the pipeline continues and `3_wsj_to_google_news.py` uses clean title as fallback.
 
 ---
 
@@ -53,7 +53,7 @@ search_queries: 2-3 optimized Google News queries (5-10 words each)
 - Use entity names + key event terms
 - Vary phrasing across queries
 - Do NOT include source names (WSJ, Bloomberg)
-- Do NOT add date filters (added later by `wsj_to_google_news.py`)
+- Do NOT add date filters (added later by `3_wsj_to_google_news.py`)
 
 **Why JSON mode?** `response_mime_type="application/json"` forces Gemini to return valid JSON, avoiding regex/parsing hacks.
 
@@ -117,7 +117,7 @@ Refactored from `__slots__` class to `@dataclass` — simpler, same functionalit
 
 Sequential processing loop: query items → for each item: call Gemini → save result.
 
-- Uses `argparse` (cleaner than wsj_ingest.py's manual parsing)
+- Uses `argparse` (cleaner than 1_wsj_ingest.py's manual parsing)
 - Progress output: `[1/60] Fed Holds Rates Steady...`
 - Summary: `Done: 58 succeeded, 2 failed out of 60`
 - Supabase client via `require_supabase_client()` (fail-fast on missing credentials)
@@ -139,7 +139,7 @@ wsj_items (DB)
 [wsj_items UPDATE: extracted_entities, extracted_keywords,
  extracted_tickers, llm_search_queries, preprocessed_at]
     │
-    ▼ (next step: wsj_ingest.py --export)
+    ▼ (next step: 1_wsj_ingest.py --export)
 [JSONL includes llm_search_queries for Google News search]
 ```
 
@@ -152,7 +152,7 @@ wsj_items (DB)
 | `wsj_items` | SELECT | `get_items_to_preprocess()` | `id`, `title`, `description`, `preprocessed_at`, `searched` |
 | `wsj_items` | UPDATE | `save_preprocess_result()` | `extracted_entities`, `extracted_keywords`, `extracted_tickers`, `llm_search_queries`, `preprocessed_at` |
 
-Single-table responsibility (same as wsj_ingest.py).
+Single-table responsibility (same as 1_wsj_ingest.py).
 
 ---
 
@@ -171,7 +171,7 @@ Single-table responsibility (same as wsj_ingest.py).
 
 Both use Gemini, but at different pipeline stages:
 
-| | wsj_preprocess.py | llm_analysis.py |
+| | 2_wsj_preprocess.py | llm_analysis.py |
 |---|---|---|
 | **When** | Before search (Phase 1) | After crawl (Phase 3) |
 | **Input** | Title + description only | Title + description + crawled content |
@@ -201,4 +201,4 @@ Both use Gemini, but at different pipeline stages:
 | Item | Question |
 |------|----------|
 | No rate limiting | 60 sequential Gemini API calls with no delay. Works today but could hit 429 errors on large backfills. Low priority — Flash-Lite has generous rate limits. |
-| `get_supabase_client()` unification | Now 2 copies remain (wsj_ingest.py, domain_utils.py). Pipeline-wide cleanup deferred. |
+| `get_supabase_client()` unification | Now 2 copies remain (1_wsj_ingest.py, domain_utils.py). Pipeline-wide cleanup deferred. |

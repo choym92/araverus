@@ -1,5 +1,5 @@
 <!-- Created: 2026-02-22 -->
-# Audit: wsj_ingest.py
+# Audit: 1_wsj_ingest.py
 
 Phase 1 · RSS Ingest — 570 LOC (post-refactor)
 
@@ -18,7 +18,7 @@ Without this script, the pipeline has nothing to search for.
 | Command | Pipeline Phase | What It Does | Why |
 |---------|---------------|--------------|-----|
 | *(default)* | Phase 1 | Fetch 6 RSS feeds → merge categories → dedup → DB insert | Build the daily headline list |
-| `--export [--all] [PATH]` | Phase 1 | Query DB → write JSONL file | Create input file for `wsj_to_google_news.py` |
+| `--export [--all] [PATH]` | Phase 1 | Query DB → write JSONL file | Create input file for `3_wsj_to_google_news.py` |
 
 **Moved to `domain_utils.py`**: `--mark-searched`, `--mark-processed`, `--mark-processed-from-db`, `--update-domain-status`, `--retry-low-relevance`, `--stats`, `--seed-blocked-from-json`
 
@@ -177,7 +177,7 @@ Accumulator for ingest statistics. Only used by `cmd_ingest()` for the summary p
 
 - **In**: List of DB row dicts, output file path
 - **Out**: JSONL file on disk
-- **Why**: Creates the handoff file between `wsj_ingest.py` (Phase 1) and `wsj_to_google_news.py` (Phase 1 cont.)
+- **Why**: Creates the handoff file between `1_wsj_ingest.py` (Phase 1) and `3_wsj_to_google_news.py` (Phase 1 cont.)
 - **Key rename**: `published_at` → `pubDate` for downstream compatibility
 
 **JSONL Schema** (one line per item):
@@ -242,7 +242,7 @@ WSJ RSS Feeds (6 URLs)
 [wsj_items DB table]
     │
     ▼ get_unsearched_items() + export_to_jsonl()
-[output/wsj_items.jsonl] ──▶ wsj_to_google_news.py
+[output/wsj_items.jsonl] ──▶ 3_wsj_to_google_news.py
 ```
 
 ---
@@ -285,4 +285,4 @@ No other tables touched. Clean single-table responsibility.
 
 | Item | Question |
 |------|----------|
-| `get_supabase_client()` | Still duplicated between `wsj_ingest.py` (raises ValueError) and `domain_utils.py` (returns None + `require_supabase_client()` wrapper). Could be unified into a shared `db.py` module, but touches many scripts. |
+| `get_supabase_client()` | Still duplicated between `1_wsj_ingest.py` (raises ValueError) and `domain_utils.py` (returns None + `require_supabase_client()` wrapper). Could be unified into a shared `db.py` module, but touches many scripts. |

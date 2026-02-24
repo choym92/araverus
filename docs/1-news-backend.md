@@ -10,19 +10,19 @@ Single source of truth for the finance news pipeline: ingestion, crawling, analy
 ```mermaid
 flowchart LR
     subgraph "Phase 1: Ingest + Search"
-        A[wsj_ingest.py] --> B[wsj_preprocess.py]
-        B --> C[wsj_ingest.py --export]
-        C --> D[wsj_to_google_news.py]
+        A[1_wsj_ingest.py] --> B[2_wsj_preprocess.py]
+        B --> C[1_wsj_ingest.py --export]
+        C --> D[3_wsj_to_google_news.py]
     end
 
     subgraph "Phase 2: Rank + Resolve"
-        D --> E[embedding_rank.py]
-        E --> F[resolve_ranked.py]
+        D --> E[4_embedding_rank.py]
+        E --> F[5_resolve_ranked.py]
         F --> G[mark-searched]
     end
 
     subgraph "Phase 3: Crawl"
-        G --> H[crawl_ranked.py]
+        G --> H[6_crawl_ranked.py]
     end
 
     subgraph "Phase 4: Post-process"
@@ -31,11 +31,11 @@ flowchart LR
     end
 
     subgraph "Phase 4.5: Embed"
-        J --> K[embed_and_thread.py]
+        J --> K[7_embed_and_thread.py]
     end
 
     subgraph "Phase 5: Briefing"
-        K --> L[generate_briefing.py]
+        K --> L[8_generate_briefing.py]
     end
 ```
 
@@ -47,17 +47,17 @@ flowchart LR
 
 ```mermaid
 flowchart TB
-    RSS["WSJ RSS Feeds<br/>(6 feeds)"] --> |wsj_ingest.py| DB_ITEMS[(wsj_items)]
-    DB_ITEMS --> |wsj_preprocess.py<br/>Gemini Flash-Lite| DB_ITEMS
+    RSS["WSJ RSS Feeds<br/>(6 feeds)"] --> |1_wsj_ingest.py| DB_ITEMS[(wsj_items)]
+    DB_ITEMS --> |2_wsj_preprocess.py<br/>Gemini Flash-Lite| DB_ITEMS
     DB_ITEMS --> |"--export"| JSONL["JSONL file<br/>(+ llm_search_queries)"]
-    JSONL --> |wsj_to_google_news.py| GNEWS["Google News<br/>search results"]
-    GNEWS --> |embedding_rank.py<br/>bge-base-en-v1.5| RANKED["Ranked candidates"]
-    RANKED --> |resolve_ranked.py| DB_CRAWL[(wsj_crawl_results<br/>status: pending)]
-    DB_CRAWL --> |crawl_ranked.py| DB_CRAWL_OK[(wsj_crawl_results<br/>status: success)]
+    JSONL --> |3_wsj_to_google_news.py| GNEWS["Google News<br/>search results"]
+    GNEWS --> |4_embedding_rank.py<br/>bge-base-en-v1.5| RANKED["Ranked candidates"]
+    RANKED --> |5_resolve_ranked.py| DB_CRAWL[(wsj_crawl_results<br/>status: pending)]
+    DB_CRAWL --> |6_crawl_ranked.py| DB_CRAWL_OK[(wsj_crawl_results<br/>status: success)]
     DB_CRAWL_OK --> |llm_analysis.py<br/>Gemini 2.5 Flash| DB_LLM[(wsj_llm_analysis)]
-    DB_ITEMS --> |embed_and_thread.py<br/>bge-base-en-v1.5| DB_EMBED[(wsj_embeddings)]
+    DB_ITEMS --> |7_embed_and_thread.py<br/>bge-base-en-v1.5| DB_EMBED[(wsj_embeddings)]
     DB_EMBED --> DB_THREADS[(wsj_story_threads)]
-    DB_ITEMS --> |generate_briefing.py<br/>Gemini 2.5 Pro| DB_BRIEF[(wsj_briefings)]
+    DB_ITEMS --> |8_generate_briefing.py<br/>Gemini 2.5 Pro| DB_BRIEF[(wsj_briefings)]
     DB_CRAWL_OK --> |domain stats| DB_DOMAIN[(wsj_domain_status)]
 ```
 
@@ -67,7 +67,7 @@ flowchart TB
 
 ### Phase 1: Ingest + Search
 
-#### `wsj_ingest.py`
+#### `1_wsj_ingest.py`
 
 RSS ingestion and export only.
 
@@ -81,7 +81,7 @@ RSS ingestion and export only.
 - **Dedup:** Title-based, keeps version from feed with fewer items
 - **Category:** Extracted from URL path (~95% accuracy), fallback to `feed_name`
 
-#### `wsj_preprocess.py`
+#### `2_wsj_preprocess.py`
 
 Gemini Flash-Lite extracts metadata from title+description BEFORE search.
 
@@ -97,7 +97,7 @@ Gemini Flash-Lite extracts metadata from title+description BEFORE search.
 - **Cost:** ~$0.003/day, ~$0.10/month
 - **vs `wsj_llm_analysis`:** Pre-process = title+desc (pre-search). LLM analysis = crawled content (post-crawl).
 
-#### `wsj_to_google_news.py`
+#### `3_wsj_to_google_news.py`
 
 Searches Google News for free alternatives to each WSJ article.
 
@@ -114,7 +114,7 @@ Searches Google News for free alternatives to each WSJ article.
 
 ### Phase 2: Rank + Resolve
 
-#### `embedding_rank.py`
+#### `4_embedding_rank.py`
 
 Ranks candidates by semantic similarity.
 
@@ -125,7 +125,7 @@ Ranks candidates by semantic similarity.
 
 - **Model:** BAAI/bge-base-en-v1.5 (768d)
 
-#### `resolve_ranked.py`
+#### `5_resolve_ranked.py`
 
 Resolves Google News redirect URLs → actual article URLs.
 
@@ -138,7 +138,7 @@ Resolves Google News redirect URLs → actual article URLs.
 
 ### Phase 3: Crawl
 
-#### `crawl_ranked.py`
+#### `6_crawl_ranked.py`
 
 Crawls resolved URLs with quality + relevance verification.
 
@@ -191,7 +191,7 @@ Domain status management, lifecycle flags, and recovery operations.
 
 ### Phase 4.5: Embed + Thread
 
-#### `embed_and_thread.py`
+#### `7_embed_and_thread.py`
 
 Article embeddings + story thread clustering.
 
@@ -207,16 +207,16 @@ Article embeddings + story thread clustering.
 
 ### Phase 5: Briefing
 
-#### `generate_briefing.py`
+#### `8_generate_briefing.py`
 
 Daily EN/KO finance briefings with TTS audio.
 
 ```bash
-python generate_briefing.py                    # Full run (EN+KO)
-python generate_briefing.py --date 2026-02-13  # Specific date
-python generate_briefing.py --lang ko --skip-tts
-python generate_briefing.py --dry-run
-python generate_briefing.py --date 2026-02-23 --regen-audio  # Redo TTS+timestamps from existing DB text
+python 8_generate_briefing.py                    # Full run (EN+KO)
+python 8_generate_briefing.py --date 2026-02-13  # Specific date
+python 8_generate_briefing.py --lang ko --skip-tts
+python 8_generate_briefing.py --dry-run
+python 8_generate_briefing.py --date 2026-02-23 --regen-audio  # Redo TTS+timestamps from existing DB text
 ```
 
 - **Curation + Importance Re-rank:** Combined in one Gemini 2.5 Pro call (temp 0.1, think 2K). Picks 10-15 curated articles AND assigns relative importance (must_read/worth_reading/optional) to ALL articles. Saves `importance_reranked` to `wsj_llm_analysis`. Response format: `{"curated": [...], "importance": [...]}`
@@ -243,7 +243,7 @@ python generate_briefing.py --date 2026-02-23 --regen-audio  # Redo TTS+timestam
 
 ```mermaid
 stateDiagram-v2
-    [*] --> pending: resolve_ranked.py
+    [*] --> pending: 5_resolve_ranked.py
 
     pending --> success: crawl OK
     pending --> failed: timeout / 404
@@ -263,9 +263,9 @@ stateDiagram-v2
 
 | Gate | Tool | Threshold |
 |------|------|-----------|
-| Garbage detection | crawl_ranked.py | unique_ratio ≥ 0.1, no CSS/JS/paywall |
+| Garbage detection | 6_crawl_ranked.py | unique_ratio ≥ 0.1, no CSS/JS/paywall |
 | Content quality | crawl_article.py | ≥ 350 chars, ≤ 50K, link_ratio < 30%, boilerplate < 40% |
-| Embedding relevance | crawl_ranked.py | cosine ≥ 0.25 (bge-base) |
+| Embedding relevance | 6_crawl_ranked.py | cosine ≥ 0.25 (bge-base) |
 | LLM verification | llm_analysis.py | `is_same_event=true` OR `score ≥ 6` |
 
 ### Domain Failure Taxonomy

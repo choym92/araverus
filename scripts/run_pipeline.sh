@@ -49,22 +49,22 @@ fi
 # ── Phase 1: Ingest + Search ───────────────────────────
 echo ""
 echo ">>> Phase 1: Ingest + Search"
-$VENV "$SCRIPTS/wsj_ingest.py" || { echo "FATAL: Ingest failed"; exit 1; }
-$VENV "$SCRIPTS/wsj_preprocess.py" || echo "WARN: Preprocess had errors (continuing)"
-$VENV "$SCRIPTS/wsj_ingest.py" --export || { echo "FATAL: Export failed"; exit 1; }
-$VENV "$SCRIPTS/wsj_to_google_news.py" --delay-item 0.5 --delay-query 0.3 || echo "WARN: Google News search had errors (continuing)"
+$VENV "$SCRIPTS/1_wsj_ingest.py" || { echo "FATAL: Ingest failed"; exit 1; }
+$VENV "$SCRIPTS/2_wsj_preprocess.py" || echo "WARN: Preprocess had errors (continuing)"
+$VENV "$SCRIPTS/1_wsj_ingest.py" --export || { echo "FATAL: Export failed"; exit 1; }
+$VENV "$SCRIPTS/3_wsj_to_google_news.py" --delay-item 0.5 --delay-query 0.3 || echo "WARN: Google News search had errors (continuing)"
 
 # ── Phase 2: Rank + Resolve ────────────────────────────
 echo ""
 echo ">>> Phase 2: Rank + Resolve"
-$VENV "$SCRIPTS/embedding_rank.py" || { echo "ERROR: Embedding rank failed"; exit 1; }
-$VENV "$SCRIPTS/resolve_ranked.py" --delay 0.5 --update-db || { echo "ERROR: Resolve failed"; exit 1; }
+$VENV "$SCRIPTS/4_embedding_rank.py" || { echo "ERROR: Embedding rank failed"; exit 1; }
+$VENV "$SCRIPTS/5_resolve_ranked.py" --delay 0.5 --update-db || { echo "ERROR: Resolve failed"; exit 1; }
 $VENV "$SCRIPTS/domain_utils.py" --mark-searched "$SCRIPTS/output/wsj_items.jsonl" || echo "WARN: mark-searched failed"
 
 # ── Phase 3: Crawl ─────────────────────────────────────
 echo ""
 echo ">>> Phase 3: Crawl"
-$VENV "$SCRIPTS/crawl_ranked.py" --delay 1 --update-db || echo "WARN: Crawl had errors (continuing)"
+$VENV "$SCRIPTS/6_crawl_ranked.py" --delay 1 --update-db || echo "WARN: Crawl had errors (continuing)"
 
 # ── Phase 4: Post-process ──────────────────────────────
 echo ""
@@ -75,12 +75,12 @@ $VENV "$SCRIPTS/domain_utils.py" --update-domain-status || echo "WARN: domain-st
 # ── Phase 4.5: Embed + Thread ────────────────────────
 echo ""
 echo ">>> Phase 4.5: Embed + Thread"
-$VENV "$SCRIPTS/embed_and_thread.py" || echo "WARN: Embed/thread had errors (continuing)"
+$VENV "$SCRIPTS/7_embed_and_thread.py" || echo "WARN: Embed/thread had errors (continuing)"
 
 # ── Phase 5: Briefing ──────────────────────────────────
 echo ""
 echo ">>> Phase 5: Briefing"
-$VENV "$SCRIPTS/generate_briefing.py" --output-dir "$BRIEFING_DIR" || echo "ERROR: Briefing generation failed"
+$VENV "$SCRIPTS/8_generate_briefing.py" --output-dir "$BRIEFING_DIR" || echo "ERROR: Briefing generation failed"
 
 # ── Done ────────────────────────────────────────────────
 echo ""

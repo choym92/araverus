@@ -19,7 +19,7 @@ import httpx
 
 # Import resolver
 sys.path.insert(0, str(Path(__file__).parent))
-from google_news_resolver import (
+from lib.google_news_resolver import (
     resolve_google_news_url,
     extract_domain,
     ResolveResult,

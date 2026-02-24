@@ -1,5 +1,5 @@
 <!-- Created: 2026-02-22 -->
-# Audit: crawl_ranked.py
+# Audit: 6_crawl_ranked.py
 
 Phase 3 · Step 1 · Crawl — ~660 LOC (post-refactor, was ~699)
 
@@ -28,7 +28,7 @@ Resolved URLs are worthless without actual article content. This script crawls e
 
 **Pipeline call** (`run_pipeline.sh` L67):
 ```bash
-$VENV "$SCRIPTS/crawl_ranked.py" --delay 1 --update-db || echo "WARN: Crawl had errors (continuing)"
+$VENV "$SCRIPTS/6_crawl_ranked.py" --delay 1 --update-db || echo "WARN: Crawl had errors (continuing)"
 ```
 
 Non-fatal (WARN) — pipeline continues if crawling has errors.
@@ -61,7 +61,7 @@ If all gates pass → `crawl_status='success'`, `relevance_flag='ok'`, mark othe
 
 ## Key Design: Async IS Justified Here
 
-Unlike wsj_to_google_news.py and resolve_ranked.py (which were sequential), this script uses **genuine concurrency**:
+Unlike 3_wsj_to_google_news.py and 5_resolve_ranked.py (which were sequential), this script uses **genuine concurrency**:
 
 - `asyncio.gather(*tasks)` — process multiple WSJ items concurrently
 - `asyncio.Semaphore(concurrent)` — control parallelism level
@@ -103,7 +103,7 @@ Core orchestrator per WSJ item. Tries candidates in weighted-score order through
 ## Data Flow
 
 ```
-wsj_ranked_results.jsonl (from resolve_ranked.py)
+wsj_ranked_results.jsonl (from 5_resolve_ranked.py)
     │ or wsj_crawl_results table (if --from-db)
     ▼ crawl_article() × N per WSJ item
 [3-gate quality check: garbage → relevance → LLM]

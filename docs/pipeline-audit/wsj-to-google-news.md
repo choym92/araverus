@@ -1,5 +1,5 @@
 <!-- Created: 2026-02-22 -->
-# Audit: wsj_to_google_news.py
+# Audit: 3_wsj_to_google_news.py
 
 Phase 1 · Step 3 · Google News Search — 646 LOC (post-refactor)
 
@@ -30,7 +30,7 @@ Without this script, the pipeline has no way to find free articles.
 
 **Pipeline call** (`run_pipeline.sh` L55):
 ```bash
-$VENV "$SCRIPTS/wsj_to_google_news.py" --delay-item 0.5 --delay-query 0.3 || echo "WARN: Google News search had errors (continuing)"
+$VENV "$SCRIPTS/3_wsj_to_google_news.py" --delay-item 0.5 --delay-query 0.3 || echo "WARN: Google News search had errors (continuing)"
 ```
 
 Non-fatal — if search fails, downstream scripts just have fewer candidates.
@@ -81,7 +81,7 @@ Module-level dict tracking how often each domain appears in Google News results 
 
 - **In**: XML element (or None)
 - **Out**: Stripped text or empty string
-- **Why**: Same pattern as wsj_ingest.py. Used in Google News RSS XML parsing.
+- **Why**: Same pattern as 1_wsj_ingest.py. Used in Google News RSS XML parsing.
 
 #### `normalize_domain(url)` (L94) `[KEEP]`
 
@@ -127,7 +127,7 @@ Three checks:
 Core query generation:
 ```
 Q1: Clean title (strip "- WSJ" branding)
-Q2-Q4: llm_search_queries[0:3] (from wsj_preprocess.py)
+Q2-Q4: llm_search_queries[0:3] (from 2_wsj_preprocess.py)
 ```
 
 If no LLM queries, only Q1 is used (clean title).
@@ -200,7 +200,7 @@ Pipeline: load JSONL → for each item: build queries → search → filter → 
 
 | File | Purpose | Downstream |
 |------|---------|------------|
-| `wsj_google_news_results.jsonl` | Main output — candidates per WSJ item | `embedding_rank.py` |
+| `wsj_google_news_results.jsonl` | Main output — candidates per WSJ item | `4_embedding_rank.py` |
 | `wsj_google_news_results.txt` | Human-readable debug view | Manual inspection |
 | `wsj_instrumentation.jsonl` | Per-query metrics (results, time, added) | Debugging |
 | `wsj_searched_ids.json` | WSJ item IDs to mark as `searched=true` | `domain_utils.py --mark-searched` |
@@ -216,7 +216,7 @@ Layer 1: -site: exclusion (search-time, top 28 domains)
 Layer 2: is_source_blocked() (post-search, ALL blocked domains)
   → Python drops remaining blocked results after Google returns them.
 
-Layer 3: crawl_ranked.py (crawl-time)
+Layer 3: 6_crawl_ranked.py (crawl-time)
   → Final safety net before crawling.
 ```
 
@@ -227,7 +227,7 @@ Layer 1 is most valuable (prevents slot waste). Sorted by `search_hit_count` to 
 ## Data Flow
 
 ```
-wsj_items.jsonl (from wsj_ingest.py --export)
+wsj_items.jsonl (from 1_wsj_ingest.py --export)
     │
     ▼ load_wsj_jsonl() — dedup by title
 [WSJ items list]
@@ -248,7 +248,7 @@ wsj_items.jsonl (from wsj_ingest.py --export)
     │   ▼ collected articles for this item
     │
     ▼ save outputs
-[wsj_google_news_results.jsonl]  → embedding_rank.py
+[wsj_google_news_results.jsonl]  → 4_embedding_rank.py
 [wsj_searched_ids.json]          → domain_utils.py --mark-searched
 [wsj_domain_status]              ← save_search_hit_counts()
 ```

@@ -19,8 +19,8 @@ import numpy as np
 
 # Import the crawler and LLM analysis
 sys.path.insert(0, str(Path(__file__).parent))
-from crawl_article import crawl_article
-from llm_analysis import (
+from lib.crawl_article import crawl_article
+from lib.llm_analysis import (
     analyze_content,
     save_analysis_to_db,
     update_domain_llm_failure,
