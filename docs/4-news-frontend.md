@@ -560,6 +560,7 @@ classDiagram
 |----------|--------|-----------|
 | Loading state | `loading.tsx` skeleton UI (Next.js built-in Suspense) | Instant visual feedback during server data fetching (12+ DB queries). Matches 3-col layout to avoid layout shift on content swap |
 | BriefingPlayer loading | `next/dynamic` with inline skeleton fallback | Splits heavy audio player JS (~chapters, waveform, transcript, Framer Motion) into separate chunk. Reduces initial JS bundle; player hydrates async. Note: `ssr: false` not allowed in Server Components |
+| ISR caching | `revalidate = 7200` (2 hours) | Page cached after first visit; subsequent visits serve cached version instantly (no DB queries). Background revalidation after 2 hours. Reduces Supabase load and Vercel function invocations on free tier |
 
 ### Audio Player
 
