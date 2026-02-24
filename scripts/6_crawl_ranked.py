@@ -296,12 +296,17 @@ async def process_wsj_item(
         crawlable = [a for a in articles if a.get("resolved_url")]
 
         # Sort by weighted score: 50% embedding + 25% wilson + 25% llm quality
+        # Defaults for unknown/insufficient-data domains: wilson=0.4, llm=5.0
         def weighted_score(article):
             emb = article.get("embedding_score") or 0.5
             domain = article.get("resolved_domain", "")
             d = domain_stats.get(domain, {})
-            wilson = float(d.get("wilson_score") or 0.4)
-            llm = float(d.get("avg_llm_score") or 5.0) / 10.0
+            raw_w = d.get("wilson_score")
+            raw_l = d.get("avg_llm_score")
+            total = (d.get("success_count") or 0) + (d.get("fail_count") or 0)
+            # Use defaults when no meaningful data exists
+            wilson = float(raw_w) if raw_w is not None and total >= 3 else 0.4
+            llm = (float(raw_l) if raw_l is not None else 5.0) / 10.0
             return 0.50 * emb + 0.25 * wilson + 0.25 * llm
 
         crawlable.sort(key=weighted_score, reverse=True)
@@ -513,7 +518,7 @@ async def main():
     if supabase:
         try:
             domain_response = supabase.table('wsj_domain_status') \
-                .select('domain, wilson_score, avg_llm_score') \
+                .select('domain, wilson_score, avg_llm_score, success_count, fail_count') \
                 .eq('status', 'active') \
                 .execute()
             if domain_response.data:
@@ -521,6 +526,8 @@ async def main():
                     row['domain']: {
                         'wilson_score': row.get('wilson_score'),
                         'avg_llm_score': row.get('avg_llm_score'),
+                        'success_count': row.get('success_count'),
+                        'fail_count': row.get('fail_count'),
                     }
                     for row in domain_response.data
                 }
