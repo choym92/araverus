@@ -3,11 +3,11 @@ export const dynamic = 'force-dynamic'
 import { createClient } from '@/lib/supabase-server'
 import { NewsService } from '@/lib/news-service'
 import type { NewsItem } from '@/lib/news-service'
-import dynamic from 'next/dynamic'
+import nextDynamic from 'next/dynamic'
 import NewsShell from './_components/NewsShell'
 import ArticleCard from './_components/ArticleCard'
 
-const BriefingPlayer = dynamic(
+const BriefingPlayer = nextDynamic(
   () => import('./_components/BriefingPlayer'),
   {
     loading: () => (
