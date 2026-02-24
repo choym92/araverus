@@ -19,8 +19,11 @@ Usage:
     python scripts/reset_domain_status.py --dry-run
 """
 import argparse
+import sys
 from datetime import datetime, timezone
+from pathlib import Path
 
+sys.path.insert(0, str(Path(__file__).parent.parent))
 from domain_utils import cmd_update_domain_status, require_supabase_client
 
 SNS_DOMAINS = [

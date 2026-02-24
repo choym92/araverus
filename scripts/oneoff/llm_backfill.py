@@ -25,12 +25,12 @@ from pathlib import Path
 
 # Load env vars
 from dotenv import load_dotenv
-load_dotenv(Path(__file__).parent.parent / ".env.local")
+load_dotenv(Path(__file__).parent.parent.parent / ".env.local")
 
 from supabase import create_client
 
 # Import LLM analysis functions
-sys.path.insert(0, str(Path(__file__).parent))
+sys.path.insert(0, str(Path(__file__).parent.parent))
 from llm_analysis import (
     analyze_content,
     save_analysis_to_db,

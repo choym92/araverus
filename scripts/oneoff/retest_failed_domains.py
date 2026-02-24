@@ -11,7 +11,7 @@ import sys
 from datetime import datetime
 from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).parent))
+sys.path.insert(0, str(Path(__file__).parent.parent))
 from crawl_article import crawl_article
 from test_domain_crawl import validate_content
 

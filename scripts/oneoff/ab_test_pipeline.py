@@ -39,10 +39,10 @@ from dotenv import load_dotenv
 from supabase import create_client, Client
 
 # Add scripts dir to path
-sys.path.insert(0, str(Path(__file__).parent))
+sys.path.insert(0, str(Path(__file__).parent.parent))
 
 # Load environment variables
-load_dotenv(Path(__file__).parent.parent / '.env.local')
+load_dotenv(Path(__file__).parent.parent.parent / '.env.local')
 
 # ============================================================
 # Config

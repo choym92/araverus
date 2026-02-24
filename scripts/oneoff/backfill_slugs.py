@@ -13,7 +13,8 @@ from pathlib import Path
 from dotenv import load_dotenv
 from supabase import create_client
 
-load_dotenv(Path(__file__).parent.parent / '.env.local')
+sys.path.insert(0, str(Path(__file__).parent.parent))
+load_dotenv(Path(__file__).parent.parent.parent / '.env.local')
 
 from utils.slug import generate_unique_slug
 
