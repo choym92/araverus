@@ -1,4 +1,4 @@
-<!-- Updated: 2026-02-23 -->
+<!-- Updated: 2026-02-24 -->
 # News Platform — Backend & Pipeline
 
 Single source of truth for the finance news pipeline: ingestion, crawling, analysis, briefing generation.
@@ -36,6 +36,10 @@ flowchart LR
 
     subgraph "Phase 5: Briefing"
         K --> L[8_generate_briefing.py]
+    end
+
+    subgraph "Phase 6: Health"
+        L --> M[pipeline_health.py]
     end
 ```
 
@@ -229,6 +233,26 @@ python 8_generate_briefing.py --date 2026-02-23 --regen-audio  # Redo TTS+timest
 - **Timestamps:** KO uses CTC forced alignment (ctc-forced-aligner) with Whisper drift correction; EN uses Whisper transcription with original text mapping
 - **`--regen-audio`:** Fetches existing briefing text from DB, regenerates TTS + timestamps + uploads without re-running article fetch/curation/LLM
 - **Output:** `scripts/output/briefings/{date}/`
+
+### Phase 6: Health Report
+
+#### `pipeline_health.py`
+
+Daily pipeline health report combining log parsing + DB queries.
+
+```bash
+python pipeline_health.py                    # Today
+python pipeline_health.py --date 2026-02-24  # Specific date
+python pipeline_health.py --verbose           # Detailed breakdowns
+python pipeline_health.py --no-email          # Skip email
+```
+
+- **Data sources:** Log file (`logs/pipeline-YYYY-MM-DD.log`) + DB queries (`wsj_items`, `wsj_crawl_results`, `wsj_domain_status`, `wsj_llm_analysis`)
+- **8 report sections:** Ingest, Preprocess, Search, Rank, Resolve, Crawl, Domain Health, Pipeline Funnel + Briefing
+- **Health summary:** Auto-checks against thresholds (ingest ≥20, preprocess 0 failed, filter 2-5%, resolve ≥95%, crawl ok ≥35%, garbage <15%, TTS success)
+- **Output:** Terminal (colored), Markdown (`logs/health/health-YYYY-MM-DD.md`), Email (Gmail SMTP, optional)
+- **Email env:** `GMAIL_ADDRESS`, `GMAIL_APP_PASSWORD` in `.env.pipeline`
+- **Cron:** Added to `run_pipeline.sh` Phase 6 (non-fatal)
 
 ### Shared Utilities
 

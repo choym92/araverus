@@ -38,7 +38,11 @@ export interface BriefingData {
   defaultLang?: 'en' | 'ko'
 }
 
-const SPEEDS = [1, 1.25, 1.5, 2] as const
+const SPEEDS = [1, 1.1, 1.25, 1.5, 2] as const
+const SPEED_PRESETS = [1, 1.25, 1.5, 2] as const
+const SPEED_MIN = 0.5
+const SPEED_MAX = 3.0
+const SPEED_STEP = 0.05
 
 interface BriefingContextValue {
   // Briefing data
@@ -57,7 +61,7 @@ interface BriefingContextValue {
   isPlaying: boolean
   currentTime: number
   audioDuration: number
-  speedIndex: number
+  speed: number
   volume: number
   isMuted: boolean
 
@@ -66,7 +70,7 @@ interface BriefingContextValue {
   togglePlay: () => void
   skip: (seconds: number) => void
   handleSeek: (e: React.MouseEvent<HTMLDivElement>) => void
-  selectSpeed: (idx: number) => void
+  setSpeed: (value: number) => void
   handleVolumeChange: (e: React.ChangeEvent<HTMLInputElement>) => void
   toggleMute: () => void
   jumpToChapter: (position: number) => void
@@ -106,7 +110,7 @@ export function BriefingProvider({ children }: { children: ReactNode }) {
   const [isPlaying, setIsPlaying] = useState(false)
   const [currentTime, setCurrentTime] = useState(0)
   const [audioDuration, setAudioDuration] = useState(0)
-  const [speedIndex, setSpeedIndex] = useState(1)
+  const [speed, setSpeedRaw] = useState(1.1)
   const [volume, setVolume] = useState(1)
   const [isMuted, setIsMuted] = useState(false)
 
@@ -183,10 +187,11 @@ export function BriefingProvider({ children }: { children: ReactNode }) {
     audio.currentTime = ratio * dur
   }, [audioDuration])
 
-  const selectSpeed = useCallback((idx: number) => {
-    setSpeedIndex(idx)
+  const setSpeed = useCallback((value: number) => {
+    const clamped = Math.round(Math.max(SPEED_MIN, Math.min(SPEED_MAX, value)) * 100) / 100
+    setSpeedRaw(clamped)
     if (audioRef.current) {
-      audioRef.current.playbackRate = SPEEDS[idx]
+      audioRef.current.playbackRate = clamped
     }
   }, [])
 
@@ -235,7 +240,7 @@ export function BriefingProvider({ children }: { children: ReactNode }) {
     if (audio.duration && isFinite(audio.duration)) {
       setAudioDuration(audio.duration)
     }
-    audio.playbackRate = SPEEDS[speedIndex]
+    audio.playbackRate = speed
 
     return () => {
       audio.removeEventListener('timeupdate', onTimeUpdate)
@@ -394,14 +399,14 @@ export function BriefingProvider({ children }: { children: ReactNode }) {
     isPlaying,
     currentTime,
     audioDuration,
-    speedIndex,
+    speed,
     volume,
     isMuted,
     switchLang,
     togglePlay,
     skip,
     handleSeek,
-    selectSpeed,
+    setSpeed,
     handleVolumeChange,
     toggleMute,
     jumpToChapter,
@@ -418,8 +423,8 @@ export function BriefingProvider({ children }: { children: ReactNode }) {
     chapterGroups,
   }), [
     data, handleSetData, isFullPlayerVisible, lang, isPlaying, currentTime, audioDuration,
-    speedIndex, volume, isMuted, switchLang, togglePlay, skip, handleSeek,
-    selectSpeed, handleVolumeChange, toggleMute, jumpToChapter, seekTo,
+    speed, volume, isMuted, switchLang, togglePlay, skip, handleSeek,
+    setSpeed, handleVolumeChange, toggleMute, jumpToChapter, seekTo,
     audioUrl, chapters, transcript, sentences, hasToggle, progress, remaining,
     activeChapterIndex, activeSentenceIndex, chapterGroups,
   ])
@@ -432,7 +437,7 @@ export function BriefingProvider({ children }: { children: ReactNode }) {
   )
 }
 
-export { SPEEDS }
+export { SPEEDS, SPEED_PRESETS, SPEED_MIN, SPEED_MAX, SPEED_STEP }
 export function formatTime(seconds: number): string {
   const m = Math.floor(seconds / 60)
   const s = Math.floor(seconds % 60)
