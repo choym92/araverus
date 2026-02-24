@@ -1,6 +1,6 @@
 export const revalidate = 7200 // ISR: cache page for 2 hours
 
-import { createClient } from '@/lib/supabase-server'
+import { createServiceClient } from '@/lib/supabase-server'
 import { NewsService } from '@/lib/news-service'
 import type { NewsItem } from '@/lib/news-service'
 import nextDynamic from 'next/dynamic'
@@ -91,7 +91,7 @@ export default async function NewsPage({ searchParams }: NewsPageProps) {
     : params.keyword
       ? [params.keyword]
       : []
-  const supabase = await createClient()
+  const supabase = createServiceClient()
   const service = new NewsService(supabase)
 
   // Fetch today's articles first, backfill with older ones if needed to fill the layout
