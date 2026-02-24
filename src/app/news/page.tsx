@@ -3,9 +3,28 @@ export const dynamic = 'force-dynamic'
 import { createClient } from '@/lib/supabase-server'
 import { NewsService } from '@/lib/news-service'
 import type { NewsItem } from '@/lib/news-service'
+import dynamic from 'next/dynamic'
 import NewsShell from './_components/NewsShell'
-import BriefingPlayer from './_components/BriefingPlayer'
 import ArticleCard from './_components/ArticleCard'
+
+const BriefingPlayer = dynamic(
+  () => import('./_components/BriefingPlayer'),
+  {
+    loading: () => (
+      <div className="rounded-lg border border-neutral-200 p-5 animate-pulse">
+        <div className="h-5 w-48 rounded bg-neutral-200 mb-3" />
+        <div className="h-3 w-32 rounded bg-neutral-200 mb-4" />
+        <div className="h-10 w-full rounded-lg bg-neutral-200 mb-3" />
+        <div className="flex items-center gap-3">
+          <div className="h-8 w-8 rounded-full bg-neutral-200" />
+          <div className="h-2 flex-1 rounded-full bg-neutral-200" />
+          <div className="h-3 w-10 rounded bg-neutral-200" />
+        </div>
+      </div>
+    ),
+    ssr: false,
+  },
+)
 import FilterButton from './_components/FilterButton'
 import Link from 'next/link'
 import { readFile } from 'fs/promises'

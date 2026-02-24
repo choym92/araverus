@@ -1,4 +1,4 @@
-<!-- Updated: 2026-02-24 -->
+<!-- Updated: 2026-02-23 -->
 # News Platform — Frontend
 
 Technical guide for the `/news` page. WSJ-style 3-column layout with in-card thread carousels, bilingual audio briefing player, and keyword filtering. Powered by the existing news pipeline.
@@ -70,7 +70,7 @@ graph LR
         PAGE --> TABS[Tab Nav<br/>Today / Stories / Search]
         PAGE --> CATS[Category Pills<br/>All / Markets / Tech / ...]
         PAGE --> FB[FilterButton 🖥️<br/>Dropdown with subcategory + keyword pills]
-        PAGE --> BP[BriefingPlayer 🔊<br/>Client Component<br/>EN/KO + chapters + transcript]
+        PAGE --> BP[BriefingPlayer 🔊<br/>Client Component (dynamic import, ssr:false)<br/>EN/KO + chapters + transcript]
         PAGE --> AC[ArticleCard 🖥️<br/>Client Component<br/>featured / standard + thread carousel]
         PAGE --> BELOW[Below-fold grid<br/>Remaining articles]
     end
@@ -221,6 +221,7 @@ sequenceDiagram
 | File | Type | Purpose |
 |------|------|---------|
 | `src/app/news/layout.tsx` | Server | Metadata only (`title`, `description`) |
+| `src/app/news/loading.tsx` | Server | Skeleton UI shown during server data fetching (Next.js auto-wraps with Suspense) |
 | `src/app/news/page.tsx` | Server | Data fetching, tabs, keyword filter, 3-col layout, thread timeline fetch |
 | `src/app/news/[slug]/page.tsx` | Server | Article detail page with metadata, related articles, story timeline |
 | `src/app/news/[slug]/_components/RelatedSection.tsx` | Server | Numbered list with similarity score bars (pgvector, 7-day, excludes timeline articles) |
@@ -553,6 +554,13 @@ classDiagram
 | Keyword filter | Filter dropdown with subcategory + keyword pill sections, multi-select OR | Replaced horizontal pill bar — cleaner default, powerful on demand |
 | Thread titles | From `wsj_story_threads.title` (Gemini-generated) | More meaningful than "N Related Articles" |
 
+### Performance
+
+| Decision | Choice | Rationale |
+|----------|--------|-----------|
+| Loading state | `loading.tsx` skeleton UI (Next.js built-in Suspense) | Instant visual feedback during server data fetching (12+ DB queries). Matches 3-col layout to avoid layout shift on content swap |
+| BriefingPlayer loading | `next/dynamic` with `ssr: false` + inline skeleton fallback | Splits heavy audio player JS (~chapters, waveform, transcript, Framer Motion) into separate chunk. Reduces initial JS bundle; player loads async after page hydration |
+
 ### Audio Player
 
 | Decision | Choice | Rationale |
@@ -773,6 +781,8 @@ graph LR
 - [x] External images load from arbitrary domains
 - [x] Keyboard shortcuts (Space, arrows, M) work
 - [x] Article detail page loads at `/news/[slug]`
+- [x] `loading.tsx` skeleton shows instantly on navigation to `/news`
+- [x] BriefingPlayer lazy-loaded via `next/dynamic` (separate JS chunk)
 - [ ] Mobile responsiveness (article grid single-column collapse)
 - [ ] Supabase Storage audio URLs replace local files
 - [ ] Pipeline auto-uploads chapters/sentences JSONB to `wsj_briefings`
