@@ -66,7 +66,7 @@
   - **Quality**: Threads now specific (Kevin Warsh, US-Iran, Greenland, Gold Records)
 
 ### 6. Documentation Update
-**docs/4-news-threading.md** (complete rewrite):
+**docs/1.2-news-threading.md** (complete rewrite):
 - Added "Dynamic threshold (anti-gravity)" with formula + member_count table
 - Added "Centroid update (Dynamic EMA)" with formula + member_count table
 - Added "Roundup article exclusion" rationale
@@ -102,7 +102,7 @@
 | `.github/workflows/finance-pipeline.yml` | OPENAI_API_KEY → GEMINI_API_KEY | ✅ Committed |
 | `scripts/run_pipeline.sh` | Remove OpenAI key loading | ✅ Committed |
 | `scripts/load_env.sh` | Remove OpenAI key loading | ✅ Committed |
-| `docs/4-news-threading.md` | Complete rewrite: v3 algorithm, formulas, edge cases | ✅ Committed |
+| `docs/1.2-news-threading.md` | Complete rewrite: v3 algorithm, formulas, edge cases | ✅ Committed |
 
 ---
 
@@ -202,6 +202,6 @@ THREAD_ARCHIVE_DAYS = 14              # Archive if no new articles
 - **Ready for**: PR to main when frontend (Phase 5-8) is QA'd
 
 ### Files to Read Before Next Task
-- `docs/4-news-frontend.md` — Before starting Phase 5-8 frontend implementation
-- `docs/4-news-threading.md` — If tweaking threading constants
+- `docs/2-news-frontend.md` — Before starting Phase 5-8 frontend implementation
+- `docs/1.2-news-threading.md` — If tweaking threading constants
 - `docs/schema.md` — If modifying DB tables

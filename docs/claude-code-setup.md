@@ -183,8 +183,13 @@ docs/
 ├── schema.md               # Database tables
 ├── project-history.md      # Project evolution timeline
 ├── claude-code-setup.md    # This file
-├── auth-migration-guide.md
-└── blog-writing-guide.md
+├── 1-news-backend.md       # Pipeline scripts, crawling, briefing
+├── 1.1-news-google-search.md  # Search flow, domain blocking
+├── 1.2-news-threading.md   # Thread grouping algorithm
+├── 1.3-embedding-ab-test.md   # Embedding model comparison
+├── 2-news-frontend.md      # /news page components
+├── 3-blog-writing-guide.md # MDX blog authoring
+└── pipeline-audit/         # Per-script audit docs
 ```
 
 ---

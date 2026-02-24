@@ -303,5 +303,4 @@ Does NOT read/write `wsj_items` directly — communicates via JSONL files.
 | Item | Question |
 |------|----------|
 | `save_search_hit_counts()` efficiency | SELECT+UPDATE per domain. Could use Supabase RPC for bulk increment. Not urgent at ~100 domains. |
-| `docs/4-news-google-search.md` outdated | Still says "6 top paywall sites" but now uses up to 28 sorted by search_hit_count. Line numbers wrong. |
-| `docs/cc/google-news-search-flow.md` outdated | References old query types (keyword extraction), old file name `wsj_processed_ids.json`. |
+| `docs/1.1-news-google-search.md` | Updated with correct -site: count (28, sorted by search_hit_count). `google-news-search-flow.md` merged in. |
