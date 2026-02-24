@@ -1,5 +1,12 @@
-<!-- Created: 2026-02-22 -->
+<!-- Updated: 2026-02-24 -->
 # Python Pipeline Rules
+
+## Execution Environment
+
+1) **CWD must be `scripts/`**: Pipeline scripts load `.env.local` from CWD. Always `cd scripts/` before running.
+2) **MacBook vs Mac Mini**: Mac Mini has full deps (`google-cloud-texttospeech`, `whisper`, `ctc-forced-aligner`, `unidecode`). MacBook `scripts/.venv` may be missing these — install as needed.
+
+## Code Rules
 
 When writing or modifying `scripts/*.py` pipeline scripts:
 
