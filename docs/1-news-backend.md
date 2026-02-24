@@ -1,4 +1,4 @@
-<!-- Updated: 2026-02-24 -->
+<!-- Updated: 2026-02-23 -->
 # News Platform — Backend & Pipeline
 
 Single source of truth for the finance news pipeline: ingestion, crawling, analysis, briefing generation.
@@ -120,7 +120,7 @@ Ranks candidates by semantic similarity.
 
 | Flag | Default | Action |
 |------|---------|--------|
-| `--top-k N` | 10 | Max results per item |
+| `--top-k N` | 30 | Max results per item |
 | `--min-score F` | 0.3 | Min cosine similarity |
 
 - **Model:** BAAI/bge-base-en-v1.5 (768d)
@@ -149,7 +149,7 @@ Crawls resolved URLs with quality + relevance verification.
 | `--from-db` | — | Crawl pending from DB |
 | `--concurrent N` | 1 | Parallel WSJ items via asyncio.Semaphore |
 
-- Sorted by `weighted_score = embedding_score * laplace_smoothed_rate` where rate = (success+1)/(total+2)
+- Sorted by `weighted_score = 0.50 × embedding + 0.25 × wilson + 0.25 × (avg_llm / 10)`. Defaults: wilson=0.4 when total attempts < 3, avg_llm=5.0 when NULL
 - Per-article: crawl → garbage check → embedding relevance (≥ 0.25) → LLM verify (gemini-2.5-flash-lite) → accept/reject
 - Short-but-real fallback: articles ≥150ch AND >1.5× WSJ description length bypass TOO_SHORT, still pass embedding+LLM gates
 - `--concurrent 5` = 5 WSJ items processed in parallel (each item's candidates still sequential)

@@ -276,7 +276,7 @@ async def process_wsj_item(
     *,
     delay: float,
     supabase,
-    domain_success_rates: dict,
+    domain_stats: dict,
     run_blocked: set,
     semaphore: asyncio.Semaphore,
 ) -> dict:
@@ -295,12 +295,19 @@ async def process_wsj_item(
         # Filter to articles with resolved URLs
         crawlable = [a for a in articles if a.get("resolved_url")]
 
-        # Sort by weighted score: embedding_score * domain_success_rate
+        # Sort by weighted score: 50% embedding + 25% wilson + 25% llm quality
+        # Defaults for unknown/insufficient-data domains: wilson=0.4, llm=5.0
         def weighted_score(article):
-            emb_score = article.get("embedding_score") or 0.5
+            emb = article.get("embedding_score") or 0.5
             domain = article.get("resolved_domain", "")
-            success_rate = domain_success_rates.get(domain, 0.5)
-            return emb_score * success_rate
+            d = domain_stats.get(domain, {})
+            raw_w = d.get("wilson_score")
+            raw_l = d.get("avg_llm_score")
+            total = (d.get("success_count") or 0) + (d.get("fail_count") or 0)
+            # Use defaults when no meaningful data exists
+            wilson = float(raw_w) if raw_w is not None and total >= 3 else 0.4
+            llm = (float(raw_l) if raw_l is not None else 5.0) / 10.0
+            return 0.50 * emb + 0.25 * wilson + 0.25 * llm
 
         crawlable.sort(key=weighted_score, reverse=True)
 
@@ -506,23 +513,27 @@ async def main():
         print("Required: NEXT_PUBLIC_SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY")
         return
 
-    # Fetch domain success rates for weighted ranking (Laplace-smoothed)
-    domain_success_rates = {}
+    # Fetch domain quality stats for weighted ranking
+    domain_stats = {}
     if supabase:
         try:
             domain_response = supabase.table('wsj_domain_status') \
-                .select('domain, success_count, fail_count') \
+                .select('domain, wilson_score, avg_llm_score, success_count, fail_count') \
                 .eq('status', 'active') \
                 .execute()
             if domain_response.data:
-                domain_success_rates = {
-                    row['domain']: ((row.get('success_count') or 0) + 1)
-                    / ((row.get('success_count') or 0) + (row.get('fail_count') or 0) + 2)
+                domain_stats = {
+                    row['domain']: {
+                        'wilson_score': row.get('wilson_score'),
+                        'avg_llm_score': row.get('avg_llm_score'),
+                        'success_count': row.get('success_count'),
+                        'fail_count': row.get('fail_count'),
+                    }
                     for row in domain_response.data
                 }
-                print(f"Loaded Laplace-smoothed rates for {len(domain_success_rates)} domains")
+                print(f"Loaded domain quality stats for {len(domain_stats)} domains")
         except Exception as e:
-            print(f"Warning: Could not load domain success rates: {e}")
+            print(f"Warning: Could not load domain stats: {e}")
 
     # Load blocked domains (skip newspaper4k for these)
     blocked_domains = load_blocked_domains(supabase)
@@ -569,7 +580,7 @@ async def main():
             data=data,
             delay=delay,
             supabase=supabase,
-            domain_success_rates=domain_success_rates,
+            domain_stats=domain_stats,
             run_blocked=run_blocked,
             semaphore=semaphore,
         )
