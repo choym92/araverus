@@ -1,14 +1,22 @@
-export const dynamic = 'force-dynamic'
+export const revalidate = 7200 // ISR: cache for 2 hours
 
 import { notFound } from 'next/navigation'
 import Link from 'next/link'
 import type { Metadata } from 'next'
-import { createClient } from '@/lib/supabase-server'
+import { createServiceClient } from '@/lib/supabase-server'
 import { NewsService } from '@/lib/news-service'
 import NewsShell from '../_components/NewsShell'
 import KeywordPills from '../_components/KeywordPills'
 import RelatedSection from './_components/RelatedSection'
 import TimelineSection from './_components/TimelineSection'
+
+/** Pre-render recent articles at build time for instant first load */
+export async function generateStaticParams() {
+  const supabase = createServiceClient()
+  const service = new NewsService(supabase)
+  const items = await service.getNewsItems({ limit: 50 })
+  return items.filter(i => i.slug).map(i => ({ slug: i.slug! }))
+}
 
 interface ArticlePageProps {
   params: Promise<{ slug: string }>
@@ -27,7 +35,7 @@ function categoryLabel(feedName: string): string {
 
 export async function generateMetadata({ params }: ArticlePageProps): Promise<Metadata> {
   const { slug } = await params
-  const supabase = await createClient()
+  const supabase = createServiceClient()
   const service = new NewsService(supabase)
   const item = await service.getNewsItemBySlug(slug)
 
@@ -43,7 +51,7 @@ export async function generateMetadata({ params }: ArticlePageProps): Promise<Me
 
 export default async function ArticlePage({ params }: ArticlePageProps) {
   const { slug } = await params
-  const supabase = await createClient()
+  const supabase = createServiceClient()
   const service = new NewsService(supabase)
 
   const item = await service.getNewsItemBySlug(slug)
