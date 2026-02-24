@@ -221,6 +221,7 @@ python 8_generate_briefing.py --date 2026-02-23 --regen-audio  # Redo TTS+timest
 
 - **Curation + Importance Re-rank:** Combined in one Gemini 2.5 Pro call (temp 0.1, think 2K). Picks 10-15 curated articles AND assigns relative importance (must_read/worth_reading/optional) to ALL articles. Saves `importance_reranked` to `wsj_llm_analysis`. Response format: `{"curated": [...], "importance": [...]}`
 - **2-stage importance:** 1차 per-article (absolute, Gemini Flash during crawl → `importance`) + 2차 batch re-rank (relative, Gemini Pro during curation → `importance_reranked`). Frontend uses `importance_reranked` when available.
+- **Crawl map filter:** Only `relevance_flag='ok'` crawls are used; `low`-flag crawls are excluded from briefing even if `crawl_status='success'`
 - **Summary fallback chain:** Curated articles get full content → summary → description. Standard articles get summary → content[:800] → description. Title-only articles get description → title.
 - **LLM:** Gemini 2.5 Pro (curation + briefing generation, temp 0.6, think 4K)
 - **TTS EN:** Google Cloud Chirp 3 HD (`en-US-Chirp3-HD-Alnilam`), Whisper alignment (CPU)
@@ -249,7 +250,7 @@ stateDiagram-v2
     pending --> failed: timeout / 404
     pending --> garbage: CSS / paywall / junk
 
-    success --> flag_ok: LLM accept<br/>(same_event OR score≥6)
+    success --> flag_ok: LLM accept<br/>(same_event OR score≥7)
     success --> flag_low: LLM reject
 
     flag_ok --> skipped: mark other backups
@@ -266,7 +267,7 @@ stateDiagram-v2
 | Garbage detection | 6_crawl_ranked.py | unique_ratio ≥ 0.1, no CSS/JS/paywall |
 | Content quality | crawl_article.py | ≥ 350 chars, ≤ 50K, link_ratio < 30%, boilerplate < 40% |
 | Embedding relevance | 6_crawl_ranked.py | cosine ≥ 0.25 (bge-base) |
-| LLM verification | llm_analysis.py | `is_same_event=true` OR `score ≥ 6` |
+| LLM verification | llm_analysis.py | `is_same_event=true` OR `score ≥ 7` |
 
 ### Domain Failure Taxonomy
 
