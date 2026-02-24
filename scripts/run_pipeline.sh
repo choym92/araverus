@@ -82,6 +82,11 @@ echo ""
 echo ">>> Phase 5: Briefing"
 $VENV "$SCRIPTS/8_generate_briefing.py" --output-dir "$BRIEFING_DIR" || echo "ERROR: Briefing generation failed"
 
+# ── Phase 6: Health Report ─────────────────────────────
+echo ""
+echo ">>> Phase 6: Health Report"
+$VENV "$SCRIPTS/pipeline_health.py" --date "$DATE" || echo "WARN: Health report failed (continuing)"
+
 # ── Done ────────────────────────────────────────────────
 echo ""
 echo "============================================"
