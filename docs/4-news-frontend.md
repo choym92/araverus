@@ -70,7 +70,7 @@ graph LR
         PAGE --> TABS[Tab Nav<br/>Today / Stories / Search]
         PAGE --> CATS[Category Pills<br/>All / Markets / Tech / ...]
         PAGE --> FB[FilterButton 🖥️<br/>Dropdown with subcategory + keyword pills]
-        PAGE --> BP[BriefingPlayer 🔊<br/>Client Component (dynamic import, ssr:false)<br/>EN/KO + chapters + transcript]
+        PAGE --> BP[BriefingPlayer 🔊<br/>Client Component (dynamic import)<br/>EN/KO + chapters + transcript]
         PAGE --> AC[ArticleCard 🖥️<br/>Client Component<br/>featured / standard + thread carousel]
         PAGE --> BELOW[Below-fold grid<br/>Remaining articles]
     end
@@ -559,7 +559,7 @@ classDiagram
 | Decision | Choice | Rationale |
 |----------|--------|-----------|
 | Loading state | `loading.tsx` skeleton UI (Next.js built-in Suspense) | Instant visual feedback during server data fetching (12+ DB queries). Matches 3-col layout to avoid layout shift on content swap |
-| BriefingPlayer loading | `next/dynamic` with `ssr: false` + inline skeleton fallback | Splits heavy audio player JS (~chapters, waveform, transcript, Framer Motion) into separate chunk. Reduces initial JS bundle; player loads async after page hydration |
+| BriefingPlayer loading | `next/dynamic` with inline skeleton fallback | Splits heavy audio player JS (~chapters, waveform, transcript, Framer Motion) into separate chunk. Reduces initial JS bundle; player hydrates async. Note: `ssr: false` not allowed in Server Components |
 
 ### Audio Player
 

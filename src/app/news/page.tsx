@@ -22,7 +22,6 @@ const BriefingPlayer = nextDynamic(
         </div>
       </div>
     ),
-    ssr: false,
   },
 )
 import FilterButton from './_components/FilterButton'
