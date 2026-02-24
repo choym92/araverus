@@ -120,7 +120,7 @@ Ranks candidates by semantic similarity.
 
 | Flag | Default | Action |
 |------|---------|--------|
-| `--top-k N` | 10 | Max results per item |
+| `--top-k N` | 30 | Max results per item |
 | `--min-score F` | 0.3 | Min cosine similarity |
 
 - **Model:** BAAI/bge-base-en-v1.5 (768d)
