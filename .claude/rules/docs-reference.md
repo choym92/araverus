@@ -1,4 +1,4 @@
-<!-- Created: 2026-02-17 -->
+<!-- Updated: 2026-02-23 -->
 # Docs Reference
 
 ### Project Documentation Map
@@ -6,20 +6,28 @@
 **General**
 | Doc | Content |
 |-----|---------|
-| `docs/architecture.md` | Project overview, tech stack, folder structure |
-| `docs/schema.md` | All database tables (blog + finance) |
+| `docs/architecture.md` | Project overview, tech stack, folder structure (sync target — see `docs-sync.md`) |
+| `docs/schema.md` | All database tables, columns, RLS policies (sync target — see `docs-sync.md`) |
+| `docs/roadmap.md` | Project direction — 3-phase priorities |
 
-**Blog (3-)**
+**News Backend (1.x)**
 | Doc | Content |
 |-----|---------|
-| `docs/blog-writing-guide.md` | MDX blog authoring guide |
+| `docs/1-news-backend.md` | Pipeline scripts, crawling, briefing generation |
+| `docs/1.1-news-google-search.md` | Google News search flow, domain blocking layers, -site: logic |
+| `docs/1.2-news-threading.md` | Thread grouping algorithm, scoring |
+| `docs/1.3-embedding-ab-test.md` | Embedding model A/B test results |
+| `docs/pipeline-audit/` | Per-script audit docs (8 files) |
 
-**News Platform (4-)**
+**News Frontend (2.x)**
 | Doc | Content |
 |-----|---------|
-| `docs/4-news-backend.md` | Pipeline scripts, GitHub Actions, crawling, briefing generation |
-| `docs/4-news-google-search.md` | Google News search flow, domain blocking layers, -site: logic |
-| `docs/4-news-frontend.md` | `/news` page components, data flow, BriefingPlayer |
+| `docs/2-news-frontend.md` | `/news` page components, data flow, BriefingPlayer |
+
+**Blog (3.x)**
+| Doc | Content |
+|-----|---------|
+| `docs/3-blog-writing-guide.md` | MDX blog authoring guide |
 
 **Tooling**
 | Doc | Content |
@@ -32,7 +40,9 @@ Before working on a specific area, READ the relevant doc first:
 
 | Area | Must-read | Why |
 |------|-----------|-----|
-| Pipeline scripts / crawling | `docs/4-news-backend.md` | Script flags, crawl logic, cost |
-| Google News search / domain blocking | `docs/4-news-google-search.md` | Search flow, -site: logic, filtering layers |
-| News frontend / components | `docs/4-news-frontend.md` | Component props, data flow, known hacks |
+| Pipeline scripts / crawling | `docs/1-news-backend.md` | Script flags, crawl logic, cost |
+| Google News search / domain blocking | `docs/1.1-news-google-search.md` | Search flow, -site: logic, filtering layers |
+| News threading | `docs/1.2-news-threading.md` | Algorithm, scoring constants |
+| Embedding models | `docs/1.3-embedding-ab-test.md` | Model comparison, 3-zone gate |
+| News frontend / components | `docs/2-news-frontend.md` | Component props, data flow, known hacks |
 | DB schema changes | `docs/schema.md` | Column types, relationships, lifecycle |

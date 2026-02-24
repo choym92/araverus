@@ -3,7 +3,7 @@
 
 Technical guide for the `/news` page. WSJ-style 3-column layout with in-card thread carousels, bilingual audio briefing player, and keyword filtering. Powered by the existing news pipeline.
 
-For backend pipeline & threading algorithm details, see `docs/4-news-backend.md` and `docs/4-news-threading.md`.
+For backend pipeline & threading algorithm details, see `docs/1-news-backend.md` and `docs/1.2-news-threading.md`.
 
 ---
 
@@ -631,7 +631,7 @@ These are workarounds that should be removed once the pipeline is fully deployed
 
 ### Backend TODOs (tracked separately)
 
-See `docs/4-news-threading.md` and `docs/workflow/1-ideas/4.2-idea-thread-grouping-rethink.md` for:
+See `docs/1.2-news-threading.md` and `docs/workflow/1-ideas/4.2-idea-thread-grouping-rethink.md` for:
 - Summary re-backfill with improved prompts
 - Embedding re-generation with `title + summary`
 - Threading re-run with improved embeddings

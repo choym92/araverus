@@ -1,4 +1,4 @@
-export const dynamic = 'force-dynamic'
+export const revalidate = 7200 // ISR: cache page for 2 hours
 
 import { createClient } from '@/lib/supabase-server'
 import { NewsService } from '@/lib/news-service'

@@ -85,15 +85,14 @@ Added **Python Pipeline Rules** section (7 rules):
 - `scripts/embedding_rank.py` — lazy model load, argparse, removed crawl_status
 - `scripts/domain_utils.py` — comment update (wsj_searched_ids.json)
 - `CLAUDE.md` — added Python Pipeline Rules section
-- `docs/4-news-backend.md` — updated wsj_to_google_news table
-- `docs/4-news-google-search.md` — line numbers corrected, updated to 28 -site: exclusions
-- `docs/cc/google-news-search-flow.md` — filename correction (wsj_processed → wsj_searched)
+- `docs/1-news-backend.md` — updated wsj_to_google_news table
+- `docs/1.1-news-google-search.md` — line numbers corrected, updated to 28 -site: exclusions
 
 ### Audit Docs Created
-- `docs/cc/pipeline-audit/wsj-ingest.md` (288 LOC)
-- `docs/cc/pipeline-audit/wsj-preprocess.md` (168 LOC)
-- `docs/cc/pipeline-audit/wsj-to-google-news.md` (305 LOC)
-- `docs/cc/pipeline-audit/embedding-rank.md` (101 LOC)
+- `docs/pipeline-audit/wsj-ingest.md` (288 LOC)
+- `docs/pipeline-audit/wsj-preprocess.md` (168 LOC)
+- `docs/pipeline-audit/wsj-to-google-news.md` (305 LOC)
+- `docs/pipeline-audit/embedding-rank.md` (101 LOC)
 
 ### Git Commits
 - `8bf7dce` — wsj_ingest.py refactor (moved lifecycle ops, slim to Phase 1)
@@ -117,8 +116,8 @@ Added **Python Pipeline Rules** section (7 rules):
 - [x] #8: crawl_article.py — removed 220 LOC duplicate resolver, argparse
 
 ### Documentation Cleanup
-- [ ] `docs/4-news-google-search.md` still mentions "6 top paywall sites" (actually 28, sorted by search_hit_count) — full rewrite needed
-- [ ] `docs/cc/google-news-search-flow.md` has outdated query types section
+- [x] `docs/1.1-news-google-search.md` — rewritten with correct -site: count (28, sorted by search_hit_count)
+- [x] `docs/cc/google-news-search-flow.md` — merged into `docs/1.1-news-google-search.md` and deleted
 
 ### Post-Audit Tasks
 - [ ] `get_supabase_client()` still duplicated in wsj_ingest.py — single remaining copy outside domain_utils
@@ -148,8 +147,8 @@ None. All 8 scripts audited, committed, and pushed. Pipeline backward compatible
 ### Key Files
 - `CLAUDE.md` — NOW has Python Pipeline Rules (updated 2026-02-22)
 - `docs/schema.md` — Truth for pipeline lifecycle (searched/processed/briefed)
-- `docs/4-news-backend.md` — Phase overview + script summary table
-- `docs/cc/pipeline-audit/` — Audit docs for each refactored script
+- `docs/1-news-backend.md` — Phase overview + script summary table
+- `docs/pipeline-audit/` — Audit docs for each refactored script
 
 ### Gotchas
 - **Never load models/heavy deps at module level** — breaks imports and `--help`

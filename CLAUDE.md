@@ -1,12 +1,12 @@
 # CLAUDE.md
-<!-- Updated: 2026-02-22 -->
+<!-- Updated: 2026-02-23 -->
 
 ## Project
 Next.js 15 personal site (blog, resume, 3D landing) with a Python news pipeline (news crawl → AI curation → briefing). Stack: TypeScript, Tailwind, Supabase, MDX. Deployed on Vercel (web) + Mac Mini (pipeline cron).
 
 Project-specific rules live in `.claude/rules/`. Detailed docs in `docs/`.
 
-**Before working on any feature area, check `.claude/rules/docs-reference.md` for which docs to read first.** Feature docs are prefixed by number (e.g., `4-news-backend.md`). Always read the relevant doc before making changes.
+**Before working on any feature area, check `.claude/rules/docs-reference.md` for which docs to read first.** Feature docs are prefixed by number (backend=1.x, frontend=2.x, blog=3.x). Always read the relevant doc before making changes.
 
 ---
 

@@ -8,7 +8,7 @@ Findings from `/audit-data wsj_` (2026-02-17) + Stage-by-stage pipeline review (
 ## Stage 1: RSS Ingest (`wsj_ingest.py`)
 
 ### 1.1 ~~Doc inconsistencies~~ — RESOLVED
-Line counts, LLM model names (GPT-4o-mini → Gemini 2.5 Flash), env vars all corrected in `docs/4-news-backend.md`.
+Line counts, LLM model names (GPT-4o-mini → Gemini 2.5 Flash), env vars all corrected in `docs/1-news-backend.md`.
 
 ### 1.2 ~~28% NULL subcategory~~ — RESOLVED
 - Added `personal-finance`, `science` to `URL_CATEGORY_MAP`

@@ -114,15 +114,15 @@ araverus/
 - **Categories**: Publication, Tutorial, Insight, Release
 - **Features**: Static generation, draft system, RSS feed at `/rss.xml`
 - **Authoring**: Git + Obsidian → Push → Vercel auto-deploy
-- **Guide**: See `docs/blog-writing-guide.md`
+- **Guide**: See `docs/3-blog-writing-guide.md`
 
 ### 3. News Platform
 
 - **Purpose**: Collect WSJ news, find free alternative sources, crawl content, verify relevance, generate EN/KO audio briefings
 - **Pipeline**: Python scripts → GitHub Actions (daily 6 AM ET) + Mac Mini (launchd)
 - **Frontend**: `/news` — WSJ-style 3-column layout with audio briefing player (EN/KO), category filtering
-- **Backend docs**: See `docs/4-news-backend.md`
-- **Frontend docs**: See `docs/4-news-frontend.md`
+- **Backend docs**: See `docs/1-news-backend.md`
+- **Frontend docs**: See `docs/2-news-frontend.md`
 
 ---
 
@@ -179,8 +179,8 @@ npm start         # Production server
 | Doc | Content |
 |-----|---------|
 | `docs/schema.md` | All database tables |
-| `docs/blog-writing-guide.md` | MDX blog authoring guide |
-| `docs/4-news-backend.md` | News pipeline scripts, GitHub Actions, briefing generation |
-| `docs/4-news-frontend.md` | `/news` page components, data flow, BriefingPlayer |
+| `docs/3-blog-writing-guide.md` | MDX blog authoring guide |
+| `docs/1-news-backend.md` | News pipeline scripts, briefing generation |
+| `docs/2-news-frontend.md` | `/news` page components, data flow, BriefingPlayer |
 | `docs/claude-code-setup.md` | Skills, agents, hooks, automation reference |
 | `CLAUDE.md` | Development rules and workflow |
