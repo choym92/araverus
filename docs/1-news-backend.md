@@ -149,7 +149,7 @@ Crawls resolved URLs with quality + relevance verification.
 | `--from-db` | — | Crawl pending from DB |
 | `--concurrent N` | 1 | Parallel WSJ items via asyncio.Semaphore |
 
-- Sorted by `weighted_score = 0.50 × embedding_score + 0.25 × wilson_score + 0.25 × (avg_llm_score / 10)`. Defaults for unknown domains: wilson=0.4, avg_llm=5.0
+- Sorted by `weighted_score = 0.50 × embedding + 0.25 × wilson + 0.25 × (avg_llm / 10)`. Defaults: wilson=0.4 when total attempts < 3, avg_llm=5.0 when NULL
 - Per-article: crawl → garbage check → embedding relevance (≥ 0.25) → LLM verify (gemini-2.5-flash-lite) → accept/reject
 - Short-but-real fallback: articles ≥150ch AND >1.5× WSJ description length bypass TOO_SHORT, still pass embedding+LLM gates
 - `--concurrent 5` = 5 WSJ items processed in parallel (each item's candidates still sequential)
