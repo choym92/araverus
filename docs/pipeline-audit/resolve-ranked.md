@@ -1,5 +1,5 @@
 <!-- Created: 2026-02-22 -->
-# Audit: resolve_ranked.py + google_news_resolver.py
+# Audit: 5_resolve_ranked.py + google_news_resolver.py
 
 Phase 2 · Step 2 · URL Resolve — 241 LOC (post-refactor, was 303)
 
@@ -9,7 +9,7 @@ Phase 2 · Step 2 · URL Resolve — 241 LOC (post-refactor, was 303)
 
 Google News wraps all article URLs in redirect links (`news.google.com/articles/...`). The crawler needs actual article URLs. This script resolves each ranked candidate's Google News URL to the real URL using a 3-strategy resolver.
 
-Without this script, crawl_ranked.py would try to crawl Google's redirect pages instead of actual articles.
+Without this script, 6_crawl_ranked.py would try to crawl Google's redirect pages instead of actual articles.
 
 **Cost:** Free (HTTP calls to Google). Runtime: ~3 min for 600 articles at 0.5s delay.
 
@@ -28,14 +28,14 @@ Without this script, crawl_ranked.py would try to crawl Google's redirect pages 
 
 **Pipeline call** (`run_pipeline.sh` L61):
 ```bash
-$VENV "$SCRIPTS/resolve_ranked.py" --delay 0.5 --update-db || { echo "ERROR: Resolve failed"; exit 1; }
+$VENV "$SCRIPTS/5_resolve_ranked.py" --delay 0.5 --update-db || { echo "ERROR: Resolve failed"; exit 1; }
 ```
 
 Fatal — if resolution fails, pipeline stops (can't crawl without URLs).
 
 ---
 
-## Functions (3 in resolve_ranked.py)
+## Functions (3 in 5_resolve_ranked.py)
 
 ### `atomic_write_jsonl(path, data)` (L33) `[KEEP]`
 
@@ -105,7 +105,7 @@ Every resolution returns a `ResolveResult` dataclass with:
 ## Data Flow
 
 ```
-wsj_ranked_results.jsonl (from embedding_rank.py)
+wsj_ranked_results.jsonl (from 4_embedding_rank.py)
     │ ~600 articles (10 per WSJ item × 60 items)
     ▼ resolve_google_news_url() × N
 [adds resolved_url, resolve_status, resolve_domain, strategy fields]
@@ -133,7 +133,7 @@ wsj_ranked_results.jsonl (from embedding_rank.py)
 
 ### Done (this session)
 
-**resolve_ranked.py:**
+**5_resolve_ranked.py:**
 - **Removed async/await** — all HTTP calls sequential with delay, zero concurrency
 - `httpx.AsyncClient` → `httpx.Client`, `asyncio.sleep()` → `time.sleep()`
 - Removed `import asyncio`, `asyncio.run(main())`
@@ -147,7 +147,7 @@ wsj_ranked_results.jsonl (from embedding_rank.py)
 - `httpx.AsyncClient` type hints → `httpx.Client`
 - Removed dead `resolve_google_news_url_legacy()` (zero callers)
 - Moved `import json` from function-level to module-level
-- **303 → 241 LOC** (resolve_ranked.py), **501 → 489 LOC** (google_news_resolver.py)
+- **303 → 241 LOC** (5_resolve_ranked.py), **501 → 489 LOC** (google_news_resolver.py)
 
 ### Not Changed
 | Pattern | Why Kept |

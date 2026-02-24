@@ -28,7 +28,7 @@ load_dotenv(Path(__file__).parent.parent / '.env.local')
 # Reuse shared modules from scripts/
 sys.path.insert(0, str(Path(__file__).parent))
 from domain_utils import require_supabase_client
-from llm_analysis import get_gemini_client
+from lib.llm_analysis import get_gemini_client
 
 # ============================================================
 # Types

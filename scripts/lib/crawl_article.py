@@ -32,8 +32,9 @@ from urllib.parse import urlparse
 import httpx
 from crawl4ai import AsyncWebCrawler, BrowserConfig, CrawlerRunConfig
 
-# Import shared Google News resolver (sync — called briefly from async context)
-sys.path.insert(0, str(Path(__file__).parent))
+# Import shared modules
+sys.path.insert(0, str(Path(__file__).parent))          # lib/ (google_news_resolver)
+sys.path.insert(0, str(Path(__file__).parent.parent))   # scripts/ (domain_utils)
 from google_news_resolver import (
     is_google_news_url,
     resolve_google_news_url as _resolve_google_news_url,

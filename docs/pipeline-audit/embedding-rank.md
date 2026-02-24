@@ -1,5 +1,5 @@
 <!-- Created: 2026-02-22 -->
-# Audit: embedding_rank.py
+# Audit: 4_embedding_rank.py
 
 Phase 2 · Step 1 · Embedding Rank — 207 LOC (post-refactor)
 
@@ -28,7 +28,7 @@ Without this script, the crawler would waste time on irrelevant articles.
 
 **Pipeline call** (`run_pipeline.sh` L60):
 ```bash
-$VENV "$SCRIPTS/embedding_rank.py" || { echo "ERROR: Embedding rank failed"; exit 1; }
+$VENV "$SCRIPTS/4_embedding_rank.py" || { echo "ERROR: Embedding rank failed"; exit 1; }
 ```
 
 Fatal — if ranking fails, pipeline stops (no point crawling unranked candidates).
@@ -60,13 +60,13 @@ Core function:
 ## Data Flow
 
 ```
-wsj_google_news_results.jsonl (from wsj_to_google_news.py)
+wsj_google_news_results.jsonl (from 3_wsj_to_google_news.py)
     │ 80-180 candidates per WSJ item
     ▼ rank_candidates() × N
 [top 10, score >= 0.3]
     │
     ▼ write output
-wsj_ranked_results.jsonl → resolve_ranked.py
+wsj_ranked_results.jsonl → 5_resolve_ranked.py
 wsj_ranked_results.txt   → manual inspection
 ```
 
@@ -88,7 +88,7 @@ No DB dependencies — pure JSONL-to-JSONL transformation.
 ### Done (this session)
 - Module-level `MODEL = SentenceTransformer(...)` → lazy `_get_model()` singleton
 - Manual `sys.argv` parsing → `argparse`
-- Removed `crawl_status: 'pending'` from output (resolve_ranked.py sets this independently)
+- Removed `crawl_status: 'pending'` from output (5_resolve_ranked.py sets this independently)
 - Added Step number (Phase 2 · Step 1)
 
 ### Not Changed
