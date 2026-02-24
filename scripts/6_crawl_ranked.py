@@ -409,7 +409,7 @@ async def process_wsj_item(
 
                             print(f"score={llm_score}, same_event={is_same_event}, quality={content_quality}")
 
-                            if not is_same_event and llm_score < 6:
+                            if not is_same_event and llm_score < 7:
                                 llm_passed = False
                                 remaining = len(crawlable) - j - 1
                                 print(f"    ⚠ LLM rejected ({remaining} backups remaining)")

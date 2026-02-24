@@ -409,6 +409,7 @@ def fetch_crawl_map(sb, item_ids: list[str]) -> dict[str, dict]:
             )
             .in_("wsj_item_id", batch)
             .eq("crawl_status", "success")
+            .eq("relevance_flag", "ok")
             .execute()
         )
         for c in crawls.data:
