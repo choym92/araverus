@@ -3,7 +3,7 @@
 import React, { useRef, useState, useEffect } from 'react'
 import { Play, Pause, RotateCcw, RotateCw, ChevronDown, ChevronUp, Captions, Layers, Volume2, VolumeX } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { useBriefing, formatTime, SPEEDS } from './BriefingContext'
+import { useBriefing, formatTime, SPEED_PRESETS, SPEED_MIN, SPEED_MAX, SPEED_STEP } from './BriefingContext'
 import type { BriefingSource, BriefingLangData, BriefingData } from './BriefingContext'
 
 // Re-export types for backward compat
@@ -88,8 +88,8 @@ export default function BriefingPlayer({
   }, [date, duration, en?.audioUrl, ko?.audioUrl]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const {
-    lang, isPlaying, currentTime, audioDuration, speedIndex, volume, isMuted,
-    switchLang, togglePlay, skip, handleSeek, selectSpeed, handleVolumeChange, toggleMute,
+    lang, isPlaying, currentTime, audioDuration, speed, volume, isMuted,
+    switchLang, togglePlay, skip, handleSeek, setSpeed, handleVolumeChange, toggleMute,
     jumpToChapter, seekTo, setFullPlayerVisible,
     chapters, transcript, sentences, hasToggle, progress,
     activeChapterIndex, activeSentenceIndex, chapterGroups,
@@ -329,11 +329,10 @@ export default function BriefingPlayer({
               onMouseLeave={() => setMainSpeedOpen(false)}
             >
               <button
-                onClick={() => selectSpeed((speedIndex + 1) % SPEEDS.length)}
                 className={`h-7 flex items-center justify-center text-[11px] font-medium px-2.5 rounded-full ${T.speedBtn}`}
-                aria-label={`Playback speed ${SPEEDS[speedIndex]}x`}
+                aria-label={`Playback speed ${speed.toFixed(2)}x`}
               >
-                {SPEEDS[speedIndex]}x
+                {speed.toFixed(2)}x
               </button>
               <AnimatePresence>
                 {mainSpeedOpen && (
@@ -342,19 +341,48 @@ export default function BriefingPlayer({
                     animate={{ opacity: 1, y: 0 }}
                     exit={{ opacity: 0, y: 8 }}
                     transition={{ duration: 0.15 }}
-                    className="absolute bottom-full mb-2 right-0 bg-neutral-950 border border-white/15 rounded-lg shadow-2xl py-1 min-w-[4rem] z-10"
+                    className="absolute bottom-full mb-2 right-0 bg-neutral-950 border border-white/15 rounded-xl shadow-2xl p-3 z-10 w-52"
                   >
-                    {SPEEDS.map((s, i) => (
+                    <p className="text-center text-sm font-semibold text-white mb-2">{speed.toFixed(2)}x</p>
+                    <div className="flex items-center gap-2 mb-2">
                       <button
-                        key={s}
-                        onClick={() => selectSpeed(i)}
-                        className={`block w-full text-[11px] font-medium px-3 py-1.5 text-center transition-colors ${
-                          speedIndex === i ? 'text-white bg-white/15' : 'text-white/70 hover:text-white hover:bg-white/10'
-                        }`}
+                        onClick={() => setSpeed(speed - SPEED_STEP)}
+                        className="w-6 h-6 flex items-center justify-center rounded-full bg-white/10 hover:bg-white/20 text-white/70 hover:text-white text-xs font-bold transition-colors"
+                        aria-label="Decrease speed"
                       >
-                        {s}x
+                        −
                       </button>
-                    ))}
+                      <input
+                        type="range"
+                        min={SPEED_MIN}
+                        max={SPEED_MAX}
+                        step={SPEED_STEP}
+                        value={speed}
+                        onChange={(e) => setSpeed(parseFloat(e.target.value))}
+                        className="flex-1 h-1 bg-white/15 rounded-full appearance-none cursor-pointer [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-3.5 [&::-webkit-slider-thumb]:h-3.5 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-white [&::-webkit-slider-thumb]:shadow-md"
+                        aria-label="Playback speed"
+                      />
+                      <button
+                        onClick={() => setSpeed(speed + SPEED_STEP)}
+                        className="w-6 h-6 flex items-center justify-center rounded-full bg-white/10 hover:bg-white/20 text-white/70 hover:text-white text-xs font-bold transition-colors"
+                        aria-label="Increase speed"
+                      >
+                        +
+                      </button>
+                    </div>
+                    <div className="flex gap-1">
+                      {SPEED_PRESETS.map((s) => (
+                        <button
+                          key={s}
+                          onClick={() => setSpeed(s)}
+                          className={`flex-1 text-[11px] font-medium py-1.5 rounded-lg text-center transition-colors ${
+                            Math.abs(speed - s) < 0.01 ? 'text-white bg-white/20' : 'text-white/60 bg-white/5 hover:bg-white/10 hover:text-white'
+                          }`}
+                        >
+                          {s}x
+                        </button>
+                      ))}
+                    </div>
                   </motion.div>
                 )}
               </AnimatePresence>
@@ -402,9 +430,9 @@ export default function BriefingPlayer({
             <button
               onClick={() => { setMobileSpeedOpen(v => !v); setMobileVolumeOpen(false) }}
               className={`h-7 flex items-center justify-center text-[11px] font-medium px-2.5 rounded-full ${T.speedBtn}`}
-              aria-label={`Playback speed ${SPEEDS[speedIndex]}x`}
+              aria-label={`Playback speed ${speed.toFixed(2)}x`}
             >
-              {SPEEDS[speedIndex]}x
+              {speed.toFixed(2)}x
             </button>
             <AnimatePresence>
               {mobileSpeedOpen && (
@@ -413,19 +441,48 @@ export default function BriefingPlayer({
                   animate={{ opacity: 1, y: 0 }}
                   exit={{ opacity: 0, y: 8 }}
                   transition={{ duration: 0.15 }}
-                  className="absolute bottom-full mb-2 left-1/2 -translate-x-1/2 bg-neutral-950 border border-white/15 rounded-lg shadow-2xl py-1 min-w-[4rem] z-10"
+                  className="absolute bottom-full mb-2 left-1/2 -translate-x-1/2 bg-neutral-950 border border-white/15 rounded-xl shadow-2xl p-3 z-10 w-52"
                 >
-                  {SPEEDS.map((s, i) => (
+                  <p className="text-center text-sm font-semibold text-white mb-2">{speed.toFixed(2)}x</p>
+                  <div className="flex items-center gap-2 mb-2">
                     <button
-                      key={s}
-                      onClick={() => { selectSpeed(i); setMobileSpeedOpen(false) }}
-                      className={`block w-full text-[11px] font-medium px-3 py-1.5 text-center transition-colors ${
-                        speedIndex === i ? 'text-white bg-white/15' : 'text-white/70 hover:text-white hover:bg-white/10'
-                      }`}
+                      onClick={() => setSpeed(speed - SPEED_STEP)}
+                      className="w-6 h-6 flex items-center justify-center rounded-full bg-white/10 hover:bg-white/20 text-white/70 hover:text-white text-xs font-bold transition-colors"
+                      aria-label="Decrease speed"
                     >
-                      {s}x
+                      −
                     </button>
-                  ))}
+                    <input
+                      type="range"
+                      min={SPEED_MIN}
+                      max={SPEED_MAX}
+                      step={SPEED_STEP}
+                      value={speed}
+                      onChange={(e) => setSpeed(parseFloat(e.target.value))}
+                      className="flex-1 h-1 bg-white/15 rounded-full appearance-none cursor-pointer [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-3.5 [&::-webkit-slider-thumb]:h-3.5 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-white [&::-webkit-slider-thumb]:shadow-md"
+                      aria-label="Playback speed"
+                    />
+                    <button
+                      onClick={() => setSpeed(speed + SPEED_STEP)}
+                      className="w-6 h-6 flex items-center justify-center rounded-full bg-white/10 hover:bg-white/20 text-white/70 hover:text-white text-xs font-bold transition-colors"
+                      aria-label="Increase speed"
+                    >
+                      +
+                    </button>
+                  </div>
+                  <div className="flex gap-1">
+                    {SPEED_PRESETS.map((s) => (
+                      <button
+                        key={s}
+                        onClick={() => { setSpeed(s); setMobileSpeedOpen(false) }}
+                        className={`flex-1 text-[11px] font-medium py-1.5 rounded-lg text-center transition-colors ${
+                          Math.abs(speed - s) < 0.01 ? 'text-white bg-white/20' : 'text-white/60 bg-white/5 hover:bg-white/10 hover:text-white'
+                        }`}
+                      >
+                        {s}x
+                      </button>
+                    ))}
+                  </div>
                 </motion.div>
               )}
             </AnimatePresence>

@@ -5,7 +5,7 @@ import { usePathname } from 'next/navigation'
 import { createPortal } from 'react-dom'
 import { Play, Pause, ChevronDown, ChevronUp, Captions, Volume2, VolumeX } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { useBriefingOptional, formatTime, SPEEDS } from './BriefingContext'
+import { useBriefingOptional, formatTime, SPEED_PRESETS, SPEED_MIN, SPEED_MAX, SPEED_STEP } from './BriefingContext'
 
 /** Theme — keep in sync with BriefingPlayer T object */
 const T = {
@@ -54,8 +54,8 @@ export default function BriefingMiniPlayer() {
   if (!ctx || !ctx.audioUrl) return null
 
   const {
-    data, lang, isPlaying, currentTime, audioDuration, speedIndex, volume, isMuted,
-    switchLang, togglePlay, handleSeek, selectSpeed, handleVolumeChange, toggleMute,
+    data, lang, isPlaying, currentTime, audioDuration, speed, volume, isMuted,
+    switchLang, togglePlay, handleSeek, setSpeed, handleVolumeChange, toggleMute,
     audioUrl, sentences, hasToggle, progress, activeSentenceIndex,
     isFullPlayerVisible,
   } = ctx
@@ -170,11 +170,11 @@ export default function BriefingMiniPlayer() {
                   <button
                     onClick={() => {
                       if (window.innerWidth < 640) { setMiniSpeedOpen(v => !v); setMiniVolumeOpen(false) }
-                      else selectSpeed((speedIndex + 1) % SPEEDS.length)
                     }}
+                    onMouseDown={(e) => { if (window.innerWidth >= 640) e.preventDefault() }}
                     className={`h-7 flex items-center justify-center text-[10px] font-medium px-2 rounded-full ${T.speedBtn}`}
                   >
-                    {SPEEDS[speedIndex]}x
+                    {speed.toFixed(2)}x
                   </button>
                   <AnimatePresence>
                     {miniSpeedOpen && (
@@ -183,19 +183,48 @@ export default function BriefingMiniPlayer() {
                         animate={{ opacity: 1, y: 0 }}
                         exit={{ opacity: 0, y: 8 }}
                         transition={{ duration: 0.15 }}
-                        className="absolute bottom-full mb-2 left-1/2 -translate-x-1/2 bg-neutral-950 border border-white/15 rounded-lg shadow-2xl py-1 min-w-[4rem]"
+                        className="absolute bottom-full mb-2 left-1/2 -translate-x-1/2 bg-neutral-950 border border-white/15 rounded-xl shadow-2xl p-3 z-10 w-48"
                       >
-                        {SPEEDS.map((s, i) => (
+                        <p className="text-center text-xs font-semibold text-white mb-2">{speed.toFixed(2)}x</p>
+                        <div className="flex items-center gap-1.5 mb-2">
                           <button
-                            key={s}
-                            onClick={() => { selectSpeed(i); setMiniSpeedOpen(false) }}
-                            className={`block w-full text-[11px] font-medium px-3 py-1.5 text-center transition-colors ${
-                              speedIndex === i ? 'text-white bg-white/15' : 'text-white/70 hover:text-white hover:bg-white/10'
-                            }`}
+                            onClick={() => setSpeed(speed - SPEED_STEP)}
+                            className="w-5 h-5 flex items-center justify-center rounded-full bg-white/10 hover:bg-white/20 text-white/70 hover:text-white text-[10px] font-bold transition-colors"
+                            aria-label="Decrease speed"
                           >
-                            {s}x
+                            −
                           </button>
-                        ))}
+                          <input
+                            type="range"
+                            min={SPEED_MIN}
+                            max={SPEED_MAX}
+                            step={SPEED_STEP}
+                            value={speed}
+                            onChange={(e) => setSpeed(parseFloat(e.target.value))}
+                            className="flex-1 h-1 bg-white/15 rounded-full appearance-none cursor-pointer [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-3 [&::-webkit-slider-thumb]:h-3 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-white [&::-webkit-slider-thumb]:shadow-md"
+                            aria-label="Playback speed"
+                          />
+                          <button
+                            onClick={() => setSpeed(speed + SPEED_STEP)}
+                            className="w-5 h-5 flex items-center justify-center rounded-full bg-white/10 hover:bg-white/20 text-white/70 hover:text-white text-[10px] font-bold transition-colors"
+                            aria-label="Increase speed"
+                          >
+                            +
+                          </button>
+                        </div>
+                        <div className="flex gap-1">
+                          {SPEED_PRESETS.map((s) => (
+                            <button
+                              key={s}
+                              onClick={() => { setSpeed(s); setMiniSpeedOpen(false) }}
+                              className={`flex-1 text-[10px] font-medium py-1 rounded-md text-center transition-colors ${
+                                Math.abs(speed - s) < 0.01 ? 'text-white bg-white/20' : 'text-white/60 bg-white/5 hover:bg-white/10 hover:text-white'
+                              }`}
+                            >
+                              {s}x
+                            </button>
+                          ))}
+                        </div>
                       </motion.div>
                     )}
                   </AnimatePresence>
