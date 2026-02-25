@@ -18,17 +18,16 @@ function AuthCodeHandler() {
     if (code && !isProcessing) {
       setIsProcessing(true);
       // Exchange code for session
-      supabase.auth.exchangeCodeForSession(code).then(({ data, error }) => {
+      supabase.auth.exchangeCodeForSession(code).then(({ error }) => {
         if (error) {
-          console.error('Auth exchange failed:', error);
+          console.error('Auth exchange failed');
           // Redirect to login with error parameter
           router.push('/login?error=auth_failed');
         } else {
-          console.log('Authentication successful:', data.user?.email);
           router.push('/');
         }
-      }).catch((err) => {
-        console.error('Unexpected auth error:', err);
+      }).catch(() => {
+        console.error('Unexpected auth error');
         router.push('/login?error=unexpected');
       }).finally(() => {
         setIsProcessing(false);
