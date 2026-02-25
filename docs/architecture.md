@@ -1,4 +1,4 @@
-<!-- Updated: 2026-02-17 -->
+<!-- Updated: 2026-02-25 -->
 # Araverus — Project Architecture
 
 Paul Cho's personal website, blog, and news briefing platform.
@@ -52,6 +52,7 @@ Paul Cho's personal website, blog, and news briefing platform.
 ```
 araverus/
 ├── src/
+│   ├── middleware.ts            # Supabase session refresh (auth token renewal)
 │   ├── app/                    # Next.js routes (server-first)
 │   │   ├── page.tsx            # Landing page (hero + particles)
 │   │   ├── blog/               # Blog list + [slug] pages
@@ -62,7 +63,12 @@ araverus/
 │   │   ├── resume/             # Resume viewer (PDF embed)
 │   │   ├── admin/              # Admin panel (role-gated)
 │   │   ├── login/              # Auth page
-│   │   ├── dashboard/          # Dashboard page
+│   │   ├── dashboard/          # Dashboard page (server-guarded)
+│   │   ├── not-found.tsx       # Custom 404 page
+│   │   ├── error.tsx           # Error boundary
+│   │   ├── global-error.tsx    # Root error boundary
+│   │   ├── sitemap.ts          # Dynamic sitemap generation
+│   │   ├── robots.ts           # Robots.txt generation
 │   │   ├── api/                # API routes
 │   │   └── rss.xml/            # RSS feed generation
 │   ├── components/             # Reusable UI (client only when needed)
