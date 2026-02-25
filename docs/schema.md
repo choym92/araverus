@@ -125,8 +125,8 @@ updated_at      TIMESTAMPTZ   -- auto: now()
 ```
 
 **Crawl decision logic** (6_crawl_ranked.py):
-- LLM accept: `is_same_event=true` OR `(is_same_event=false AND llm_score >= 6)` → `relevance_flag='ok'`
-- LLM reject: `is_same_event=false AND llm_score < 6` → `relevance_flag='low'`, tries next backup article
+- LLM accept: `is_same_event=true` OR `(is_same_event=false AND llm_score >= 7)` → `relevance_flag='ok'`
+- LLM reject: `is_same_event=false AND llm_score < 7` → `relevance_flag='low'`, tries next backup article
 
 ### `wsj_llm_analysis` — LLM Content Analysis
 **Written by**: `llm_analysis.py` → `save_analysis_to_db()`, called from `6_crawl_ranked.py` after each crawl
