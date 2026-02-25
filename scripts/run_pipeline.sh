@@ -87,6 +87,23 @@ echo ""
 echo ">>> Phase 6: Health Report"
 $VENV "$SCRIPTS/pipeline_health.py" --date "$DATE" || echo "WARN: Health report failed (continuing)"
 
+# ── Phase 7: Cache Revalidation ──────────────────────────
+echo ""
+echo ">>> Phase 7: Cache Revalidation"
+SITE_URL="${SITE_URL:-https://chopaul.com}"
+if [[ -n "${REVALIDATION_SECRET:-}" ]]; then
+    HTTP_STATUS=$(curl -s -o /dev/null -w "%{http_code}" --max-time 10 \
+        -X POST "$SITE_URL/api/revalidate" \
+        -H "x-revalidation-secret: $REVALIDATION_SECRET")
+    if [[ "$HTTP_STATUS" == "200" ]]; then
+        echo "Cache revalidated successfully"
+    else
+        echo "WARN: Revalidation returned HTTP $HTTP_STATUS (ISR fallback still active)"
+    fi
+else
+    echo "WARN: REVALIDATION_SECRET not set, skipping cache revalidation"
+fi
+
 # ── Done ────────────────────────────────────────────────
 echo ""
 echo "============================================"

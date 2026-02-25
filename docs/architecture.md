@@ -34,6 +34,7 @@ Paul Cho's personal website, blog, and news briefing platform.
 │ /blog           │ └── public/blog/     │ ├── 6_crawl_ranked.py        │
 │ /news           │                      │ ├── 8_generate_briefing.py   │
 │ /admin          │ Categories:          │ └── ...9 scripts total     │
+│ /api/revalidate │                      │                            │
 │ /login          │ Publication,Tutorial │                            │
 │ /dashboard      │ Insight, Release     │ Daily at 6 AM ET           │
 ├─────────────────┴──────────────────────┴────────────────────────────┤
@@ -70,6 +71,7 @@ araverus/
 │   │   ├── sitemap.ts          # Dynamic sitemap generation
 │   │   ├── robots.ts           # Robots.txt generation
 │   │   ├── api/                # API routes
+│   │   │   └── revalidate/    # On-demand ISR (pipeline → cache bust)
 │   │   └── rss.xml/            # RSS feed generation
 │   ├── components/             # Reusable UI (client only when needed)
 │   │   ├── Hero.tsx            # Landing hero with particle bg
@@ -164,6 +166,10 @@ SUPABASE_KEY=
 OPENAI_API_KEY=
 GOOGLE_API_KEY=                  # Gemini (briefing + KO TTS)
 GOOGLE_CLOUD_PROJECT=            # Chirp 3 HD (EN TTS)
+
+# Pipeline → Vercel cache revalidation
+REVALIDATION_SECRET=             # Shared secret for /api/revalidate
+SITE_URL=https://chopaul.com     # Production URL (default)
 ```
 
 ---

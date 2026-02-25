@@ -41,6 +41,10 @@ flowchart LR
     subgraph "Phase 6: Health"
         L --> M[pipeline_health.py]
     end
+
+    subgraph "Phase 7: Revalidate"
+        M --> N[curl /api/revalidate]
+    end
 ```
 
 **Orchestration:** `scripts/run_pipeline.sh` (Mac Mini launchd cron, daily)
@@ -256,6 +260,16 @@ python pipeline_health.py --no-email          # Skip email
 - **Output:** Terminal (colored), Markdown (`logs/health/health-YYYY-MM-DD.md`), Email (Gmail SMTP, optional)
 - **Email env:** `GMAIL_ADDRESS`, `GMAIL_APP_PASSWORD` in `.env.pipeline`
 - **Cron:** Added to `run_pipeline.sh` Phase 6 (non-fatal)
+
+### Phase 7: Cache Revalidation
+
+On-demand ISR revalidation after pipeline completes.
+
+- **Trigger:** `curl -X POST $SITE_URL/api/revalidate` with `x-revalidation-secret` header
+- **Action:** `revalidatePath('/news')` + `revalidatePath('/news/[slug]', 'page')`
+- **Non-fatal:** Failure logs WARN only; existing `revalidate = 7200` ISR fallback remains
+- **Env:** `REVALIDATION_SECRET` (shared secret), `SITE_URL` (default: `https://chopaul.com`)
+- **Timeout:** `--max-time 10`
 
 ### Shared Utilities
 
