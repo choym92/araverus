@@ -5,7 +5,6 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Calendar, ChevronRight, Filter, Grid3x3, List, Search, X, Tag, Clock } from 'lucide-react';
 import Link from 'next/link';
 import type { Post } from '@/lib/mdx';
-import { useAuth } from '@/hooks/useAuth';
 
 // Filter tabs
 const filterTabs = ['All', 'Insight', 'Journal', 'Playbook', 'Release'];
@@ -21,10 +20,10 @@ const sortOptions = [
 interface BlogPageProps {
   initialPosts: Post[];
   initialCategory?: string;
+  isAdmin?: boolean;
 }
 
-export default function BlogPage({ initialPosts, initialCategory }: BlogPageProps) {
-  const { user } = useAuth();
+export default function BlogPage({ initialPosts, initialCategory, isAdmin = false }: BlogPageProps) {
   const [posts] = useState<Post[]>(initialPosts);
   const [filteredPosts, setFilteredPosts] = useState<Post[]>([]);
   const [loading] = useState(false);
@@ -34,17 +33,6 @@ export default function BlogPage({ initialPosts, initialCategory }: BlogPageProp
   const [searchQuery, setSearchQuery] = useState('');
   const [showFilters, setShowFilters] = useState(false);
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
-  const [isAdmin, setIsAdmin] = useState(false);
-
-  // Check if user is admin (only choym92@gmail.com)
-  useEffect(() => {
-    if (user?.email === 'choym92@gmail.com') {
-      setIsAdmin(true);
-    } else {
-      setIsAdmin(false);
-    }
-  }, [user]);
-
 
   // Filter and sort posts
   useEffect(() => {
