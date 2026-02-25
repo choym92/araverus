@@ -1,4 +1,4 @@
-<!-- Updated: 2026-02-24 -->
+<!-- Updated: 2026-02-25 -->
 # News Platform — Backend & Pipeline
 
 Single source of truth for the finance news pipeline: ingestion, crawling, analysis, briefing generation.
@@ -98,6 +98,7 @@ Gemini Flash-Lite extracts metadata from title+description BEFORE search.
 
 - **Model:** Gemini 2.5 Flash-Lite (JSON mode, temp 0.1)
 - **Extracts:** entities, keywords, tickers, search_queries → saved to `wsj_items`
+- **Cost tracking:** Extracts `usage_metadata` per call, prints `COST SUMMARY` with token counts at end
 - **Cost:** ~$0.003/day, ~$0.10/month
 - **vs `wsj_llm_analysis`:** Pre-process = title+desc (pre-search). LLM analysis = crawled content (post-crawl).
 
@@ -124,7 +125,7 @@ Ranks candidates by semantic similarity.
 
 | Flag | Default | Action |
 |------|---------|--------|
-| `--top-k N` | 30 | Max results per item |
+| `--top-k N` | 40 | Max results per item |
 | `--min-score F` | 0.3 | Min cosine similarity |
 
 - **Model:** BAAI/bge-base-en-v1.5 (768d)
@@ -153,8 +154,9 @@ Crawls resolved URLs with quality + relevance verification.
 | `--from-db` | — | Crawl pending from DB |
 | `--concurrent N` | 1 | Parallel WSJ items via asyncio.Semaphore |
 
-- Sorted by `weighted_score = 0.50 × embedding + 0.25 × wilson + 0.25 × (avg_llm / 10)`. Defaults: wilson=0.4 when total attempts < 3, avg_llm=5.0 when NULL
+- Sorted by `weighted_score = 0.50 × embedding + 0.25 × wilson + 0.25 × (avg_llm / 10)`. Defaults: wilson=0.4 when total attempts < 3, avg_llm=5.0 when NULL. Both `weighted_score` and `attempt_order` (1-indexed rank) are stored in `wsj_crawl_results` before the crawl loop for analysis (see `docs/1.4-news-scoring-tuning.md`)
 - Per-article: crawl → garbage check → embedding relevance (≥ 0.25) → LLM verify (gemini-2.5-flash-lite) → accept/reject
+- **Cost tracking:** Accumulates LLM analysis `input_tokens`/`output_tokens` across items, prints `COST SUMMARY` at end
 - Short-but-real fallback: articles ≥150ch AND >1.5× WSJ description length bypass TOO_SHORT, still pass embedding+LLM gates
 - `--concurrent 5` = 5 WSJ items processed in parallel (each item's candidates still sequential)
 - Per-domain rate limiter: min 3s between requests to the same domain across concurrent items
@@ -248,6 +250,7 @@ python pipeline_health.py --no-email          # Skip email
 ```
 
 - **Data sources:** Log file (`logs/pipeline-YYYY-MM-DD.log`) + DB queries (`wsj_items`, `wsj_crawl_results`, `wsj_domain_status`, `wsj_llm_analysis`)
+- **Cost parsing:** `re.findall` sums all `"Estimated total: $X.XXXX"` lines from every stage (preprocess, crawl, briefing)
 - **8 report sections:** Ingest, Preprocess, Search, Rank, Resolve, Crawl, Domain Health, Pipeline Funnel + Briefing
 - **Health summary:** Auto-checks against thresholds (ingest ≥20, preprocess 0 failed, filter 2-5%, resolve ≥95%, crawl ok ≥35%, garbage <15%, TTS success)
 - **Output:** Terminal (colored), Markdown (`logs/health/health-YYYY-MM-DD.md`), Email (Gmail SMTP, optional)
@@ -259,7 +262,8 @@ python pipeline_health.py --no-email          # Skip email
 | Script | Purpose |
 |--------|---------|
 | `domain_utils.py` | Domain status, lifecycle flags, recovery, stats (Phase 2/4) |
-| `llm_analysis.py` | Gemini 2.5 Flash content verification + metadata extraction |
+| `lib/cost_utils.py` | Shared LLM pricing table (`COST_PER_1M`) + cost estimation helpers |
+| `lib/llm_analysis.py` | Gemini 2.5 Flash content verification + metadata extraction |
 | `llm_backfill.py` | Backfill LLM analysis for existing articles |
 
 ---
@@ -399,14 +403,15 @@ Mac Mini loads secrets from `.env.pipeline` or macOS Keychain.
 
 ## Cost Summary
 
-| Component | Per Run | Monthly |
-|-----------|---------|---------|
-| Pre-processing (Flash-Lite, 60 items) | $0.003 | $0.10 |
-| LLM analysis (2.5 Flash, per article) | $0.0002 | ~$0.30 |
-| Curation (2.5 Pro) | $0.006 | $0.18 |
-| EN Briefing (2.5 Pro) | $0.051 | $1.53 |
-| KO Briefing (2.5 Pro) | $0.063 | $1.89 |
-| EN TTS (Chirp 3 HD) | $0.144 | $4.32 |
-| ~~KO TTS (Gemini Pro Preview)~~ | ~~$0.360~~ | ~~$10.80~~ |
-| KO TTS (Chirp 3 HD) | $0.080 | $2.40 |
-| **Total** | **~$0.35** | **~$11/month** |
+Pricing is centralized in `lib/cost_utils.py`. All stages print `"Estimated total: $X.XXXX"`; `pipeline_health.py` sums them.
+
+| Component | Model | Per Run | Monthly |
+|-----------|-------|---------|---------|
+| Pre-processing (60 items) | Flash-Lite ($0.10/$0.40) | $0.003 | $0.10 |
+| LLM analysis (~40 articles) | Flash-Lite ($0.10/$0.40) | $0.002 | ~$0.06 |
+| Curation | Pro ($1.25/$10.0) | $0.006 | $0.18 |
+| EN Briefing | Pro ($1.25/$10.0) | $0.051 | $1.53 |
+| KO Briefing | Pro ($1.25/$10.0) | $0.063 | $1.89 |
+| EN TTS | Chirp 3 HD ($16/1M chars) | $0.144 | $4.32 |
+| KO TTS | Chirp 3 HD ($16/1M chars) | $0.080 | $2.40 |
+| **Total** | | **~$0.35** | **~$11/month** |

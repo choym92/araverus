@@ -1,4 +1,4 @@
-<!-- Updated: 2026-02-23 -->
+<!-- Updated: 2026-02-25 -->
 # Docs Reference
 
 ### Project Documentation Map
@@ -17,6 +17,7 @@
 | `docs/1.1-news-google-search.md` | Google News search flow, domain blocking layers, -site: logic |
 | `docs/1.2-news-threading.md` | Thread grouping algorithm, scoring |
 | `docs/1.3-embedding-ab-test.md` | Embedding model A/B test results |
+| `docs/1.4-news-scoring-tuning.md` | Scoring pipeline thresholds, tuning infrastructure |
 | `docs/pipeline-audit/` | Per-script audit docs (8 files) |
 
 **News Frontend (2.x)**
@@ -44,5 +45,6 @@ Before working on a specific area, READ the relevant doc first:
 | Google News search / domain blocking | `docs/1.1-news-google-search.md` | Search flow, -site: logic, filtering layers |
 | News threading | `docs/1.2-news-threading.md` | Algorithm, scoring constants |
 | Embedding models | `docs/1.3-embedding-ab-test.md` | Model comparison, 3-zone gate |
+| Scoring thresholds / weight tuning | `docs/1.4-news-scoring-tuning.md` | All thresholds, scoring flow, tuning approach |
 | News frontend / components | `docs/2-news-frontend.md` | Component props, data flow, known hacks |
 | DB schema changes | `docs/schema.md` | Column types, relationships, lifecycle |

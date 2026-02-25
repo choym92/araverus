@@ -1,4 +1,4 @@
-<!-- Updated: 2026-02-24 -->
+<!-- Updated: 2026-02-25 -->
 <!-- Phase: News UX enhancement (migrations 007-009) -->
 # Database Schema (araverus)
 
@@ -120,6 +120,8 @@ relevance_flag  TEXT          -- 'ok' (passed LLM check) or 'low' (LLM rejected 
 llm_same_event  BOOLEAN       -- from LLM analysis: is this the same news event as WSJ?
 llm_score       INT           -- from LLM analysis: relevance score 0-10
 top_image       TEXT          -- article hero image URL (extracted during crawl)
+attempt_order   INT           -- 1-indexed rank in weighted-sorted candidate list (written before crawl loop)
+weighted_score  FLOAT         -- composite score: 0.50×emb + 0.25×wilson + 0.25×(llm/10) (written before crawl loop)
 created_at      TIMESTAMPTZ   -- auto: now()
 updated_at      TIMESTAMPTZ   -- auto: now()
 ```

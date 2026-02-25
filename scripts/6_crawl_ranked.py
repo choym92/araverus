@@ -27,6 +27,7 @@ from lib.llm_analysis import (
     reset_domain_llm_success,
 )
 from domain_utils import load_blocked_domains, get_supabase_client, normalize_crawl_error
+from lib.cost_utils import print_cost_line
 
 # Use stealth mode in CI (headless), undetected locally (better evasion)
 IS_CI = os.environ.get("CI") == "true" or os.environ.get("GITHUB_ACTIONS") == "true"
@@ -282,7 +283,8 @@ async def process_wsj_item(
 ) -> dict:
     """Process a single WSJ item: crawl candidates until one succeeds.
 
-    Returns dict with keys: success (bool), attempts (int).
+    Returns dict with keys: success (bool), attempts (int),
+    llm_input_tokens (int), llm_output_tokens (int), llm_calls (int).
     Shared state (run_blocked) is mutated in-place (safe in asyncio single-thread).
     """
     async with semaphore:
@@ -311,6 +313,20 @@ async def process_wsj_item(
 
         crawlable.sort(key=weighted_score, reverse=True)
 
+        # Record attempt_order and weighted_score for all candidates
+        if supabase:
+            for rank, art in enumerate(crawlable, 1):
+                w = weighted_score(art)
+                url = art.get("resolved_url")
+                if url:
+                    try:
+                        supabase.table('wsj_crawl_results').update({
+                            'attempt_order': rank,
+                            'weighted_score': round(w, 4),
+                        }).eq('resolved_url', url).eq('crawl_status', 'pending').execute()
+                    except Exception:
+                        pass  # Non-critical
+
         print(f"\n[{idx+1}/{total}] WSJ: {wsj_title[:60]}...")
         print(f"  Candidates: {len(crawlable)} (sorted by weighted score)")
 
@@ -321,6 +337,9 @@ async def process_wsj_item(
         # Try each article until one succeeds
         success = False
         attempts = 0
+        llm_input_tokens = 0
+        llm_output_tokens = 0
+        llm_calls = 0
         for j, article in enumerate(crawlable):
             url = article["resolved_url"]
             domain = article.get("resolved_domain", "")
@@ -331,7 +350,16 @@ async def process_wsj_item(
             # Per-domain rate limit: wait if another concurrent item recently hit this domain
             await domain_rate_limit(domain)
 
-            print(f"  Trying [{j+1}/{len(crawlable)}]: {domain} (w:{w_score:.2f})...", end=" ", flush=True)
+            # Compute component scores for logging
+            emb_val = article.get("embedding_score") or 0.5
+            d_stats = domain_stats.get(domain, {})
+            d_total = (d_stats.get("success_count") or 0) + (d_stats.get("fail_count") or 0)
+            raw_w = d_stats.get("wilson_score")
+            raw_l = d_stats.get("avg_llm_score")
+            wilson_val = float(raw_w) if raw_w is not None and d_total >= 3 else 0.4
+            llm_val = (float(raw_l) if raw_l is not None else 5.0) / 10.0
+
+            print(f"  Trying [{j+1}/{len(crawlable)}]: {domain} (w:{w_score:.2f} e:{emb_val:.2f} W:{wilson_val:.2f} L:{llm_val:.2f})...", end=" ", flush=True)
 
             try:
                 result = await asyncio.wait_for(
@@ -403,6 +431,9 @@ async def process_wsj_item(
                         )
 
                         if llm_analysis:
+                            llm_calls += 1
+                            llm_input_tokens += llm_analysis.get("input_tokens") or 0
+                            llm_output_tokens += llm_analysis.get("output_tokens") or 0
                             llm_score = llm_analysis.get("relevance_score", 0)
                             is_same_event = llm_analysis.get("is_same_event", False)
                             content_quality = llm_analysis.get("content_quality", "")
@@ -486,7 +517,13 @@ async def process_wsj_item(
         if not success:
             print("  → All candidates failed")
 
-        return {"success": success, "attempts": attempts}
+        return {
+            "success": success,
+            "attempts": attempts,
+            "llm_input_tokens": llm_input_tokens,
+            "llm_output_tokens": llm_output_tokens,
+            "llm_calls": llm_calls,
+        }
 
 
 async def main():
@@ -592,6 +629,9 @@ async def main():
     wsj_success = sum(1 for r in results if r["success"])
     wsj_failed = sum(1 for r in results if not r["success"])
     total_attempts = sum(r["attempts"] for r in results)
+    total_llm_input = sum(r.get("llm_input_tokens", 0) for r in results)
+    total_llm_output = sum(r.get("llm_output_tokens", 0) for r in results)
+    total_llm_calls = sum(r.get("llm_calls", 0) for r in results)
 
     # Write back to file (only when reading from file, not --from-db)
     if not from_db:
@@ -644,6 +684,19 @@ async def main():
                 rel = art.get("relevance_score", 0)
                 flag = "⚠" if art.get("relevance_flag") == "low" else "✓"
                 print(f"  {flag} [{domain}] {length:,} chars, rel:{rel:.2f} - {wsj}...")
+
+    # Cost summary (LLM analysis calls only)
+    if total_llm_input or total_llm_output:
+        print("\nCOST SUMMARY")
+        print("-" * 40)
+        cost = print_cost_line(
+            "LLM Analysis (Flash-Lite)",
+            total_llm_input,
+            total_llm_output,
+            "gemini-2.5-flash-lite",
+            calls=total_llm_calls,
+        )
+        print(f"Estimated total: ${cost:.4f}")
 
     if from_db:
         print("\nResults saved to database.")

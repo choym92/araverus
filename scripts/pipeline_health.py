@@ -232,10 +232,10 @@ def parse_pipeline_log(log_path: str) -> dict:
     elif re.search(r"KO TTS done:", text):
         metrics["tts_ko_ok"] = True
 
-    # Cost
-    m = re.search(r"Estimated total:\s+\$([\d.]+)", text)
-    if m:
-        metrics["cost_total"] = float(m.group(1))
+    # Cost — sum all "Estimated total: $X.XXXX" lines across stages
+    cost_matches = re.findall(r"Estimated total:\s+\$([\d.]+)", text)
+    if cost_matches:
+        metrics["cost_total"] = sum(float(v) for v in cost_matches)
 
     return metrics
 
@@ -403,6 +403,255 @@ def fetch_db_metrics(supabase, date_str: str) -> dict:
 
 
 # ============================================================
+# Decision Support Metrics
+# ============================================================
+
+def fetch_decision_metrics(supabase, date_str: str, top_k: int = 40) -> dict:
+    """Fetch decision-support metrics for Section 9.
+
+    Returns dict with keys: rank_buckets, max_first_ok_rank, top_k_headroom,
+    llm_dist, llm_accept, coverage_today, coverage_yesterday, domain_best, domain_worst.
+    """
+    from collections import defaultdict
+
+    ds: dict = {}
+    day_start = f"{date_str}T00:00:00+00:00"
+    day_end = f"{date_str}T23:59:59+00:00"
+
+    # --- Main query: today's crawl results ---
+    resp = (
+        supabase.table("wsj_crawl_results")
+        .select("wsj_item_id,embedding_score,relevance_flag,llm_score,llm_same_event,resolved_domain,crawl_status,weighted_score,attempt_order")
+        .gte("crawled_at", day_start)
+        .lte("crawled_at", day_end)
+        .execute()
+    )
+    rows = resp.data or []
+    ds["total_rows"] = len(rows)
+
+    if not rows:
+        return ds
+
+    # ── A. Candidate Rank Effectiveness ──
+    # Group by wsj_item_id, sort by embedding_score DESC, find rank of first ok
+    items: dict[str, list] = defaultdict(list)
+    for r in rows:
+        items[r["wsj_item_id"]].append(r)
+
+    first_ok_ranks: list[int] = []
+    for item_id, candidates in items.items():
+        candidates.sort(key=lambda x: x.get("embedding_score") or 0, reverse=True)
+        found = False
+        for rank, c in enumerate(candidates, 1):
+            if c.get("relevance_flag") == "ok":
+                first_ok_ranks.append(rank)
+                found = True
+                break
+        if not found:
+            first_ok_ranks.append(0)  # 0 = no ok found
+
+    buckets = {"1-5": 0, "6-10": 0, "11-20": 0, "21-30": 0, "31-40": 0, "no_ok": 0}
+    for rank in first_ok_ranks:
+        if rank == 0:
+            buckets["no_ok"] += 1
+        elif rank <= 5:
+            buckets["1-5"] += 1
+        elif rank <= 10:
+            buckets["6-10"] += 1
+        elif rank <= 20:
+            buckets["11-20"] += 1
+        elif rank <= 30:
+            buckets["21-30"] += 1
+        else:
+            buckets["31-40"] += 1
+
+    ok_ranks = [r for r in first_ok_ranks if r > 0]
+    max_first_ok = max(ok_ranks) if ok_ranks else 0
+
+    ds["rank_buckets"] = buckets
+    ds["max_first_ok_rank"] = max_first_ok
+    ds["top_k"] = top_k
+    ds["top_k_headroom"] = top_k - max_first_ok if max_first_ok else top_k
+
+    # ── B. LLM Threshold ──
+    llm_dist: dict[str, int] = {"≤5": 0, "6": 0, "7": 0, "≥8": 0}
+    ok_same = 0
+    ok_diff = 0
+    low_count = 0
+
+    for r in rows:
+        score = r.get("llm_score")
+        flag = r.get("relevance_flag")
+        same = r.get("llm_same_event")
+
+        if score is not None:
+            if score <= 5:
+                llm_dist["≤5"] += 1
+            elif score == 6:
+                llm_dist["6"] += 1
+            elif score == 7:
+                llm_dist["7"] += 1
+            else:
+                llm_dist["≥8"] += 1
+
+        if flag == "ok":
+            if same:
+                ok_same += 1
+            else:
+                ok_diff += 1
+        elif flag == "low":
+            low_count += 1
+
+    ds["llm_dist"] = llm_dist
+    ds["ok_same"] = ok_same
+    ds["ok_diff"] = ok_diff
+    ds["ok_total"] = ok_same + ok_diff
+    ds["low_count"] = low_count
+
+    # ── C. Briefing Coverage ──
+    # Today's EN briefing
+    today_briefing = (
+        supabase.table("wsj_briefings")
+        .select("id")
+        .eq("date", date_str)
+        .eq("category", "ALL")
+        .limit(1)
+        .execute()
+    )
+    if today_briefing.data:
+        briefing_id = today_briefing.data[0]["id"]
+        # Get wsj_item_ids in this briefing
+        bi_resp = (
+            supabase.table("wsj_briefing_items")
+            .select("wsj_item_id")
+            .eq("briefing_id", briefing_id)
+            .execute()
+        )
+        item_ids = [r["wsj_item_id"] for r in (bi_resp.data or [])]
+        total_items = len(item_ids)
+
+        # Count how many have at least one ok crawl
+        if item_ids:
+            ok_items = set()
+            for r in rows:
+                if r["wsj_item_id"] in item_ids and r.get("relevance_flag") == "ok":
+                    ok_items.add(r["wsj_item_id"])
+            # Also check crawl results outside today's window for these items
+            all_ok_resp = (
+                supabase.table("wsj_crawl_results")
+                .select("wsj_item_id")
+                .in_("wsj_item_id", item_ids)
+                .eq("relevance_flag", "ok")
+                .execute()
+            )
+            for r in (all_ok_resp.data or []):
+                ok_items.add(r["wsj_item_id"])
+            ds["coverage_today_ok"] = len(ok_items)
+        else:
+            ds["coverage_today_ok"] = 0
+        ds["coverage_today_total"] = total_items
+    else:
+        ds["coverage_today_total"] = 0
+        ds["coverage_today_ok"] = 0
+
+    # Yesterday's EN briefing for delta
+    from datetime import timedelta
+    yesterday = (datetime.strptime(date_str, "%Y-%m-%d") - timedelta(days=1)).strftime("%Y-%m-%d")
+    yest_briefing = (
+        supabase.table("wsj_briefings")
+        .select("id")
+        .eq("date", yesterday)
+        .eq("category", "ALL")
+        .limit(1)
+        .execute()
+    )
+    if yest_briefing.data:
+        yest_id = yest_briefing.data[0]["id"]
+        ybi_resp = (
+            supabase.table("wsj_briefing_items")
+            .select("wsj_item_id")
+            .eq("briefing_id", yest_id)
+            .execute()
+        )
+        yest_items = [r["wsj_item_id"] for r in (ybi_resp.data or [])]
+        yest_total = len(yest_items)
+        if yest_items:
+            yest_ok_resp = (
+                supabase.table("wsj_crawl_results")
+                .select("wsj_item_id")
+                .in_("wsj_item_id", yest_items)
+                .eq("relevance_flag", "ok")
+                .execute()
+            )
+            yest_ok = len({r["wsj_item_id"] for r in (yest_ok_resp.data or [])})
+        else:
+            yest_ok = 0
+        ds["coverage_yesterday_ok"] = yest_ok
+        ds["coverage_yesterday_total"] = yest_total
+    else:
+        ds["coverage_yesterday_total"] = 0
+        ds["coverage_yesterday_ok"] = 0
+
+    # ── D. Domain ROI ──
+    domain_stats: dict[str, dict] = defaultdict(lambda: {
+        "attempts": 0, "ok": 0, "llm_scores": [], "same_count": 0,
+    })
+    for r in rows:
+        dom = r.get("resolved_domain") or "unknown"
+        domain_stats[dom]["attempts"] += 1
+        if r.get("relevance_flag") == "ok":
+            domain_stats[dom]["ok"] += 1
+        if r.get("llm_score") is not None:
+            domain_stats[dom]["llm_scores"].append(r["llm_score"])
+        if r.get("llm_same_event"):
+            domain_stats[dom]["same_count"] += 1
+
+    # Best: sort by ok% DESC (min 3 attempts)
+    best = []
+    for dom, s in domain_stats.items():
+        if s["attempts"] >= 3:
+            ok_pct = s["ok"] / s["attempts"] * 100
+            avg_llm = sum(s["llm_scores"]) / len(s["llm_scores"]) if s["llm_scores"] else 0
+            same_pct = s["same_count"] / s["ok"] * 100 if s["ok"] else 0
+            best.append({
+                "domain": dom, "attempts": s["attempts"], "ok": s["ok"],
+                "ok_pct": ok_pct, "avg_llm": avg_llm, "same_pct": same_pct,
+            })
+    best.sort(key=lambda x: (-x["ok_pct"], -x["attempts"]))
+    ds["domain_best"] = best[:10]
+
+    # Worst: ≥3 attempts, 0 ok
+    worst = []
+    for dom, s in domain_stats.items():
+        if s["attempts"] >= 3 and s["ok"] == 0:
+            avg_llm = sum(s["llm_scores"]) / len(s["llm_scores"]) if s["llm_scores"] else 0
+            worst.append({
+                "domain": dom, "attempts": s["attempts"], "avg_llm": avg_llm,
+            })
+    worst.sort(key=lambda x: -x["attempts"])
+    ds["domain_worst"] = worst[:10]
+
+    # ── E. Score Effectiveness ──
+    # Only compute when weighted_score data exists (Phase 2 data)
+    ws_rows = [r for r in rows if r.get("weighted_score") is not None]
+    if ws_rows:
+        ok_scores = [r["weighted_score"] for r in ws_rows if r.get("relevance_flag") == "ok"]
+        low_scores = [r["weighted_score"] for r in ws_rows if r.get("relevance_flag") == "low"]
+        ds["score_avg_ok"] = sum(ok_scores) / len(ok_scores) if ok_scores else None
+        ds["score_avg_low"] = sum(low_scores) / len(low_scores) if low_scores else None
+
+        # ok at rank 1: how often does the first candidate succeed?
+        rank_rows = [r for r in ws_rows if r.get("attempt_order") is not None]
+        ok_at_1 = sum(1 for r in rank_rows if r.get("attempt_order") == 1 and r.get("relevance_flag") == "ok")
+        ok_with_rank = sum(1 for r in rank_rows if r.get("relevance_flag") == "ok")
+        ds["ok_at_rank_1"] = ok_at_1
+        ds["ok_total_with_rank"] = ok_with_rank
+        ds["ok_rank_1_pct"] = (ok_at_1 / ok_with_rank * 100) if ok_with_rank else None
+
+    return ds
+
+
+# ============================================================
 # Report Rendering
 # ============================================================
 
@@ -416,7 +665,7 @@ def _pct(num: int | float, denom: int | float) -> str:
     return f"{num / denom * 100:.1f}%"
 
 
-def render_report(log_m: dict, db_m: dict, date_str: str, verbose: bool = False) -> tuple[str, str]:
+def render_report(log_m: dict, db_m: dict, date_str: str, verbose: bool = False, ds_m: dict | None = None) -> tuple[str, str]:
     """Render the health report. Returns (terminal_output, markdown_output)."""
     term_lines: list[str] = []
     md_lines: list[str] = []
@@ -572,6 +821,77 @@ def render_report(log_m: dict, db_m: dict, date_str: str, verbose: bool = False)
     if log_m.get("cost_total") is not None:
         line(f"  Estimated cost: ${log_m['cost_total']:.4f}")
 
+    # ── 9. Decision Support ──
+    if ds_m and ds_m.get("total_rows"):
+        section("Decision Support", 9)
+
+        # A. Candidate Rank
+        if ds_m.get("rank_buckets"):
+            b = ds_m["rank_buckets"]
+            line("  Candidate Rank (where was first ok found?):")
+            line(f"    Rank 1-5: {b['1-5']}  |  6-10: {b['6-10']}  |  11-20: {b['11-20']}  |  21-30: {b['21-30']}  |  31-40: {b['31-40']}  |  No ok: {b['no_ok']}")
+            max_r = ds_m.get("max_first_ok_rank", 0)
+            headroom = ds_m.get("top_k_headroom", 0)
+            if max_r > 0:
+                line(f"    Max first-ok rank: {max_r}  (headroom: {headroom})")
+            else:
+                line("    Max first-ok rank: N/A (no ok found)")
+
+        # B. LLM Threshold
+        if ds_m.get("llm_dist"):
+            d = ds_m["llm_dist"]
+            line("  LLM Threshold:")
+            line(f"    Score ≤5: {d['≤5']}  |  6: {d['6']}  |  7: {d['7']}  |  ≥8: {d['≥8']}")
+            ok_t = ds_m.get("ok_total", 0)
+            ok_s = ds_m.get("ok_same", 0)
+            ok_d = ds_m.get("ok_diff", 0)
+            low = ds_m.get("low_count", 0)
+            line(f"    ok: {ok_t} (same={ok_s}, diff={ok_d})  |  low: {low}")
+
+        # C. Briefing Coverage
+        t_total = ds_m.get("coverage_today_total", 0)
+        t_ok = ds_m.get("coverage_today_ok", 0)
+        y_total = ds_m.get("coverage_yesterday_total", 0)
+        y_ok = ds_m.get("coverage_yesterday_ok", 0)
+        if t_total:
+            t_pct = t_ok / t_total * 100
+            line("  Briefing Coverage:")
+            cov = f"    Today: {t_ok}/{t_total} with crawl ({t_pct:.1f}%)"
+            if y_total:
+                y_pct = y_ok / y_total * 100
+                delta = t_pct - y_pct
+                sign = "+" if delta >= 0 else ""
+                cov += f"  |  Yesterday: {y_pct:.1f}%  |  Δ: {sign}{delta:.1f}%"
+            line(cov)
+
+        # D. Domain ROI
+        if ds_m.get("domain_best") or ds_m.get("domain_worst"):
+            line("  Domain ROI (today):")
+            if ds_m.get("domain_best"):
+                line(f"    {'Best:':<10} {'att':>5} {'ok':>5} {'ok%':>5} {'llm':>5} {'same%':>6}")
+                for d in ds_m["domain_best"][:5]:
+                    line(f"      {d['domain']:<28} {d['attempts']:>3}  {d['ok']:>4}  {d['ok_pct']:>4.0f}%  {d['avg_llm']:>4.1f}  {d['same_pct']:>5.0f}%")
+            if ds_m.get("domain_worst"):
+                line("    Worst (≥3 att, 0 ok):")
+                for d in ds_m["domain_worst"][:5]:
+                    line(f"      {d['domain']:<28} {d['attempts']:>3}         {d['avg_llm']:>4.1f} avg")
+
+        # E. Score Effectiveness
+        if ds_m.get("score_avg_ok") is not None or ds_m.get("ok_rank_1_pct") is not None:
+            line("  Score Effectiveness:")
+            avg_ok = ds_m.get("score_avg_ok")
+            avg_low = ds_m.get("score_avg_low")
+            if avg_ok is not None:
+                parts_str = f"    Avg weighted_score: ok={avg_ok:.3f}"
+                if avg_low is not None:
+                    parts_str += f", low={avg_low:.3f}"
+                line(parts_str)
+            ok_at_1 = ds_m.get("ok_at_rank_1")
+            ok_total_r = ds_m.get("ok_total_with_rank")
+            rank_pct = ds_m.get("ok_rank_1_pct")
+            if rank_pct is not None:
+                line(f"    ok at rank 1: {ok_at_1}/{ok_total_r} ({rank_pct:.1f}%)")
+
     # ── Summary ──
     term_lines.append(f"\n{C_BOLD}{'=' * 60}{C_RESET}")
     term_lines.append(f"{C_BOLD}HEALTH SUMMARY{C_RESET}")
@@ -580,7 +900,7 @@ def render_report(log_m: dict, db_m: dict, date_str: str, verbose: bool = False)
     md_lines.append("| Metric | Value | Status |")
     md_lines.append("|--------|-------|--------|")
 
-    checks = _compute_health_checks(log_m, db_m)
+    checks = _compute_health_checks(log_m, db_m, ds_m)
     for name, value, is_good in checks:
         icon = _status_icon(is_good)
         line(f"  {icon}  {name}: {value}", f"| {name} | {value} | {'OK' if is_good else 'WARNING'} |")
@@ -590,7 +910,7 @@ def render_report(log_m: dict, db_m: dict, date_str: str, verbose: bool = False)
     return term_output, md_output
 
 
-def _compute_health_checks(log_m: dict, db_m: dict) -> list[tuple[str, str, bool]]:
+def _compute_health_checks(log_m: dict, db_m: dict, ds_m: dict | None = None) -> list[tuple[str, str, bool]]:
     """Compute health check results. Returns list of (name, value_str, is_good)."""
     checks: list[tuple[str, str, bool]] = []
 
@@ -645,6 +965,25 @@ def _compute_health_checks(log_m: dict, db_m: dict) -> list[tuple[str, str, bool
         else:
             checks.append(("Briefing+TTS", "Briefing done, TTS unknown", True))
 
+    # Decision support checks
+    if ds_m and ds_m.get("total_rows"):
+        # Top-k headroom
+        max_r = ds_m.get("max_first_ok_rank", 0)
+        top_k = ds_m.get("top_k", 40)
+        if max_r > 0:
+            headroom = top_k - max_r
+            checks.append(("Top-k headroom", f"{headroom} (max rank {max_r}/{top_k})", headroom >= 5))
+
+        # Risky accepts (ok + different event)
+        ok_diff = ds_m.get("ok_diff", 0)
+        if ds_m.get("ok_total", 0) > 0:
+            checks.append(("Risky accepts", f"{ok_diff} ok+diff_event", ok_diff <= 10))
+
+        # Score rank-1 hit rate
+        rank1_pct = ds_m.get("ok_rank_1_pct")
+        if rank1_pct is not None:
+            checks.append(("Score rank-1 hit", f"{rank1_pct:.0f}%", rank1_pct >= 50))
+
     return checks
 
 
@@ -676,6 +1015,7 @@ def send_email(
     checks: list[tuple[str, str, bool]],
     log_m: dict,
     db_m: dict,
+    ds_m: dict | None = None,
 ) -> bool:
     """Send health report via Gmail SMTP. Returns True on success."""
     gmail_addr = os.getenv("GMAIL_ADDRESS")
@@ -691,7 +1031,7 @@ def send_email(
     else:
         subject = f"[OK] Pipeline Health — {date_str}"
 
-    html_content = render_html(log_m, db_m, date_str, checks)
+    html_content = render_html(log_m, db_m, date_str, checks, ds_m)
 
     msg = MIMEMultipart("alternative")
     msg["Subject"] = subject
@@ -795,7 +1135,7 @@ def _card(title: str, body: str) -> str:
     )
 
 
-def render_html(log_m: dict, db_m: dict, date_str: str, checks: list[tuple[str, str, bool]]) -> str:
+def render_html(log_m: dict, db_m: dict, date_str: str, checks: list[tuple[str, str, bool]], ds_m: dict | None = None) -> str:
     """Render a styled HTML email from metrics data."""
     parts: list[str] = []
 
@@ -1023,6 +1363,140 @@ def render_html(log_m: dict, db_m: dict, date_str: str, checks: list[tuple[str, 
         body += _kv("Estimated cost", f"${log_m['cost_total']:.4f}")
     parts.append(_card("8. Pipeline Funnel + Briefing", body))
 
+    # ── 9. Decision Support ──
+    if ds_m and ds_m.get("total_rows"):
+        body = ""
+
+        # A. Candidate Rank — stacked bar
+        if ds_m.get("rank_buckets"):
+            b = ds_m["rank_buckets"]
+            total_b = sum(b.values()) or 1
+            body += "<div style='font-size:12px;color:#64748b;margin-bottom:6px'>Candidate Rank (first ok found at)</div>"
+            colors = {"1-5": "#34d399", "6-10": "#38bdf8", "11-20": "#a78bfa", "21-30": "#fbbf24", "31-40": "#f97316", "no_ok": "#ef4444"}
+            bar_parts = ""
+            for bucket_name in ["1-5", "6-10", "11-20", "21-30", "31-40", "no_ok"]:
+                pct = b[bucket_name] / total_b * 100
+                if pct > 0:
+                    label = bucket_name if bucket_name != "no_ok" else "none"
+                    bar_parts += (
+                        f"<div style='width:{pct:.0f}%;background:{colors[bucket_name]};text-align:center;"
+                        f"font-size:10px;color:#0f172a;font-weight:600;min-width:20px'>"
+                        f"{b[bucket_name]}"
+                        f"</div>"
+                    )
+            body += (
+                f"<div style='display:flex;height:22px;border-radius:4px;overflow:hidden;background:#334155'>"
+                f"{bar_parts}</div>"
+            )
+            # Legend
+            legend = " &nbsp;".join(
+                f"<span style='color:{colors[k]};font-size:11px'>{k}: {b[k]}</span>"
+                for k in ["1-5", "6-10", "11-20", "21-30", "31-40", "no_ok"]
+            )
+            body += f"<div style='margin-top:4px'>{legend}</div>"
+            max_r = ds_m.get("max_first_ok_rank", 0)
+            headroom = ds_m.get("top_k_headroom", 0)
+            if max_r > 0:
+                hr_color = "#34d399" if headroom >= 5 else "#fbbf24"
+                body += _kv("Max first-ok rank", f"{max_r}")
+                body += _kv("Headroom", f"<span style='color:{hr_color}'>{headroom}</span>")
+
+        # B. LLM Threshold
+        if ds_m.get("llm_dist"):
+            body += "<div style='margin-top:14px;border-top:1px solid #334155;padding-top:12px'></div>"
+            body += "<div style='font-size:12px;color:#64748b;margin-bottom:6px'>LLM Threshold</div>"
+            d = ds_m["llm_dist"]
+            for label, count in d.items():
+                body += _kv(f"Score {label}", str(count))
+            ok_s = ds_m.get("ok_same", 0)
+            ok_d = ds_m.get("ok_diff", 0)
+            low = ds_m.get("low_count", 0)
+            body += "<div style='margin-top:6px'></div>"
+            body += _kv("Accepted (same event)", f"<span style='color:#34d399'>{ok_s}</span>")
+            diff_color = "#fbbf24" if ok_d > 10 else "#38bdf8"
+            body += _kv("Accepted (diff event)", f"<span style='color:{diff_color}'>{ok_d}</span>")
+            body += _kv("Rejected (low)", str(low))
+
+        # C. Briefing Coverage
+        t_total = ds_m.get("coverage_today_total", 0)
+        t_ok = ds_m.get("coverage_today_ok", 0)
+        if t_total:
+            body += "<div style='margin-top:14px;border-top:1px solid #334155;padding-top:12px'></div>"
+            body += "<div style='font-size:12px;color:#64748b;margin-bottom:6px'>Briefing Coverage</div>"
+            t_pct = t_ok / t_total * 100
+            cov_color = "#34d399" if t_pct >= 90 else "#fbbf24"
+            body += _kv("Today", f"<span style='color:{cov_color}'>{t_ok}/{t_total} ({t_pct:.1f}%)</span>")
+            body += _bar(t_pct, cov_color)
+            y_total = ds_m.get("coverage_yesterday_total", 0)
+            y_ok = ds_m.get("coverage_yesterday_ok", 0)
+            if y_total:
+                y_pct = y_ok / y_total * 100
+                delta = t_pct - y_pct
+                sign = "+" if delta >= 0 else ""
+                delta_color = "#34d399" if delta >= 0 else "#fca5a5"
+                body += _kv("Yesterday", f"{y_pct:.1f}%")
+                body += _kv("Delta", f"<span style='color:{delta_color}'>{sign}{delta:.1f}%</span>")
+
+        # D. Domain ROI
+        if ds_m.get("domain_best"):
+            body += "<div style='margin-top:14px;border-top:1px solid #334155;padding-top:12px'></div>"
+            body += "<div style='font-size:12px;color:#64748b;margin-bottom:6px'>Domain ROI — Best</div>"
+            dom_rows = ""
+            for d in ds_m["domain_best"][:5]:
+                dom_rows += (
+                    f"<tr><td style='{_S['td']};font-size:12px'>{_esc(d['domain'])}</td>"
+                    f"<td style='{_S['td_num']};font-size:12px'>{d['attempts']}</td>"
+                    f"<td style='{_S['td_num']};font-size:12px'>{d['ok']}</td>"
+                    f"<td style='{_S['td_num']};font-size:12px'>{d['ok_pct']:.0f}%</td>"
+                    f"<td style='{_S['td_num']};font-size:12px'>{d['avg_llm']:.1f}</td>"
+                    f"<td style='{_S['td_num']};font-size:12px'>{d['same_pct']:.0f}%</td></tr>"
+                )
+            body += (
+                f"<table style='{_S['table']}'>"
+                f"<tr><th style='{_S['th']}'>Domain</th>"
+                f"<th style='{_S['th']};text-align:right'>Att</th>"
+                f"<th style='{_S['th']};text-align:right'>OK</th>"
+                f"<th style='{_S['th']};text-align:right'>OK%</th>"
+                f"<th style='{_S['th']};text-align:right'>LLM</th>"
+                f"<th style='{_S['th']};text-align:right'>Same%</th></tr>"
+                f"{dom_rows}</table>"
+            )
+        if ds_m.get("domain_worst"):
+            body += "<div style='margin-top:10px;font-size:12px;color:#64748b'>Worst (≥3 att, 0 ok)</div>"
+            worst_rows = ""
+            for d in ds_m["domain_worst"][:5]:
+                worst_rows += (
+                    f"<tr><td style='{_S['td']};font-size:12px'>{_esc(d['domain'])}</td>"
+                    f"<td style='{_S['td_num']};font-size:12px'>{d['attempts']}</td>"
+                    f"<td style='{_S['td_num']};font-size:12px'>{d['avg_llm']:.1f}</td></tr>"
+                )
+            body += (
+                f"<table style='{_S['table']}'>"
+                f"<tr><th style='{_S['th']}'>Domain</th>"
+                f"<th style='{_S['th']};text-align:right'>Att</th>"
+                f"<th style='{_S['th']};text-align:right'>Avg LLM</th></tr>"
+                f"{worst_rows}</table>"
+            )
+
+        # E. Score Effectiveness
+        if ds_m.get("score_avg_ok") is not None or ds_m.get("ok_rank_1_pct") is not None:
+            body += "<div style='margin-top:14px;border-top:1px solid #334155;padding-top:12px'></div>"
+            body += "<div style='font-size:12px;color:#64748b;margin-bottom:6px'>Score Effectiveness</div>"
+            avg_ok = ds_m.get("score_avg_ok")
+            avg_low = ds_m.get("score_avg_low")
+            if avg_ok is not None:
+                body += _kv("Avg w_score (ok)", f"{avg_ok:.3f}")
+            if avg_low is not None:
+                body += _kv("Avg w_score (low)", f"{avg_low:.3f}")
+            rank_pct = ds_m.get("ok_rank_1_pct")
+            if rank_pct is not None:
+                ok_at_1 = ds_m.get("ok_at_rank_1", 0)
+                ok_total_r = ds_m.get("ok_total_with_rank", 0)
+                r1_color = "#34d399" if rank_pct >= 50 else "#fbbf24"
+                body += _kv("ok at rank 1", f"<span style='color:{r1_color}'>{ok_at_1}/{ok_total_r} ({rank_pct:.1f}%)</span>")
+
+        parts.append(_card("9. Decision Support", body))
+
     # ── Footer ──
     parts.append(
         f"<div style='{_S['footer']}'>"
@@ -1080,19 +1554,24 @@ def main():
     db_m = fetch_db_metrics(supabase, date_str)
     print(f"  DB metrics fetched ({db_m.get('db_crawl_total', 0)} crawl results)")
 
-    # 3. Render
-    term_output, md_output = render_report(log_m, db_m, date_str, verbose=args.verbose)
+    # 3. Decision support metrics
+    print("  Fetching decision metrics...")
+    ds_m = fetch_decision_metrics(supabase, date_str)
+    print(f"  Decision metrics fetched ({ds_m.get('total_rows', 0)} rows)")
+
+    # 4. Render
+    term_output, md_output = render_report(log_m, db_m, date_str, verbose=args.verbose, ds_m=ds_m)
     print(term_output)
 
-    # 4. Save markdown
+    # 5. Save markdown
     md_path = save_markdown(md_output, date_str)
     print(f"\nMarkdown saved: {md_path}")
 
-    # 5. Email
+    # 6. Email
     if not args.no_email:
-        checks = _compute_health_checks(log_m, db_m)
+        checks = _compute_health_checks(log_m, db_m, ds_m)
         print("Sending email...")
-        if send_email(md_output, date_str, checks, log_m, db_m):
+        if send_email(md_output, date_str, checks, log_m, db_m, ds_m):
             print("  Email sent successfully")
     else:
         print("Email skipped (--no-email)")
