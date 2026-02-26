@@ -1,6 +1,8 @@
 // src/app/layout.tsx
 import type { Metadata, Viewport } from "next";
 import { Inter, Geist_Mono, Playfair_Display } from "next/font/google";
+import { Analytics } from "@vercel/analytics/react";
+import { GoogleAnalytics } from "@next/third-parties/google";
 import "./globals.css";
 
 /* ---------- fonts ---------- */
@@ -40,10 +42,12 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en">
+      <GoogleAnalytics gaId="G-3R2TBBK842" />
       <body
         className={`${inter.variable} ${geistMono.variable} ${playfair.variable} font-sans antialiased`}
       >
 {children}
+        <Analytics />
       </body>
     </html>
   );
