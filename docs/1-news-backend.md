@@ -268,6 +268,7 @@ On-demand ISR revalidation after pipeline completes.
 
 - **Trigger:** `curl -X POST $SITE_URL/api/revalidate` with `x-revalidation-secret` header
 - **Action:** `revalidatePath('/news')` + `revalidatePath('/news/[slug]', 'page')`
+- **Cache warm:** After revalidation, `curl -s $SITE_URL/news` triggers ISR regeneration so the next real visitor gets fresh data immediately (without the stale-then-refresh ISR behavior)
 - **Non-fatal:** Failure logs WARN only; existing `revalidate = 7200` ISR fallback remains
 - **Env:** `REVALIDATION_SECRET` (shared secret), `SITE_URL` (default: `https://chopaul.com`)
 - **Timeout:** `--max-time 10`

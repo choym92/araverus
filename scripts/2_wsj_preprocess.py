@@ -28,6 +28,7 @@ load_dotenv(Path(__file__).parent.parent / '.env.local')
 # Reuse shared modules from scripts/
 sys.path.insert(0, str(Path(__file__).parent))
 from domain_utils import require_supabase_client
+from lib.cost_utils import print_cost_line
 from lib.llm_analysis import get_gemini_client
 
 # ============================================================
@@ -66,12 +67,18 @@ Rules for search_queries:
 - Do NOT add date filters"""
 
 
-def preprocess_item(title: str, description: str) -> Optional[PreprocessResult]:
-    """Extract metadata from title + description using Gemini Flash-Lite."""
+def preprocess_item(
+    title: str, description: str
+) -> tuple[Optional[PreprocessResult], int, int]:
+    """Extract metadata from title + description using Gemini Flash-Lite.
+
+    Returns:
+        (result, input_tokens, output_tokens)
+    """
     client = get_gemini_client()
     if client is None:
         print("  [ERROR] No Gemini API key configured")
-        return None
+        return None, 0, 0
 
     prompt = PROMPT_TEMPLATE.format(title=title, description=description or "")
 
@@ -90,18 +97,22 @@ def preprocess_item(title: str, description: str) -> Optional[PreprocessResult]:
         raw = response.text.strip()
         data = json.loads(raw)
 
+        usage = response.usage_metadata
+        in_tok = usage.prompt_token_count or 0 if usage else 0
+        out_tok = usage.candidates_token_count or 0 if usage else 0
+
         return PreprocessResult(
             entities=data.get("entities", [])[:5],
             keywords=data.get("keywords", [])[:5],
             tickers=data.get("tickers", [])[:5],
             search_queries=data.get("search_queries", [])[:3],
-        )
+        ), in_tok, out_tok
     except json.JSONDecodeError as e:
         print(f"  [WARN] JSON parse error: {e}")
-        return None
+        return None, 0, 0
     except Exception as e:
         print(f"  [WARN] Gemini API error: {e}")
-        return None
+        return None, 0, 0
 
 
 # ============================================================
@@ -166,13 +177,17 @@ def main():
 
     success = 0
     failed = 0
+    total_input_tokens = 0
+    total_output_tokens = 0
 
     for i, item in enumerate(items):
         title = item['title']
         desc = item.get('description') or ''
         print(f"\n[{i+1}/{len(items)}] {title[:80]}")
 
-        result = preprocess_item(title, desc)
+        result, in_tok, out_tok = preprocess_item(title, desc)
+        total_input_tokens += in_tok
+        total_output_tokens += out_tok
 
         if result is None:
             failed += 1
@@ -189,6 +204,20 @@ def main():
 
     print("\n" + "=" * 60)
     print(f"Done: {success} succeeded, {failed} failed out of {len(items)}")
+
+    # Cost summary
+    if total_input_tokens or total_output_tokens:
+        model = "gemini-2.5-flash-lite"
+        print("\nCOST SUMMARY")
+        print("-" * 40)
+        cost = print_cost_line(
+            "Preprocess (Flash-Lite)",
+            total_input_tokens,
+            total_output_tokens,
+            model,
+            calls=success,
+        )
+        print(f"Estimated total: ${cost:.4f}")
 
 
 if __name__ == '__main__':

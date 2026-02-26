@@ -116,23 +116,16 @@ export default async function ArticlePage({ params }: ArticlePageProps) {
 
         {/* Hero image from crawled source */}
         {item.top_image && (
-          <figure className="mb-6 -mx-6 md:-mx-12 lg:-mx-16">
-            <div className="relative w-full aspect-[2/1] bg-neutral-100">
-              <Image
-                src={item.top_image}
-                alt={item.title}
-                fill
-                className="object-cover"
-                sizes="(max-width: 768px) 100vw, 800px"
-                unoptimized
-              />
-            </div>
-            {item.source && (
-              <figcaption className="px-6 md:px-12 lg:px-16 mt-2 text-xs text-neutral-400">
-                Image via {item.source}
-              </figcaption>
-            )}
-          </figure>
+          <div className="relative w-full aspect-[2/1] bg-neutral-100 rounded-lg overflow-hidden mb-6">
+            <Image
+              src={item.top_image}
+              alt={item.title}
+              fill
+              className="object-cover"
+              sizes="(max-width: 768px) 100vw, 800px"
+              unoptimized
+            />
+          </div>
         )}
 
         {/* Keywords — under headline */}

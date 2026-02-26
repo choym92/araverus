@@ -97,6 +97,9 @@ if [[ -n "${REVALIDATION_SECRET:-}" ]]; then
         -H "x-revalidation-secret: $REVALIDATION_SECRET")
     if [[ "$HTTP_STATUS" == "200" ]]; then
         echo "Cache revalidated successfully"
+        # Warm cache: trigger ISR regeneration so next real visitor gets fresh page
+        sleep 2
+        curl -s "$SITE_URL/news" -o /dev/null --max-time 15 && echo "Cache warmed: /news" || echo "WARN: Cache warm failed (non-fatal)"
     else
         echo "WARN: Revalidation returned HTTP $HTTP_STATUS (ISR fallback still active)"
     fi

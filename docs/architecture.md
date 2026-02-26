@@ -139,7 +139,8 @@ araverus/
 ## Auth Flow
 
 ```
-User → /login → "Sign in with Google" button
+User → /login or Header "Log in" button
+  → signInWithOAuth({ provider: 'google', redirectTo: NEXT_PUBLIC_SITE_URL/auth/callback })
   → Supabase Auth → Google OAuth consent screen
   → Google redirects → Supabase callback (PKCE)
   → Supabase redirects → /auth/callback (server-side route handler)
@@ -149,7 +150,12 @@ User → /login → "Sign in with Google" button
 
 **Provider**: Google OAuth (GCP project: `atlantean-depth-339623`)
 **PKCE flow**: Code exchange handled server-side in `/auth/callback/route.ts` (not client-side)
+**Redirect URL**: Always uses `NEXT_PUBLIC_SITE_URL` (not `window.location.origin`) to avoid Vercel Deployment Protection on preview URLs
 **Auto profile**: `on_auth_user_created` trigger creates `user_profiles` row on first login with Google name + avatar
+**GCP OAuth client config**:
+- Authorized Redirect URIs: `https://obqjrbwguutgtsjaivrh.supabase.co/auth/v1/callback` (required by Supabase)
+- Authorized JavaScript Origins: not needed (Supabase uses server-side redirect, not client-side JS)
+- Consent screen shows `supabase.co` domain because redirect URI goes through Supabase — changeable only via Supabase Custom Domain (Pro plan)
 
 - `requireUser()`: Redirects to `/login` if not authenticated
 - `requireAdmin()`: Requires `role = 'admin'` in `user_profiles`, returns 404 otherwise

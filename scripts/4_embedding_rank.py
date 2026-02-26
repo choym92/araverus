@@ -83,7 +83,7 @@ def rank_candidates(
 def main():
     import argparse
     parser = argparse.ArgumentParser(description="Embedding-based ranking for WSJ → Google News candidates")
-    parser.add_argument('--top-k', type=int, default=30, help='Max results per WSJ item')
+    parser.add_argument('--top-k', type=int, default=40, help='Max results per WSJ item')
     parser.add_argument('--min-score', type=float, default=0.3, help='Minimum cosine similarity')
     args = parser.parse_args()
 

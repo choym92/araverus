@@ -28,6 +28,8 @@ from typing import Optional
 
 from dotenv import load_dotenv
 
+from lib.cost_utils import COST_PER_1M
+
 # ---------------------------------------------------------------------------
 # Constants
 # ---------------------------------------------------------------------------
@@ -52,16 +54,6 @@ EN_TTS_MAX_SENTENCE = 500
 KO_TTS_VOICE = "ko-KR-Chirp3-HD-Kore"
 KO_TTS_SPEAKING_RATE = 1.0
 KO_TTS_MAX_BYTES = 4800  # Chirp limit is 5000 bytes; Korean UTF-8 ≈ 3 bytes/char
-
-# Approximate costs per 1M tokens (USD) for tracking
-COST_PER_1M = {
-    "gemini-2.5-pro-input": 1.25,
-    "gemini-2.5-pro-output": 10.0,
-    "gemini-2.5-pro-thinking": 3.75,
-    "gemini-2.5-flash-input": 0.15,
-    "gemini-2.5-flash-output": 0.60,
-    "chirp3-hd-per-1m-chars": 16.0,
-}
 
 # ---------------------------------------------------------------------------
 # Prompts
