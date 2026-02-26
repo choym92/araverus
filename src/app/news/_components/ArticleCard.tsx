@@ -75,9 +75,6 @@ function firstSentence(text: string, maxLen = 250): string {
   return text.slice(0, maxLen).replace(/\s+\S*$/, '') + '…'
 }
 
-function subcategoryLabel(sub: string): string {
-  return sub.replace(/-/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase())
-}
 
 function ImportanceBadge({ importance }: { importance: string }) {
   if (importance !== 'must_read') return null
@@ -155,11 +152,9 @@ export default function ArticleCard({
   const activeSlug = isNavigated ? current.slug : slug
   const activeImportance = isNavigated ? current.importance : importance
   const displayKeywords = isNavigated ? current.keywords : keywords
-  const activeSubcategory = isNavigated ? current.subcategory : subcategory
 
 
   const isMustRead = activeImportance === 'must_read'
-  const isOptional = activeImportance === 'optional'
 
   const handlePrev = (e: React.MouseEvent) => {
     e.preventDefault()

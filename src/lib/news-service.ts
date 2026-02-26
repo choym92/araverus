@@ -251,7 +251,6 @@ export class NewsService {
       thread_id: (item.thread_id as string) || null,
       resolved_url: isSafe ? resolvedUrl : null,
       source_count: 0, // detail page uses getArticleSources() for full list
-      source_domains: [],
     }
   }
 
