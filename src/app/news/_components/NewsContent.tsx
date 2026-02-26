@@ -116,7 +116,6 @@ export default function NewsContent({
 
   /** Helper to build thread props for an article */
   const threadPropsFor = (item: NewsItem) => ({
-    id: item.id,
     threadTimeline: item.thread_id ? threadTimelines[item.thread_id] ?? null : null,
     threadTitle: item.thread_id ? threadMeta[item.thread_id]?.title ?? null : null,
   })
@@ -128,7 +127,7 @@ export default function NewsContent({
         className="border-b border-neutral-200 bg-white sticky top-20 z-10"
         aria-label="News navigation"
       >
-        <div className="px-6 md:px-12 lg:px-16">
+        <div className="px-6 md:px-16 lg:px-24">
           {/* Tabs */}
           <div className="flex items-center gap-6 border-b border-neutral-100">
             {TABS.map((t) => {
@@ -187,7 +186,7 @@ export default function NewsContent({
         </div>
       </nav>
 
-      <div className="px-6 md:px-12 lg:px-16 py-6">
+      <div className="px-6 md:px-16 lg:px-24 py-6">
 
         {/* Active filter indicator */}
         {activeKeywords.length > 0 && (
@@ -257,8 +256,9 @@ export default function NewsContent({
                     key={item.id}
                     headline={item.title}
                     summary={item.summary ?? item.description}
-                    source={item.source}
+                    sourceCount={item.source_count}
                     category={item.feed_name}
+                    subcategory={item.subcategory}
                     timestamp={item.published_at}
                     imageUrl={item.top_image}
                     link={item.link}
@@ -278,8 +278,9 @@ export default function NewsContent({
                   <ArticleCard
                     headline={featured.title}
                     summary={featured.summary ?? featured.description}
-                    source={featured.source}
+                    sourceCount={featured.source_count}
                     category={featured.feed_name}
+                    subcategory={featured.subcategory}
                     timestamp={featured.published_at}
                     imageUrl={featured.top_image}
                     link={featured.link}
@@ -299,7 +300,7 @@ export default function NewsContent({
                         key={item.id}
                         headline={item.title}
                         summary={item.summary ?? item.description}
-                        source={item.source}
+                        sourceCount={item.source_count}
                         category={item.feed_name}
                         timestamp={item.published_at}
                         imageUrl={item.top_image}
@@ -323,8 +324,9 @@ export default function NewsContent({
                     key={item.id}
                     headline={item.title}
                     summary={item.summary ?? item.description}
-                    source={item.source}
+                    sourceCount={item.source_count}
                     category={item.feed_name}
+                    subcategory={item.subcategory}
                     timestamp={item.published_at}
                     imageUrl={item.top_image}
                     link={item.link}
@@ -347,8 +349,9 @@ export default function NewsContent({
                     key={item.id}
                     headline={item.title}
                     summary={item.summary ?? item.description}
-                    source={item.source}
+                    sourceCount={item.source_count}
                     category={item.feed_name}
+                    subcategory={item.subcategory}
                     timestamp={item.published_at}
                     imageUrl={item.top_image}
                     link={item.link}

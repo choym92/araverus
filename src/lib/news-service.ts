@@ -1,5 +1,28 @@
 import { SupabaseClient } from '@supabase/supabase-js'
 
+const UNSAFE_SOURCE_DOMAINS = new Set([
+  'marketscreener.com',
+  'uk.marketscreener.com',
+  'politico.com',
+  'tradingeconomics.com',
+  'bitget.com',
+])
+
+function getDomainFromUrl(url: string): string {
+  try {
+    const hostname = new URL(url).hostname
+    return hostname.startsWith('www.') ? hostname.slice(4) : hostname
+  } catch {
+    return ''
+  }
+}
+
+function isUnsafeSourceUrl(resolvedUrl: string | null): boolean {
+  if (!resolvedUrl) return false
+  const domain = getDomainFromUrl(resolvedUrl)
+  return UNSAFE_SOURCE_DOMAINS.has(domain)
+}
+
 export interface NewsItem {
   id: string
   feed_name: string
@@ -17,6 +40,14 @@ export interface NewsItem {
   keywords: string[] | null
   thread_id: string | null
   resolved_url: string | null
+  source_count: number
+}
+
+export interface CrawlSource {
+  title: string | null
+  source: string
+  resolved_url: string
+  domain: string
 }
 
 export interface StoryThread {
@@ -111,7 +142,6 @@ export class NewsService {
           )
         )
       `)
-      .eq('wsj_crawl_results.relevance_flag', 'ok')
       .order('published_at', { ascending: false })
       .range(offset, offset + limit - 1)
 
@@ -129,9 +159,14 @@ export class NewsService {
 
     return data.map((item: Record<string, unknown>) => {
       const crawlResults = item.wsj_crawl_results as Record<string, unknown>[]
-      const crawl = Array.isArray(crawlResults) ? crawlResults[0] : crawlResults
+      const crawlArray = Array.isArray(crawlResults) ? crawlResults : crawlResults ? [crawlResults] : []
+      // Use 'ok' crawl for article data, count all candidates
+      const crawl = crawlArray.find((c) => c.relevance_flag === 'ok') ?? crawlArray[0] ?? null
       const analysis = crawl?.wsj_llm_analysis as Record<string, unknown>[] | Record<string, unknown> | undefined
       const llm = Array.isArray(analysis) ? analysis[0] : analysis
+
+      const resolvedUrl = (crawl?.resolved_url as string) || null
+      const isSafe = !isUnsafeSourceUrl(resolvedUrl)
 
       return {
         id: item.id as string,
@@ -144,12 +179,13 @@ export class NewsService {
         published_at: item.published_at as string,
         top_image: (crawl?.top_image as string) || null,
         summary: (llm?.summary as string) || null,
-        source: (crawl?.source as string) || null,
+        source: isSafe ? (crawl?.source as string) || null : null,
         slug: (item.slug as string) || null,
         importance: (llm?.importance_reranked as string) || (llm?.importance as string) || null,
         keywords: (llm?.keywords as string[]) || null,
         thread_id: (item.thread_id as string) || null,
-        resolved_url: (crawl?.resolved_url as string) || null,
+        resolved_url: isSafe ? resolvedUrl : null,
+        source_count: crawlArray.length,
       }
     })
   }
@@ -189,9 +225,13 @@ export class NewsService {
 
     const item = data as Record<string, unknown>
     const crawlResults = item.wsj_crawl_results as Record<string, unknown>[]
-    const crawl = Array.isArray(crawlResults) ? crawlResults[0] : crawlResults
+    const crawlArray = Array.isArray(crawlResults) ? crawlResults : crawlResults ? [crawlResults] : []
+    const crawl = crawlArray[0] ?? null
     const analysis = crawl?.wsj_llm_analysis as Record<string, unknown>[] | Record<string, unknown> | undefined
     const llm = Array.isArray(analysis) ? analysis[0] : analysis
+
+    const resolvedUrl = (crawl?.resolved_url as string) || null
+    const isSafe = !isUnsafeSourceUrl(resolvedUrl)
 
     return {
       id: item.id as string,
@@ -204,12 +244,14 @@ export class NewsService {
       published_at: item.published_at as string,
       top_image: (crawl?.top_image as string) || null,
       summary: (llm?.summary as string) || null,
-      source: (crawl?.source as string) || null,
+      source: isSafe ? (crawl?.source as string) || null : null,
       slug: (item.slug as string) || null,
-      importance: (llm?.importance as string) || null,
+      importance: (llm?.importance_reranked as string) || (llm?.importance as string) || null,
       keywords: (llm?.keywords as string[]) || null,
       thread_id: (item.thread_id as string) || null,
-      resolved_url: (crawl?.resolved_url as string) || null,
+      resolved_url: isSafe ? resolvedUrl : null,
+      source_count: 0, // detail page uses getArticleSources() for full list
+      source_domains: [],
     }
   }
 
@@ -252,7 +294,6 @@ export class NewsService {
           )
         )
       `)
-      .eq('wsj_crawl_results.relevance_flag', 'ok')
       .eq('thread_id', threadId)
       .order('published_at', { ascending: true })
       .limit(20)
@@ -261,12 +302,13 @@ export class NewsService {
 
     return data.map((item: Record<string, unknown>) => {
       const crawlResults = item.wsj_crawl_results as Record<string, unknown>[]
-      // Prefer 'ok' crawl result, fall back to first available
-      const crawl = Array.isArray(crawlResults)
-        ? crawlResults.find((c) => c.relevance_flag === 'ok') ?? crawlResults[0] ?? null
-        : crawlResults ?? null
+      const crawlArray = Array.isArray(crawlResults) ? crawlResults : crawlResults ? [crawlResults] : []
+      const crawl = crawlArray.find((c) => c.relevance_flag === 'ok') ?? crawlArray[0] ?? null
       const analysis = crawl?.wsj_llm_analysis as Record<string, unknown>[] | Record<string, unknown> | undefined
       const llm = Array.isArray(analysis) ? analysis[0] : analysis
+
+      const resolvedUrl = (crawl?.resolved_url as string) || null
+      const isSafe = !isUnsafeSourceUrl(resolvedUrl)
 
       return {
         id: item.id as string,
@@ -279,12 +321,13 @@ export class NewsService {
         published_at: item.published_at as string,
         top_image: (crawl?.top_image as string) || null,
         summary: (llm?.summary as string) || null,
-        source: (crawl?.source as string) || null,
+        source: isSafe ? (crawl?.source as string) || null : null,
         slug: (item.slug as string) || null,
         importance: (llm?.importance_reranked as string) || (llm?.importance as string) || null,
         keywords: (llm?.keywords as string[]) || null,
         thread_id: (item.thread_id as string) || null,
-        resolved_url: (crawl?.resolved_url as string) || null,
+        resolved_url: isSafe ? resolvedUrl : null,
+        source_count: crawlArray.length,
       }
     })
   }
@@ -345,6 +388,26 @@ export class NewsService {
         source: (crawl?.source as string) || null,
       }
     })
+  }
+
+  async getArticleSources(itemId: string): Promise<CrawlSource[]> {
+    const { data } = await this.supabase
+      .from('wsj_crawl_results')
+      .select('title, source, resolved_url')
+      .eq('wsj_item_id', itemId)
+      .not('resolved_url', 'is', null)
+      .order('embedding_score', { ascending: false })
+
+    if (!data) return []
+
+    return (data as { title: string | null; source: string; resolved_url: string }[])
+      .filter((r) => !isUnsafeSourceUrl(r.resolved_url))
+      .map((r) => ({
+        title: r.title,
+        source: r.source,
+        resolved_url: r.resolved_url,
+        domain: getDomainFromUrl(r.resolved_url),
+      }))
   }
 
   async getCategories(): Promise<string[]> {

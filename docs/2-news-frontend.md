@@ -1,4 +1,4 @@
-<!-- Updated: 2026-02-27 -->
+<!-- Updated: 2026-02-26 -->
 # News Platform — Frontend
 
 Technical guide for the `/news` page. WSJ-style 3-column layout with in-card thread carousels, bilingual audio briefing player, and keyword filtering. Powered by the existing news pipeline.
@@ -34,6 +34,7 @@ graph TB
         CONTENT[NewsContent 🖥️<br/>useSearchParams() filtering<br/>+ full UI rendering]
         PLAYER[BriefingPlayer<br/>HTML5 Audio + Framer Motion<br/>EN/KO toggle, chapters, transcript]
         CARDS[ArticleCard 🖥️<br/>featured / standard<br/>+ thread carousel]
+        SRCLIST[SourceList 🖥️<br/>Collapsible source links<br/>detail page only]
         KWPILLS[KeywordPills<br/>Inline dot-separated keyword text]
         FILTER[FilterButton 🖥️<br/>Dropdown: subcategory + keyword pills]
     end
@@ -81,9 +82,9 @@ graph LR
     end
 
     subgraph "news/[slug]/page.tsx (Server)"
-        DETAIL[ArticlePage] --> REL[RelatedSection]
+        DETAIL[ArticlePage] --> SL[SourceList 🖥️<br/>Collapsible source links]
+        DETAIL --> REL[RelatedSection]
         DETAIL --> TL[TimelineSection]
-        DETAIL --> MLT[MoreLikeThisSection]
     end
 ```
 
@@ -136,7 +137,7 @@ Cards with `thread_id` show a thread indicator at the bottom:
 │ U.K. Inflation Slowed in January    │
 │ UK inflation fell to 3.0%...        │
 │ [inflation] [Bank of England]       │
-│ via Global Banking & Finance Review │
+│ via 5 sources                       │
 │─────────────────────────────────────│
 │ ◀  8/8  ▶  US Inflation Slows... 📰│  ← thread indicator
 └─────────────────────────────────────┘
@@ -235,6 +236,7 @@ sequenceDiagram
 | `src/app/news/_components/NewsShell.tsx` | Client | Header + Sidebar wrapper (sidebar starts closed, shifts content on open) |
 | `src/app/news/_components/BriefingPlayer.tsx` | Client | Bilingual audio player with chapters, transcript, sticky mini-player, theme object |
 | `src/app/news/_components/ArticleCard.tsx` | Client | Article display (featured/standard) + framer-motion thread carousel |
+| `src/app/news/_components/SourceList.tsx` | Client | Collapsible source list for article detail page — shows WSJ + crawl candidates with favicons |
 | `src/app/news/_components/FilterButton.tsx` | Client | Filter dropdown with subcategory + keyword pill sections, multi-select toggle |
 | `src/app/news/_components/KeywordPills.tsx` | Server | Inline dot-separated keyword text with optional link behavior + active state |
 | ~~`src/app/news/_components/ThreadSection.tsx`~~ | ~~Client~~ | **Deleted** — replaced by in-card thread carousels |
@@ -408,11 +410,13 @@ interface ArticleCardProps {
   id?: string                    // article ID for carousel position
   threadTimeline?: NewsItem[] | null  // full thread timeline
   threadTitle?: string | null    // thread display name
+  sourceCount?: number           // number of crawl candidates (from source_count)
 }
 ```
 
-- **featured**: Wide hero image (2.5:1 aspect ratio), centered headline, full summary
-- **standard**: Meta row (category/time/source) on top, then image (112px left-aligned thumbnail) + text side-by-side. headline (line-clamp-2) + summary + keywords. Cards with thread carousel use fixed height (`h-36` + `overflow-hidden`) to prevent layout shift on arrow navigation. `must_read` articles get glow shadow styling instead of border-left.
+- **featured**: Wide hero image (2.5:1 aspect ratio), centered headline, full summary. Meta row shows "via N sources" text.
+- **standard**: Meta row (category/time + "via N sources") on top, then image (112px left-aligned thumbnail) + text side-by-side. headline (line-clamp-2) + summary + keywords. Cards with thread carousel use fixed height (`h-36` + `overflow-hidden`) to prevent layout shift on arrow navigation. `must_read` articles get glow shadow styling instead of border-left.
+- **Source display**: Replaced individual favicon pills with plain "via N sources" text in the meta row. Source count comes from `NewsItem.source_count` (number of crawl candidates per article).
 - **Thread carousel**: When `threadTimeline.length > 1`, shows ◀ N/M ▶ indicator at card bottom. Starts at latest article (end of timeline). Framer Motion slide animation.
 - **ImportanceBadge**: Star icon for `must_read` articles
 
@@ -444,6 +448,22 @@ Dropdown box anchored to a `⊞ Filter` button in the nav bar. Two sections sepa
 
 Each pill is a toggle button — click to add/remove from `?keywords=` URL param. OR filtering: articles matching ANY selected keyword or subcategory are shown. Outside click / ESC to close.
 
+### SourceList (Client Component)
+
+```typescript
+interface SourceListProps {
+  sources: CrawlSource[]  // from getArticleSources()
+  wsjUrl: string          // original WSJ article link
+  wsjTitle: string        // WSJ article title
+}
+```
+
+Collapsible source list used on the `/news/[slug]` detail page. Replaces the old "Read on {source}" button.
+- Shows WSJ link first (always visible), then crawl candidate sources
+- First 3 sources visible by default, expandable "+N more" button
+- Each row: favicon (Google S2 API) + title/source name + domain label + external link arrow
+- Hover state: subtle background highlight
+
 ---
 
 ## NewsService API
@@ -462,6 +482,7 @@ classDiagram
         +getStoryThread(threadId): Promise~StoryThread|null~
         +getThreadsByIds(threadIds): Promise~Map~string,StoryThread~~
         +getBriefingSources(briefingId): Promise~BriefingSource[]~
+        +getArticleSources(itemId): Promise~CrawlSource[]~
         +getCategories(): Promise~string[]~
     }
 
@@ -496,6 +517,15 @@ classDiagram
         keywords: string[] | null
         thread_id: string | null
         resolved_url: string | null
+        source_count: number
+        source_domains: string[]
+    }
+
+    class CrawlSource {
+        title: string | null
+        source: string
+        resolved_url: string
+        domain: string
     }
 
     class RelatedArticle {
@@ -517,6 +547,7 @@ classDiagram
 
     NewsService --> Briefing
     NewsService --> NewsItem
+    NewsService --> CrawlSource
     NewsService --> RelatedArticle
     NewsService --> StoryThread
 ```
@@ -526,10 +557,11 @@ classDiagram
 | Method | Query | Returns |
 |--------|-------|---------|
 | `getLatestBriefings()` | `wsj_briefings WHERE category IN ('EN','KO') ORDER BY date DESC LIMIT 2` | `{ en: Briefing \| null, ko: Briefing \| null }` |
-| `getNewsItems(opts)` | `wsj_items LEFT JOIN wsj_crawl_results LEFT JOIN wsj_llm_analysis` filtered by `relevance_flag='ok'` — shows all articles but only joins quality crawl results | `NewsItem[]` (flattened; crawl/LLM fields are null for uncrawled articles) |
+| `getNewsItems(opts)` | `wsj_items LEFT JOIN wsj_crawl_results LEFT JOIN wsj_llm_analysis` — fetches all crawl candidates per article, picks the `relevance_flag='ok'` result for display data, counts all candidates for `source_count`. Unsafe domains (UNSAFE_SOURCE_DOMAINS set) have source/resolved_url nulled out. | `NewsItem[]` (flattened; crawl/LLM fields are null for uncrawled articles) |
 | `getNewsItemBySlug(slug)` | `wsj_items WHERE slug=? JOIN crawl+llm` filtered by `relevance_flag='ok'` | `NewsItem \| null` |
 | `getRelatedArticles(itemId, limit)` | `match_articles` RPC (pgvector, ±7 days) | `RelatedArticle[]` |
-| `getThreadTimeline(threadId)` | `wsj_items WHERE thread_id=? LEFT JOIN wsj_crawl_results` filtered by `relevance_flag='ok'` | `NewsItem[]` |
+| `getThreadTimeline(threadId)` | `wsj_items WHERE thread_id=? LEFT JOIN wsj_crawl_results LEFT JOIN wsj_llm_analysis` — same flattening logic as `getNewsItems`, picks ok crawl, counts all candidates | `NewsItem[]` |
+| `getArticleSources(itemId)` | `wsj_crawl_results WHERE wsj_item_id=? AND resolved_url IS NOT NULL ORDER BY embedding_score DESC` — filters out unsafe domains | `CrawlSource[]` |
 | `getStoryThread(threadId)` | `wsj_story_threads WHERE id=?` | `StoryThread \| null` |
 | `getThreadsByIds(threadIds)` | `wsj_story_threads WHERE id IN (...)` | `Map<string, StoryThread>` |
 | `getBriefingSources(id)` | `wsj_briefing_items JOIN wsj_items JOIN wsj_crawl_results` | `BriefingSource[]` |
@@ -556,7 +588,7 @@ classDiagram
 |----------|--------|-----------|
 | Category + Keyword coexistence | Categories filter articles, keywords filter within — both client-side | Single unified view, not separate modes. Client filtering enables ISR. |
 | Article ordering | Today (24h) first, then older backfill (deduped, max 50) | Fresh content always on top; layout always filled |
-| DB query filter | `relevance_flag='ok'` filter on `wsj_crawl_results` join | Shows all articles (uncrawled get null crawl fields), but only joins quality crawl results. Prevents skipped/low-relevance crawl results (which lack LLM summary) from being selected over the ok result. |
+| DB query filter | No `relevance_flag` filter on the join — fetches all crawl candidates per article, picks the `ok` result client-side for display data, counts total candidates for `source_count` | Enables "via N sources" display in ArticleCard without extra queries. Unsafe source domains are filtered via `UNSAFE_SOURCE_DOMAINS` set in news-service.ts. |
 | Keyword filter | Filter dropdown with subcategory + keyword pill sections, multi-select OR | Replaced horizontal pill bar — cleaner default, powerful on demand |
 | Thread titles | From `wsj_story_threads.title` (Gemini-generated) | More meaningful than "N Related Articles" |
 
@@ -593,7 +625,7 @@ classDiagram
 |----------|--------|-----------|
 | URL scheme | Slug-based (`/news/fed-holds-rates`) | SEO-friendly, human-readable |
 | Sections order | Article → Story Timeline → Related Articles | Timeline = same thread, Related = similar but different stories |
-| External links | "Read on {source}" (primary) + "Read on WSJ" (secondary) | Transparent sourcing |
+| External links | Collapsible SourceList: WSJ link first, then crawl candidates with favicons (3 visible, expandable). Replaced "Read on {source}" button. | Multi-source transparency; users see all available sources ranked by relevance |
 | Detail layout | Must Read inline with category, keywords under headline, bold first sentence in summary | Option A layout — clean hierarchy |
 | Related articles | pgvector `match_articles` RPC (±7 day window), excludes Story Timeline articles | Semantic similarity, not just same category |
 
@@ -658,7 +690,12 @@ The `/news/[slug]` page has the route and basic layout, but these sections need 
 │  /news/[slug]                                   [← Back] │
 │                                                           │
 │  ┌─ Article ─────────────────────────────────────────┐  │
-│  │ Headline, summary, keywords, source link           │  │
+│  │ Headline, summary, keywords                        │  │
+│  └───────────────────────────────────────────────────┘  │
+│                                                           │
+│  ┌─ Sources (collapsible, 3 visible) ────────────────┐  │
+│  │ WSJ link + crawl candidates with favicons          │  │
+│  │ "+N more" expand button                            │  │
 │  └───────────────────────────────────────────────────┘  │
 │                                                           │
 │  ┌─ Story Timeline (collapsible) ────────────────────┐  │

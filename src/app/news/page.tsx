@@ -50,7 +50,7 @@ function NewsContentSkeleton() {
   return (
     <>
       <nav className="border-b border-neutral-200 bg-white sticky top-20 z-10">
-        <div className="px-6 md:px-12 lg:px-16">
+        <div className="px-6 md:px-16 lg:px-24">
           <div className="flex items-center gap-6 border-b border-neutral-100 py-2.5">
             <Bone className="h-4 w-12" />
             <Bone className="h-4 w-14" />
@@ -63,7 +63,7 @@ function NewsContentSkeleton() {
           </div>
         </div>
       </nav>
-      <div className="px-6 md:px-12 lg:px-16 py-6">
+      <div className="px-6 md:px-16 lg:px-24 py-6">
         <Bone className="h-64 w-full rounded-lg" />
       </div>
     </>

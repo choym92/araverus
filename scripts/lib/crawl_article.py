@@ -283,6 +283,7 @@ DEFAULT_EXCLUDED_TAGS = ["aside", "nav", "footer", "script", "style", "header"]
 # Domains whose og:image is typically irrelevant (logos, generic banners)
 UNTRUSTED_IMAGE_DOMAINS = {
     "bitget.com",
+    "marketscreener.com",
 }
 
 

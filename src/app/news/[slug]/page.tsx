@@ -10,6 +10,7 @@ import NewsShell from '../_components/NewsShell'
 import KeywordPills from '../_components/KeywordPills'
 import RelatedSection from './_components/RelatedSection'
 import TimelineSection from './_components/TimelineSection'
+import SourceList from '../_components/SourceList'
 
 /** Pre-render recent articles at build time for instant first load */
 export async function generateStaticParams() {
@@ -59,10 +60,11 @@ export default async function ArticlePage({ params }: ArticlePageProps) {
   if (!item) notFound()
 
   // Fetch related data in parallel
-  const [related, timeline, thread] = await Promise.all([
+  const [related, timeline, thread, sources] = await Promise.all([
     service.getRelatedArticles(item.id, 5),
     item.thread_id ? service.getThreadTimeline(item.thread_id) : Promise.resolve([]),
     item.thread_id ? service.getStoryThread(item.thread_id) : Promise.resolve(null),
+    service.getArticleSources(item.id),
   ])
 
   const date = new Date(item.published_at).toLocaleDateString('en-US', {
@@ -91,10 +93,16 @@ export default async function ArticlePage({ params }: ArticlePageProps) {
           Back to News
         </Link>
 
-        {/* Category + Must Read + timestamp */}
+        {/* Category + Must Read */}
         <div className="flex items-center gap-2 mb-3">
-          <span className="text-xs font-semibold text-neutral-900 uppercase tracking-wide">
+          <span className="text-xs font-semibold text-neutral-900 uppercase tracking-wide flex items-center gap-2">
             {categoryLabel(item.feed_name)}
+            {item.subcategory && item.subcategory.replace(/-/g, ' ').toUpperCase() !== categoryLabel(item.feed_name).toUpperCase() && (
+              <>
+                <span className="text-neutral-300">|</span>
+                {item.subcategory.replace(/-/g, ' ')}
+              </>
+            )}
           </span>
           {item.importance === 'must_read' && (
             <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-amber-50 border border-amber-200 rounded-full text-[11px] font-medium text-amber-800">
@@ -104,15 +112,17 @@ export default async function ArticlePage({ params }: ArticlePageProps) {
               Must Read
             </span>
           )}
-          <span className="text-xs text-neutral-400">
-            {date} at {time}
-          </span>
         </div>
 
         {/* Headline */}
-        <h1 className="font-serif text-3xl md:text-4xl leading-tight text-neutral-900 mb-4">
+        <h1 className="font-serif text-3xl md:text-4xl leading-tight text-neutral-900 mb-2">
           {item.title}
         </h1>
+
+        {/* Timestamp — below title */}
+        <p className="text-xs text-neutral-400 mb-4">
+          {date} at {time}
+        </p>
 
         {/* Hero image from crawled source */}
         {item.top_image && (
@@ -131,7 +141,7 @@ export default async function ArticlePage({ params }: ArticlePageProps) {
         {/* Keywords — under headline */}
         {item.keywords && item.keywords.length > 0 && (
           <div className="mb-4">
-            <KeywordPills keywords={item.keywords} linkable />
+            <KeywordPills keywords={item.keywords} />
           </div>
         )}
 
@@ -140,9 +150,22 @@ export default async function ArticlePage({ params }: ArticlePageProps) {
           const text = (item.summary?.length ?? 0) >= (item.description?.length ?? 0)
             ? item.summary!
             : item.description!
-          const dotMatch = text.match(/^.*?[.!?](?:\s|$)/)
-          const firstSentence = dotMatch ? dotMatch[0].trim() : text
-          const rest = dotMatch ? text.slice(dotMatch[0].length).trim() : ''
+          // Find first real sentence boundary, skipping abbreviations like U.S., U.K.
+          const re = /[.!?]/g
+          let m: RegExpExecArray | null
+          let splitIdx = -1
+          while ((m = re.exec(text)) !== null) {
+            const idx = m.index
+            if (text[idx] === '.') {
+              const before = text.slice(Math.max(0, idx - 2), idx)
+              if (/(?:^|[.\s])([A-Z])$/.test(before)) continue
+              if (idx + 1 < text.length && text[idx + 1] !== ' ') continue
+            }
+            splitIdx = idx
+            break
+          }
+          const firstSentence = splitIdx >= 0 ? text.slice(0, splitIdx + 1).trim() : text
+          const rest = splitIdx >= 0 ? text.slice(splitIdx + 1).trim() : ''
           return (
             <p className="text-base text-neutral-500 leading-relaxed mb-6">
               <span className="font-semibold text-neutral-700">{firstSentence}</span>
@@ -163,32 +186,7 @@ export default async function ArticlePage({ params }: ArticlePageProps) {
         )}
 
         {/* Source links */}
-        <div className="flex flex-col sm:flex-row gap-3 mb-12">
-          {item.resolved_url && item.source && (
-            <a
-              href={item.resolved_url}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-flex items-center gap-2 px-4 py-2.5 bg-neutral-900 text-white text-sm font-medium rounded-lg hover:bg-neutral-700 transition-colors"
-            >
-              Read on {item.source}
-              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 6H5.25A2.25 2.25 0 003 8.25v10.5A2.25 2.25 0 005.25 21h10.5A2.25 2.25 0 0018 18.75V10.5m-10.5 6L21 3m0 0h-5.25M21 3v5.25" />
-              </svg>
-            </a>
-          )}
-          <a
-            href={item.link}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="inline-flex items-center gap-2 px-4 py-2.5 border border-neutral-300 text-neutral-700 text-sm font-medium rounded-lg hover:bg-neutral-50 transition-colors"
-          >
-            Read on WSJ
-            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 6H5.25A2.25 2.25 0 003 8.25v10.5A2.25 2.25 0 005.25 21h10.5A2.25 2.25 0 0018 18.75V10.5m-10.5 6L21 3m0 0h-5.25M21 3v5.25" />
-            </svg>
-          </a>
-        </div>
+        <SourceList sources={sources} wsjUrl={item.link} wsjTitle={item.title} />
 
         {/* Related Articles — exclude storyline articles */}
         {(() => {

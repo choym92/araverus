@@ -13,7 +13,6 @@ type Variant = 'featured' | 'standard'
 interface ArticleCardProps {
   headline: string
   summary: string | null
-  source: string | null
   category: string
   timestamp: string
   imageUrl: string | null
@@ -23,9 +22,10 @@ interface ArticleCardProps {
   importance?: string | null
   keywords?: string[] | null
   activeKeywords?: string[]
-  id?: string
   threadTimeline?: NewsItem[] | null
   threadTitle?: string | null
+  sourceCount?: number
+  subcategory?: string | null
 }
 
 function timeAgo(timestamp: string): string {
@@ -47,6 +47,36 @@ function categoryLabel(feedName: string): string {
     POLITICS: 'Politics',
   }
   return map[feedName] || feedName
+}
+
+/** Extract the first sentence, truncating at maxLen if too long. */
+function firstSentence(text: string, maxLen = 250): string {
+  // Walk through each . ! ? and check if it's a real sentence boundary
+  const re = /[.!?]/g
+  let m: RegExpExecArray | null
+  while ((m = re.exec(text)) !== null) {
+    const idx = m.index
+    const ch = text[idx]
+    // Skip periods that look like abbreviations: single letter before dot (U.S., U.K.)
+    // or no space / end-of-string after the dot (e.g. mid-abbreviation)
+    if (ch === '.') {
+      const before = text.slice(Math.max(0, idx - 2), idx)
+      // Single uppercase letter before dot: likely abbreviation like U.S.
+      if (/(?:^|[.\s])([A-Z])$/.test(before)) continue
+      // Not followed by space or end — not a sentence break
+      if (idx + 1 < text.length && text[idx + 1] !== ' ') continue
+    }
+    const sentence = text.slice(0, idx + 1).trim()
+    if (sentence.length <= maxLen) return sentence
+    break
+  }
+  // No valid sentence boundary found or too long — truncate
+  if (text.length <= maxLen) return text
+  return text.slice(0, maxLen).replace(/\s+\S*$/, '') + '…'
+}
+
+function subcategoryLabel(sub: string): string {
+  return sub.replace(/-/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase())
 }
 
 function ImportanceBadge({ importance }: { importance: string }) {
@@ -92,7 +122,6 @@ const slideVariants = {
 export default function ArticleCard({
   headline,
   summary,
-  source,
   category,
   timestamp,
   imageUrl,
@@ -102,9 +131,10 @@ export default function ArticleCard({
   importance,
   keywords,
   activeKeywords = [],
-  id,
   threadTimeline,
   threadTitle,
+  sourceCount = 0,
+  subcategory,
 }: ArticleCardProps) {
   const hasThread = threadTimeline && threadTimeline.length > 1
   // Start at the latest article (end of timeline, sorted ascending by published_at)
@@ -117,7 +147,7 @@ export default function ArticleCard({
   const isNavigated = carouselIndex !== initialIndex && hasThread && current != null
   const activeHeadline = isNavigated ? current.title : headline
   const activeSummary = isNavigated ? (current.summary ?? current.description) : summary
-  const activeSource = isNavigated ? current.source : source
+  const activeSourceCount = isNavigated ? current.source_count : sourceCount
   const activeCategory = isNavigated ? current.feed_name : category
   const activeTimestamp = isNavigated ? current.published_at : timestamp
   const activeImage = isNavigated ? current.top_image : imageUrl
@@ -125,6 +155,8 @@ export default function ArticleCard({
   const activeSlug = isNavigated ? current.slug : slug
   const activeImportance = isNavigated ? current.importance : importance
   const displayKeywords = isNavigated ? current.keywords : keywords
+  const activeSubcategory = isNavigated ? current.subcategory : subcategory
+
 
   const isMustRead = activeImportance === 'must_read'
   const isOptional = activeImportance === 'optional'
@@ -165,10 +197,15 @@ export default function ArticleCard({
               exit="exit"
               transition={{ duration: 0.25 }}
             >
-              <p className="text-xs text-neutral-400 mb-2">
+              <p className="text-xs text-neutral-400 mb-2 flex items-center gap-1.5">
                 <span className="font-semibold text-neutral-500 uppercase tracking-wide">{categoryLabel(activeCategory)}</span>
-                {' '}<span>{timeAgo(activeTimestamp)}</span>
-                {activeSource && <span> · via {activeSource}</span>}
+                <span className="ml-auto">{timeAgo(activeTimestamp)}</span>
+                {activeSourceCount > 1 && (
+                  <>
+                    <span className="text-neutral-300">·</span>
+                    <span>{activeSourceCount} sources</span>
+                  </>
+                )}
               </p>
               {activeImage && (
                 <div className="relative w-full aspect-[2.5/1] mb-5 overflow-hidden rounded">
@@ -188,7 +225,7 @@ export default function ArticleCard({
                 </h2>
               </div>
               {activeSummary && (
-                <p className="text-base text-neutral-500 leading-relaxed line-clamp-3 mb-2">
+                <p className="text-sm text-neutral-500 leading-relaxed line-clamp-3 mb-2">
                   {activeSummary}
                 </p>
               )}
@@ -239,7 +276,7 @@ export default function ArticleCard({
         isMustRead
           ? 'bg-white rounded-xl shadow-[0_2px_20px_rgba(245,158,11,0.2)] hover:shadow-[0_4px_25px_rgba(245,158,11,0.3)] transition-shadow p-4'
           : 'border-b border-neutral-200'
-      } ${isOptional ? 'opacity-70' : ''}`}
+      }`}
     >
       <CardWrapper slug={activeSlug} link={activeLink} className="group block">
         <div className={`${hasThread ? 'h-36 overflow-hidden' : ''}`}>
@@ -254,47 +291,46 @@ export default function ArticleCard({
               transition={{ duration: 0.25 }}
             >
               <div>
-                <div className="flex items-center gap-2 mb-1.5">
+                <div className="flex items-center gap-1.5 mb-1.5 text-[11px]">
                   {isMustRead && <ImportanceBadge importance="must_read" />}
-                  <span className="text-[11px] font-semibold text-neutral-900 uppercase tracking-wide">
+                  <span className="font-semibold text-neutral-900 uppercase tracking-wide">
                     {categoryLabel(activeCategory)}
                   </span>
-                  <span className="text-[11px] text-neutral-400">{timeAgo(activeTimestamp)}</span>
-                  {activeSource && (
-                    <span className="text-[11px] text-neutral-400 ml-auto">
-                      via {activeSource}
-                    </span>
+                  <span className="text-neutral-400 ml-auto">{timeAgo(activeTimestamp)}</span>
+                  {activeSourceCount > 1 && (
+                    <>
+                      <span className="text-neutral-300">·</span>
+                      <span className="text-neutral-400">{activeSourceCount} sources</span>
+                    </>
                   )}
                 </div>
-                <div className="flex gap-4 items-start">
+                <div>
                   {activeImage && (
-                    <div className="relative w-28 h-28 shrink-0 overflow-hidden rounded mt-0.5">
+                    <div className="relative w-24 h-24 float-left overflow-hidden rounded mt-0.5 mr-4 mb-1">
                       <Image
                         src={activeImage}
                         alt=""
                         fill
                         className="object-cover group-hover:scale-105 transition-transform duration-300"
-                        sizes="112px"
+                        sizes="96px"
                         unoptimized
                       />
                     </div>
                   )}
-                  <div className="flex-1 min-w-0">
-                    <h3 className="font-serif text-lg leading-snug text-neutral-900 group-hover:text-neutral-600 transition-colors mb-1.5 line-clamp-2">
-                      {activeHeadline}
-                    </h3>
-                    {activeSummary && (
-                      <p className={`text-sm text-neutral-500 leading-relaxed ${hasThread ? 'line-clamp-3' : 'line-clamp-2'}`}>
-                        {activeSummary}
-                      </p>
-                    )}
-                    {displayKeywords && displayKeywords.length > 0 && (
-                      <div className="mt-2">
-                        <KeywordPills keywords={displayKeywords} activeKeywords={activeKeywords} />
-                      </div>
-                    )}
-                  </div>
+                  <h3 className="font-serif text-lg leading-snug text-neutral-900 group-hover:text-neutral-600 transition-colors mb-1.5" style={{ textWrap: 'balance' }}>
+                    {activeHeadline}
+                  </h3>
+                  {activeSummary && (
+                    <p className="text-sm text-neutral-500 leading-relaxed" style={{ textWrap: 'pretty' }}>
+                      {firstSentence(activeSummary)}
+                    </p>
+                  )}
                 </div>
+                {displayKeywords && displayKeywords.length > 0 && (
+                  <div className="mt-1.5 clear-left">
+                    <KeywordPills keywords={displayKeywords} activeKeywords={activeKeywords} />
+                  </div>
+                )}
               </div>
           </motion.div>
         </AnimatePresence>
