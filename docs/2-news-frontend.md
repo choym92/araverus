@@ -1,4 +1,4 @@
-<!-- Updated: 2026-02-26 -->
+<!-- Updated: 2026-02-27 -->
 # News Platform — Frontend
 
 Technical guide for the `/news` page. WSJ-style 3-column layout with in-card thread carousels, bilingual audio briefing player, and keyword filtering. Powered by the existing news pipeline.
@@ -526,10 +526,10 @@ classDiagram
 | Method | Query | Returns |
 |--------|-------|---------|
 | `getLatestBriefings()` | `wsj_briefings WHERE category IN ('EN','KO') ORDER BY date DESC LIMIT 2` | `{ en: Briefing \| null, ko: Briefing \| null }` |
-| `getNewsItems(opts)` | `wsj_items LEFT JOIN wsj_crawl_results LEFT JOIN wsj_llm_analysis` (no processed/relevance filter — shows all articles) | `NewsItem[]` (flattened; crawl/LLM fields are null for uncrawled articles) |
-| `getNewsItemBySlug(slug)` | `wsj_items WHERE slug=? JOIN crawl+llm` | `NewsItem \| null` |
+| `getNewsItems(opts)` | `wsj_items LEFT JOIN wsj_crawl_results LEFT JOIN wsj_llm_analysis` filtered by `relevance_flag='ok'` — shows all articles but only joins quality crawl results | `NewsItem[]` (flattened; crawl/LLM fields are null for uncrawled articles) |
+| `getNewsItemBySlug(slug)` | `wsj_items WHERE slug=? JOIN crawl+llm` filtered by `relevance_flag='ok'` | `NewsItem \| null` |
 | `getRelatedArticles(itemId, limit)` | `match_articles` RPC (pgvector, ±7 days) | `RelatedArticle[]` |
-| `getThreadTimeline(threadId)` | `wsj_items WHERE thread_id=? LEFT JOIN wsj_crawl_results` (prefers ok crawl, falls back to any) | `NewsItem[]` |
+| `getThreadTimeline(threadId)` | `wsj_items WHERE thread_id=? LEFT JOIN wsj_crawl_results` filtered by `relevance_flag='ok'` | `NewsItem[]` |
 | `getStoryThread(threadId)` | `wsj_story_threads WHERE id=?` | `StoryThread \| null` |
 | `getThreadsByIds(threadIds)` | `wsj_story_threads WHERE id IN (...)` | `Map<string, StoryThread>` |
 | `getBriefingSources(id)` | `wsj_briefing_items JOIN wsj_items JOIN wsj_crawl_results` | `BriefingSource[]` |
@@ -556,7 +556,7 @@ classDiagram
 |----------|--------|-----------|
 | Category + Keyword coexistence | Categories filter articles, keywords filter within — both client-side | Single unified view, not separate modes. Client filtering enables ISR. |
 | Article ordering | Today (24h) first, then older backfill (deduped, max 50) | Fresh content always on top; layout always filled |
-| DB query filter | No `processed` or `relevance_flag` filter | Show all articles including uncrawled (RSS title + description only) |
+| DB query filter | `relevance_flag='ok'` filter on `wsj_crawl_results` join | Shows all articles (uncrawled get null crawl fields), but only joins quality crawl results. Prevents skipped/low-relevance crawl results (which lack LLM summary) from being selected over the ok result. |
 | Keyword filter | Filter dropdown with subcategory + keyword pill sections, multi-select OR | Replaced horizontal pill bar — cleaner default, powerful on demand |
 | Thread titles | From `wsj_story_threads.title` (Gemini-generated) | More meaningful than "N Related Articles" |
 

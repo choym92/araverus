@@ -111,6 +111,7 @@ export class NewsService {
           )
         )
       `)
+      .eq('wsj_crawl_results.relevance_flag', 'ok')
       .order('published_at', { ascending: false })
       .range(offset, offset + limit - 1)
 
@@ -179,6 +180,7 @@ export class NewsService {
           )
         )
       `)
+      .eq('wsj_crawl_results.relevance_flag', 'ok')
       .eq('slug', slug)
       .limit(1)
       .single()
@@ -250,6 +252,7 @@ export class NewsService {
           )
         )
       `)
+      .eq('wsj_crawl_results.relevance_flag', 'ok')
       .eq('thread_id', threadId)
       .order('published_at', { ascending: true })
       .limit(20)
