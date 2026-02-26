@@ -1,4 +1,4 @@
-<!-- Updated: 2026-02-17 -->
+<!-- Updated: 2026-02-25 -->
 # Feature Development Workflow
 
 ### New Feature Flow
@@ -11,6 +11,20 @@
 ```
 
 **IMPORTANT**: Always start new features with `/plan`. Never jump straight into coding.
+
+### Plan Mode Rules
+When in plan mode, you MUST ask the user questions at **two checkpoints**:
+
+1. **After exploration, before writing the plan**: Ask about requirements, scope, and approach. Examples:
+   - "Should this be on a new branch?"
+   - "Which approach do you prefer: A or B?"
+   - "Are there any constraints I should know?"
+
+2. **After the plan is written, before exiting**: Confirm the plan covers everything. Examples:
+   - "Anything missing from this plan?"
+   - "Should I adjust the scope?"
+
+Never skip these checkpoints. Use `AskUserQuestion` tool — do not just ask in plain text.
 
 ### Other Skills
 - `/handoff` — Save session context for continuation

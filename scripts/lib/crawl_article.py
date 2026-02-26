@@ -280,6 +280,59 @@ DOMAIN_CONFIG = {
 DEFAULT_CSS_SELECTOR = "article, main, .article-body, .entry-content, .post-content"
 DEFAULT_EXCLUDED_TAGS = ["aside", "nav", "footer", "script", "style", "header"]
 
+# Domains whose og:image is typically irrelevant (logos, generic banners)
+UNTRUSTED_IMAGE_DOMAINS = {
+    "bitget.com",
+}
+
+
+def _is_trusted_image_source(url: str) -> bool:
+    """Check if the URL's domain is trusted for og:image extraction."""
+    domain = get_domain(url)
+    return domain not in UNTRUSTED_IMAGE_DOMAINS
+
+
+def extract_og_image(url: str) -> str | None:
+    """Lightweight fetch to extract og:image from a URL.
+
+    Reads only the first 50KB of the response to minimize bandwidth.
+    Used as a fallback when the primary crawl yields no image.
+    """
+    if not _is_trusted_image_source(url):
+        return None
+    try:
+        with httpx.Client(
+            timeout=5,
+            follow_redirects=True,
+            headers={"User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36"},
+        ) as client:
+            with client.stream("GET", url) as resp:
+                if resp.status_code != 200:
+                    return None
+                chunks = []
+                total = 0
+                for chunk in resp.iter_bytes(chunk_size=8192):
+                    chunks.append(chunk)
+                    total += len(chunk)
+                    if total >= 50_000:
+                        break
+                html = b"".join(chunks).decode("utf-8", errors="ignore")
+
+        og_img = re.search(
+            r'<meta[^>]+property=["\']og:image["\'][^>]+content=["\']([^"\']+)["\']',
+            html, re.IGNORECASE,
+        )
+        if not og_img:
+            og_img = re.search(
+                r'<meta[^>]+content=["\']([^"\']+)["\'][^>]+property=["\']og:image["\']',
+                html, re.IGNORECASE,
+            )
+        if og_img:
+            return og_img.group(1).strip()
+    except Exception:
+        pass
+    return None
+
 
 def get_domain(url: str) -> str:
     """Extract domain from URL (e.g., 'www.cnbc.com' -> 'cnbc.com')."""
@@ -692,7 +745,7 @@ def _build_result(result, domain: str, url: str = None) -> dict:
 
     # Extract top image from og:image meta tag
     top_image = None
-    if html:
+    if html and _is_trusted_image_source(url):
         og_img = re.search(
             r'<meta[^>]+property=["\']og:image["\'][^>]+content=["\']([^"\']+)["\']',
             html, re.IGNORECASE,

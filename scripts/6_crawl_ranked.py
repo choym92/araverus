@@ -19,7 +19,7 @@ import numpy as np
 
 # Import the crawler and LLM analysis
 sys.path.insert(0, str(Path(__file__).parent))
-from lib.crawl_article import crawl_article
+from lib.crawl_article import crawl_article, extract_og_image
 from lib.llm_analysis import (
     analyze_content,
     save_analysis_to_db,
@@ -472,6 +472,17 @@ async def process_wsj_item(
                     article["crawl_length"] = result.get("markdown_length", 0)
                     article["relevance_flag"] = "ok"
                     article["top_image"] = result.get("top_image")
+
+                    # Fallback: if no image from crawl, try remaining candidates for og:image
+                    if not article.get("top_image"):
+                        remaining = crawlable[j + 1:]
+                        for candidate in remaining[:5]:
+                            img = extract_og_image(candidate["resolved_url"])
+                            if img:
+                                article["top_image"] = img
+                                print(f"    → Image from {candidate.get('resolved_domain')}")
+                                break
+
                     if llm_analysis:
                         article["llm_same_event"] = llm_analysis.get("is_same_event", True)
                         article["llm_score"] = llm_analysis.get("relevance_score", 0)
