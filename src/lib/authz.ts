@@ -17,7 +17,7 @@ export async function requireAdmin() {
   const { data: profile } = await supabase
     .from('user_profiles')
     .select('role')
-    .eq('id', data.user.id)   // auth.users.id == user_profiles.id
+    .eq('id', data.user.id)
     .single();
 
   if (profile?.role !== 'admin') notFound(); // or redirect('/')

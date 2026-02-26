@@ -1,4 +1,4 @@
-<!-- Updated: 2026-02-25 -->
+<!-- Updated: 2026-02-26 -->
 <!-- Phase: News UX enhancement (migrations 007-009) -->
 # Database Schema (araverus)
 
@@ -10,14 +10,19 @@ All Supabase/Postgres tables. Blog tables for the website, WSJ tables for the fi
 
 ### `user_profiles`
 ```sql
-id          UUID PRIMARY KEY
-user_id     UUID UNIQUE      -- Supabase auth uid
-email       TEXT UNIQUE
-role        TEXT DEFAULT 'user'  -- 'admin' | 'user'
-created_at  TIMESTAMPTZ
+id            UUID PRIMARY KEY  -- same as auth.users.id (direct FK)
+email         TEXT UNIQUE
+full_name     TEXT
+display_name  TEXT             -- from OAuth provider (e.g., Google full_name)
+avatar_url    TEXT             -- from OAuth provider profile picture
+role          TEXT DEFAULT 'user'  -- 'admin' | 'user'
+created_at    TIMESTAMPTZ
+updated_at    TIMESTAMPTZ
 ```
 
-**Rules**: Admin determined by `role='admin'`, never by email. Index on `(user_id)`, `(email)`.
+**Rules**: Admin determined by `role='admin'`, never by email. `id` is the auth uid directly (no separate `user_id`).
+**Auto-creation**: `on_auth_user_created` trigger inserts a profile row on first login (upserts email/display_name/avatar_url on conflict).
+**RLS**: Users can SELECT/UPDATE own profile (`auth.uid() = id`). Admins have full access.
 
 ### `blog_posts`
 ```sql
