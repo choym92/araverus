@@ -34,13 +34,13 @@ load_dotenv(Path(__file__).parent.parent / '.env.local')
 
 EMBEDDING_MODEL = 'BAAI/bge-base-en-v1.5'
 EMBEDDING_DIM = 768
-THREAD_BASE_THRESHOLD = 0.62       # Base cosine similarity for thread matching
+THREAD_BASE_THRESHOLD = 0.73       # Base cosine similarity for thread matching (tuned from 0.62, see docs/1.2.1)
 THREAD_TIME_PENALTY = 0.01         # +0.01 per day gap between article and thread last_seen
 THREAD_SIZE_PENALTY = 0.04         # Anti-gravity: 0.04 × ln(member_count + 1) — doubled from 0.02
 THREAD_MERGE_THRESHOLD = 0.92      # Above this, new thread merges into existing
 CENTROID_EMA_BASE_ALPHA = 0.1      # EMA alpha base, divided by ln(member_count + 2)
 THREAD_ARCHIVE_DAYS = 14           # Days of inactivity before archiving
-LLM_GROUP_MIN_SIMILARITY = 0.42    # Min avg pairwise cosine similarity for LLM group validation
+LLM_GROUP_MIN_SIMILARITY = 0.60    # Min avg pairwise cosine similarity for LLM group validation (tuned from 0.42, see docs/1.2.1)
 LLM_GROUP_MIN_PAIR_FLOOR = 0.25    # No pair in LLM group can be below this
 LLM_GROUP_MAX_SIZE = 8             # Max articles per LLM group
 THREAD_HARD_CAP = 50               # Threads above this enter "frozen" mode
