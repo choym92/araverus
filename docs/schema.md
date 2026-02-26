@@ -27,7 +27,7 @@ updated_at    TIMESTAMPTZ
 ### `blog_posts`
 ```sql
 id            UUID PRIMARY KEY
-author_id     UUID FK → user_profiles.user_id
+author_id     UUID FK → user_profiles.id
 title         TEXT
 slug          TEXT UNIQUE
 content_md    TEXT
@@ -43,7 +43,7 @@ updated_at    TIMESTAMPTZ
 ### `blog_assets`
 ```sql
 id          UUID PRIMARY KEY
-owner_id    UUID FK → user_profiles.user_id
+owner_id    UUID FK → user_profiles.id
 path        TEXT    -- Storage object path
 url         TEXT    -- Public URL
 created_at  TIMESTAMPTZ

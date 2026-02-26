@@ -1,4 +1,4 @@
-<!-- Updated: 2026-02-25 -->
+<!-- Updated: 2026-02-26 -->
 # Araverus — Project Architecture
 
 Paul Cho's personal website, blog, and news briefing platform.
@@ -63,7 +63,8 @@ araverus/
 │   │   │   └── _components/    # NewsShell, BriefingPlayer, ArticleCard
 │   │   ├── resume/             # Resume viewer (PDF embed)
 │   │   ├── admin/              # Admin panel (role-gated)
-│   │   ├── login/              # Auth page
+│   │   ├── auth/callback/      # OAuth callback (server-side PKCE code exchange)
+│   │   ├── login/              # Auth page (Google OAuth sign-in)
 │   │   ├── dashboard/          # Dashboard page (server-guarded)
 │   │   ├── not-found.tsx       # Custom 404 page
 │   │   ├── error.tsx           # Error boundary
@@ -112,7 +113,7 @@ araverus/
 
 - **Hero**: Particle constellation animation (tsParticles) with logo-shaped polygon mask
 - **Design**: Monochrome, Playfair Display serif headlines, Inter body text
-- **Pages**: /, /resume, /blog, /admin, /login, /dashboard, /news
+- **Pages**: /, /blog, /news, /admin, /login, /dashboard, /auth/callback
 - **A11y**: `prefers-reduced-motion` respected, WCAG AA contrast, keyboard navigation
 
 ### 2. Blog (MDX)
@@ -137,15 +138,22 @@ araverus/
 ## Auth Flow
 
 ```
-User → Supabase Auth (cookie/session)
-  → Server Component → requireUser() or requireAdmin()
-  → user_profiles.role check
-  → Render or redirect
+User → /login → "Sign in with Google" button
+  → Supabase Auth → Google OAuth consent screen
+  → Google redirects → Supabase callback (PKCE)
+  → Supabase redirects → /auth/callback (server-side route handler)
+  → exchangeCodeForSession() → session cookie set
+  → Redirect to / (logged in)
 ```
 
+**Provider**: Google OAuth (GCP project: `atlantean-depth-339623`)
+**PKCE flow**: Code exchange handled server-side in `/auth/callback/route.ts` (not client-side)
+**Auto profile**: `on_auth_user_created` trigger creates `user_profiles` row on first login with Google name + avatar
+
 - `requireUser()`: Redirects to `/login` if not authenticated
-- `requireAdmin()`: Requires `role = 'admin'`, returns 404 otherwise
-- RLS policies enforce row-level access on blog_posts, blog_assets
+- `requireAdmin()`: Requires `role = 'admin'` in `user_profiles`, returns 404 otherwise
+- `user_profiles.id` = `auth.users.id` (direct FK, no separate `user_id`)
+- RLS policies enforce row-level access on user_profiles, blog_posts, blog_assets
 
 ---
 
