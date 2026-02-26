@@ -690,6 +690,21 @@ def _build_result(result, domain: str, url: str = None) -> dict:
     fetch_success = bool(getattr(result, "success", False))
     quality_ok = quality.char_len >= 350 and quality.word_len >= 50 and quality.reason_code not in ("MENU_HEAVY", "LINK_HEAVY")
 
+    # Extract top image from og:image meta tag
+    top_image = None
+    if html:
+        og_img = re.search(
+            r'<meta[^>]+property=["\']og:image["\'][^>]+content=["\']([^"\']+)["\']',
+            html, re.IGNORECASE,
+        )
+        if not og_img:
+            og_img = re.search(
+                r'<meta[^>]+content=["\']([^"\']+)["\'][^>]+property=["\']og:image["\']',
+                html, re.IGNORECASE,
+            )
+        if og_img:
+            top_image = og_img.group(1).strip()
+
     return {
         "success": fetch_success and quality_ok,
         "status_code": result.status_code,
@@ -700,6 +715,7 @@ def _build_result(result, domain: str, url: str = None) -> dict:
         "extraction_method": extraction_method,
         "truncated": truncated,
         "quality": asdict(quality),
+        "top_image": top_image,
     }
 
 

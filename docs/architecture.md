@@ -16,6 +16,7 @@ Paul Cho's personal website, blog, and news briefing platform.
 | Animations | Framer Motion, tsParticles |
 | News Pipeline | Python scripts, GitHub Actions + Mac Mini (launchd) |
 | AI/LLM | Gemini 2.5 Pro (briefing + TTS), GPT-4o-mini (analysis), Chirp 3 HD (EN TTS) |
+| Analytics | Vercel Analytics + Google Analytics (GA4: G-3R2TBBK842) |
 | CI/CD | Vercel (frontend), GitHub Actions + Mac Mini (pipeline) |
 
 ---

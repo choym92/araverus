@@ -1,4 +1,4 @@
-<!-- Updated: 2026-02-23 -->
+<!-- Updated: 2026-02-26 -->
 # News Platform — Frontend
 
 Technical guide for the `/news` page. WSJ-style 3-column layout with in-card thread carousels, bilingual audio briefing player, and keyword filtering. Powered by the existing news pipeline.
@@ -411,8 +411,8 @@ interface ArticleCardProps {
 }
 ```
 
-- **featured**: Large image, centered headline, full summary
-- **standard**: Optional image, headline (line-clamp-2) + summary + keywords + source. Cards with thread carousel use fixed height (`h-36` + `overflow-hidden`) to prevent layout shift on arrow navigation. `must_read` articles get glow shadow styling instead of border-left.
+- **featured**: Wide hero image (2.5:1 aspect ratio), centered headline, full summary
+- **standard**: Meta row (category/time/source) on top, then image (112px left-aligned thumbnail) + text side-by-side. headline (line-clamp-2) + summary + keywords. Cards with thread carousel use fixed height (`h-36` + `overflow-hidden`) to prevent layout shift on arrow navigation. `must_read` articles get glow shadow styling instead of border-left.
 - **Thread carousel**: When `threadTimeline.length > 1`, shows ◀ N/M ▶ indicator at card bottom. Starts at latest article (end of timeline). Framer Motion slide animation.
 - **ImportanceBadge**: Star icon for `must_read` articles
 

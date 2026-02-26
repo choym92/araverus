@@ -260,7 +260,7 @@ export default function NewsContent({
                     source={item.source}
                     category={item.feed_name}
                     timestamp={item.published_at}
-                    imageUrl={null}
+                    imageUrl={item.top_image}
                     link={item.link}
                     variant="standard"
                     slug={item.slug}
@@ -326,7 +326,7 @@ export default function NewsContent({
                     source={item.source}
                     category={item.feed_name}
                     timestamp={item.published_at}
-                    imageUrl={null}
+                    imageUrl={item.top_image}
                     link={item.link}
                     variant="standard"
                     slug={item.slug}

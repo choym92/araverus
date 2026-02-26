@@ -171,7 +171,7 @@ export default function ArticleCard({
                 {activeSource && <span> · via {activeSource}</span>}
               </p>
               {activeImage && (
-                <div className="relative w-full aspect-[4/3] mb-5 overflow-hidden rounded">
+                <div className="relative w-full aspect-[2.5/1] mb-5 overflow-hidden rounded">
                   <Image
                     src={activeImage}
                     alt=""
@@ -253,45 +253,48 @@ export default function ArticleCard({
               exit="exit"
               transition={{ duration: 0.25 }}
             >
-              <div className="flex gap-4">
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2 mb-1.5">
-                    {isMustRead && <ImportanceBadge importance="must_read" />}
-                    <span className="text-[11px] font-semibold text-neutral-900 uppercase tracking-wide">
-                      {categoryLabel(activeCategory)}
+              <div>
+                <div className="flex items-center gap-2 mb-1.5">
+                  {isMustRead && <ImportanceBadge importance="must_read" />}
+                  <span className="text-[11px] font-semibold text-neutral-900 uppercase tracking-wide">
+                    {categoryLabel(activeCategory)}
+                  </span>
+                  <span className="text-[11px] text-neutral-400">{timeAgo(activeTimestamp)}</span>
+                  {activeSource && (
+                    <span className="text-[11px] text-neutral-400 ml-auto">
+                      via {activeSource}
                     </span>
-                    <span className="text-[11px] text-neutral-400">{timeAgo(activeTimestamp)}</span>
-                    {activeSource && (
-                      <span className="text-[11px] text-neutral-400 ml-auto">
-                        via {activeSource}
-                      </span>
-                    )}
-                  </div>
-                  <h3 className="font-serif text-lg leading-snug text-neutral-900 group-hover:text-neutral-600 transition-colors mb-1.5 line-clamp-2">
-                    {activeHeadline}
-                  </h3>
-                  {activeSummary && (
-                    <p className={`text-sm text-neutral-500 leading-relaxed ${hasThread ? 'line-clamp-3' : 'line-clamp-2'}`}>
-                      {activeSummary}
-                    </p>
-                  )}
-                  {displayKeywords && displayKeywords.length > 0 && (
-                    <div className="mt-2">
-                      <KeywordPills keywords={displayKeywords} activeKeywords={activeKeywords} />
-                    </div>
                   )}
                 </div>
-                {activeImage && (
-                  <div className="relative w-24 h-24 shrink-0 overflow-hidden rounded">
-                    <Image
-                      src={activeImage}
-                      alt=""
-                      fill
-                      className="object-cover group-hover:scale-105 transition-transform duration-300"
-                      sizes="96px"
-                    />
+                <div className="flex gap-4 items-start">
+                  {activeImage && (
+                    <div className="relative w-28 h-28 shrink-0 overflow-hidden rounded mt-0.5">
+                      <Image
+                        src={activeImage}
+                        alt=""
+                        fill
+                        className="object-cover group-hover:scale-105 transition-transform duration-300"
+                        sizes="112px"
+                        unoptimized
+                      />
+                    </div>
+                  )}
+                  <div className="flex-1 min-w-0">
+                    <h3 className="font-serif text-lg leading-snug text-neutral-900 group-hover:text-neutral-600 transition-colors mb-1.5 line-clamp-2">
+                      {activeHeadline}
+                    </h3>
+                    {activeSummary && (
+                      <p className={`text-sm text-neutral-500 leading-relaxed ${hasThread ? 'line-clamp-3' : 'line-clamp-2'}`}>
+                        {activeSummary}
+                      </p>
+                    )}
+                    {displayKeywords && displayKeywords.length > 0 && (
+                      <div className="mt-2">
+                        <KeywordPills keywords={displayKeywords} activeKeywords={activeKeywords} />
+                      </div>
+                    )}
                   </div>
-                )}
+                </div>
               </div>
           </motion.div>
         </AnimatePresence>
