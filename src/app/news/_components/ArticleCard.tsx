@@ -133,6 +133,7 @@ export default function ArticleCard({
   sourceCount = 0,
   subcategory,
 }: ArticleCardProps) {
+  const [imageError, setImageError] = useState(false)
   const hasThread = threadTimeline && threadTimeline.length > 1
   // Start at the latest article (end of timeline, sorted ascending by published_at)
   const initialIndex = hasThread ? threadTimeline.length - 1 : 0
@@ -162,6 +163,7 @@ export default function ArticleCard({
     if (carouselIndex > 0) {
       setDirection(-1)
       setCarouselIndex(carouselIndex - 1)
+      setImageError(false)
     }
   }
 
@@ -171,6 +173,7 @@ export default function ArticleCard({
     if (hasThread && carouselIndex < threadTimeline.length - 1) {
       setDirection(1)
       setCarouselIndex(carouselIndex + 1)
+      setImageError(false)
     }
   }
 
@@ -202,7 +205,7 @@ export default function ArticleCard({
                   </>
                 )}
               </p>
-              {activeImage && (
+              {activeImage && !imageError && (
                 <div className="relative w-full aspect-[2.5/1] mb-5 overflow-hidden rounded">
                   <Image
                     src={activeImage}
@@ -210,6 +213,7 @@ export default function ArticleCard({
                     fill
                     className="object-cover group-hover:scale-105 transition-transform duration-300"
                     sizes="(max-width: 768px) 100vw, 600px"
+                    onError={() => setImageError(true)}
                   />
                 </div>
               )}
@@ -300,7 +304,7 @@ export default function ArticleCard({
                   )}
                 </div>
                 <div>
-                  {activeImage && (
+                  {activeImage && !imageError && (
                     <div className="relative w-24 h-24 float-left overflow-hidden rounded mt-0.5 mr-4 mb-1">
                       <Image
                         src={activeImage}
@@ -309,6 +313,7 @@ export default function ArticleCard({
                         className="object-cover group-hover:scale-105 transition-transform duration-300"
                         sizes="96px"
                         unoptimized
+                        onError={() => setImageError(true)}
                       />
                     </div>
                   )}

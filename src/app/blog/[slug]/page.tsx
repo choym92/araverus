@@ -9,7 +9,7 @@ import rehypeSlug from 'rehype-slug';
 import rehypePrettyCode from 'rehype-pretty-code';
 import { getPostBySlug, getAllPostSlugs, getAllPosts } from '@/lib/mdx';
 import { mdxComponents } from '@/components/mdx/components';
-import ShareButtons from './ShareButtons';
+import ShareBar from '@/components/ShareBar';
 
 // --- helpers ---
 const formatDate = (iso: string) =>
@@ -155,7 +155,7 @@ export default async function BlogPostPage({
 
       {/* Share Buttons */}
       <div className="mt-12 pt-8 border-t border-gray-200">
-        <ShareButtons 
+        <ShareBar
           url={`https://chopaul.com/blog/${post.slug}`}
           title={post.frontmatter.title}
         />

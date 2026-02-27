@@ -8,6 +8,39 @@ const UNSAFE_SOURCE_DOMAINS = new Set([
   'bitget.com',
 ])
 
+/** Trusted source domains — displayed first in "Read More On", ordered by embedding score within tier. */
+const TRUSTED_SOURCE_DOMAINS = new Set([
+  // Wire services & newspapers of record
+  'reuters.com', 'apnews.com', 'wsj.com', 'nytimes.com', 'washingtonpost.com',
+  'ft.com', 'financialtimes.com', 'bloomberg.com', 'economist.com',
+  // Public broadcasters
+  'npr.org', 'bbc.com', 'bbc.co.uk', 'theguardian.com', 'cbc.ca', 'aljazeera.com',
+  // Business & markets
+  'cnbc.com', 'marketwatch.com', 'barrons.com', 'investing.com', 'fortune.com',
+  'forbes.com', 'businessinsider.com', 'hbr.org', 'fastcompany.com', 'inc.com', 'qz.com',
+  // Tech
+  'techcrunch.com', 'theverge.com', 'wired.com', 'arstechnica.com', 'venturebeat.com',
+  'technologyreview.com', 'geekwire.com', 'theinformation.com', 'engadget.com',
+  'zdnet.com', 'cnet.com', 'pcmag.com', 'tomshardware.com',
+  // Policy & analysis
+  'axios.com', 'semafor.com', 'politico.com', 'thehill.com', 'propublica.org',
+  'vox.com', 'time.com', 'usatoday.com', 'vice.com',
+  // Long-form & magazines
+  'theatlantic.com', 'newyorker.com', 'foreignaffairs.com', 'foreignpolicy.com',
+  // Science & health
+  'statnews.com', 'nature.com', 'science.org', 'nejm.org', 'thelancet.com',
+  // Regional US papers
+  'seattletimes.com', 'latimes.com', 'sfchronicle.com', 'bostonglobe.com',
+  'chicagotribune.com', 'dallasnews.com', 'miamiherald.com', 'ajc.com',
+  'startribune.com', 'inquirer.com',
+  // Government & intl orgs
+  'sec.gov', 'federalreserve.gov', 'treasury.gov', 'justice.gov', 'ftc.gov',
+  'fcc.gov', 'nist.gov', 'congress.gov', 'oecd.org', 'imf.org', 'worldbank.org',
+])
+
+/** Minimum embedding similarity to include in source list (filters off-topic results). */
+const SOURCE_SIMILARITY_THRESHOLD = 0.68
+
 function getDomainFromUrl(url: string): string {
   try {
     const hostname = new URL(url).hostname
@@ -48,6 +81,7 @@ export interface CrawlSource {
   source: string
   resolved_url: string
   domain: string
+  embeddingScore?: number
 }
 
 export interface StoryThread {
@@ -392,21 +426,36 @@ export class NewsService {
   async getArticleSources(itemId: string): Promise<CrawlSource[]> {
     const { data } = await this.supabase
       .from('wsj_crawl_results')
-      .select('title, source, resolved_url')
+      .select('title, source, resolved_url, embedding_score')
       .eq('wsj_item_id', itemId)
       .not('resolved_url', 'is', null)
+      .gte('embedding_score', SOURCE_SIMILARITY_THRESHOLD)
       .order('embedding_score', { ascending: false })
 
     if (!data) return []
 
-    return (data as { title: string | null; source: string; resolved_url: string }[])
+    const sources = (data as { title: string | null; source: string; resolved_url: string; embedding_score: number }[])
       .filter((r) => !isUnsafeSourceUrl(r.resolved_url))
       .map((r) => ({
         title: r.title,
         source: r.source,
         resolved_url: r.resolved_url,
         domain: getDomainFromUrl(r.resolved_url),
+        embeddingScore: r.embedding_score,
       }))
+
+    // Sort: trusted domains first (by embedding score), then rest (by embedding score)
+    const trusted: typeof sources = []
+    const rest: typeof sources = []
+    for (const s of sources) {
+      if (TRUSTED_SOURCE_DOMAINS.has(s.domain)) {
+        trusted.push(s)
+      } else {
+        rest.push(s)
+      }
+    }
+
+    return [...trusted, ...rest]
   }
 
   async getCategories(): Promise<string[]> {

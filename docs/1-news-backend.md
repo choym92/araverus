@@ -177,7 +177,7 @@ Core crawling engine: newspaper4k first (fast HTTP), crawl4ai browser fallback.
 
 - 13 domains with site-specific CSS selectors
 - Quality scoring: length, short_line_ratio, link_line_ratio, boilerplate_ratio
-- Image extraction: newspaper4k path uses `article.top_image`; browser fallback extracts `og:image` from HTML meta tags. Both paths store to `wsj_crawl_results.top_image`.
+- Image extraction: newspaper4k path uses `article.top_image`; browser fallback extracts `og:image` from HTML meta tags. Both paths store to `wsj_crawl_results.top_image`. All image URLs are validated via `validate_image_url()` — HEAD request checking HTTP 200, `image/*` content-type, content-length >= 2KB, and rejection of tracking pixel patterns (`1x1`, `pixel.gif`, `beacon`, `/ads/`). `extract_og_image()` fallback also validates before returning.
 
 ### Phase 4: Domain & Post-process
 

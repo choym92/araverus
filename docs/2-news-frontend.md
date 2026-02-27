@@ -1,4 +1,4 @@
-<!-- Updated: 2026-02-26 -->
+<!-- Updated: 2026-02-27 -->
 # News Platform — Frontend
 
 Technical guide for the `/news` page. WSJ-style 3-column layout with in-card thread carousels, bilingual audio briefing player, and keyword filtering. Powered by the existing news pipeline.
@@ -231,6 +231,7 @@ sequenceDiagram
 | `src/app/news/page.tsx` | Server | Data fetching (ISR cached, no searchParams), sorts items, passes all data to NewsContent via Suspense |
 | `src/app/news/_components/NewsContent.tsx` | Client | useSearchParams() filtering (category/keywords), renders nav bar + article grid + briefing player |
 | `src/app/news/[slug]/page.tsx` | Server | Article detail page with metadata, related articles, story timeline |
+| `src/app/news/[slug]/_components/ArticleHeroImage.tsx` | Client | Hero image wrapper with `onError` fallback — hides container when image fails to load |
 | `src/app/news/[slug]/_components/RelatedSection.tsx` | Server | Numbered list with similarity score bars (pgvector, 7-day, excludes timeline articles) |
 | `src/app/news/[slug]/_components/TimelineSection.tsx` | Client | Collapsible vertical timeline — shows last 5, "Show N older..." expand, sticky "Show less" bar |
 | `src/app/news/_components/NewsShell.tsx` | Client | Header + Sidebar wrapper (sidebar starts closed, shifts content on open) |
@@ -414,8 +415,8 @@ interface ArticleCardProps {
 }
 ```
 
-- **featured**: Wide hero image (2.5:1 aspect ratio), centered headline, full summary. Meta row shows "via N sources" text.
-- **standard**: Meta row (category/time + "via N sources") on top, then image (112px left-aligned thumbnail) + text side-by-side. headline (line-clamp-2) + summary + keywords. Cards with thread carousel use fixed height (`h-36` + `overflow-hidden`) to prevent layout shift on arrow navigation. `must_read` articles get glow shadow styling instead of border-left.
+- **featured**: Wide hero image (2.5:1 aspect ratio), centered headline, full summary. Meta row shows "via N sources" text. Image has `onError` fallback — hides broken images gracefully.
+- **standard**: Meta row (category/time + "via N sources") on top, then image (112px left-aligned thumbnail) + text side-by-side. headline (line-clamp-2) + summary + keywords. Cards with thread carousel use fixed height (`h-36` + `overflow-hidden`) to prevent layout shift on arrow navigation. `must_read` articles get glow shadow styling instead of border-left. Image has `onError` fallback — hides broken images gracefully.
 - **Source display**: Replaced individual favicon pills with plain "via N sources" text in the meta row. Source count comes from `NewsItem.source_count` (number of crawl candidates per article).
 - **Thread carousel**: When `threadTimeline.length > 1`, shows ◀ N/M ▶ indicator at card bottom. Starts at latest article (end of timeline). Framer Motion slide animation.
 - **ImportanceBadge**: Star icon for `must_read` articles
@@ -460,9 +461,11 @@ interface SourceListProps {
 
 Collapsible source list used on the `/news/[slug]` detail page. Replaces the old "Read on {source}" button.
 - Shows WSJ link first (always visible), then crawl candidate sources
+- Sources sorted: trusted domains first (by embedding score), then others (by embedding score)
+- Minimum embedding_score threshold (0.68) filters off-topic results
 - First 3 sources visible by default, expandable "+N more" button
 - Each row: favicon (Google S2 API) + title/source name + domain label + external link arrow
-- Hover state: subtle background highlight
+- Hover state: subtle background highlight, domain text brightens on hover
 
 ---
 
@@ -526,6 +529,7 @@ classDiagram
         source: string
         resolved_url: string
         domain: string
+        embeddingScore: number  // optional
     }
 
     class RelatedArticle {
@@ -561,7 +565,7 @@ classDiagram
 | `getNewsItemBySlug(slug)` | `wsj_items WHERE slug=? JOIN crawl+llm` filtered by `relevance_flag='ok'` | `NewsItem \| null` |
 | `getRelatedArticles(itemId, limit)` | `match_articles` RPC (pgvector, ±7 days) | `RelatedArticle[]` |
 | `getThreadTimeline(threadId)` | `wsj_items WHERE thread_id=? LEFT JOIN wsj_crawl_results LEFT JOIN wsj_llm_analysis` — same flattening logic as `getNewsItems`, picks ok crawl, counts all candidates | `NewsItem[]` |
-| `getArticleSources(itemId)` | `wsj_crawl_results WHERE wsj_item_id=? AND resolved_url IS NOT NULL ORDER BY embedding_score DESC` — filters out unsafe domains | `CrawlSource[]` |
+| `getArticleSources(itemId)` | `wsj_crawl_results WHERE wsj_item_id=? AND resolved_url IS NOT NULL AND embedding_score >= 0.68 ORDER BY embedding_score DESC` — filters out unsafe domains, sorts trusted domains (TRUSTED_SOURCE_DOMAINS ~70 domains) first within embedding score order | `CrawlSource[]` |
 | `getStoryThread(threadId)` | `wsj_story_threads WHERE id=?` | `StoryThread \| null` |
 | `getThreadsByIds(threadIds)` | `wsj_story_threads WHERE id IN (...)` | `Map<string, StoryThread>` |
 | `getBriefingSources(id)` | `wsj_briefing_items JOIN wsj_items JOIN wsj_crawl_results` | `BriefingSource[]` |

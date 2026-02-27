@@ -23,7 +23,7 @@ function SourceRow({ href, icon, label, domain }: {
       <span className="text-sm text-neutral-600 group-hover:text-neutral-900 truncate flex-1 min-w-0 transition-colors">
         {label}
       </span>
-      <span className="inline-flex items-center gap-1 text-[11px] text-neutral-300 shrink-0">
+      <span className="inline-flex items-center gap-1 text-[11px] text-neutral-300 group-hover:text-neutral-500 shrink-0 transition-colors">
         {domain}
         <svg className="w-3 h-3 text-neutral-300 group-hover:text-neutral-500 transition-colors" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
           <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 19.5l15-15m0 0H8.25m11.25 0v11.25" />

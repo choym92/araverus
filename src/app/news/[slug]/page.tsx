@@ -2,7 +2,6 @@ export const revalidate = 7200 // ISR: cache for 2 hours
 
 import { notFound } from 'next/navigation'
 import Link from 'next/link'
-import Image from 'next/image'
 import type { Metadata } from 'next'
 import { createServiceClient } from '@/lib/supabase-server'
 import { NewsService } from '@/lib/news-service'
@@ -11,6 +10,8 @@ import KeywordPills from '../_components/KeywordPills'
 import RelatedSection from './_components/RelatedSection'
 import TimelineSection from './_components/TimelineSection'
 import SourceList from '../_components/SourceList'
+import ShareBar from '@/components/ShareBar'
+import ArticleHeroImage from './_components/ArticleHeroImage'
 
 /** Pre-render recent articles at build time for instant first load */
 export async function generateStaticParams() {
@@ -81,7 +82,7 @@ export default async function ArticlePage({ params }: ArticlePageProps) {
 
   return (
     <NewsShell>
-      <div className="px-6 md:px-12 lg:px-16 py-6 max-w-3xl mx-auto">
+      <div className="px-6 md:px-12 lg:px-16 py-6 pb-32 max-w-3xl mx-auto">
         {/* Back nav */}
         <Link
           href="/news"
@@ -120,30 +121,30 @@ export default async function ArticlePage({ params }: ArticlePageProps) {
         </h1>
 
         {/* Timestamp — below title */}
-        <p className="text-xs text-neutral-400 mb-4">
+        <p className="text-sm text-neutral-400 mb-4">
           {date} at {time}
         </p>
 
         {/* Hero image from crawled source */}
         {item.top_image && (
-          <div className="relative w-full aspect-[2/1] bg-neutral-100 rounded-lg overflow-hidden mb-6">
-            <Image
-              src={item.top_image}
-              alt={item.title}
-              fill
-              className="object-cover"
-              sizes="(max-width: 768px) 100vw, 800px"
-              unoptimized
-            />
-          </div>
+          <ArticleHeroImage src={item.top_image} alt={item.title} />
         )}
 
-        {/* Keywords — under headline */}
-        {item.keywords && item.keywords.length > 0 && (
-          <div className="mb-4">
-            <KeywordPills keywords={item.keywords} />
+        {/* Keywords + Share */}
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex-1 min-w-0">
+            {item.keywords && item.keywords.length > 0 && (
+              <KeywordPills keywords={item.keywords} size="sm" variant="hashtag" />
+            )}
           </div>
-        )}
+          <div className="flex-shrink-0 ml-4">
+            <ShareBar
+              url={`https://chopaul.com/news/${slug}`}
+              title={item.title}
+              palette="neutral"
+            />
+          </div>
+        </div>
 
         {/* Summary — first sentence bold + larger */}
         {(item.summary || item.description) && (() => {
@@ -198,8 +199,6 @@ export default async function ArticlePage({ params }: ArticlePageProps) {
             </div>
           ) : null
         })()}
-
-
 
         {/* Footer */}
         <div className="border-t border-neutral-200 pt-6 text-center">

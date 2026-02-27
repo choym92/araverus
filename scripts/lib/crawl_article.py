@@ -293,6 +293,42 @@ def _is_trusted_image_source(url: str) -> bool:
     return domain not in UNTRUSTED_IMAGE_DOMAINS
 
 
+# Patterns that indicate tracking pixels or ad beacons, not real images
+_TRACKING_IMAGE_PATTERNS = re.compile(
+    r"1x1|pixel\.gif|beacon|/ads/|/tracking/|spacer\.gif|blank\.gif",
+    re.IGNORECASE,
+)
+
+
+def validate_image_url(url: str) -> bool:
+    """Validate that a URL points to a real, displayable image.
+
+    Performs a HEAD request and checks:
+    - HTTP 200 response
+    - content-type starts with image/
+    - content-length >= 2000 bytes (rejects tracking pixels)
+    - URL doesn't match common tracking patterns
+    """
+    if not url or not url.startswith(("http://", "https://")):
+        return False
+    if _TRACKING_IMAGE_PATTERNS.search(url):
+        return False
+    try:
+        with httpx.Client(timeout=5, follow_redirects=True) as client:
+            resp = client.head(url)
+        if resp.status_code != 200:
+            return False
+        ct = resp.headers.get("content-type", "")
+        if not ct.startswith("image/"):
+            return False
+        cl = resp.headers.get("content-length")
+        if cl and int(cl) < 2000:
+            return False
+        return True
+    except Exception:
+        return False
+
+
 def extract_og_image(url: str) -> str | None:
     """Lightweight fetch to extract og:image from a URL.
 
@@ -329,7 +365,9 @@ def extract_og_image(url: str) -> str | None:
                 html, re.IGNORECASE,
             )
         if og_img:
-            return og_img.group(1).strip()
+            img_url = og_img.group(1).strip()
+            if validate_image_url(img_url):
+                return img_url
     except Exception:
         pass
     return None
@@ -400,6 +438,10 @@ def _try_newspaper4k(url: str, domain: str, blocked_domains: set[str] = None, mi
         if metrics.reason_code in ("TOO_SHORT", "MENU_HEAVY", "LINK_HEAVY"):
             return None
 
+        top_image = article.top_image or None
+        if top_image and not validate_image_url(top_image):
+            top_image = None
+
         return {
             "success": True,
             "title": article.title or "",
@@ -407,7 +449,7 @@ def _try_newspaper4k(url: str, domain: str, blocked_domains: set[str] = None, mi
             "markdown_length": len(text),
             "authors": article.authors or [],
             "publish_date": str(article.publish_date) if article.publish_date else None,
-            "top_image": article.top_image or None,
+            "top_image": top_image,
             "extraction_method": "newspaper4k",
             "quality": asdict(metrics),
         }
@@ -757,7 +799,9 @@ def _build_result(result, domain: str, url: str = None) -> dict:
                 html, re.IGNORECASE,
             )
         if og_img:
-            top_image = og_img.group(1).strip()
+            candidate = og_img.group(1).strip()
+            if validate_image_url(candidate):
+                top_image = candidate
 
     return {
         "success": fetch_success and quality_ok,
