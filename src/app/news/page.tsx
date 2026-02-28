@@ -121,11 +121,25 @@ const getNewsData = unstable_cache(
   async (category?: string) => {
     const supabase = createServiceClient()
     const service = new NewsService(supabase)
-    const limit = category ? 40 : 60
 
-    const [{ en: enBriefing, ko: koBriefing }, items] = await Promise.all([
+    let items: NewsItem[]
+
+    if (!category) {
+      // "All" tab: today's articles first, backfill with older (deduped)
+      const todayCutoff = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString()
+      const [todayItems, allItems] = await Promise.all([
+        service.getNewsItems({ limit: 50, since: todayCutoff }),
+        service.getNewsItems({ limit: 50 }),
+      ])
+      const todayIds = new Set(todayItems.map(i => i.id))
+      const olderBackfill = allItems.filter(i => !todayIds.has(i.id))
+      items = [...todayItems, ...olderBackfill].slice(0, 60)
+    } else {
+      items = await service.getNewsItems({ category, limit: 40 })
+    }
+
+    const [{ en: enBriefing, ko: koBriefing }] = await Promise.all([
       service.getLatestBriefings(),
-      service.getNewsItems({ category, limit }),
     ])
 
     const briefing = enBriefing || koBriefing
