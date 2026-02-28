@@ -3,7 +3,7 @@
 
 Technical guide for the `/news` page. WSJ-style 3-column layout with in-card thread carousels, bilingual audio briefing player, and keyword filtering. Powered by the existing news pipeline.
 
-**Dynamic + Cache Architecture**: The page uses `unstable_cache` (30-min TTL) with server-side category filtering via `searchParams`. The Server Component (`page.tsx`) reads `?category=` and fetches category-specific data (40 items per category, 60 for "All"). A Client Component (`NewsContent.tsx`) handles keyword/subcategory filtering client-side. A Load More API route (`/api/news`) enables pagination beyond the initial fetch.
+**Dynamic + Cache Architecture**: The page uses `unstable_cache` (30-min TTL) with server-side category filtering via `searchParams`. The Server Component (`page.tsx`) reads `?category=` and follows two fetch paths: **"All" tab** fetches todayItems (24h cutoff, limit 50) + allItems (limit 50), dedupes, and prioritizes today first (max 60); **category tabs** fetch category-specific items (limit 40). A Client Component (`NewsContent.tsx`) handles keyword/subcategory filtering client-side. A Load More API route (`/api/news`) enables pagination beyond the initial fetch.
 
 For backend pipeline & threading algorithm details, see `docs/1-news-backend.md` and `docs/1.2-news-threading.md`.
 
@@ -189,9 +189,19 @@ sequenceDiagram
         Svc->>DB: SELECT * FROM wsj_briefings<br/>WHERE category IN ('EN','KO')<br/>ORDER BY date DESC LIMIT 2
         DB-->>Svc: { en: Briefing | null, ko: Briefing | null }
 
-        Page->>Svc: getNewsItems({ category, limit: 40|60 })
-        Svc->>DB: SELECT wsj_items<br/>LEFT JOIN wsj_crawl_results<br/>LEFT JOIN wsj_llm_analysis<br/>WHERE feed_name = category<br/>ORDER BY published_at DESC LIMIT N
-        DB-->>Svc: items: NewsItem[]
+        alt category === undefined (All tab)
+            Page->>Svc: getNewsItems({ limit: 50, since: 24h ago })
+            Svc->>DB: SELECT wsj_items (last 24h)<br/>ORDER BY published_at DESC LIMIT 50
+            DB-->>Svc: todayItems: NewsItem[]
+            Page->>Svc: getNewsItems({ limit: 50 })
+            Svc->>DB: SELECT wsj_items (all, no filter)<br/>ORDER BY published_at DESC LIMIT 50
+            DB-->>Svc: allItems: NewsItem[]
+            Note over Page: Merge todayItems + backfill with allItems (deduped),<br/>today first, max 60
+        else category !== undefined (Category tabs)
+            Page->>Svc: getNewsItems({ category, limit: 40 })
+            Svc->>DB: SELECT wsj_items WHERE feed_name = category<br/>ORDER BY published_at DESC LIMIT 40
+            DB-->>Svc: items: NewsItem[]
+        end
     end
 
     Note over Page: Sort by date (day) → importance within day<br/>aggregateKeywords + aggregateSubcategories
@@ -594,7 +604,7 @@ classDiagram
 | Decision | Choice | Rationale |
 |----------|--------|-----------|
 | Category + Keyword coexistence | Categories filter server-side (via searchParams), keywords filter client-side within | Server-side category = full articles per category (no sparse results). Keywords remain client-side for instant toggle. |
-| Article ordering | Date (day) descending → importance within same day | Today's articles always on top. Within each day, must_read articles surface first. No time cutoff — categories auto-fill to their natural depth. |
+| Article ordering | Date (day) descending → importance within same day | "All" tab: today-first + backfill ensures latest news surfaces first. Category tabs: direct fetch, sorted by date and importance. Within any day, must_read articles surface first. |
 | DB query filter | No `relevance_flag` filter on the join — fetches all crawl candidates per article, picks the `ok` result client-side for display data, counts total candidates for `source_count` | Enables "via N sources" display in ArticleCard without extra queries. Unsafe source domains are filtered via `UNSAFE_SOURCE_DOMAINS` set in news-service.ts. |
 | Keyword filter | Filter dropdown with subcategory + keyword pill sections, multi-select OR | Replaced horizontal pill bar — cleaner default, powerful on demand |
 | Thread titles | From `wsj_story_threads.title` (Gemini-generated) | More meaningful than "N Related Articles" |
@@ -604,7 +614,7 @@ classDiagram
 | Decision | Choice | Rationale |
 |----------|--------|-----------|
 | Caching | Dynamic rendering + `unstable_cache` (30min TTL per category, tag: `news`) | ISR was too stale for news (2h). Dynamic + cache gives fresher data and supports searchParams for server-side category filtering. |
-| Data fetch limit | 40 per category, 60 for "All" | Server-side category filter = each category gets full depth. Markets (20/day) → ~2 days. Tech (5/day) → ~8 days. No arbitrary cutoff. |
+| Data fetch limit | "All": todayItems (limit 50) + allItems (limit 50) deduped, max 60; Categories: 40 each | "All" tab prioritizes today (24h cutoff) with older backfill for fresh news urgency. Category tabs get full depth: Markets (20/day) → ~2 days. Tech (5/day) → ~8 days. No arbitrary cutoff. |
 | Map serialization | `Object.fromEntries()` for threadTimelines/threadMeta | Server → Client props must be JSON-serializable. Maps are not. |
 | Loading state | `loading.tsx` skeleton UI (Next.js built-in Suspense) | Instant visual feedback during server data fetching (12+ DB queries). Matches 3-col layout to avoid layout shift on content swap |
 | BriefingPlayer loading | `next/dynamic` with inline skeleton fallback | Splits heavy audio player JS (~chapters, waveform, transcript, Framer Motion) into separate chunk. Reduces initial JS bundle; player hydrates async. Note: `ssr: false` not allowed in Server Components |
