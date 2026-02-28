@@ -1,5 +1,6 @@
 'use client'
 
+import { useState, useCallback } from 'react'
 import { useSearchParams } from 'next/navigation'
 import nextDynamic from 'next/dynamic'
 import Link from 'next/link'
@@ -56,6 +57,7 @@ interface NewsContentProps {
   threadMeta: Record<string, StoryThread>
   allKeywords: { keyword: string; count: number }[]
   allSubcategories: { keyword: string; count: number }[]
+  serverCategory?: string
 }
 
 export default function NewsContent({
@@ -65,9 +67,10 @@ export default function NewsContent({
   threadMeta,
   allKeywords,
   allSubcategories,
+  serverCategory,
 }: NewsContentProps) {
   const searchParams = useSearchParams()
-  const category = searchParams.get('category') || undefined
+  const category = serverCategory
   const tab = searchParams.get('tab') || 'today'
   // Support both ?keywords=A,B (new) and ?keyword=A (legacy)
   const activeKeywords: string[] = searchParams.get('keywords')
@@ -76,18 +79,18 @@ export default function NewsContent({
       ? [searchParams.get('keyword')!]
       : []
 
-  // Client-side filtering by category
-  const filteredByCategory = category
-    ? items.filter(item => item.feed_name === category)
-    : items
+  // Load More state
+  const [extraItems, setExtraItems] = useState<NewsItem[]>([])
+  const [loadingMore, setLoadingMore] = useState(false)
+  const [hasMore, setHasMore] = useState(true)
+
+  const allItems = [...items, ...extraItems]
 
   // Client-side filtering by keywords/subcategory (OR match)
   const activeSet = new Set(activeKeywords.map((k) => k.toLowerCase()))
   const filteredItems = activeSet.size > 0
-    ? filteredByCategory.filter((item) => {
-        // Match against keywords
+    ? allItems.filter((item) => {
         if (item.keywords?.some((kw) => activeSet.has(kw.toLowerCase()))) return true
-        // Match against subcategory (capitalized form used in filter pills)
         if (item.subcategory) {
           const label = item.subcategory.length <= 3
             ? item.subcategory.toUpperCase()
@@ -96,13 +99,17 @@ export default function NewsContent({
         }
         return false
       })
-    : filteredByCategory
+    : allItems
+
+  // Pick the most important recent article as featured hero
+  const featuredIndex = filteredItems.findIndex(item => item.importance === 'must_read' && item.summary)
+  const featured = featuredIndex >= 0 ? filteredItems[featuredIndex] : filteredItems[0] || null
+  const remaining = filteredItems.filter((_, i) => i !== (featuredIndex >= 0 ? featuredIndex : 0))
 
   // Card slicing for 3-column layout
-  const featured = filteredItems[0] || null
-  const leftStories = filteredItems.slice(1, 6)
-  const rightStories = filteredItems.slice(6, 12)
-  const belowFold = filteredItems.slice(12)
+  const leftStories = remaining.slice(0, 5)
+  const rightStories = remaining.slice(5, 11)
+  const belowFold = remaining.slice(11)
 
   // Build URL helper for tab switching
   const buildTabUrl = (tabValue: string) => {
@@ -119,6 +126,25 @@ export default function NewsContent({
     threadTimeline: item.thread_id ? threadTimelines[item.thread_id] ?? null : null,
     threadTitle: item.thread_id ? threadMeta[item.thread_id]?.title ?? null : null,
   })
+
+  /** Load more articles */
+  const handleLoadMore = useCallback(async () => {
+    setLoadingMore(true)
+    try {
+      const offset = items.length + extraItems.length
+      const params = new URLSearchParams({ offset: String(offset), limit: '20' })
+      if (category) params.set('category', category)
+      const res = await fetch(`/api/news?${params}`)
+      if (!res.ok) throw new Error('Failed to load')
+      const data = await res.json()
+      setExtraItems(prev => [...prev, ...data.items])
+      setHasMore(data.hasMore)
+    } catch {
+      // Silently fail — user can retry
+    } finally {
+      setLoadingMore(false)
+    }
+  }, [items.length, extraItems.length, category])
 
   return (
     <>
@@ -232,7 +258,7 @@ export default function NewsContent({
           </div>
         )}
 
-        {/* Today tab: WSJ 3-column layout */}
+        {/* Today tab: WSJ 3-column layout for first date group, grid for older */}
         {tab === 'today' && filteredItems.length > 0 && (
           <>
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-0 border-b border-neutral-200 pb-8 mb-8">
@@ -363,6 +389,29 @@ export default function NewsContent({
                     {...threadPropsFor(item)}
                   />
                 ))}
+              </div>
+            )}
+
+            {/* Load More button */}
+            {hasMore && (
+              <div className="text-center py-8">
+                <button
+                  onClick={handleLoadMore}
+                  disabled={loadingMore}
+                  className="px-6 py-2.5 text-sm font-medium text-neutral-600 bg-neutral-100 hover:bg-neutral-200 rounded-full transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {loadingMore ? (
+                    <span className="flex items-center gap-2">
+                      <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24" fill="none">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                      </svg>
+                      Loading...
+                    </span>
+                  ) : (
+                    'Show older articles'
+                  )}
+                </button>
               </div>
             )}
           </>

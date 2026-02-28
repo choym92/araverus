@@ -4,10 +4,10 @@ Phase 4.5 · Embed & Thread — Embed articles and assign to story threads.
 
 Pipeline step: runs after crawl phase.
 1. Embeds title+description for articles missing embeddings (BAAI/bge-base-en-v1.5)
-2. Matches each embedding to active thread centroids (cosine > 0.70 → assign)
+2. Matches each embedding to active thread centroids (cosine > 0.73 + time/size penalty → assign)
 3. Unmatched articles → LLM groups them + generates thread headlines
 4. Updates centroids incrementally
-5. Marks threads with last_seen > 7 days as inactive
+5. Marks threads with last_seen > 14 days as inactive
 
 Usage:
     python scripts/embed_and_thread.py
