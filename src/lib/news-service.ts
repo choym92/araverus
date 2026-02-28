@@ -1,13 +1,5 @@
 import { SupabaseClient } from '@supabase/supabase-js'
 
-const UNSAFE_SOURCE_DOMAINS = new Set([
-  'marketscreener.com',
-  'uk.marketscreener.com',
-  'politico.com',
-  'tradingeconomics.com',
-  'bitget.com',
-])
-
 /** Trusted source domains — displayed first in "Read More On", ordered by embedding score within tier. */
 const TRUSTED_SOURCE_DOMAINS = new Set([
   // Wire services & newspapers of record
@@ -41,6 +33,20 @@ const TRUSTED_SOURCE_DOMAINS = new Set([
 /** Minimum embedding similarity to include in source list (filters off-topic results). */
 const SOURCE_SIMILARITY_THRESHOLD = 0.68
 
+const UNSAFE_SOURCE_DOMAINS = new Set([
+  'marketscreener.com',
+  'uk.marketscreener.com',
+  'politico.com',
+  'tradingeconomics.com',
+  'bitget.com',
+])
+
+function isUnsafeSourceUrl(resolvedUrl: string | null): boolean {
+  if (!resolvedUrl) return false
+  const domain = getDomainFromUrl(resolvedUrl)
+  return UNSAFE_SOURCE_DOMAINS.has(domain)
+}
+
 function getDomainFromUrl(url: string): string {
   try {
     const hostname = new URL(url).hostname
@@ -48,12 +54,6 @@ function getDomainFromUrl(url: string): string {
   } catch {
     return ''
   }
-}
-
-function isUnsafeSourceUrl(resolvedUrl: string | null): boolean {
-  if (!resolvedUrl) return false
-  const domain = getDomainFromUrl(resolvedUrl)
-  return UNSAFE_SOURCE_DOMAINS.has(domain)
 }
 
 export interface NewsItem {
@@ -200,8 +200,6 @@ export class NewsService {
       const llm = Array.isArray(analysis) ? analysis[0] : analysis
 
       const resolvedUrl = (crawl?.resolved_url as string) || null
-      const isSafe = !isUnsafeSourceUrl(resolvedUrl)
-
       return {
         id: item.id as string,
         feed_name: item.feed_name as string,
@@ -213,12 +211,12 @@ export class NewsService {
         published_at: item.published_at as string,
         top_image: (crawl?.top_image as string) || null,
         summary: (llm?.summary as string) || null,
-        source: isSafe ? (crawl?.source as string) || null : null,
+        source: (crawl?.source as string) || null,
         slug: (item.slug as string) || null,
         importance: (llm?.importance_reranked as string) || (llm?.importance as string) || null,
         keywords: (llm?.keywords as string[]) || null,
         thread_id: (item.thread_id as string) || null,
-        resolved_url: isSafe ? resolvedUrl : null,
+        resolved_url: resolvedUrl,
         source_count: crawlArray.length,
       }
     })
@@ -341,8 +339,6 @@ export class NewsService {
       const llm = Array.isArray(analysis) ? analysis[0] : analysis
 
       const resolvedUrl = (crawl?.resolved_url as string) || null
-      const isSafe = !isUnsafeSourceUrl(resolvedUrl)
-
       return {
         id: item.id as string,
         feed_name: item.feed_name as string,
@@ -354,12 +350,12 @@ export class NewsService {
         published_at: item.published_at as string,
         top_image: (crawl?.top_image as string) || null,
         summary: (llm?.summary as string) || null,
-        source: isSafe ? (crawl?.source as string) || null : null,
+        source: (crawl?.source as string) || null,
         slug: (item.slug as string) || null,
         importance: (llm?.importance_reranked as string) || (llm?.importance as string) || null,
         keywords: (llm?.keywords as string[]) || null,
         thread_id: (item.thread_id as string) || null,
-        resolved_url: isSafe ? resolvedUrl : null,
+        resolved_url: resolvedUrl,
         source_count: crawlArray.length,
       }
     })
@@ -435,7 +431,6 @@ export class NewsService {
     if (!data) return []
 
     const sources = (data as { title: string | null; source: string; resolved_url: string; embedding_score: number }[])
-      .filter((r) => !isUnsafeSourceUrl(r.resolved_url))
       .map((r) => ({
         title: r.title,
         source: r.source,

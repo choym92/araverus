@@ -1,9 +1,9 @@
-<!-- Updated: 2026-02-27 -->
+<!-- Updated: 2026-02-28 -->
 # News Platform — Frontend
 
 Technical guide for the `/news` page. WSJ-style 3-column layout with in-card thread carousels, bilingual audio briefing player, and keyword filtering. Powered by the existing news pipeline.
 
-**ISR Architecture**: The page uses "Static Shell + Client Filter" pattern. The Server Component (`page.tsx`) fetches ALL data without reading `searchParams` → ISR-cached for 2 hours (`revalidate=7200`). A Client Component (`NewsContent.tsx`) reads `useSearchParams()` inside a `<Suspense>` boundary and handles category/keyword filtering entirely in the browser. This is the Next.js 15 recommended pattern for ISR with URL filters.
+**Dynamic + Cache Architecture**: The page uses `unstable_cache` (30-min TTL) with server-side category filtering via `searchParams`. The Server Component (`page.tsx`) reads `?category=` and fetches category-specific data (40 items per category, 60 for "All"). A Client Component (`NewsContent.tsx`) handles keyword/subcategory filtering client-side. A Load More API route (`/api/news`) enables pagination beyond the initial fetch.
 
 For backend pipeline & threading algorithm details, see `docs/1-news-backend.md` and `docs/1.2-news-threading.md`.
 
@@ -67,8 +67,8 @@ graph LR
         LAYOUT["NewsLayout<br/>(metadata only)"]
     end
 
-    subgraph "news/page.tsx (Server, ISR cached)"
-        PAGE[NewsPage<br/>revalidate=7200] --> SHELL[NewsShell 🖥️<br/>Client wrapper]
+    subgraph "news/page.tsx (Server, unstable_cache 30min)"
+        PAGE[NewsPage<br/>unstable_cache 1800s] --> SHELL[NewsShell 🖥️<br/>Client wrapper]
         SHELL --> HEADER[Header<br/>shared component]
         SHELL --> SIDEBAR[Sidebar<br/>shared component]
 
@@ -113,21 +113,24 @@ graph LR
 └───────────────────────────────────────────────────────────────────┘
 ```
 
-#### Article Sorting (importance-based)
+#### Article Sorting (date-first, importance within day)
 
-Articles are sorted before slicing into columns:
-1. **Importance**: Uses `importance_reranked` (2차 relative re-rank) when available, falls back to `importance` (1차 per-article). `must_read` → `worth_reading` → `optional` (null treated as optional)
-2. **Crawled**: Articles with `summary` (crawled + LLM analyzed) rank higher — richer card content
-3. **Thread preference**: Articles with `thread_id` rank higher (threaded stories are more significant)
-4. **Recency**: Newer articles first within the same tier
+Articles are sorted in `sortByDateThenImportance()` before slicing into columns:
+1. **Calendar date** (newest day first): Groups articles by date, ensuring today's articles always appear before yesterday's
+2. **Importance** (within same day): `must_read` → `worth_reading` → `optional` (null treated as optional). Uses `importance_reranked` when available, falls back to `importance`.
+3. **Crawled**: Articles with `summary` (crawled + LLM analyzed) rank higher — richer card content
+4. **Thread preference**: Articles with `thread_id` rank higher (threaded stories are more significant)
+5. **Recency**: Newer articles first within the same tier
 
-This ensures the featured hero is always a `must_read` article (preferably threaded), and higher-importance articles fill the left column.
+#### Featured Hero Selection
+The featured center hero is **not** simply `items[0]`. `NewsContent.tsx` finds the first `must_read` article with a summary via `findIndex()`. This ensures the most important article gets the hero slot regardless of its position in the date-sorted list. Falls back to `items[0]` if no `must_read` article exists.
 
 #### Card Slicing
-- `featured = sortedItems[0]` → center hero (best must_read + threaded article)
-- `leftStories = sortedItems[1..5]` → left column (5 cards, no images)
-- `rightStories = sortedItems[6..11]` → right column (6 standard cards)
-- `belowFold = sortedItems[12..]` → center 2-col grid (first 4) + 3-col grid (rest)
+- `featured` → center hero (first `must_read` with summary, or `items[0]`)
+- `remaining` → all items except the featured one
+- `leftStories = remaining[0..4]` → left column (5 cards, no images)
+- `rightStories = remaining[5..10]` → right column (6 standard cards)
+- `belowFold = remaining[11..]` → center 2-col grid (first 4) + 3-col grid (rest)
 
 #### Thread Carousel (in-card)
 Cards with `thread_id` show a thread indicator at the bottom:
@@ -179,23 +182,19 @@ sequenceDiagram
     participant DB as Supabase
     participant FS as Local FS (temp)
 
-    Browser->>Page: GET /news (ISR cached, no searchParams)
+    Browser->>Page: GET /news?category=TECH (dynamic, unstable_cache 30min)
 
     par Parallel fetches (batch 1)
         Page->>Svc: getLatestBriefings()
         Svc->>DB: SELECT * FROM wsj_briefings<br/>WHERE category IN ('EN','KO')<br/>ORDER BY date DESC LIMIT 2
         DB-->>Svc: { en: Briefing | null, ko: Briefing | null }
 
-        Page->>Svc: getNewsItems({ limit: 50, since: 24h_cutoff })
-        Svc->>DB: SELECT wsj_items<br/>LEFT JOIN wsj_crawl_results<br/>LEFT JOIN wsj_llm_analysis<br/>WHERE published_at >= cutoff
-        DB-->>Svc: todayItems: NewsItem[]
-
-        Page->>Svc: getNewsItems({ limit: 50 })
-        Svc->>DB: SELECT wsj_items (same query, no time filter)
-        DB-->>Svc: allItems: NewsItem[]
+        Page->>Svc: getNewsItems({ category, limit: 40|60 })
+        Svc->>DB: SELECT wsj_items<br/>LEFT JOIN wsj_crawl_results<br/>LEFT JOIN wsj_llm_analysis<br/>WHERE feed_name = category<br/>ORDER BY published_at DESC LIMIT N
+        DB-->>Svc: items: NewsItem[]
     end
 
-    Note over Page: Merge: today first, then older backfill (deduped, max 50)<br/>Sort by importance → crawled → threaded → recency<br/>aggregateKeywords + aggregateSubcategories
+    Note over Page: Sort by date (day) → importance within day<br/>aggregateKeywords + aggregateSubcategories
 
     par Parallel fetches (batch 2)
         Page->>Svc: getBriefingSources(briefingId)
@@ -216,8 +215,8 @@ sequenceDiagram
 
     Note over Page: Convert Maps → Record<string,T><br/>Package all data as serializable props
 
-    Page-->>Browser: ISR cached HTML (revalidate=7200)<br/>Suspense wraps NewsContent
-    Note over Browser: NewsContent reads useSearchParams()<br/>Filters by category/keywords client-side<br/>Renders nav + article grid instantly
+    Page-->>Browser: Dynamic HTML (unstable_cache 1800s per category)<br/>Suspense wraps NewsContent
+    Note over Browser: NewsContent receives server-filtered items<br/>Keyword filtering remains client-side<br/>Load More fetches from /api/news
 ```
 
 ---
@@ -228,8 +227,9 @@ sequenceDiagram
 |------|------|---------|
 | `src/app/news/layout.tsx` | Server | Metadata only (`title`, `description`) |
 | `src/app/news/loading.tsx` | Server | Skeleton UI shown during server data fetching (Next.js auto-wraps with Suspense) |
-| `src/app/news/page.tsx` | Server | Data fetching (ISR cached, no searchParams), sorts items, passes all data to NewsContent via Suspense |
-| `src/app/news/_components/NewsContent.tsx` | Client | useSearchParams() filtering (category/keywords), renders nav bar + article grid + briefing player |
+| `src/app/news/page.tsx` | Server | Data fetching (unstable_cache 30min), server-side category filtering via searchParams, `generateMetadata()` for SEO, sorts by date→importance |
+| `src/app/news/_components/NewsContent.tsx` | Client | Keyword filtering (client-side), featured hero selection, Load More button, renders nav bar + article grid + briefing player |
+| `src/app/api/news/route.ts` | Server | Load More API: `GET /api/news?category=X&offset=N&limit=N` → `{ items, hasMore }`, Cache-Control 30min |
 | `src/app/news/[slug]/page.tsx` | Server | Article detail page with metadata, related articles, story timeline |
 | `src/app/news/[slug]/_components/ArticleHeroImage.tsx` | Client | Hero image wrapper with `onError` fallback — hides container when image fails to load |
 | `src/app/news/[slug]/_components/RelatedSection.tsx` | Server | Numbered list with similarity score bars (pgvector, 7-day, excludes timeline articles) |
@@ -253,6 +253,9 @@ sequenceDiagram
 
 Defined in `src/app/news/page.tsx` (server-side, not exported):
 
+### `sortByDateThenImportance(items: NewsItem[])`
+Sorts articles by calendar date (newest day first), then within same day by importance → crawled → threaded → recency.
+
 ### `aggregateKeywords(items: NewsItem[])`
 Collects keywords from all articles, counts occurrences, returns top 20 sorted by frequency.
 
@@ -260,7 +263,7 @@ Collects keywords from all articles, counts occurrences, returns top 20 sorted b
 Collects subcategories from all articles, capitalizes for display (short names like "ai" → "AI", others → "Trade"), returns all sorted by frequency.
 
 ### `threadPropsFor(item: NewsItem)` (in `NewsContent.tsx`)
-Returns `{ id, threadTimeline, threadTitle }` for an article. Looks up pre-fetched `threadTimelines` and `threadMeta` objects (`Record<string, T>`, converted from Maps for serialization). Returns `null` for articles without `thread_id`.
+Returns `{ threadTimeline, threadTitle }` for an article. Looks up pre-fetched `threadTimelines` and `threadMeta` objects (`Record<string, T>`, converted from Maps for serialization). Returns `null` for articles without `thread_id`.
 
 ---
 
@@ -590,8 +593,8 @@ classDiagram
 
 | Decision | Choice | Rationale |
 |----------|--------|-----------|
-| Category + Keyword coexistence | Categories filter articles, keywords filter within — both client-side | Single unified view, not separate modes. Client filtering enables ISR. |
-| Article ordering | Today (24h) first, then older backfill (deduped, max 50) | Fresh content always on top; layout always filled |
+| Category + Keyword coexistence | Categories filter server-side (via searchParams), keywords filter client-side within | Server-side category = full articles per category (no sparse results). Keywords remain client-side for instant toggle. |
+| Article ordering | Date (day) descending → importance within same day | Today's articles always on top. Within each day, must_read articles surface first. No time cutoff — categories auto-fill to their natural depth. |
 | DB query filter | No `relevance_flag` filter on the join — fetches all crawl candidates per article, picks the `ok` result client-side for display data, counts total candidates for `source_count` | Enables "via N sources" display in ArticleCard without extra queries. Unsafe source domains are filtered via `UNSAFE_SOURCE_DOMAINS` set in news-service.ts. |
 | Keyword filter | Filter dropdown with subcategory + keyword pill sections, multi-select OR | Replaced horizontal pill bar — cleaner default, powerful on demand |
 | Thread titles | From `wsj_story_threads.title` (Gemini-generated) | More meaningful than "N Related Articles" |
@@ -600,8 +603,8 @@ classDiagram
 
 | Decision | Choice | Rationale |
 |----------|--------|-----------|
-| ISR caching | "Static Shell + Client Filter" — server fetches all data (no searchParams), client filters via `useSearchParams()` in `<Suspense>` | Next.js 15 disables ISR when `searchParams` is accessed in Server Components. Moving filter logic to client enables 2-hour ISR cache (`revalidate=7200`). |
-| Data fetch limit | 50 items (up from 30) | No category DB filter → need enough items to cover all categories client-side. Daily pipeline produces 30-50 articles. |
+| Caching | Dynamic rendering + `unstable_cache` (30min TTL per category, tag: `news`) | ISR was too stale for news (2h). Dynamic + cache gives fresher data and supports searchParams for server-side category filtering. |
+| Data fetch limit | 40 per category, 60 for "All" | Server-side category filter = each category gets full depth. Markets (20/day) → ~2 days. Tech (5/day) → ~8 days. No arbitrary cutoff. |
 | Map serialization | `Object.fromEntries()` for threadTimelines/threadMeta | Server → Client props must be JSON-serializable. Maps are not. |
 | Loading state | `loading.tsx` skeleton UI (Next.js built-in Suspense) | Instant visual feedback during server data fetching (12+ DB queries). Matches 3-col layout to avoid layout shift on content swap |
 | BriefingPlayer loading | `next/dynamic` with inline skeleton fallback | Splits heavy audio player JS (~chapters, waveform, transcript, Framer Motion) into separate chunk. Reduces initial JS bundle; player hydrates async. Note: `ssr: false` not allowed in Server Components |
@@ -809,7 +812,7 @@ graph LR
 ## Verification Checklist
 
 - [x] `npm run lint` — passes
-- [x] `npm run build` — compiles, `/news` route is ISR (revalidate=7200)
+- [x] `npm run build` — compiles, `/news` route is dynamic with unstable_cache
 - [x] Page renders with real data from Supabase
 - [x] Thread groups show with titles, sorted by heat score
 - [x] Thread expand/collapse works (first expanded, rest collapsed)
@@ -833,7 +836,10 @@ graph LR
 - [x] Article detail page loads at `/news/[slug]`
 - [x] `loading.tsx` skeleton shows instantly on navigation to `/news`
 - [x] BriefingPlayer lazy-loaded via `next/dynamic` (separate JS chunk)
-- [ ] ISR cache working (`x-vercel-cache: HIT` on second request, `s-maxage=7200`)
+- [x] Server-side category filtering (`/news?category=TECH` returns only TECH articles)
+- [x] Load More button fetches from `/api/news` and appends results
+- [x] SEO metadata (`generateMetadata()`) reflects category in title and canonical URL
+- [ ] unstable_cache working (30min TTL per category)
 - [ ] Mobile responsiveness (article grid single-column collapse)
 - [ ] Supabase Storage audio URLs replace local files
 - [ ] Pipeline auto-uploads chapters/sentences JSONB to `wsj_briefings`
