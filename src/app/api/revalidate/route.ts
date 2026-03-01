@@ -1,4 +1,4 @@
-import { revalidatePath } from "next/cache";
+import { revalidatePath, revalidateTag } from "next/cache";
 import { NextRequest, NextResponse } from "next/server";
 
 export const dynamic = "force-dynamic";
@@ -10,12 +10,14 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
+  revalidateTag("news");
   revalidatePath("/news");
   revalidatePath("/news/[slug]", "page");
 
   return NextResponse.json({
     revalidated: true,
     paths: ["/news", "/news/[slug]"],
+    tags: ["news"],
     timestamp: new Date().toISOString(),
   });
 }

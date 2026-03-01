@@ -76,7 +76,6 @@ Tech rule:
 
 Exclusion:
 - SKIP executive personnel stories (hired, fired, stepped down, pay raises) unless it signals a major corporate crisis or strategic shift.
-- SKIP "Roundup: Market Talk" digest articles — low-value summaries.
 
 Deduplication:
 - If multiple articles cover the same event, curate only the best one for the briefing.
@@ -152,7 +151,7 @@ After the main stories, wrap up with a quick "market snapshot" summarizing key n
 Only include items where the provided articles contain actual figures. Do not invent data.
 CRITICAL: Only use market figures from articles published on the SAME trading day as today's date. If today is a weekend or holiday and no same-day market data exists, skip the market snapshot entirely — do NOT use stale figures from previous days.
 After the market snapshot (or after the main stories if snapshot is skipped), note how many articles you covered out of the total (e.g., "We hit about X of today's Y stories").
-End with a brief, warm sign-off.
+End with a brief, warm sign-off. Do NOT mention specific days you'll return (e.g., "back on Monday") — briefings may run any day including weekends. Just say something like "Thanks for tuning in" or "Have a great day."
 
 Chapter markers:
 Insert exactly one [CHAPTER: Title] marker at the start of each major topic shift.
@@ -217,7 +216,7 @@ BRIEFING_SYSTEM_KO = """당신은 매일 금융 뉴스 팟캐스트의 진행자
 - 제공된 기사에 수치가 포함된 항목만 언급하세요. 데이터가 없는 항목은 넣지 마세요.
 - 중요: 오늘 날짜와 같은 거래일에 발행된 기사의 시장 수치만 사용하세요. 주말이나 휴일이라 당일 시장 데이터가 없으면 마켓 스냅샷을 통째로 건너뛰세요 — 이전 날의 오래된 수치를 사용하지 마세요.
 - 마켓 스냅샷 후 (또는 스냅샷을 건너뛴 경우 본문 후) 전체 기사 수 대비 다룬 기사 수를 언급하세요 (예: "오늘 총 Y개 기사 중 약 X개를 다뤘습니다").
-- 간단한 마무리 인사로 끝내세요.
+- 간단한 마무리 인사로 끝내세요. 특정 요일에 돌아온다는 말은 하지 마세요 (예: "월요일에 다시 만나요") — 브리핑은 주말 포함 매일 나올 수 있습니다. "들어주셔서 감사합니다" 정도로 마무리하세요.
 
 챕터 마커:
 각 주요 토픽 전환 시작에 [CHAPTER: 제목] 마커를 삽입하세요.

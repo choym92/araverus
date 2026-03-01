@@ -3,7 +3,7 @@
 Phase 4.5 · Embed & Thread — Embed articles and assign to story threads.
 
 Pipeline step: runs after crawl phase.
-1. Embeds title+description for articles missing embeddings (BAAI/bge-base-en-v1.5)
+1. Embeds title+description+summary for articles missing embeddings (BAAI/bge-base-en-v1.5)
 2. Matches each embedding to active thread centroids (cosine > 0.73 + time/size penalty → assign)
 3. Unmatched articles → LLM groups them + generates thread headlines
 4. Updates centroids incrementally
@@ -47,9 +47,6 @@ THREAD_HARD_CAP = 50               # Threads above this enter "frozen" mode
 THREAD_FROZEN_THRESHOLD = 0.87     # Required similarity for frozen threads
 THREAD_MATCH_MARGIN = 0.03         # Best must beat runner-up by this margin
 BATCH_SIZE = 100
-
-# Articles matching these patterns are excluded from threading (daily roundups pollute centroids)
-THREADING_EXCLUDE_PATTERNS = ['Roundup: Market Talk']
 
 import math
 
@@ -115,13 +112,13 @@ def get_unembedded_articles(supabase: Client, limit: int = 500) -> list[dict]:
         .execute()
     embedded_ids = {row['wsj_item_id'] for row in (embedded_response.data or [])}
 
-    # Get all items (title alone is enough to embed; description used if available)
+    # Get all items with summary from LLM analysis (joined via crawl_results)
     all_items = []
     page_size = 1000
     offset = 0
     while True:
         items_response = supabase.table('wsj_items') \
-            .select('id, title, description, published_at') \
+            .select('id, title, description, published_at, wsj_crawl_results(wsj_llm_analysis(summary))') \
             .order('published_at', desc=True) \
             .range(offset, offset + page_size - 1) \
             .execute()
@@ -146,12 +143,23 @@ def embed_articles(supabase: Client, dry_run: bool = False) -> int:
 
     print(f"Embedding {len(articles)} articles...")
 
-    # Prepare texts: title + description
+    # Prepare texts: title + description + summary (from LLM analysis)
     texts = []
     for a in articles:
-        text = a['title']
-        if a.get('description'):
-            text += ' ' + a['description']
+        text = a['title'] + ' ' + a['description']
+        # Extract summary from nested join: wsj_crawl_results -> wsj_llm_analysis
+        summary = None
+        crawl_results = a.get('wsj_crawl_results') or []
+        for cr in (crawl_results if isinstance(crawl_results, list) else [crawl_results]):
+            analyses = cr.get('wsj_llm_analysis') or [] if cr else []
+            for analysis in (analyses if isinstance(analyses, list) else [analyses]):
+                if analysis and analysis.get('summary'):
+                    summary = analysis['summary']
+                    break
+            if summary:
+                break
+        if summary:
+            text += ' ' + summary
         texts.append(text)
 
     # Batch embed
@@ -250,11 +258,6 @@ def get_unthreaded_articles(supabase: Client) -> list[dict]:
     return results
 
 
-def is_roundup_article(title: str) -> bool:
-    """Check if article is a daily roundup that should be excluded from threading."""
-    return any(pattern in title for pattern in THREADING_EXCLUDE_PATTERNS)
-
-
 def validate_llm_group(member_articles: list[dict], min_similarity: float = LLM_GROUP_MIN_SIMILARITY) -> tuple[bool, float]:
     """Check if LLM-proposed group members are actually similar via embeddings.
 
@@ -288,7 +291,6 @@ def match_to_threads(
     """Match articles to threads with dynamic threshold (time + size penalty).
 
     Anti-gravity: larger threads require higher similarity to join.
-    Roundup articles are excluded from matching entirely.
 
     Returns:
         (matched: {article_id: thread_id}, unmatched: [articles])
@@ -311,11 +313,6 @@ def match_to_threads(
             })
 
     for article in articles:
-        # Skip roundup articles — they pollute centroids
-        if is_roundup_article(article.get('title', '')):
-            unmatched.append(article)
-            continue
-
         best_sim = 0.0
         second_best_sim = 0.0
         best_thread_id = None
@@ -378,16 +375,14 @@ def group_unmatched_with_llm(articles: list[dict]) -> list[dict]:
 
     client = genai.Client(api_key=api_key)
 
-    # Filter out roundup articles before sending to LLM
-    threadable = [a for a in articles if not is_roundup_article(a.get('title', ''))]
-    if len(threadable) < 2:
+    if len(articles) < 2:
         return []
 
-    cap = min(len(threadable), 500)
+    cap = min(len(articles), 500)
     article_list = "\n".join(
         f"{i+1}. [{a['id'][:8]}] [{a.get('published_at', '')[:10]}] {a['title']}"
         + (f" [{', '.join(a.get('keywords', []))}]" if a.get('keywords') else "")
-        for i, a in enumerate(threadable[:cap])
+        for i, a in enumerate(articles[:cap])
     )
 
     prompt = f"""Group these news articles into story threads. Each thread = articles about the SAME specific event or developing story.
@@ -437,8 +432,8 @@ STRICT RULES:
             indices = indices[:LLM_GROUP_MAX_SIZE]
             article_ids = []
             for idx in indices:
-                if isinstance(idx, int) and 1 <= idx <= len(threadable):
-                    article_ids.append(threadable[idx - 1]['id'])
+                if isinstance(idx, int) and 1 <= idx <= len(articles):
+                    article_ids.append(articles[idx - 1]['id'])
             if len(article_ids) >= 2:
                 output.append({
                     'title': group.get('title', 'Untitled Thread'),

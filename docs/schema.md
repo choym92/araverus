@@ -162,7 +162,7 @@ people_mentioned  JSONB         -- person names (e.g., ["Elon Musk","Pascal Sori
 sentiment         TEXT          -- positive | negative | neutral | mixed
 geographic_region TEXT          -- US | China | Europe | Asia | Global | Other
 time_horizon      TEXT          -- immediate | short_term | long_term
-summary           TEXT          -- 1-2 sentence LLM-generated summary of crawled article
+summary           TEXT          -- LLM-generated summary of crawled article (typically 150-1000 chars)
 importance        TEXT          -- must_read | worth_reading | optional (1차 per-article, absolute classification)
 importance_reranked TEXT        -- must_read | worth_reading | optional (2차 relative re-rank during curation)
                                 --   set by 8_generate_briefing.py curate_articles()

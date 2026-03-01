@@ -1,4 +1,4 @@
-<!-- Updated: 2026-02-25 -->
+<!-- Updated: 2026-02-28 -->
 # News Platform — Backend & Pipeline
 
 Single source of truth for the finance news pipeline: ingestion, crawling, analysis, briefing generation.
@@ -53,20 +53,41 @@ flowchart LR
 
 ## Data Flow
 
+### Phase 1–2: Ingest → Search → Rank
+
 ```mermaid
-flowchart TB
-    RSS["WSJ RSS Feeds<br/>(6 feeds)"] --> |1_wsj_ingest.py| DB_ITEMS[(wsj_items)]
-    DB_ITEMS --> |2_wsj_preprocess.py<br/>Gemini Flash-Lite| DB_ITEMS
-    DB_ITEMS --> |"--export"| JSONL["JSONL file<br/>(+ llm_search_queries)"]
-    JSONL --> |3_wsj_to_google_news.py| GNEWS["Google News<br/>search results"]
-    GNEWS --> |4_embedding_rank.py<br/>bge-base-en-v1.5| RANKED["Ranked candidates"]
-    RANKED --> |5_resolve_ranked.py| DB_CRAWL[(wsj_crawl_results<br/>status: pending)]
-    DB_CRAWL --> |6_crawl_ranked.py| DB_CRAWL_OK[(wsj_crawl_results<br/>status: success)]
-    DB_CRAWL_OK --> |llm_analysis.py<br/>Gemini 2.5 Flash| DB_LLM[(wsj_llm_analysis)]
-    DB_ITEMS --> |7_embed_and_thread.py<br/>bge-base-en-v1.5| DB_EMBED[(wsj_embeddings)]
-    DB_EMBED --> DB_THREADS[(wsj_story_threads)]
-    DB_ITEMS --> |8_generate_briefing.py<br/>Gemini 2.5 Pro| DB_BRIEF[(wsj_briefings)]
+flowchart LR
+    RSS["WSJ RSS Feeds<br/>(6 feeds)"] --> |1_wsj_ingest| DB_ITEMS[(wsj_items)]
+    DB_ITEMS --> |2_wsj_preprocess<br/>Gemini Flash-Lite| DB_ITEMS
+    DB_ITEMS --> |"--export"| JSONL["JSONL file<br/>(+ search_queries)"]
+    JSONL --> |3_wsj_to_google_news| GNEWS["Google News<br/>search results"]
+    GNEWS --> |4_embedding_rank<br/>bge-base-en-v1.5| RANKED["Ranked candidates"]
+    RANKED --> |5_resolve_ranked| DB_CRAWL[(wsj_crawl_results<br/>status: pending)]
+```
+
+### Phase 3–4: Crawl → Analyze
+
+```mermaid
+flowchart LR
+    DB_CRAWL[(wsj_crawl_results<br/>status: pending)] --> |6_crawl_ranked| DB_CRAWL_OK[(wsj_crawl_results<br/>status: success)]
+    DB_CRAWL_OK --> |llm_analysis<br/>Gemini 2.5 Flash| DB_LLM[(wsj_llm_analysis)]
     DB_CRAWL_OK --> |domain stats| DB_DOMAIN[(wsj_domain_status)]
+```
+
+### Phase 4.5: Embed → Thread
+
+```mermaid
+flowchart LR
+    DB_ITEMS[(wsj_items)] --> |7_embed_and_thread<br/>bge-base-en-v1.5| DB_EMBED[(wsj_embeddings)]
+    DB_EMBED --> DB_THREADS[(wsj_story_threads)]
+```
+
+### Phase 5: Briefing
+
+```mermaid
+flowchart LR
+    DB_ITEMS[(wsj_items)] --> |8_generate_briefing<br/>Gemini 2.5 Pro| DB_BRIEF[(wsj_briefings)]
+    DB_LLM[(wsj_llm_analysis)] --> DB_BRIEF
 ```
 
 ---
@@ -257,19 +278,20 @@ python pipeline_health.py --no-email          # Skip email
 - **Data sources:** Log file (`logs/pipeline-YYYY-MM-DD.log`) + DB queries (`wsj_items`, `wsj_crawl_results`, `wsj_domain_status`, `wsj_llm_analysis`)
 - **Cost parsing:** `re.findall` sums all `"Estimated total: $X.XXXX"` lines from every stage (preprocess, crawl, briefing)
 - **8 report sections:** Ingest, Preprocess, Search, Rank, Resolve, Crawl, Domain Health, Pipeline Funnel + Briefing
-- **Health summary:** Auto-checks against thresholds (ingest ≥20, preprocess 0 failed, filter 2-5%, resolve ≥95%, crawl ok ≥35%, garbage <15%, TTS success)
+- **Health summary:** Auto-checks against thresholds (ingest ≥20, preprocess 0 failed, filter 1-10%, resolve ≥95%, crawl items ok ≥80%, garbage <15%, TTS success)
+- **Crawl section (waterfall view):** Reports per-WSJ-item resolution — "X/N items found ok", "avg attempts to first ok". Raw candidate counts (ok/low/failed) shown as context; `low` = tried and rejected on the way to finding ok, not a failure metric
 - **Output:** Terminal (colored), Markdown (`logs/health/health-YYYY-MM-DD.md`), Email (Gmail SMTP, optional)
 - **Email env:** `GMAIL_ADDRESS`, `GMAIL_APP_PASSWORD` in `.env.pipeline`
 - **Cron:** Added to `run_pipeline.sh` Phase 6 (non-fatal)
 
 ### Phase 7: Cache Revalidation
 
-On-demand ISR revalidation after pipeline completes.
+On-demand cache invalidation after pipeline completes.
 
 - **Trigger:** `curl -X POST $SITE_URL/api/revalidate` with `x-revalidation-secret` header
-- **Action:** `revalidatePath('/news')` + `revalidatePath('/news/[slug]', 'page')`
-- **Cache warm:** After revalidation, `curl -s $SITE_URL/news` triggers ISR regeneration so the next real visitor gets fresh data immediately (without the stale-then-refresh ISR behavior)
-- **Non-fatal:** Failure logs WARN only; existing `revalidate = 7200` ISR fallback remains
+- **Action:** `revalidateTag('news')` (invalidates `unstable_cache` data) + `revalidatePath('/news')` + `revalidatePath('/news/[slug]', 'page')`
+- **Cache warm:** After revalidation, `curl -s $SITE_URL/news` triggers page regeneration so the next real visitor gets fresh data immediately
+- **Non-fatal:** Failure logs WARN only; `unstable_cache` 30min TTL serves as fallback
 - **Env:** `REVALIDATION_SECRET` (shared secret), `SITE_URL` (default: `https://chopaul.com`)
 - **Timeout:** `--max-time 10`
 

@@ -56,7 +56,7 @@ THRESHOLDS = {
     "filter_rate_low": 1.0,
     "filter_rate_high": 10.0,
     "resolve_success_min": 95.0,
-    "crawl_ok_min": 35.0,
+    "crawl_ok_min": 80.0,
     "garbage_max": 15.0,
 }
 
@@ -267,7 +267,7 @@ def fetch_db_metrics(supabase, date_str: str) -> dict:
     while True:
         resp = (
             supabase.table("wsj_crawl_results")
-            .select("crawl_status,relevance_flag,crawl_error,resolved_domain")
+            .select("wsj_item_id,crawl_status,relevance_flag,crawl_error,resolved_domain")
             .gte("crawled_at", day_start)
             .lte("crawled_at", day_end)
             .range(offset, offset + batch - 1)
@@ -288,14 +288,30 @@ def fetch_db_metrics(supabase, date_str: str) -> dict:
         garbage_count = 0
         failed_count = 0
 
+        # Per-item waterfall: track which WSJ items found at least one ok
+        item_ok_set: set = set()
+        item_all_set: set = set()
+        item_attempts: dict = {}  # wsj_item_id -> attempts before first ok (None if no ok)
+        item_attempt_count: dict = {}  # wsj_item_id -> total candidates tried
+
         for row in crawl_data:
             st = row.get("crawl_status", "unknown")
             status_counts[st] = status_counts.get(st, 0) + 1
             dom = row.get("resolved_domain", "unknown")
             domain_counts[dom] = domain_counts.get(dom, 0) + 1
+            item_id = row.get("wsj_item_id")
+
+            if item_id:
+                item_all_set.add(item_id)
+                item_attempt_count[item_id] = item_attempt_count.get(item_id, 0) + 1
 
             if st == "success" and row.get("relevance_flag") == "ok":
                 ok_count += 1
+                if item_id:
+                    item_ok_set.add(item_id)
+                    # Record attempts before this ok if not already found
+                    if item_id not in item_attempts:
+                        item_attempts[item_id] = item_attempt_count[item_id]
             elif st == "success" and row.get("relevance_flag") == "low":
                 low_count += 1
             elif st == "failed":
@@ -306,6 +322,13 @@ def fetch_db_metrics(supabase, date_str: str) -> dict:
             # Garbage: success but with known garbage errors
             if row.get("crawl_error") and st == "success":
                 garbage_count += 1
+
+        items_with_ok = len(item_ok_set)
+        items_no_ok = len(item_all_set - item_ok_set)
+        avg_attempts = (
+            sum(item_attempts.values()) / len(item_attempts)
+            if item_attempts else None
+        )
 
         metrics["db_crawl_status"] = status_counts
         metrics["db_crawl_ok"] = ok_count
@@ -318,6 +341,10 @@ def fetch_db_metrics(supabase, date_str: str) -> dict:
         metrics["db_crawl_domains"] = dict(
             sorted(domain_counts.items(), key=lambda x: -x[1])[:10]
         )
+        metrics["db_crawl_items_total"] = len(item_all_set)
+        metrics["db_crawl_items_with_ok"] = items_with_ok
+        metrics["db_crawl_items_no_ok"] = items_no_ok
+        metrics["db_crawl_avg_attempts_to_ok"] = avg_attempts
 
     # --- LLM scores for today's crawls ---
     llm_data = []
@@ -770,8 +797,15 @@ def render_report(log_m: dict, db_m: dict, date_str: str, verbose: bool = False,
         ok = db_m.get("db_crawl_ok", 0)
         low = db_m.get("db_crawl_low", 0)
         failed = db_m.get("db_crawl_failed", 0)
-        line(f"  DB crawl results today: {total}")
-        line(f"    success+ok: {ok} ({_pct(ok, total)})  |  success+low: {low} ({_pct(low, total)})  |  failed: {failed} ({_pct(failed, total)})")
+        items_total = db_m.get("db_crawl_items_total", 0)
+        items_with_ok = db_m.get("db_crawl_items_with_ok", 0)
+        items_no_ok = db_m.get("db_crawl_items_no_ok", 0)
+        avg_att = db_m.get("db_crawl_avg_attempts_to_ok")
+        line(f"  DB crawl results today: {total} candidates across {items_total} WSJ items")
+        line(f"    Items resolved:  {items_with_ok}/{items_total} found ok  |  {items_no_ok} found nothing")
+        avg_str = f"{avg_att:.1f}" if avg_att is not None else "?"
+        line(f"    Avg attempts to first ok: {avg_str}")
+        line(f"    Candidates — ok: {ok}  low: {low}  failed: {failed}  (low = tried & rejected on the way)")
     if db_m.get("db_crawl_errors"):
         line("  Top error reasons:")
         for err, cnt in list(db_m["db_crawl_errors"].items())[:7]:
@@ -941,12 +975,13 @@ def _compute_health_checks(log_m: dict, db_m: dict, ds_m: dict | None = None) ->
             pct = res_ok / total * 100
             checks.append(("Resolve", f"{pct:.1f}% success", pct >= THRESHOLDS["resolve_success_min"]))
 
-    # Crawl success+ok rate
+    # Crawl: per-item ok rate (waterfall view)
     db_total = db_m.get("db_crawl_total", 0)
-    db_ok = db_m.get("db_crawl_ok", 0)
-    if db_total > 0:
-        ok_pct = db_ok / db_total * 100
-        checks.append(("Crawl success+ok", f"{ok_pct:.1f}%", ok_pct >= THRESHOLDS["crawl_ok_min"]))
+    items_total = db_m.get("db_crawl_items_total", 0)
+    items_with_ok = db_m.get("db_crawl_items_with_ok", 0)
+    if items_total > 0:
+        items_ok_pct = items_with_ok / items_total * 100
+        checks.append(("Crawl items ok", f"{items_with_ok}/{items_total} ({items_ok_pct:.0f}%)", items_ok_pct >= THRESHOLDS["crawl_ok_min"]))
 
     # Garbage rate
     db_failed = db_m.get("db_crawl_failed", 0)
@@ -1264,13 +1299,19 @@ def render_html(log_m: dict, db_m: dict, date_str: str, checks: list[tuple[str, 
         ok = db_m.get("db_crawl_ok", 0)
         low = db_m.get("db_crawl_low", 0)
         failed = db_m.get("db_crawl_failed", 0)
+        items_total = db_m.get("db_crawl_items_total", 0)
+        items_with_ok = db_m.get("db_crawl_items_with_ok", 0)
+        items_no_ok = db_m.get("db_crawl_items_no_ok", 0)
+        avg_att = db_m.get("db_crawl_avg_attempts_to_ok")
+        avg_str = f"{avg_att:.1f}" if avg_att is not None else "?"
         body += "<div style='margin-top:10px'></div>"
+        body += _kv("Items resolved", f"<span style='color:#34d399'>{items_with_ok}/{items_total} found ok</span>")
+        body += _kv("Items failed", f"<span style='color:#fca5a5'>{items_no_ok} found nothing</span>")
+        body += _kv("Avg attempts to ok", avg_str)
         ok_pct = ok / total * 100 if total else 0
         low_pct = low / total * 100 if total else 0
         fail_pct = failed / total * 100 if total else 0
-        body += _kv("Success + OK", f"<span style='color:#34d399'>{ok} ({ok_pct:.0f}%)</span>")
-        body += _kv("Success + Low", f"<span style='color:#fbbf24'>{low} ({low_pct:.0f}%)</span>")
-        body += _kv("Failed", f"<span style='color:#fca5a5'>{failed} ({fail_pct:.0f}%)</span>")
+        body += _kv("Candidates — ok/low/fail", f"{ok} ({ok_pct:.0f}%) / {low} ({low_pct:.0f}%) / {failed} ({fail_pct:.0f}%)")
         # Stacked bar
         body += (
             f"<div style='display:flex;height:8px;border-radius:4px;overflow:hidden;margin-top:6px;background:#334155'>"

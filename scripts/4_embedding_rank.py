@@ -6,7 +6,7 @@ Uses sentence-transformers (BAAI/bge-base-en-v1.5) for semantic similarity.
 Ranks backup articles by cosine similarity to WSJ title + description.
 
 Usage:
-    python scripts/embedding_rank.py [--top-k 10] [--min-score 0.3]
+    python scripts/embedding_rank.py [--top-k 10] [--min-score 0.55]
 """
 import json
 import re
@@ -42,7 +42,7 @@ def rank_candidates(
     query_text: str,
     candidates: list[dict],
     top_k: int = 10,
-    min_score: float = 0.3,
+    min_score: float = 0.55,
 ) -> list[tuple[dict, float]]:
     """
     Rank candidates by embedding cosine similarity.
@@ -88,7 +88,7 @@ def main():
     import argparse
     parser = argparse.ArgumentParser(description="Embedding-based ranking for WSJ → Google News candidates")
     parser.add_argument('--top-k', type=int, default=40, help='Max results per WSJ item')
-    parser.add_argument('--min-score', type=float, default=0.3, help='Minimum cosine similarity')
+    parser.add_argument('--min-score', type=float, default=0.55, help='Minimum cosine similarity')
     args = parser.parse_args()
 
     top_k = args.top_k
