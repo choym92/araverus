@@ -367,7 +367,7 @@ Uses a `const T` theme object with semantic color tokens (wrapper, text, muted, 
 - **Sources**: Expandable scrollable list (Framer Motion) with numbered articles (larger font), categories, external links. Custom thin scrollbar styling.
 - **Keyboard**: Space (play/pause), Arrow Left/Right (+/-15s), Arrow Up/Down (volume — updates UI state), M (mute)
 - **Mobile**: Double-tap left/right side of controls area to skip -/+15s. Responsive font sizes (text-xs sm:text-sm).
-- **Resume**: Saves playback position to localStorage per audio URL
+- **Resume**: Saves playback position to localStorage keyed by `briefing-resume:{date}:{lang}`. New briefing dates always start at 0:00; same-day revisits resume where the user left off. (Audio URL is a fixed path `briefing-{lang}-latest.mp3` that gets overwritten daily, so URL alone can't distinguish briefings.)
 
 #### Sticky Mini-Player
 When the full player scrolls out of view (IntersectionObserver), a mini-player appears via `createPortal` to `document.body`:
@@ -633,7 +633,7 @@ classDiagram
 | Volume/Speed | Hover to show popup, click to act (mute/cycle). Vertical slider, popup dropdown | YouTube-style hover/click separation |
 | Skip | 15s forward/back (was 30s) | Better for spoken content navigation |
 | Speeds | [1, 1.25, 1.5, 2] (removed 0.75x) | Most users don't slow down; cleaner options |
-| Resume | localStorage per audio URL | Avoid losing position on page refresh |
+| Resume | localStorage per `{date}:{lang}` | New briefings start at 0:00; same-day revisits resume |
 | Audio fallback | Always show with local file fallback | Audio pipeline not fully deployed yet |
 
 ### Article Detail Page (`/news/[slug]`)

@@ -311,18 +311,19 @@ export function BriefingProvider({ children }: { children: ReactNode }) {
     }
   }, [isMuted, volume])
 
-  // Resume position: save
+  // Resume position: save (keyed by date + lang so new briefings always start at 0:00)
+  const briefingDate = data?.date ?? ''
   useEffect(() => {
-    if (!audioUrl || currentTime === 0) return
-    const key = `briefing-resume:${audioUrl}`
+    if (!audioUrl || !briefingDate || currentTime === 0) return
+    const key = `briefing-resume:${briefingDate}:${lang}`
     localStorage.setItem(key, String(currentTime))
-  }, [currentTime, audioUrl])
+  }, [currentTime, audioUrl, briefingDate, lang])
 
   // Resume position: restore
   useEffect(() => {
     const audio = audioRef.current
-    if (!audio || !audioUrl) return
-    const key = `briefing-resume:${audioUrl}`
+    if (!audio || !audioUrl || !briefingDate) return
+    const key = `briefing-resume:${briefingDate}:${lang}`
     const saved = localStorage.getItem(key)
     if (saved) {
       const t = parseFloat(saved)
@@ -331,7 +332,7 @@ export function BriefingProvider({ children }: { children: ReactNode }) {
         setCurrentTime(t)
       }
     }
-  }, [audioUrl])
+  }, [audioUrl, briefingDate, lang])
 
   // Derived values
   const progress = audioDuration > 0 ? (currentTime / audioDuration) * 100 : 0
