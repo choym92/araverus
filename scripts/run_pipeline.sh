@@ -22,6 +22,10 @@ echo "============================================"
 
 cd "$PROJECT_DIR"
 
+# ── HuggingFace: prefer local cache, longer timeout as fallback ──
+export HF_HUB_OFFLINE=1
+export HF_HUB_DOWNLOAD_TIMEOUT=30
+
 # ── Load secrets ─────────────────────────────────────
 # Try .env.pipeline first (works in launchd), fall back to Keychain (interactive)
 ENV_FILE="$PROJECT_DIR/.env.pipeline"

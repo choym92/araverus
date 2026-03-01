@@ -50,7 +50,11 @@ def _get_relevance_model():
     if _relevance_model is None:
         from sentence_transformers import SentenceTransformer
         print("Loading embedding model for relevance check...")
-        _relevance_model = SentenceTransformer('BAAI/bge-base-en-v1.5')
+        try:
+            _relevance_model = SentenceTransformer('BAAI/bge-base-en-v1.5', local_files_only=True)
+        except Exception:
+            print("  Local cache miss, downloading from Hub...")
+            _relevance_model = SentenceTransformer('BAAI/bge-base-en-v1.5')
         print("Model loaded.\n")
     return _relevance_model
 

@@ -76,7 +76,11 @@ def get_embedding_model() -> SentenceTransformer:
     global _model
     if _model is None:
         print(f"Loading embedding model: {EMBEDDING_MODEL}")
-        _model = SentenceTransformer(EMBEDDING_MODEL)
+        try:
+            _model = SentenceTransformer(EMBEDDING_MODEL, local_files_only=True)
+        except Exception:
+            print("  Local cache miss, downloading from Hub...")
+            _model = SentenceTransformer(EMBEDDING_MODEL)
     return _model
 
 

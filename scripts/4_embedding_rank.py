@@ -24,7 +24,11 @@ def _get_model():
     if _model is None:
         from sentence_transformers import SentenceTransformer
         print("Loading embedding model...")
-        _model = SentenceTransformer('BAAI/bge-base-en-v1.5')
+        try:
+            _model = SentenceTransformer('BAAI/bge-base-en-v1.5', local_files_only=True)
+        except Exception:
+            print("  Local cache miss, downloading from Hub...")
+            _model = SentenceTransformer('BAAI/bge-base-en-v1.5')
         print("Model loaded.\n")
     return _model
 
