@@ -204,6 +204,8 @@ def parse_wsj_rss(xml_text: str, feed_name: str, feed_url: str) -> list[WsjItem]
         # Skip roundup/digest posts (no real article content)
         if 'Roundup: Market Talk' in title:
             continue
+        if title.lower().startswith('news quiz'):
+            continue
 
         # Skip low-value categories (poor crawl success rates)
         if any(cat in link for cat in SKIP_URL_PATHS):
