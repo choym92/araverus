@@ -115,14 +115,13 @@ def get_unembedded_articles(supabase: Client, limit: int = 500) -> list[dict]:
         .execute()
     embedded_ids = {row['wsj_item_id'] for row in (embedded_response.data or [])}
 
-    # Get all items with description (title+description is enough to embed)
+    # Get all items (title alone is enough to embed; description used if available)
     all_items = []
     page_size = 1000
     offset = 0
     while True:
         items_response = supabase.table('wsj_items') \
             .select('id, title, description, published_at') \
-            .not_.is_('description', 'null') \
             .order('published_at', desc=True) \
             .range(offset, offset + page_size - 1) \
             .execute()
@@ -208,7 +207,6 @@ def get_unthreaded_articles(supabase: Client) -> list[dict]:
     """
     response = supabase.table('wsj_items') \
         .select('id, title, published_at, wsj_embeddings(embedding), wsj_crawl_results(wsj_llm_analysis(keywords))') \
-        .not_.is_('description', 'null') \
         .is_('thread_id', 'null') \
         .order('published_at', desc=True) \
         .limit(500) \
