@@ -1,4 +1,4 @@
-<!-- Updated: 2026-02-28 -->
+<!-- Updated: 2026-03-01 -->
 # News Platform — Frontend
 
 Technical guide for the `/news` page. WSJ-style 3-column layout with in-card thread carousels, bilingual audio briefing player, and keyword filtering. Powered by the existing news pipeline.
@@ -35,8 +35,8 @@ graph TB
         PLAYER[BriefingPlayer<br/>HTML5 Audio + Framer Motion<br/>EN/KO toggle, chapters, transcript]
         CARDS[ArticleCard 🖥️<br/>featured / standard<br/>+ thread carousel]
         SRCLIST[SourceList 🖥️<br/>Collapsible source links<br/>detail page only]
-        KWPILLS[KeywordPills<br/>Inline dot-separated keyword text]
-        FILTER[FilterButton 🖥️<br/>Dropdown: subcategory + keyword pills]
+        KWPILLS[KeywordPills<br/>Micro-interaction chips with # prefix]
+        FILTER[FilterPanel 🖥️<br/>Slide-in right panel: subcategory + keyword filter]
     end
 
     DB_ITEMS --> SVC
@@ -75,7 +75,7 @@ graph LR
         PAGE -->|Suspense| NC[NewsContent 🖥️<br/>useSearchParams filtering]
         NC --> TABS[Tab Nav<br/>Today / Stories / Search]
         NC --> CATS[Category Pills<br/>All / Markets / Tech / ...]
-        NC --> FB[FilterButton 🖥️<br/>Dropdown with subcategory + keyword pills]
+        NC --> FP[FilterPanel 🖥️<br/>Slide-in right panel with subcategory + keyword filter]
         NC --> BP[BriefingPlayer 🔊<br/>Client Component (dynamic import)<br/>EN/KO + chapters + transcript]
         NC --> AC[ArticleCard 🖥️<br/>Client Component<br/>featured / standard + thread carousel]
         NC --> BELOW[Below-fold grid<br/>Remaining articles]
@@ -98,8 +98,8 @@ graph LR
 ┌───────────────────────────────────────────────────────────────────┐
 │ Header (shared) — Logo | Toggle | Search | Login                  │
 ├───────────────────────────────────────────────────────────────────┤
-│ [Today]  [Stories (Soon)]  [Search (Soon)]                        │  ← tabs
-│ [All] [Markets] [Tech] [Economy] [World] [Politics]  [⊞ Filter]  │  ← category pills + filter btn
+│ Today  Stories  Search                                            │  ← tabs (typography-only)
+│ [All] [Markets] [Tech] [Economy] [World] [Politics]  [⊞ Filter]  │  ← category pills + toggle
 ├───────────────────────────────────────────────────────────────────┤
 │                                                                    │
 │  ┌─ Left 3/12 ──┐  ┌─ Center 6/12 ──────────┐  ┌─ Right 3/12 ─┐│
@@ -198,9 +198,13 @@ sequenceDiagram
             DB-->>Svc: allItems: NewsItem[]
             Note over Page: Merge todayItems + backfill with allItems (deduped),<br/>today first, max 60
         else category !== undefined (Category tabs)
-            Page->>Svc: getNewsItems({ category, limit: 40 })
-            Svc->>DB: SELECT wsj_items WHERE feed_name = category<br/>ORDER BY published_at DESC LIMIT 40
-            DB-->>Svc: items: NewsItem[]
+            Page->>Svc: getNewsItems({ category, limit: 50, since: 24h ago })
+            Svc->>DB: SELECT wsj_items WHERE feed_name = category<br/>AND published_at >= 24h ago LIMIT 50
+            DB-->>Svc: todayItems: NewsItem[]
+            Page->>Svc: getNewsItems({ category, limit: 50 })
+            Svc->>DB: SELECT wsj_items WHERE feed_name = category<br/>ORDER BY published_at DESC LIMIT 50
+            DB-->>Svc: allItems: NewsItem[]
+            Note over Page: Merge todayItems + backfill with allItems (deduped),<br/>today first, max 60
         end
     end
 
@@ -248,7 +252,7 @@ sequenceDiagram
 | `src/app/news/_components/BriefingPlayer.tsx` | Client | Bilingual audio player with chapters, transcript, sticky mini-player, theme object |
 | `src/app/news/_components/ArticleCard.tsx` | Client | Article display (featured/standard) + framer-motion thread carousel |
 | `src/app/news/_components/SourceList.tsx` | Client | Collapsible source list for article detail page — shows WSJ + crawl candidates with favicons |
-| `src/app/news/_components/FilterButton.tsx` | Client | Filter dropdown with subcategory + keyword pill sections, multi-select toggle |
+| `src/app/news/_components/FilterPanel.tsx` | Client | Filter slide-in right panel (fixed positioning, floats on viewport right edge desktop), backdrop overlay on mobile |
 | `src/app/news/_components/KeywordPills.tsx` | Server | Inline dot-separated keyword text with optional link behavior + active state |
 | ~~`src/app/news/_components/ThreadSection.tsx`~~ | ~~Client~~ | **Deleted** — replaced by in-card thread carousels |
 | `src/lib/news-service.ts` | Server | `NewsService` class (Supabase queries, bilingual briefings, threads, related articles) |
@@ -367,7 +371,7 @@ Uses a `const T` theme object with semantic color tokens (wrapper, text, muted, 
 - **Sources**: Expandable scrollable list (Framer Motion) with numbered articles (larger font), categories, external links. Custom thin scrollbar styling.
 - **Keyboard**: Space (play/pause), Arrow Left/Right (+/-15s), Arrow Up/Down (volume — updates UI state), M (mute)
 - **Mobile**: Double-tap left/right side of controls area to skip -/+15s. Responsive font sizes (text-xs sm:text-sm).
-- **Resume**: Saves playback position to localStorage per audio URL
+- **Resume**: Saves playback position to localStorage keyed by `briefing-resume:{date}:{lang}`. New briefing dates always start at 0:00; same-day revisits resume where the user left off. (Audio URL is a fixed path `briefing-{lang}-latest.mp3` that gets overwritten daily, so URL alone can't distinguish briefings.)
 
 #### Sticky Mini-Player
 When the full player scrolls out of view (IntersectionObserver), a mini-player appears via `createPortal` to `document.body`:
@@ -444,23 +448,35 @@ interface KeywordPillsProps {
 }
 ```
 
-Renders as inline dot-separated text (not pills): `Trade · AI · Earnings`. Alphabetically sorted, capitalized. Active keywords shown bold with ×.
+Renders as micro-interaction chips: `#Trade`, `#AI`, `#Earnings`. Alphabetically sorted, capitalized. Visual style: `bg-neutral-100 rounded-full` with `#` prefix. Hover `scale-105 shadow-md` with spring cubic-bezier. Centered layout (`justify-center`). Mobile uses `py-2.5 text-sm` for tap targets.
 
-### FilterButton (Client Component)
+### FilterPanel (Client Component)
 
 ```typescript
-interface FilterButtonProps {
+interface FilterPanelProps {
   allSubcategories: { keyword: string; count: number }[]
   allKeywords: { keyword: string; count: number }[]
   activeKeywords: string[]
+  isOpen: boolean
+  onClose: () => void
 }
 ```
 
-Dropdown box anchored to a `⊞ Filter` button in the nav bar. Two sections separated by a divider:
+Fixed right-side slide-in panel (320px width on desktop, full width on mobile with backdrop overlay). Toggle button floats on right viewport edge, vertically centered. Two sections separated by a divider:
 - **Subcategory**: Aggregated from `wsj_items.subcategory` (capitalized: "ai" → "AI", "trade" → "Trade")
-- **Keywords**: Aggregated from article keywords (top 20 by frequency)
+- **Keywords**: Aggregated from 7-day / 200-article fetch (not just displayed articles)
 
-Each pill is a toggle button — click to add/remove from `?keywords=` URL param. OR filtering: articles matching ANY selected keyword or subcategory are shown. Outside click / ESC to close.
+Each keyword uses `py-2.5 text-sm` for mobile tap targets. Click to toggle `?keywords=` URL param. OR filtering: articles matching ANY selected keyword or subcategory are shown. Framer Motion slide-in animation. Content area gets `lg:pr-72` on desktop to push left (no overlay). Mobile uses backdrop overlay behind panel.
+
+### NewsContent (Client Component)
+
+Renders tab navigation (Today / Stories / Search) and category pills with filtering. Handles keyword/subcategory client-side filtering, featured hero selection, and Load More pagination.
+
+**Tab Nav Styling**: Typography-only hierarchy (no underline, no background). Active: `text-base font-semibold`. Inactive: `text-base font-normal text-neutral-400`. Smooth transition on selection.
+
+**Category Pills Styling**: Horizontal pill buttons with `text-xs uppercase tracking-widest` underline style (kept from original). Padding `px-8` (increased from `px-6`). Category tabs now use same today-first + backfill logic as All tab (not simple limit-40). Keywords aggregated from 7-day / 200-article fetch instead of just displayed articles.
+
+**Column Balance**: Left/right columns now balanced — `sideCount = min(floor(remaining/2), 5)` instead of hardcoded 5/6.
 
 ### SourceList (Client Component)
 
@@ -472,13 +488,28 @@ interface SourceListProps {
 }
 ```
 
-Collapsible source list used on the `/news/[slug]` detail page. Replaces the old "Read on {source}" button.
+Collapsible source list used on the `/news/[slug]` detail page. Replaces the old "Read on {source}" button. Returns `null` when no sources exist.
 - Shows WSJ link first (always visible), then crawl candidate sources
 - Sources sorted: trusted domains first (by embedding score), then others (by embedding score)
 - Minimum embedding_score threshold (0.68) filters off-topic results
-- First 3 sources visible by default, expandable "+N more" button
-- Each row: favicon (Google S2 API) + title/source name + domain label + external link arrow
-- Hover state: subtle background highlight, domain text brightens on hover
+- First 4 sources visible by default, expandable "+N more" button
+- Each row: larger favicon (20px, Google S2 API) + title/source name + domain label + external link arrow
+- Hover state: `hover:bg-neutral-50`, `divide-y` between rows
+- Header style matches RelatedSection: `font-serif text-lg border-b-2 border-neutral-900`
+
+### ArticlePage Component (`/news/[slug]`)
+
+Article detail page layout with semantic structure:
+
+1. **Breadcrumb** (replacing back nav): `News / Tech / AI` style with smart subcategory formatting — 3 chars or less = ALL CAPS, rest = Title Case. `text-sm` with `mb-3`.
+2. **Hero Image**: Full-width, aspect ratio maintained via wrapper.
+3. **Keywords**: Below image, centered, using `hashtag` variant with `linkable` prop (KeywordPills component). `justify-center` layout.
+4. **Headline & Badge**: Serif headline with optional `must_read` badge displayed inline with category.
+5. **Timestamp & Share Bar**: Share icons moved to right-aligned position above hero. Timestamp styled as `text-base` (increased from `text-sm`).
+6. **Summary**: Split into paragraphs. First sentence = bold lead text. Remaining grouped 2 sentences per `<p>` tag. Body narrowed to `max-w-2xl`.
+7. **SourceList**: Header style matches RelatedSection (`font-serif text-lg border-b-2 border-neutral-900`). Hidden when no sources (returns null).
+8. **TimelineSection**: Collapsible, shows last 5 articles with "Show N older..." expand.
+9. **RelatedSection**: Numbered list with pgvector similarity score bars (7-day window, excludes timeline articles).
 
 ---
 
@@ -614,7 +645,7 @@ classDiagram
 | Decision | Choice | Rationale |
 |----------|--------|-----------|
 | Caching | Dynamic rendering + `unstable_cache` (30min TTL per category, tag: `news`) | ISR was too stale for news (2h). Dynamic + cache gives fresher data and supports searchParams for server-side category filtering. |
-| Data fetch limit | "All": todayItems (limit 50) + allItems (limit 50) deduped, max 60; Categories: 40 each | "All" tab prioritizes today (24h cutoff) with older backfill for fresh news urgency. Category tabs get full depth: Markets (20/day) → ~2 days. Tech (5/day) → ~8 days. No arbitrary cutoff. |
+| Data fetch limit | "All": todayItems (limit 50) + allItems (limit 50) deduped, max 60; Categories: todayItems (limit 50) + allItems (limit 50) deduped, max 60 | Both All and Category tabs prioritize today (24h cutoff) with older backfill for consistent, fresh content. Aggregates keywords from 7-day / 200-article fetch for better keyword representation. |
 | Map serialization | `Object.fromEntries()` for threadTimelines/threadMeta | Server → Client props must be JSON-serializable. Maps are not. |
 | Loading state | `loading.tsx` skeleton UI (Next.js built-in Suspense) | Instant visual feedback during server data fetching (12+ DB queries). Matches 3-col layout to avoid layout shift on content swap |
 | BriefingPlayer loading | `next/dynamic` with inline skeleton fallback | Splits heavy audio player JS (~chapters, waveform, transcript, Framer Motion) into separate chunk. Reduces initial JS bundle; player hydrates async. Note: `ssr: false` not allowed in Server Components |
@@ -633,7 +664,7 @@ classDiagram
 | Volume/Speed | Hover to show popup, click to act (mute/cycle). Vertical slider, popup dropdown | YouTube-style hover/click separation |
 | Skip | 15s forward/back (was 30s) | Better for spoken content navigation |
 | Speeds | [1, 1.25, 1.5, 2] (removed 0.75x) | Most users don't slow down; cleaner options |
-| Resume | localStorage per audio URL | Avoid losing position on page refresh |
+| Resume | localStorage per `{date}:{lang}` | New briefings start at 0:00; same-day revisits resume |
 | Audio fallback | Always show with local file fallback | Audio pipeline not fully deployed yet |
 
 ### Article Detail Page (`/news/[slug]`)
@@ -704,15 +735,21 @@ The `/news/[slug]` page has the route and basic layout, but these sections need 
 
 ```
 ┌─────────────────────────────────────────────────────────┐
-│  /news/[slug]                                   [← Back] │
+│  News / Tech / AI                  [Share icons above]   │
 │                                                           │
-│  ┌─ Article ─────────────────────────────────────────┐  │
-│  │ Headline, summary, keywords                        │  │
+│  ┌─ Article ────────────────────────────────────────┐  │
+│  │ Hero image (top)                                  │  │
+│  │ Keywords (centered, hashtag chips below image)   │  │
+│  │ Headline (serif) | Must Read badge                │  │
+│  │ Timestamp (text-base) + Share bar (right-aligned) │  │
+│  │ Summary: bold first sentence lead, 2-per-<p>    │  │
+│  │ (max-w-2xl, narrower body)                        │  │
 │  └───────────────────────────────────────────────────┘  │
 │                                                           │
-│  ┌─ Sources (collapsible, 3 visible) ────────────────┐  │
-│  │ WSJ link + crawl candidates with favicons          │  │
-│  │ "+N more" expand button                            │  │
+│  ┌─ Sources ─────────────────────────────────────────┐  │
+│  │ font-serif text-lg border-b-2 border-neutral-900 │  │
+│  │ WSJ link + crawl candidates (20px favicons)       │  │
+│  │ 4 visible by default, "+N more" expand            │  │
 │  └───────────────────────────────────────────────────┘  │
 │                                                           │
 │  ┌─ Story Timeline (collapsible) ────────────────────┐  │

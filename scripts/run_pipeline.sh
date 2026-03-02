@@ -96,14 +96,14 @@ echo ""
 echo ">>> Phase 7: Cache Revalidation"
 SITE_URL="${SITE_URL:-https://chopaul.com}"
 if [[ -n "${REVALIDATION_SECRET:-}" ]]; then
-    HTTP_STATUS=$(curl -s -o /dev/null -w "%{http_code}" --max-time 10 \
+    HTTP_STATUS=$(curl -sL -o /dev/null -w "%{http_code}" --max-time 10 \
         -X POST "$SITE_URL/api/revalidate" \
         -H "x-revalidation-secret: $REVALIDATION_SECRET")
     if [[ "$HTTP_STATUS" == "200" ]]; then
         echo "Cache revalidated successfully"
-        # Warm cache: trigger ISR regeneration so next real visitor gets fresh page
+        # Warm cache: trigger page regeneration so next real visitor gets fresh data
         sleep 2
-        curl -s "$SITE_URL/news" -o /dev/null --max-time 15 && echo "Cache warmed: /news" || echo "WARN: Cache warm failed (non-fatal)"
+        curl -sL "$SITE_URL/news" -o /dev/null --max-time 15 && echo "Cache warmed: /news" || echo "WARN: Cache warm failed (non-fatal)"
     else
         echo "WARN: Revalidation returned HTTP $HTTP_STATUS (ISR fallback still active)"
     fi

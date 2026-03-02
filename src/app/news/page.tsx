@@ -2,7 +2,7 @@ import { Suspense } from 'react'
 import { unstable_cache } from 'next/cache'
 import { createServiceClient } from '@/lib/supabase-server'
 import { NewsService } from '@/lib/news-service'
-import type { NewsItem } from '@/lib/news-service'
+import type { NewsItem, ParentThreadGroup } from '@/lib/news-service'
 import NewsShell from './_components/NewsShell'
 import NewsContent from './_components/NewsContent'
 import { readFile } from 'fs/promises'
@@ -117,26 +117,30 @@ function sortByDateThenImportance(items: NewsItem[]): NewsItem[] {
   })
 }
 
+const getStoriesData = unstable_cache(
+  async (category?: string): Promise<ParentThreadGroup[]> => {
+    const supabase = createServiceClient()
+    const service = new NewsService(supabase)
+    return service.getActiveThreadsGrouped(category)
+  },
+  ['news-stories'],
+  { revalidate: 1800, tags: ['news'] }
+)
+
 const getNewsData = unstable_cache(
   async (category?: string) => {
     const supabase = createServiceClient()
     const service = new NewsService(supabase)
 
-    let items: NewsItem[]
-
-    if (!category) {
-      // "All" tab: today's articles first, backfill with older (deduped)
-      const todayCutoff = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString()
-      const [todayItems, allItems] = await Promise.all([
-        service.getNewsItems({ limit: 50, since: todayCutoff }),
-        service.getNewsItems({ limit: 50 }),
-      ])
-      const todayIds = new Set(todayItems.map(i => i.id))
-      const olderBackfill = allItems.filter(i => !todayIds.has(i.id))
-      items = [...todayItems, ...olderBackfill].slice(0, 60)
-    } else {
-      items = await service.getNewsItems({ category, limit: 40 })
-    }
+    // Today's articles first, backfill with older (deduped)
+    const todayCutoff = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString()
+    const [todayItems, allItems] = await Promise.all([
+      service.getNewsItems({ category, limit: 50, since: todayCutoff }),
+      service.getNewsItems({ category, limit: 50 }),
+    ])
+    const todayIds = new Set(todayItems.map(i => i.id))
+    const olderBackfill = allItems.filter(i => !todayIds.has(i.id))
+    const items = [...todayItems, ...olderBackfill].slice(0, 60)
 
     const [{ en: enBriefing, ko: koBriefing }] = await Promise.all([
       service.getLatestBriefings(),
@@ -184,8 +188,11 @@ const getNewsData = unstable_cache(
     visibleThreadIds.forEach((id, i) => { threadTimelines[id] = timelines[i] })
     const threadMeta: Record<string, { id: string; title: string; member_count: number; first_seen: string; last_seen: string }> = Object.fromEntries(threadMetaMap)
 
-    const allKeywords = aggregateKeywords(items)
-    const allSubcategories = aggregateSubcategories(items)
+    // Fetch 7-day articles for richer keyword/subcategory aggregation
+    const weekCutoff = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString()
+    const weekItems = await service.getNewsItems({ category, limit: 200, since: weekCutoff })
+    const allKeywords = aggregateKeywords(weekItems)
+    const allSubcategories = aggregateSubcategories(weekItems)
     const sortedItems = sortByDateThenImportance(items)
 
     // Parse briefing date
@@ -236,12 +243,16 @@ const getNewsData = unstable_cache(
 export default async function NewsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ category?: string }>
+  searchParams: Promise<{ category?: string; tab?: string }>
 }) {
-  const { category } = await searchParams
+  const { category, tab } = await searchParams
   const validCategory = category && category in CATEGORY_LABELS ? category : undefined
+  const activeTab = tab === 'stories' ? 'stories' : 'today'
 
-  const data = await getNewsData(validCategory)
+  const [data, storiesData] = await Promise.all([
+    getNewsData(validCategory),
+    activeTab === 'stories' ? getStoriesData(validCategory) : Promise.resolve([]),
+  ])
 
   return (
     <NewsShell>
@@ -254,6 +265,7 @@ export default async function NewsPage({
           allKeywords={data.allKeywords}
           allSubcategories={data.allSubcategories}
           serverCategory={validCategory}
+          parentThreadGroups={storiesData}
         />
       </Suspense>
     </NewsShell>

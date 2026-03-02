@@ -44,15 +44,48 @@ export default function KeywordPills({
 
   const sorted = [...keywords].sort((a, b) => a.localeCompare(b, 'en', { sensitivity: 'base' }))
 
+  if (variant === 'hashtag') {
+    return (
+      <div className="flex flex-wrap items-center justify-center gap-2">
+        {sorted.map((kw) => {
+          const label = capitalize(kw)
+          const isActive = activeSet.has(kw.toLowerCase())
+          const cls = isActive
+            ? 'bg-neutral-900 text-white shadow-sm'
+            : 'bg-neutral-100 text-neutral-600 hover:scale-105 hover:shadow-md hover:text-neutral-900 hover:bg-neutral-50'
+
+          if (linkable) {
+            return (
+              <Link
+                key={kw}
+                href={toggleKeywordsParam(kw, activeKeywords)}
+                className={`inline-flex items-center px-3.5 py-1.5 text-sm rounded-full transition-all duration-200 ease-[cubic-bezier(0.34,1.56,0.64,1)] ${cls}`}
+              >
+                <span className="text-neutral-400 mr-1">#</span>{label}
+                {isActive && <span className="ml-1.5 text-neutral-400">&times;</span>}
+              </Link>
+            )
+          }
+
+          return (
+            <span
+              key={kw}
+              className={`inline-flex items-center px-3.5 py-1.5 text-sm rounded-full transition-all duration-200 ease-[cubic-bezier(0.34,1.56,0.64,1)] ${cls}`}
+            >
+              <span className="text-neutral-400 mr-1">#</span>{label}
+            </span>
+          )
+        })}
+      </div>
+    )
+  }
+
   return (
     <div className={`${size === 'sm' ? 'text-sm' : 'text-xs'} text-neutral-400 truncate`}>
       {sorted.map((kw, i) => {
         const label = capitalize(kw)
         const isActive = activeSet.has(kw.toLowerCase())
-        const prefix = variant === 'hashtag' ? '#' : ''
-        const sep = variant === 'hashtag'
-          ? (i > 0 && <span key={`sep-${kw}`} className="mx-1.5" />)
-          : (i > 0 && <span key={`sep-${kw}`} className="mx-1">&middot;</span>)
+        const sep = i > 0 && <span key={`sep-${kw}`} className="mx-1">&middot;</span>
 
         if (linkable) {
           return (
@@ -62,7 +95,7 @@ export default function KeywordPills({
                 href={toggleKeywordsParam(kw, activeKeywords)}
                 className={`hover:text-neutral-600 transition-colors ${isActive ? 'text-neutral-900 font-medium' : ''}`}
               >
-                {prefix}{label}
+                {label}
                 {isActive && ' ×'}
               </Link>
             </span>
@@ -73,7 +106,7 @@ export default function KeywordPills({
           <span key={kw}>
             {sep}
             <span className={isActive ? 'text-neutral-900 font-medium' : ''}>
-              {prefix}{label}
+              {label}
             </span>
           </span>
         )

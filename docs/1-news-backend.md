@@ -109,6 +109,8 @@ RSS ingestion and export only.
 - **Feeds:** BUSINESS, MARKETS, WORLD, TECH, ECONOMY, POLITICS (merged: BUSINESS+MARKETS → BUSINESS_MARKETS)
 - **Dedup:** Title-based, keeps version from feed with fewer items
 - **Category:** Extracted from URL path (~95% accuracy), fallback to `feed_name`
+- **Title filters:** Skips "Roundup: Market Talk" and "News Quiz" articles (interactive/aggregated content)
+- **URL path filters:** Skips `/lifestyle/`, `/real-estate/`, `/arts/`, `/health/`, `/style/`, `/livecoverage/`, `/arts-culture/`, `/buyside/`, `/sports/`, `/opinion/`
 
 #### `2_wsj_preprocess.py`
 
@@ -256,7 +258,7 @@ python 8_generate_briefing.py --date 2026-02-23 --regen-audio  # Redo TTS+timest
 - **Crawl map filter:** Only `relevance_flag='ok'` crawls are used; `low`-flag crawls are excluded from briefing even if `crawl_status='success'`
 - **Summary fallback chain:** Curated articles get full content → summary → description. Standard articles get summary → content[:800] → description. Title-only articles get description → title.
 - **LLM:** Gemini 2.5 Pro (curation + briefing generation, temp 0.6, think 4K)
-- **TTS EN:** Google Cloud Chirp 3 HD (`en-US-Chirp3-HD-Alnilam`), Whisper alignment (CPU)
+- **TTS EN:** Google Cloud Chirp 3 HD (`en-US-Chirp3-HD-Alnilam`), Whisper alignment (CPU). Pre-processing normalizes smart quotes/curly apostrophes to ASCII before non-ASCII cleanup (prevents "we'll" → "we LL").
 - **TTS KO:** Google Cloud Chirp 3 HD (`ko-KR-Chirp3-HD-Kore`), byte-aware chunking (4800 byte limit), CTC forced alignment + Whisper hybrid correction
 - **Timestamps:** KO uses CTC forced alignment (ctc-forced-aligner) with Whisper drift correction; EN uses Whisper transcription with original text mapping
 - **`--regen-audio`:** Fetches existing briefing text from DB, regenerates TTS + timestamps + uploads without re-running article fetch/curation/LLM

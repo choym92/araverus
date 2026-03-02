@@ -1,0 +1,20 @@
+{
+  "date": "2026-02-28",
+  "prev_briefing_date": "2026-02-27",
+  "article_count": 148,
+  "yesterday_context_chars": 564,
+  "A": {
+    "elapsed": 44.30618190765381,
+    "input_tokens": 48199,
+    "output_tokens": 2073,
+    "thinking_tokens": 2900,
+    "words": 1576
+  },
+  "C": {
+    "elapsed": 41.233957052230835,
+    "input_tokens": 48396,
+    "output_tokens": 2228,
+    "thinking_tokens": 2365,
+    "words": 1708
+  }
+}

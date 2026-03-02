@@ -966,8 +966,11 @@ def generate_tts_en(
     """Generate EN audio using Google Cloud Chirp 3 HD (chunked)."""
     from google.cloud import texttospeech
 
-    # Clean text: remove non-ASCII symbols
-    clean = re.sub(r"[^\x00-\x7F]+", " ", text)
+    # Clean text: normalize smart quotes to ASCII, then remove remaining non-ASCII
+    clean = text.replace("\u2019", "'").replace("\u2018", "'")  # curly apostrophes → straight
+    clean = clean.replace("\u201C", '"').replace("\u201D", '"')  # curly double quotes → straight
+    clean = clean.replace("\u2014", " -- ").replace("\u2013", " - ")  # em/en dashes
+    clean = re.sub(r"[^\x00-\x7F]+", " ", clean)
     clean = re.sub(r"\s+", " ", clean).strip()
     cost.en_tts_chars += len(clean)
 
