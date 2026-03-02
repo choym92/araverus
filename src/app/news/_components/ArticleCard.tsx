@@ -131,7 +131,6 @@ export default function ArticleCard({
   threadTimeline,
   threadTitle,
   sourceCount = 0,
-  subcategory,
 }: ArticleCardProps) {
   const [imageError, setImageError] = useState(false)
   const hasThread = threadTimeline && threadTimeline.length > 1

@@ -131,6 +131,7 @@ export default function BriefingPlayer({
       observer.disconnect()
       setFullPlayerVisible(false)
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   // Auto-scroll chapter pills
