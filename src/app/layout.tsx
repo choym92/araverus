@@ -14,11 +14,13 @@ const inter = Inter({
 const geistMono = Geist_Mono({
   variable: "--font-geist-mono",
   subsets: ["latin"],
+  display: 'swap',
 });
 const playfair = Playfair_Display({
   variable: "--font-playfair",
   subsets: ["latin"],
   style: ["normal", "italic"],
+  display: 'swap',
 });
 
 
@@ -29,8 +31,27 @@ export const viewport: Viewport = {
 
 /* ---------- <head> metadata ---------- */
 export const metadata: Metadata = {
-  title: "Paul Cho - Personal Website",
-  description: "Paul Cho's personal website - showcasing projects, insights, and professional journey",
+  title: {
+    default: "Paul Cho — AI Projects on News and Finance",
+    template: "%s | Paul Cho",
+  },
+  description: "Using agentic AI and neural networks to get insights on news and finance.",
+  metadataBase: new URL("https://chopaul.com"),
+  openGraph: {
+    type: "website",
+    locale: "en_US",
+    siteName: "chopaul.com",
+    title: "Paul Cho — AI Projects on News and Finance",
+    description: "Using agentic AI and neural networks to get insights on news and finance.",
+    url: "https://chopaul.com",
+    images: [{ url: "https://chopaul.com/og-news-default.png", width: 1200, height: 630 }],
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Paul Cho — AI Projects on News and Finance",
+    description: "Using agentic AI and neural networks to get insights on news and finance.",
+    images: ["https://chopaul.com/og-news-default.png"],
+  },
   alternates: { types: { 'application/rss+xml': '/rss.xml' } },
 };
 
@@ -46,6 +67,27 @@ export default function RootLayout({
       <body
         className={`${inter.variable} ${geistMono.variable} ${playfair.variable} font-sans antialiased`}
       >
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: JSON.stringify([
+            {
+              '@context': 'https://schema.org',
+              '@type': 'WebSite',
+              name: 'chopaul.com',
+              url: 'https://chopaul.com',
+              description: 'Using agentic AI and neural networks to get insights on news and finance.',
+            },
+            {
+              '@context': 'https://schema.org',
+              '@type': 'Person',
+              name: 'Paul Cho',
+              url: 'https://chopaul.com',
+              sameAs: [
+                'https://www.linkedin.com/in/ympcho/',
+              ],
+            },
+          ]) }}
+        />
 {children}
         <Analytics />
       </body>

@@ -24,12 +24,33 @@ export async function generateMetadata({
 }): Promise<Metadata> {
   const { category } = await searchParams
   const label = category ? CATEGORY_LABELS[category] : null
-  const title = label ? `${label} News | chopaul` : 'News | chopaul'
-  const canonical = category ? `/news?category=${category}` : '/news'
+  const titleText = label
+    ? `${label} News — AI Briefing`
+    : 'AI News Briefing — Tech, Markets & Finance'
+  const title = { absolute: titleText }
+  const canonical = category ? `https://chopaul.com/news?category=${category}` : 'https://chopaul.com/news'
+
+  const description = label
+    ? `Agentic AI pipeline that threads related ${label} news stories, surfaces trends, and delivers daily briefings.`
+    : 'Agentic AI pipeline that threads related news stories, surfaces trends, and delivers daily briefings across Tech, Markets, and Finance.'
 
   return {
     title,
+    description,
     alternates: { canonical },
+    openGraph: {
+      title: titleText,
+      description,
+      url: canonical,
+      type: 'website',
+      images: [{ url: 'https://chopaul.com/og-news-default.png', width: 1200, height: 630 }],
+    },
+    twitter: {
+      card: 'summary_large_image',
+      title: titleText,
+      description,
+      images: ['https://chopaul.com/og-news-default.png'],
+    },
   }
 }
 

@@ -17,7 +17,7 @@ import ArticleHeroImage from './_components/ArticleHeroImage'
 export async function generateStaticParams() {
   const supabase = createServiceClient()
   const service = new NewsService(supabase)
-  const items = await service.getNewsItems({ limit: 50 })
+  const items = await service.getNewsItems({ limit: 100 })
   return items.filter(i => i.slug).map(i => ({ slug: i.slug! }))
 }
 
@@ -54,9 +54,30 @@ export async function generateMetadata({ params }: ArticlePageProps): Promise<Me
     return { title: 'Article Not Found | Paul Cho' }
   }
 
+  const description = item.summary || item.description || undefined
+  const canonical = `https://chopaul.com/news/${item.slug}`
+  const image = item.top_image || 'https://chopaul.com/og-news-default.png'
+  const imageObj = item.top_image
+    ? { url: item.top_image }
+    : { url: 'https://chopaul.com/og-news-default.png', width: 1200, height: 630 }
+
   return {
-    title: `${item.title} | Paul Cho`,
-    description: item.summary || item.description || undefined,
+    title: item.title,
+    description,
+    alternates: { canonical },
+    openGraph: {
+      title: item.title,
+      description,
+      url: canonical,
+      type: 'article',
+      images: [imageObj],
+    },
+    twitter: {
+      card: 'summary_large_image',
+      title: item.title,
+      description,
+      images: [image],
+    },
   }
 }
 
@@ -88,8 +109,62 @@ export default async function ArticlePage({ params }: ArticlePageProps) {
     minute: '2-digit',
   })
 
+  const articleUrl = `https://chopaul.com/news/${item.slug}`
+  const DEFAULT_OG_IMAGE = 'https://chopaul.com/og-news-default.png'
+
+  const jsonLd = [
+    {
+      '@context': 'https://schema.org',
+      '@type': 'NewsArticle',
+      url: articleUrl,
+      headline: item.title,
+      description: item.description || undefined,
+      articleBody: item.summary || item.description || undefined,
+      articleSection: categoryLabel(item.feed_name),
+      inLanguage: 'en',
+      isAccessibleForFree: true,
+      datePublished: item.published_at,
+      dateModified: item.published_at,
+      author: { '@type': 'Person', name: 'Paul Cho', url: 'https://chopaul.com' },
+      publisher: {
+        '@type': 'Organization',
+        name: 'chopaul.com',
+        url: 'https://chopaul.com',
+        logo: {
+          '@type': 'ImageObject',
+          url: 'https://chopaul.com/logo-publisher.png',
+          width: 600,
+          height: 60,
+        },
+      },
+      mainEntityOfPage: { '@type': 'WebPage', '@id': articleUrl },
+      image: item.top_image
+        ? { '@type': 'ImageObject', url: item.top_image }
+        : { '@type': 'ImageObject', url: DEFAULT_OG_IMAGE, width: 1200, height: 630 },
+      ...(item.keywords?.length ? { keywords: item.keywords.join(', ') } : {}),
+    },
+    {
+      '@context': 'https://schema.org',
+      '@type': 'BreadcrumbList',
+      itemListElement: [
+        { '@type': 'ListItem', position: 1, name: 'News', item: 'https://chopaul.com/news' },
+        {
+          '@type': 'ListItem',
+          position: 2,
+          name: categoryLabel(item.feed_name),
+          item: `https://chopaul.com/news?category=${item.feed_name}`,
+        },
+        { '@type': 'ListItem', position: 3, name: item.title, item: articleUrl },
+      ],
+    },
+  ]
+
   return (
     <NewsShell>
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+      />
       <div className="px-6 md:px-12 lg:px-16 py-6 pb-32 max-w-3xl mx-auto">
         {/* Breadcrumb nav */}
         <nav className="flex items-center gap-1.5 text-sm text-neutral-400 mb-3" aria-label="Breadcrumb">

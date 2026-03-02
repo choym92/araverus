@@ -12,6 +12,10 @@ export default function robots(): MetadataRoute.Robots {
         allow: '/',
         disallow: ['/dashboard', '/admin'],
       },
+      {
+        userAgent: 'Googlebot-News',
+        allow: '/news/',
+      },
     ],
     sitemap: `${BASE_URL}/sitemap.xml`,
   };
