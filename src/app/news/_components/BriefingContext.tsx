@@ -248,6 +248,7 @@ export function BriefingProvider({ children }: { children: ReactNode }) {
       audio.removeEventListener('durationchange', onDurationChange)
       audio.removeEventListener('ended', onEnded)
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [audioUrl])
 
   // Keyboard shortcuts

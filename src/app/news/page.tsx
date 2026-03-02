@@ -186,7 +186,7 @@ const getNewsData = unstable_cache(
 
     const threadTimelines: Record<string, NewsItem[]> = {}
     visibleThreadIds.forEach((id, i) => { threadTimelines[id] = timelines[i] })
-    const threadMeta: Record<string, { id: string; title: string; member_count: number; first_seen: string; last_seen: string }> = Object.fromEntries(threadMetaMap)
+    const threadMeta: Record<string, { id: string; title: string; member_count: number; first_seen: string; last_seen: string; status: 'active' | 'cooling' | 'archived' }> = Object.fromEntries(threadMetaMap)
 
     // Fetch 7-day articles for richer keyword/subcategory aggregation
     const weekCutoff = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString()
