@@ -1,4 +1,4 @@
-export const revalidate = 7200 // ISR: cache for 2 hours
+export const revalidate = 86400 // 24h ISR safety net; on-demand revalidation is primary
 
 import { notFound } from 'next/navigation'
 import Link from 'next/link'

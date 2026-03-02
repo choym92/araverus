@@ -8,7 +8,7 @@ const BASE_URL =
 
 const NEWS_CATEGORIES = ['TECH', 'BUSINESS_MARKETS', 'ECONOMY', 'WORLD', 'POLITICS'];
 
-export const revalidate = 3600;
+export const revalidate = 86400; // 24h safety net; on-demand revalidation is primary
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const supabase = createServiceClient()

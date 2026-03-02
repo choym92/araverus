@@ -95,7 +95,10 @@ $VENV "$SCRIPTS/pipeline_health.py" --date "$DATE" || echo "WARN: Health report 
 echo ""
 echo ">>> Phase 7: Cache Revalidation"
 SITE_URL="${SITE_URL:-https://chopaul.com}"
-if [[ -n "${REVALIDATION_SECRET:-}" ]]; then
+if [[ -z "${REVALIDATION_SECRET:-}" ]]; then
+    echo "ERROR: REVALIDATION_SECRET not set — cache revalidation will be skipped!"
+    echo "  Set it in .env.pipeline or Keychain to enable on-demand revalidation."
+else
     HTTP_STATUS=$(curl -sL -o /dev/null -w "%{http_code}" --max-time 10 \
         -X POST "$SITE_URL/api/revalidate" \
         -H "x-revalidation-secret: $REVALIDATION_SECRET")
@@ -103,12 +106,12 @@ if [[ -n "${REVALIDATION_SECRET:-}" ]]; then
         echo "Cache revalidated successfully"
         # Warm cache: trigger page regeneration so next real visitor gets fresh data
         sleep 2
-        curl -sL "$SITE_URL/news" -o /dev/null --max-time 15 && echo "Cache warmed: /news" || echo "WARN: Cache warm failed (non-fatal)"
+        for WARM_PATH in "/news" "/news?category=TECH" "/news?category=BUSINESS_MARKETS" "/news?category=ECONOMY" "/sitemap.xml" "/rss.xml"; do
+            curl -sL "$SITE_URL$WARM_PATH" -o /dev/null --max-time 15 && echo "Cache warmed: $WARM_PATH" || echo "WARN: Cache warm failed: $WARM_PATH (non-fatal)"
+        done
     else
         echo "WARN: Revalidation returned HTTP $HTTP_STATUS (ISR fallback still active)"
     fi
-else
-    echo "WARN: REVALIDATION_SECRET not set, skipping cache revalidation"
 fi
 
 # ── Done ────────────────────────────────────────────────

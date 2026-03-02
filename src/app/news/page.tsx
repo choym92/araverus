@@ -5,9 +5,11 @@ import { NewsService } from '@/lib/news-service'
 import type { NewsItem, ParentThreadGroup } from '@/lib/news-service'
 import NewsShell from './_components/NewsShell'
 import NewsContent from './_components/NewsContent'
-import { readFile } from 'fs/promises'
+import { readFile, readdir } from 'fs/promises'
 import path from 'path'
 import type { Metadata } from 'next'
+
+export const revalidate = 86400 // 24h ISR safety net; on-demand revalidation is primary
 
 const CATEGORY_LABELS: Record<string, string> = {
   BUSINESS_MARKETS: 'Markets',
@@ -145,7 +147,7 @@ const getStoriesData = unstable_cache(
     return service.getActiveThreadsGrouped(category)
   },
   ['news-stories'],
-  { revalidate: 1800, tags: ['news'] }
+  { revalidate: 86400, tags: ['news'] }
 )
 
 const getNewsData = unstable_cache(
@@ -190,16 +192,27 @@ const getNewsData = unstable_cache(
 
     // Parallel fetch: briefingSources + threadMeta + threadTimelines + local files
     const ttsDir = path.join(process.cwd(), 'notebooks/tts_outputs/text')
+
+    // Find latest TTS date by scanning directory for chapter files
+    const latestTtsDate = await readdir(ttsDir).then(files => {
+      const dates = files
+        .filter(f => f.startsWith('chapters-en-') && f.endsWith('.json'))
+        .map(f => f.replace('chapters-en-', '').replace('.json', ''))
+        .sort()
+        .reverse()
+      return dates[0] || '2026-02-16'
+    }).catch(() => '2026-02-16')
+
     const [briefingSources, threadMetaMap, ...rest] = await Promise.all([
       briefing ? service.getBriefingSources(briefing.id) : Promise.resolve([] as { title: string; feed_name: string; link: string; source: string | null }[]),
       service.getThreadsByIds(visibleThreadIds),
       ...visibleThreadIds.map(id => service.getThreadTimeline(id).catch(() => [] as NewsItem[])),
-      readFile(path.join(ttsDir, 'chapters-en-2026-02-16.json'), 'utf-8').then(JSON.parse).catch(() => undefined),
-      readFile(path.join(ttsDir, 'chapters-ko-2026-02-16.json'), 'utf-8').then(JSON.parse).catch(() => undefined),
-      readFile(path.join(ttsDir, 'sentences-en-2026-02-16.json'), 'utf-8').then(JSON.parse).catch(() => undefined),
-      readFile(path.join(ttsDir, 'sentences-ko-2026-02-16.json'), 'utf-8').then(JSON.parse).catch(() => undefined),
-      readFile(path.join(ttsDir, 'briefing-pro-friendly-2026-02-16.txt'), 'utf-8').catch(() => undefined),
-      readFile(path.join(ttsDir, 'briefing-ko-pro-2026-02-16.txt'), 'utf-8').catch(() => undefined),
+      readFile(path.join(ttsDir, `chapters-en-${latestTtsDate}.json`), 'utf-8').then(JSON.parse).catch(() => undefined),
+      readFile(path.join(ttsDir, `chapters-ko-${latestTtsDate}.json`), 'utf-8').then(JSON.parse).catch(() => undefined),
+      readFile(path.join(ttsDir, `sentences-en-${latestTtsDate}.json`), 'utf-8').then(JSON.parse).catch(() => undefined),
+      readFile(path.join(ttsDir, `sentences-ko-${latestTtsDate}.json`), 'utf-8').then(JSON.parse).catch(() => undefined),
+      readFile(path.join(ttsDir, `briefing-pro-friendly-${latestTtsDate}.txt`), 'utf-8').catch(() => undefined),
+      readFile(path.join(ttsDir, `briefing-ko-pro-${latestTtsDate}.txt`), 'utf-8').catch(() => undefined),
     ])
 
     const timelines = rest.slice(0, visibleThreadIds.length) as NewsItem[][]
@@ -234,13 +247,13 @@ const getNewsData = unstable_cache(
       sourceCount: briefing?.item_count ?? briefingSources.length,
       sources: briefingSources,
       en: {
-        audioUrl: enBriefing?.audio_url || '/audio/chirp3-en-pro-friendly-2026-02-16.wav',
+        audioUrl: enBriefing?.audio_url || `/audio/chirp3-en-pro-friendly-${latestTtsDate}.wav`,
         chapters: enBriefing?.chapters ?? localChaptersEn ?? null,
         transcript: enBriefing?.briefing_text || localTranscriptEn || undefined,
         sentences: enBriefing?.sentences ?? localSentencesEn ?? null,
       },
       ko: {
-        audioUrl: koBriefing?.audio_url || '/audio/gemini-tts-ko-kore-2026-02-16.wav',
+        audioUrl: koBriefing?.audio_url || `/audio/gemini-tts-ko-kore-${latestTtsDate}.wav`,
         chapters: koBriefing?.chapters ?? localChaptersKo ?? null,
         transcript: koBriefing?.briefing_text || localTranscriptKo || undefined,
         sentences: koBriefing?.sentences ?? localSentencesKo ?? null,
@@ -258,7 +271,7 @@ const getNewsData = unstable_cache(
     }
   },
   ['news-page'],
-  { revalidate: 1800, tags: ['news'] }
+  { revalidate: 86400, tags: ['news'] }
 )
 
 export default async function NewsPage({

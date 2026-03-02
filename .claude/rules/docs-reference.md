@@ -32,6 +32,7 @@
 | `docs/2-news-frontend.md` | `/news` page components, data flow, BriefingPlayer |
 | `docs/2.1-thread-stories.md` | Stories tab UI, parent/sub-thread hierarchy, heat scores |
 | `docs/2.2-news-seo.md` | SEO metadata, JSON-LD, sitemap, RSS, robots, OG images |
+| `docs/2.3-caching-strategy.md` | ISR/cache TTLs, on-demand revalidation flow, env vars |
 
 **Blog (3.x)**
 | Doc | Content |
@@ -59,4 +60,5 @@ Before working on a specific area, READ the relevant doc first:
 | News frontend / components | `docs/2-news-frontend.md` | Component props, data flow, known hacks |
 | Stories tab / thread hierarchy | `docs/2.1-thread-stories.md` | StoriesTab component, heat scores, parent threads |
 | SEO / metadata / structured data | `docs/2.2-news-seo.md` | JSON-LD, sitemap, RSS, robots, OG images |
+| Caching / ISR / revalidation | `docs/2.3-caching-strategy.md` | TTLs, on-demand flow, env vars, troubleshooting |
 | DB schema changes | `docs/schema.md` | Column types, relationships, lifecycle |

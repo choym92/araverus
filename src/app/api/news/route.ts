@@ -28,7 +28,7 @@ export async function GET(request: NextRequest) {
     { items: result, hasMore },
     {
       headers: {
-        'Cache-Control': 'public, s-maxage=1800, stale-while-revalidate=3600',
+        'Cache-Control': 'public, s-maxage=86400, stale-while-revalidate=3600',
       },
     },
   )

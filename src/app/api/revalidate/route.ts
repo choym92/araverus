@@ -13,10 +13,12 @@ export async function POST(request: NextRequest) {
   revalidateTag("news");
   revalidatePath("/news");
   revalidatePath("/news/[slug]", "page");
+  revalidatePath("/sitemap.xml");
+  revalidatePath("/rss.xml");
 
   return NextResponse.json({
     revalidated: true,
-    paths: ["/news", "/news/[slug]"],
+    paths: ["/news", "/news/[slug]", "/sitemap.xml", "/rss.xml"],
     tags: ["news"],
     timestamp: new Date().toISOString(),
   });
