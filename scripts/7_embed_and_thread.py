@@ -4,10 +4,10 @@ Phase 4.5 · Embed & Thread — Embed articles and assign to story threads.
 
 Pipeline step: runs after crawl phase.
 1. Embeds title+description+summary for articles missing embeddings (BAAI/bge-base-en-v1.5)
-2. Matches each embedding to active thread centroids (cosine > 0.73 + time/size penalty → assign)
+2. Matches each embedding to active/cooling thread centroids (time-weighted centroid + entity overlap)
 3. Unmatched articles → LLM groups them + generates thread headlines
-4. Updates centroids incrementally
-5. Marks threads with last_seen > 14 days as inactive
+4. Updates centroids incrementally (running mean stored, time-weighted at match time)
+5. Updates thread statuses: active (0-3d) / cooling (3-14d) / archived (14d+)
 
 Usage:
     python scripts/embed_and_thread.py
@@ -15,6 +15,7 @@ Usage:
     python scripts/embed_and_thread.py --dry-run       # No DB writes
 """
 import json
+import math
 import os
 import sys
 from datetime import datetime, timedelta, timezone
@@ -36,21 +37,19 @@ EMBEDDING_MODEL = 'BAAI/bge-base-en-v1.5'
 EMBEDDING_DIM = 768
 THREAD_BASE_THRESHOLD = 0.73       # Base cosine similarity for thread matching (tuned from 0.62, see docs/1.2.1)
 THREAD_TIME_PENALTY = 0.01         # +0.01 per day gap between article and thread last_seen
-THREAD_SIZE_PENALTY = 0.04         # Anti-gravity: 0.04 × ln(member_count + 1) — doubled from 0.02
 THREAD_MERGE_THRESHOLD = 0.92      # Above this, new thread merges into existing
-CENTROID_EMA_BASE_ALPHA = 0.1      # EMA alpha base, divided by ln(member_count + 2)
+CENTROID_DECAY = 0.10              # Exponential decay per day for time-weighted centroid (Phase 4 grid search)
+ENTITY_WEIGHT = 0.04               # Weight for IDF-weighted entity overlap score (Phase 4 grid search)
 THREAD_COOLING_DAYS = 3             # Days of inactivity before cooling (P86 validated)
 THREAD_ARCHIVE_DAYS = 14           # Days of inactivity before archiving
 LLM_GROUP_MAX_SIZE = 8             # Max articles per LLM group
 THREAD_HARD_CAP = 50               # Threads above this enter "frozen" mode
 THREAD_FROZEN_THRESHOLD = 0.87     # Required similarity for frozen threads
 THREAD_MATCH_MARGIN = 0.03         # Best must beat runner-up by this margin
-AUTHOR_BOOST_THRESHOLD = 0.60      # Lower threshold when same creator wrote in thread recently (placeholder, Phase 4 tuning)
-AUTHOR_BOOST_WINDOW_HOURS = 48     # Time window for author boost (placeholder, Phase 4 tuning)
+AUTHOR_BOOST_THRESHOLD = 0.60      # Lower threshold when same creator wrote in thread recently (Phase 4 tuning)
+AUTHOR_BOOST_WINDOW_HOURS = 48     # Time window for author boost (P75=2 days validated)
 LLM_WINDOW_DAYS = 3                # Accumulate unmatched articles for N days before LLM grouping
 BATCH_SIZE = 100
-
-import math
 
 # ============================================================
 # Supabase
@@ -92,6 +91,139 @@ def embed_texts(texts: list[str]) -> np.ndarray:
 def cosine_similarity(a: np.ndarray, b: np.ndarray) -> float:
     """Cosine similarity between two normalized vectors."""
     return float(np.dot(a, b))
+
+
+# ============================================================
+# Entity helpers (Phase 4.0.1)
+# ============================================================
+
+_TITLE_PREFIXES = {
+    'president', 'secretary', 'ceo', 'cfo', 'coo', 'cto', 'dr', 'mr', 'ms',
+    'mrs', 'sen', 'rep', 'gov', 'gen', 'col', 'lt', 'chairman', 'director',
+}
+
+
+def normalize_entities(entities: list[str]) -> list[str]:
+    """Strip title prefixes and merge substring duplicates.
+
+    e.g. ["President Trump", "Trump", "Donald Trump"] → ["Donald Trump"]
+    """
+    cleaned = []
+    for e in (entities or []):
+        if not e or not e.strip():
+            continue
+        words = e.strip().split()
+        while words and words[0].rstrip('.').lower() in _TITLE_PREFIXES:
+            words = words[1:]
+        if words:
+            cleaned.append(' '.join(words))
+
+    # Substring merge: remove e if a longer form already contains it
+    cleaned_lower = [c.lower() for c in cleaned]
+    kept = []
+    for i, e_lower in enumerate(cleaned_lower):
+        dominated = any(
+            e_lower != other and e_lower in other
+            for other in cleaned_lower
+        )
+        if not dominated:
+            kept.append(cleaned[i])
+
+    # Deduplicate preserving first occurrence
+    seen: set[str] = set()
+    result = []
+    for e in kept:
+        key = e.lower()
+        if key not in seen:
+            seen.add(key)
+            result.append(e)
+    return result
+
+
+def precompute_idf(all_member_data: dict[str, list[dict]]) -> dict[str, float]:
+    """Compute smoothed IDF weights for entities across all thread members."""
+    entity_doc_count: dict[str, int] = {}
+    total_docs = 0
+
+    for members in all_member_data.values():
+        for m in members:
+            unique_entities = set(
+                e.lower() for e in normalize_entities(m.get('entities', []))
+            )
+            for e in unique_entities:
+                entity_doc_count[e] = entity_doc_count.get(e, 0) + 1
+            total_docs += 1
+
+    if total_docs == 0:
+        return {}
+
+    return {
+        e: math.log((total_docs + 1) / (count + 1)) + 1
+        for e, count in entity_doc_count.items()
+    }
+
+
+def entity_overlap_score(
+    article_entities: list[str],
+    thread_entities: list[str],
+    idf: dict[str, float] | None = None,
+) -> float:
+    """IDF-weighted Jaccard overlap between article and thread entity sets."""
+    a_norm = set(e.lower() for e in normalize_entities(article_entities))
+    t_norm = set(e.lower() for e in normalize_entities(thread_entities))
+
+    if not a_norm or not t_norm:
+        return 0.0
+
+    intersection = a_norm & t_norm
+    union = a_norm | t_norm
+
+    if idf:
+        inter_weight = sum(idf.get(e, 1.0) for e in intersection)
+        union_weight = sum(idf.get(e, 1.0) for e in union)
+    else:
+        inter_weight = float(len(intersection))
+        union_weight = float(len(union))
+
+    return inter_weight / union_weight if union_weight > 0 else 0.0
+
+
+def compute_time_weighted_centroid(
+    members: list[dict],
+    reference_date: str,
+    decay: float,
+) -> np.ndarray | None:
+    """Compute exponentially time-decayed centroid from member embeddings.
+
+    weight_i = exp(-decay * days_since_article_i)
+    Replaces EMA centroid (insertion-order-based) with time-based weighting.
+    """
+    try:
+        ref = datetime.strptime(reference_date[:10], '%Y-%m-%d')
+    except ValueError:
+        ref = datetime.now(timezone.utc).replace(tzinfo=None)
+
+    embeddings = []
+    weights = []
+    for m in members:
+        emb = m.get('embedding')
+        if emb is None:
+            continue
+        try:
+            days_old = max(0, (ref - datetime.strptime(m['published_at'][:10], '%Y-%m-%d')).days)
+        except (ValueError, KeyError):
+            days_old = 0
+        embeddings.append(emb)
+        weights.append(math.exp(-decay * days_old))
+
+    if not embeddings:
+        return None
+
+    embs = np.array(embeddings, dtype=np.float32)
+    w = np.array(weights, dtype=np.float32)
+    centroid = np.average(embs, axis=0, weights=w)
+    norm = np.linalg.norm(centroid)
+    return centroid / norm if norm > 0 else centroid
 
 
 # ============================================================
@@ -255,7 +387,7 @@ def get_unthreaded_articles(supabase: Client) -> list[dict]:
     Includes keywords from LLM analysis for better thread grouping.
     """
     response = supabase.table('wsj_items') \
-        .select('id, title, published_at, creator, wsj_embeddings(embedding), wsj_crawl_results(wsj_llm_analysis(keywords, summary))') \
+        .select('id, title, published_at, creator, wsj_embeddings(embedding), wsj_crawl_results(wsj_llm_analysis(keywords, summary, key_entities, people_mentioned, tickers_mentioned))') \
         .is_('thread_id', 'null') \
         .order('published_at', desc=True) \
         .limit(500) \
@@ -278,9 +410,10 @@ def get_unthreaded_articles(supabase: Client) -> list[dict]:
             if isinstance(raw_emb, str):
                 raw_emb = json.loads(raw_emb)
 
-            # Extract keywords and summary from nested join
+            # Extract keywords, summary, and entities from nested join
             keywords = []
             summary = None
+            entities: list[str] = []
             crawl = item.get('wsj_crawl_results')
             if crawl:
                 for cr in (crawl if isinstance(crawl, list) else [crawl]):
@@ -296,6 +429,16 @@ def get_unthreaded_articles(supabase: Client) -> list[dict]:
                             keywords = ll['keywords']
                         if not summary and ll.get('summary'):
                             summary = ll['summary']
+                        if ll.get('key_entities'):
+                            entities.extend(ll['key_entities'])
+                        if ll.get('people_mentioned'):
+                            entities.extend(ll['people_mentioned'])
+                        if ll.get('tickers_mentioned'):
+                            entities.extend(ll['tickers_mentioned'])
+                        break  # first analysis per crawl result is sufficient
+
+            # Include keywords in entity set for overlap scoring
+            entities.extend(keywords)
 
             results.append({
                 'id': item['id'],
@@ -304,6 +447,7 @@ def get_unthreaded_articles(supabase: Client) -> list[dict]:
                 'creator': item.get('creator'),
                 'keywords': keywords,
                 'summary': summary,
+                'entities': entities,
                 'embedding': np.array(raw_emb, dtype=np.float32),
             })
 
@@ -315,17 +459,20 @@ def get_unthreaded_articles(supabase: Client) -> list[dict]:
 def match_to_threads(
     articles: list[dict],
     threads: list[dict],
-    thread_members: dict[str, list[dict]] | None = None,
+    thread_member_data: dict[str, list[dict]] | None = None,
+    entity_idf: dict[str, float] | None = None,
 ) -> tuple[dict[str, str], list[dict]]:
-    """Match articles to threads with dynamic threshold (time + size penalty).
+    """Match articles to threads using time-weighted centroid + entity overlap.
 
-    Anti-gravity: larger threads require higher similarity to join.
-    Author boost: if same creator wrote in thread within AUTHOR_BOOST_WINDOW_HOURS,
-    use lower AUTHOR_BOOST_THRESHOLD instead of base threshold.
+    Threshold: base + time_penalty (size penalty removed — handled by time-weighted centroid).
+    Author boost: same creator within AUTHOR_BOOST_WINDOW_HOURS → lower threshold.
+    Entity boost: IDF-weighted entity Jaccard added to cosine similarity.
 
     Args:
-        thread_members: {thread_id: [{creator, published_at}, ...]} for author boost.
-            If None, author boost is disabled.
+        thread_member_data: {thread_id: [{creator, published_at, embedding, entities}]}
+            Used for time-weighted centroid, author boost, and entity overlap.
+            If None, falls back to stored centroid; author boost and entity overlap disabled.
+        entity_idf: Pre-computed IDF weights for entities. If None, unweighted Jaccard used.
 
     Returns:
         (matched: {article_id: thread_id}, unmatched: [articles])
@@ -333,7 +480,7 @@ def match_to_threads(
     matched = {}
     unmatched = []
 
-    # Parse thread centroids
+    # Parse thread centroids (stored centroid = fallback when no member data)
     thread_centroids = []
     for t in threads:
         centroid = t.get('centroid')
@@ -353,9 +500,28 @@ def match_to_threads(
         best_thread_id = None
         article_date = article.get('published_at', '')[:10]
         article_creator = article.get('creator')
+        article_entities = article.get('entities', [])
 
         for tc in thread_centroids:
-            sim = cosine_similarity(article['embedding'], tc['centroid'])
+            members = (thread_member_data or {}).get(tc['id'])
+
+            # Time-weighted centroid: recompute from members when available
+            if members:
+                twc = compute_time_weighted_centroid(members, article_date, CENTROID_DECAY)
+                effective_centroid = twc if twc is not None else tc['centroid']
+            else:
+                effective_centroid = tc['centroid']
+
+            sim = cosine_similarity(article['embedding'], effective_centroid)
+
+            # Entity overlap boost
+            if ENTITY_WEIGHT > 0 and members and article_entities:
+                thread_entities: list[str] = []
+                for m in members:
+                    thread_entities.extend(m.get('entities', []))
+                if thread_entities:
+                    overlap = entity_overlap_score(article_entities, thread_entities, entity_idf)
+                    sim = sim + ENTITY_WEIGHT * overlap
 
             # Time penalty
             days_gap = 0
@@ -367,26 +533,26 @@ def match_to_threads(
                 except ValueError:
                     pass
 
-            # Dynamic threshold: base + time + size (anti-gravity)
+            # Dynamic threshold: base + time (no size penalty)
             time_pen = THREAD_TIME_PENALTY * days_gap
-            size_pen = THREAD_SIZE_PENALTY * math.log(tc['count'] + 1)
-            effective_threshold = THREAD_BASE_THRESHOLD + time_pen + size_pen
+            effective_threshold = THREAD_BASE_THRESHOLD + time_pen
 
             # Hard cap: frozen threads require very high similarity
             if tc['count'] >= THREAD_HARD_CAP:
                 effective_threshold = max(effective_threshold, THREAD_FROZEN_THRESHOLD)
 
             # Author boost: same creator in thread within window → lower threshold
-            if article_creator and thread_members and tc['id'] in thread_members:
-                for member in thread_members[tc['id']]:
+            if article_creator and members:
+                for member in members:
                     if member.get('creator') != article_creator:
                         continue
                     try:
-                        m_date = datetime.strptime(member['published_at'][:10], '%Y-%m-%d')
-                        a_dt = datetime.strptime(article_date, '%Y-%m-%d')
-                        hours_gap = abs((a_dt - m_date).total_seconds()) / 3600
+                        # Use full datetime for precise hour-level comparison
+                        m_dt = datetime.strptime(member['published_at'][:19], '%Y-%m-%dT%H:%M:%S')
+                        a_dt_full = datetime.strptime(article.get('published_at', '')[:19], '%Y-%m-%dT%H:%M:%S')
+                        hours_gap = abs((a_dt_full - m_dt).total_seconds()) / 3600
                         if hours_gap <= AUTHOR_BOOST_WINDOW_HOURS:
-                            effective_threshold = min(effective_threshold, AUTHOR_BOOST_THRESHOLD + time_pen + size_pen)
+                            effective_threshold = min(effective_threshold, AUTHOR_BOOST_THRESHOLD)
                             break
                     except ValueError:
                         pass
@@ -518,32 +684,69 @@ STRICT RULES:
         return []
 
 
-def _fetch_thread_members(supabase: Client, thread_ids: list[str]) -> dict[str, list[dict]]:
-    """Fetch recent members (creator + published_at) per thread for author boost."""
+def _fetch_thread_member_data(supabase: Client, thread_ids: list[str]) -> dict[str, list[dict]]:
+    """Fetch member data per thread: embedding, published_at, creator, entities.
+
+    Used for:
+    - Time-weighted centroid recomputation at match time
+    - Author boost (creator + published_at)
+    - Entity overlap scoring
+    """
     if not thread_ids:
         return {}
 
-    # Fetch articles assigned to these threads within the boost window
-    cutoff = (datetime.now(timezone.utc) - timedelta(hours=AUTHOR_BOOST_WINDOW_HOURS * 2)).isoformat()
     members: dict[str, list[dict]] = {}
 
-    # Paginate through thread_ids in batches to avoid query size limits
     for i in range(0, len(thread_ids), 50):
         batch_ids = thread_ids[i:i + 50]
         response = supabase.table('wsj_items') \
-            .select('thread_id, creator, published_at') \
+            .select('thread_id, creator, published_at, wsj_embeddings(embedding), wsj_crawl_results(wsj_llm_analysis(key_entities, people_mentioned, keywords, tickers_mentioned))') \
             .in_('thread_id', batch_ids) \
-            .not_.is_('creator', 'null') \
-            .gte('published_at', cutoff) \
             .execute()
 
         for row in (response.data or []):
             tid = row['thread_id']
             if tid not in members:
                 members[tid] = []
+
+            # Parse embedding
+            emb: np.ndarray | None = None
+            emb_data = row.get('wsj_embeddings')
+            if isinstance(emb_data, list) and emb_data:
+                emb_data = emb_data[0]
+            if isinstance(emb_data, dict) and emb_data.get('embedding'):
+                raw = emb_data['embedding']
+                if isinstance(raw, str):
+                    raw = json.loads(raw)
+                emb = np.array(raw, dtype=np.float32)
+
+            # Parse entities
+            entities: list[str] = []
+            crawl = row.get('wsj_crawl_results')
+            for cr in (crawl if isinstance(crawl, list) else [crawl] if crawl else []):
+                if not cr:
+                    continue
+                analyses = cr.get('wsj_llm_analysis') or []
+                if not isinstance(analyses, list):
+                    analyses = [analyses]
+                for ll in analyses:
+                    if not ll:
+                        continue
+                    if ll.get('key_entities'):
+                        entities.extend(ll['key_entities'])
+                    if ll.get('people_mentioned'):
+                        entities.extend(ll['people_mentioned'])
+                    if ll.get('keywords'):
+                        entities.extend(ll['keywords'])
+                    if ll.get('tickers_mentioned'):
+                        entities.extend(ll['tickers_mentioned'])
+                    break
+
             members[tid].append({
-                'creator': row['creator'],
+                'creator': row.get('creator'),
                 'published_at': row['published_at'],
+                'embedding': emb,
+                'entities': entities,
             })
 
     return members
@@ -561,11 +764,12 @@ def assign_threads(supabase: Client, dry_run: bool = False) -> dict:
     threads = get_active_threads(supabase)
     print(f"Active threads: {len(threads)}")
 
-    # Fetch recent thread members for author boost
-    thread_members = _fetch_thread_members(supabase, [t['id'] for t in threads])
+    # Fetch thread member data (embeddings + entities + creator for time-weighted centroid / entity overlap / author boost)
+    thread_member_data = _fetch_thread_member_data(supabase, [t['id'] for t in threads])
+    entity_idf = precompute_idf(thread_member_data)
 
     # Step 1: Match to existing threads
-    matched, unmatched = match_to_threads(articles, threads, thread_members=thread_members)
+    matched, unmatched = match_to_threads(articles, threads, thread_member_data=thread_member_data, entity_idf=entity_idf)
     print(f"  Matched to existing threads: {len(matched)}")
     print(f"  Unmatched: {len(unmatched)}")
 
@@ -580,8 +784,8 @@ def assign_threads(supabase: Client, dry_run: bool = False) -> dict:
             except Exception as e:
                 print(f"  ERROR assigning {article_id}: {e}")
 
-        # Update thread centroids with EMA and member counts
-        thread_updates = {}
+        # Update thread centroids (running mean) and member counts
+        thread_updates: dict[str, dict] = {}
         for article_id, thread_id in matched.items():
             article = next(a for a in articles if a['id'] == article_id)
             if thread_id not in thread_updates:
@@ -595,23 +799,19 @@ def assign_threads(supabase: Client, dry_run: bool = False) -> dict:
             if not thread:
                 continue
 
-            # EMA centroid update: new_centroid = α*new + (1-α)*old
-            old_centroid = None
-            if thread.get('centroid'):
-                c = thread['centroid']
-                if isinstance(c, str):
-                    c = json.loads(c)
-                old_centroid = np.array(c, dtype=np.float32)
-
-            if old_centroid is not None:
-                new_centroid = old_centroid.copy()
-                _ema_alpha = CENTROID_EMA_BASE_ALPHA / math.log(thread['member_count'] + 2)
-                for emb in update['embeddings']:
-                    new_centroid = _ema_alpha * emb + (1 - _ema_alpha) * new_centroid
-                new_centroid = new_centroid / np.linalg.norm(new_centroid)
+            # Running mean centroid update (EMA removed; time-weighted computed at match time)
+            old_c = thread.get('centroid')
+            if old_c:
+                if isinstance(old_c, str):
+                    old_c = json.loads(old_c)
+                old_c = np.array(old_c, dtype=np.float32)
+                n = thread['member_count']
+                new_embs = np.array(update['embeddings'], dtype=np.float32)
+                new_centroid = (old_c * n + new_embs.sum(axis=0)) / (n + len(update['embeddings']))
             else:
                 new_centroid = np.mean(update['embeddings'], axis=0)
-                new_centroid = new_centroid / np.linalg.norm(new_centroid)
+            norm = np.linalg.norm(new_centroid)
+            new_centroid = new_centroid / norm if norm > 0 else new_centroid
 
             last_seen = max(update['dates']) if update['dates'] else datetime.now(timezone.utc).strftime('%Y-%m-%d')
 
@@ -683,19 +883,20 @@ def assign_threads(supabase: Client, dry_run: bool = False) -> dict:
                             .eq('id', aid) \
                             .execute()
 
-                    # EMA centroid update for merged thread
+                    # Running mean centroid update for merged thread
                     old_c = merge_target.get('centroid')
                     if isinstance(old_c, str):
                         old_c = json.loads(old_c)
                     old_c = np.array(old_c, dtype=np.float32)
-                    _ema_alpha = CENTROID_EMA_BASE_ALPHA / math.log(merge_target['member_count'] + 2)
-                    for emb in [a['embedding'] for a in member_articles]:
-                        old_c = _ema_alpha * emb + (1 - _ema_alpha) * old_c
-                    old_c = old_c / np.linalg.norm(old_c)
+                    n = merge_target['member_count']
+                    new_embs = np.array([a['embedding'] for a in member_articles], dtype=np.float32)
+                    merged_c = (old_c * n + new_embs.sum(axis=0)) / (n + len(member_articles))
+                    norm = np.linalg.norm(merged_c)
+                    merged_c = merged_c / norm if norm > 0 else merged_c
 
                     supabase.table('wsj_story_threads').update({
                         'member_count': merge_target['member_count'] + len(group['article_ids']),
-                        'centroid': old_c.tolist(),
+                        'centroid': merged_c.tolist(),
                         'last_seen': last_seen,
                         'status': 'active',  # resurrection on merge
                         'updated_at': datetime.now(timezone.utc).isoformat(),
@@ -801,7 +1002,7 @@ def get_date_range_articles(supabase: Client, date_str: str) -> list[dict]:
     next_date = (datetime.strptime(date_str, '%Y-%m-%d') + timedelta(days=1)).strftime('%Y-%m-%d')
 
     response = supabase.table('wsj_items') \
-        .select('id, title, published_at, creator, wsj_embeddings(embedding), wsj_crawl_results(wsj_llm_analysis(keywords, summary))') \
+        .select('id, title, published_at, creator, wsj_embeddings(embedding), wsj_crawl_results(wsj_llm_analysis(keywords, summary, key_entities, people_mentioned, tickers_mentioned))') \
         .eq('processed', True) \
         .is_('thread_id', 'null') \
         .gte('published_at', date_str) \
@@ -827,6 +1028,7 @@ def get_date_range_articles(supabase: Client, date_str: str) -> list[dict]:
 
             keywords = []
             summary = None
+            entities: list[str] = []
             crawl = item.get('wsj_crawl_results')
             if crawl:
                 for cr in (crawl if isinstance(crawl, list) else [crawl]):
@@ -842,6 +1044,15 @@ def get_date_range_articles(supabase: Client, date_str: str) -> list[dict]:
                             keywords = ll['keywords']
                         if not summary and ll.get('summary'):
                             summary = ll['summary']
+                        if ll.get('key_entities'):
+                            entities.extend(ll['key_entities'])
+                        if ll.get('people_mentioned'):
+                            entities.extend(ll['people_mentioned'])
+                        if ll.get('tickers_mentioned'):
+                            entities.extend(ll['tickers_mentioned'])
+                        break
+
+            entities.extend(keywords)
 
             results.append({
                 'id': item['id'],
@@ -850,6 +1061,7 @@ def get_date_range_articles(supabase: Client, date_str: str) -> list[dict]:
                 'creator': item.get('creator'),
                 'keywords': keywords,
                 'summary': summary,
+                'entities': entities,
                 'embedding': np.array(raw_emb, dtype=np.float32),
             })
 
@@ -904,11 +1116,12 @@ def backfill_by_date(supabase: Client, dry_run: bool = False, limit_days: int | 
             threads = get_active_threads(supabase)
             print(f"  Active threads: {len(threads)}")
 
-            # Fetch recent thread members for author boost
-            thread_members = _fetch_thread_members(supabase, [t['id'] for t in threads])
+            # Fetch thread member data (time-weighted centroid / entity overlap / author boost)
+            thread_member_data = _fetch_thread_member_data(supabase, [t['id'] for t in threads])
+            entity_idf = precompute_idf(thread_member_data)
 
             # Match to existing
-            matched, unmatched = match_to_threads(articles, threads, thread_members=thread_members)
+            matched, unmatched = match_to_threads(articles, threads, thread_member_data=thread_member_data, entity_idf=entity_idf)
             print(f"  Centroid matched: {len(matched)}")
             print(f"  Unmatched: {len(unmatched)}")
 
@@ -923,8 +1136,8 @@ def backfill_by_date(supabase: Client, dry_run: bool = False, limit_days: int | 
                     except Exception as e:
                         print(f"  ERROR: {e}")
 
-                # EMA centroid updates for matched
-                thread_updates = {}
+                # Running mean centroid updates for matched
+                thread_updates: dict[str, dict] = {}
                 for article_id, thread_id in matched.items():
                     article = next(a for a in articles if a['id'] == article_id)
                     if thread_id not in thread_updates:
@@ -940,21 +1153,22 @@ def backfill_by_date(supabase: Client, dry_run: bool = False, limit_days: int | 
                     if isinstance(old_c, str):
                         old_c = json.loads(old_c)
                     old_c = np.array(old_c, dtype=np.float32)
-                    _ema_alpha = CENTROID_EMA_BASE_ALPHA / math.log(thread['member_count'] + 2)
-                    for emb in update['embeddings']:
-                        old_c = _ema_alpha * emb + (1 - _ema_alpha) * old_c
-                    old_c = old_c / np.linalg.norm(old_c)
+                    n = thread['member_count']
+                    new_embs = np.array(update['embeddings'], dtype=np.float32)
+                    new_c = (old_c * n + new_embs.sum(axis=0)) / (n + len(update['embeddings']))
+                    norm = np.linalg.norm(new_c)
+                    new_c = new_c / norm if norm > 0 else new_c
                     last_seen = max(update['dates'])
                     new_member_count = thread['member_count'] + len(update['embeddings'])
                     try:
                         supabase.table('wsj_story_threads').update({
                             'member_count': new_member_count,
-                            'centroid': old_c.tolist(),
+                            'centroid': new_c.tolist(),
                             'last_seen': last_seen,
                             'updated_at': datetime.now(timezone.utc).isoformat(),
                         }).eq('id', thread_id).execute()
                         thread['member_count'] = new_member_count
-                        thread['centroid'] = old_c.tolist()
+                        thread['centroid'] = new_c.tolist()
                         thread['last_seen'] = last_seen
                     except Exception as e:
                         print(f"  ERROR updating thread: {e}")
@@ -969,17 +1183,27 @@ def backfill_by_date(supabase: Client, dry_run: bool = False, limit_days: int | 
         if is_window_end and len(window_unmatched) >= 2 and not dry_run:
             # Re-try centroid match (threads may have been created earlier in this window)
             threads = get_active_threads(supabase)
-            thread_members = _fetch_thread_members(supabase, [t['id'] for t in threads])
-            late_matched, still_unmatched = match_to_threads(window_unmatched, threads, thread_members=thread_members)
+            win_member_data = _fetch_thread_member_data(supabase, [t['id'] for t in threads])
+            win_idf = precompute_idf(win_member_data)
+            late_matched, still_unmatched = match_to_threads(window_unmatched, threads, thread_member_data=win_member_data, entity_idf=win_idf)
 
             if late_matched:
                 print(f"  Window re-match: {len(late_matched)} articles matched to threads")
                 for article_id, thread_id in late_matched.items():
                     supabase.table('wsj_items').update({'thread_id': thread_id}).eq('id', article_id).execute()
+
+                # Batch centroid updates per thread (correct running mean with multiple matches)
+                late_updates: dict[str, dict] = {}
                 for article_id, thread_id in late_matched.items():
                     article = next((a for a in window_unmatched if a['id'] == article_id), None)
                     if not article:
                         continue
+                    if thread_id not in late_updates:
+                        late_updates[thread_id] = {'embeddings': [], 'dates': []}
+                    late_updates[thread_id]['embeddings'].append(article['embedding'])
+                    late_updates[thread_id]['dates'].append(article.get('published_at', '')[:10])
+
+                for thread_id, update in late_updates.items():
                     thread = next((t for t in threads if t['id'] == thread_id), None)
                     if not thread:
                         continue
@@ -987,16 +1211,23 @@ def backfill_by_date(supabase: Client, dry_run: bool = False, limit_days: int | 
                     if isinstance(old_c, str):
                         old_c = json.loads(old_c)
                     old_c = np.array(old_c, dtype=np.float32)
-                    _ema_alpha = CENTROID_EMA_BASE_ALPHA / math.log(thread['member_count'] + 2)
-                    old_c = _ema_alpha * article['embedding'] + (1 - _ema_alpha) * old_c
-                    old_c = old_c / np.linalg.norm(old_c)
-                    a_date = article.get('published_at', '')[:10]
+                    n = thread['member_count']
+                    new_embs = np.array(update['embeddings'], dtype=np.float32)
+                    new_c = (old_c * n + new_embs.sum(axis=0)) / (n + len(update['embeddings']))
+                    norm = np.linalg.norm(new_c)
+                    new_c = new_c / norm if norm > 0 else new_c
+                    new_count = thread['member_count'] + len(update['embeddings'])
+                    last_seen = max(thread.get('last_seen', ''), max(update['dates']))
                     supabase.table('wsj_story_threads').update({
-                        'member_count': thread['member_count'] + 1,
-                        'centroid': old_c.tolist(),
-                        'last_seen': max(thread.get('last_seen', ''), a_date),
+                        'member_count': new_count,
+                        'centroid': new_c.tolist(),
+                        'last_seen': last_seen,
                         'updated_at': datetime.now(timezone.utc).isoformat(),
                     }).eq('id', thread_id).execute()
+                    # Update in-memory for subsequent operations
+                    thread['member_count'] = new_count
+                    thread['centroid'] = new_c.tolist()
+                    thread['last_seen'] = last_seen
 
             if len(still_unmatched) >= 2:
                 print(f"  Window LLM grouping: {len(still_unmatched)} articles")
@@ -1039,13 +1270,14 @@ def backfill_by_date(supabase: Client, dry_run: bool = False, limit_days: int | 
                         if isinstance(old_c, str):
                             old_c = json.loads(old_c)
                         old_c = np.array(old_c, dtype=np.float32)
-                        _ema_alpha = CENTROID_EMA_BASE_ALPHA / math.log(merge_target['member_count'] + 2)
-                        for emb in [a['embedding'] for a in member_articles]:
-                            old_c = _ema_alpha * emb + (1 - _ema_alpha) * old_c
-                        old_c = old_c / np.linalg.norm(old_c)
+                        n = merge_target['member_count']
+                        new_embs = np.array([a['embedding'] for a in member_articles], dtype=np.float32)
+                        merged_c = (old_c * n + new_embs.sum(axis=0)) / (n + len(member_articles))
+                        norm = np.linalg.norm(merged_c)
+                        merged_c = merged_c / norm if norm > 0 else merged_c
                         supabase.table('wsj_story_threads').update({
                             'member_count': merge_target['member_count'] + len(group['article_ids']),
-                            'centroid': old_c.tolist(),
+                            'centroid': merged_c.tolist(),
                             'last_seen': max(dates) if dates else date_str,
                             'status': 'active',
                             'updated_at': datetime.now(timezone.utc).isoformat(),

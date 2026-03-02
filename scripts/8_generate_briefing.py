@@ -131,6 +131,7 @@ Market data freshness: Each article includes a "Published" timestamp. For market
 
 Style rules:
 Write like you talk. Short punchy sentences. Then a longer one when you need to unpack something properly.
+Avoid contractions entirely (write "it is", "do not", "here is", "you will" — not "it's", "don't", "here's", "you'll"). This ensures clean text-to-speech output.
 Use rhetorical questions to pull listeners in — "So why does this matter?", "Guess what happened next?"
 It's fine to have a reaction — "That's a big deal," "Not great, honestly," "This one's interesting" — but don't force it. Keep it natural.
 Transitions should flow like conversation, not a teleprompter. Connect stories through cause and effect ("Speaking of inflation, here's where it gets spicy...").
@@ -970,6 +971,46 @@ def generate_tts_en(
     clean = text.replace("\u2019", "'").replace("\u2018", "'")  # curly apostrophes → straight
     clean = clean.replace("\u201C", '"').replace("\u201D", '"')  # curly double quotes → straight
     clean = clean.replace("\u2014", " -- ").replace("\u2013", " - ")  # em/en dashes
+    # Expand contractions so TTS doesn't split on apostrophes (e.g. "here's" → "here is")
+    _contractions = [
+        (r"\baren't\b", "are not"), (r"\bcan't\b", "cannot"), (r"\bcouldn't\b", "could not"),
+        (r"\bdidn't\b", "did not"), (r"\bdoesn't\b", "does not"), (r"\bdon't\b", "do not"),
+        (r"\bhadn't\b", "had not"), (r"\bhasn't\b", "has not"), (r"\bhaven't\b", "have not"),
+        (r"\bhe'd\b", "he would"), (r"\bhe'll\b", "he will"), (r"\bhe's\b", "he is"),
+        (r"\bhere's\b", "here is"), (r"\bhow's\b", "how is"), (r"\bi'd\b", "I would"),
+        (r"\bi'll\b", "I will"), (r"\bi'm\b", "I am"), (r"\bi've\b", "I have"),
+        (r"\bisn't\b", "is not"), (r"\bit'd\b", "it would"), (r"\bit'll\b", "it will"),
+        (r"\bit's\b", "it is"), (r"\blet's\b", "let us"), (r"\bmayn't\b", "may not"),
+        (r"\bmightn't\b", "might not"), (r"\bmustn't\b", "must not"),
+        (r"\bneedn't\b", "need not"), (r"\bshan't\b", "shall not"),
+        (r"\bshe'd\b", "she would"), (r"\bshe'll\b", "she will"), (r"\bshe's\b", "she is"),
+        (r"\bshouldn't\b", "should not"), (r"\bthat'd\b", "that would"),
+        (r"\bthat's\b", "that is"), (r"\bthere'd\b", "there would"),
+        (r"\bthere's\b", "there is"), (r"\bthey'd\b", "they would"),
+        (r"\bthey'll\b", "they will"), (r"\bthey're\b", "they are"),
+        (r"\bthey've\b", "they have"), (r"\bwasn't\b", "was not"),
+        (r"\bwe'd\b", "we would"), (r"\bwe'll\b", "we will"), (r"\bwe're\b", "we are"),
+        (r"\bwe've\b", "we have"), (r"\bweren't\b", "were not"),
+        (r"\bwhat'll\b", "what will"), (r"\bwhat're\b", "what are"),
+        (r"\bwhat's\b", "what is"), (r"\bwhat've\b", "what have"),
+        (r"\bwhere's\b", "where is"), (r"\bwho'd\b", "who would"),
+        (r"\bwho'll\b", "who will"), (r"\bwho're\b", "who are"), (r"\bwho's\b", "who is"),
+        (r"\bwho've\b", "who have"), (r"\bwon't\b", "will not"),
+        (r"\bwouldn't\b", "would not"), (r"\byou'd\b", "you would"),
+        (r"\byou'll\b", "you will"), (r"\byou're\b", "you are"), (r"\byou've\b", "you have"),
+    ]
+    for pattern, replacement in _contractions:
+        clean = re.sub(pattern, replacement, clean, flags=re.IGNORECASE)
+    # Normalize financial/common abbreviations for natural TTS pronunciation
+    clean = re.sub(r"S&P\s*500", "S and P 500", clean)
+    clean = re.sub(r"S&P", "S and P", clean)
+    clean = re.sub(r"AT&T", "A T and T", clean)
+    clean = re.sub(r"R&D", "R and D", clean)
+    clean = re.sub(r"M&A", "M and A", clean)
+    clean = re.sub(r"\bIPO\b", "I P O", clean)
+    clean = re.sub(r"\bCEO\b", "C E O", clean)
+    clean = re.sub(r"\bCFO\b", "C F O", clean)
+    clean = re.sub(r"\bFed\b", "the Fed", clean)
     clean = re.sub(r"[^\x00-\x7F]+", " ", clean)
     clean = re.sub(r"\s+", " ", clean).strip()
     cost.en_tts_chars += len(clean)
