@@ -36,6 +36,14 @@ function categoryLabel(feedName: string): string {
   return map[feedName] || feedName
 }
 
+/** Smart subcategory formatting — keep short acronyms uppercase, title-case the rest */
+function formatSubcategory(sub: string): string {
+  return sub.replace(/-/g, ' ').split(' ').map(word => {
+    if (word.length <= 3) return word.toUpperCase()
+    return word.charAt(0).toUpperCase() + word.slice(1).toLowerCase()
+  }).join(' ')
+}
+
 export async function generateMetadata({ params }: ArticlePageProps): Promise<Metadata> {
   const { slug } = await params
   const supabase = createServiceClient()
@@ -62,7 +70,7 @@ export default async function ArticlePage({ params }: ArticlePageProps) {
 
   // Fetch related data in parallel
   const [related, timeline, thread, sources] = await Promise.all([
-    service.getRelatedArticles(item.id, 5),
+    service.getRelatedArticles(item.id, 4),
     item.thread_id ? service.getThreadTimeline(item.thread_id) : Promise.resolve([]),
     item.thread_id ? service.getStoryThread(item.thread_id) : Promise.resolve(null),
     service.getArticleSources(item.id),
@@ -83,78 +91,76 @@ export default async function ArticlePage({ params }: ArticlePageProps) {
   return (
     <NewsShell>
       <div className="px-6 md:px-12 lg:px-16 py-6 pb-32 max-w-3xl mx-auto">
-        {/* Back nav */}
-        <Link
-          href="/news"
-          className="inline-flex items-center gap-1.5 text-sm text-neutral-500 hover:text-neutral-900 transition-colors mb-6"
-        >
-          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5" />
-          </svg>
-          Back to News
-        </Link>
-
-        {/* Category + Must Read */}
-        <div className="flex items-center gap-2 mb-3">
-          <span className="text-xs font-semibold text-neutral-900 uppercase tracking-wide flex items-center gap-2">
+        {/* Breadcrumb nav */}
+        <nav className="flex items-center gap-1.5 text-sm text-neutral-400 mb-3" aria-label="Breadcrumb">
+          <Link href="/news" className="hover:text-neutral-900 transition-colors">
+            News
+          </Link>
+          <span>/</span>
+          <Link
+            href={`/news?category=${item.feed_name}`}
+            className="hover:text-neutral-900 transition-colors"
+          >
             {categoryLabel(item.feed_name)}
-            {item.subcategory && item.subcategory.replace(/-/g, ' ').toUpperCase() !== categoryLabel(item.feed_name).toUpperCase() && (
-              <>
-                <span className="text-neutral-300">|</span>
-                {item.subcategory.replace(/-/g, ' ')}
-              </>
-            )}
-          </span>
+          </Link>
+          {item.subcategory && item.subcategory.replace(/-/g, ' ').toUpperCase() !== categoryLabel(item.feed_name).toUpperCase() && (
+            <>
+              <span>/</span>
+              <span className="text-neutral-500">
+                {formatSubcategory(item.subcategory)}
+              </span>
+            </>
+          )}
           {item.importance === 'must_read' && (
-            <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-amber-50 border border-amber-200 rounded-full text-[11px] font-medium text-amber-800">
+            <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-amber-50 border border-amber-200 rounded-full text-[11px] font-medium text-amber-800 ml-2">
               <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
                 <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
               </svg>
               Must Read
             </span>
           )}
-        </div>
+        </nav>
 
         {/* Headline */}
         <h1 className="font-serif text-3xl md:text-4xl leading-tight text-neutral-900 mb-2">
           {item.title}
         </h1>
 
-        {/* Timestamp — below title */}
-        <p className="text-sm text-neutral-400 mb-4">
-          {date} at {time}
-        </p>
+        {/* Timestamp + Share */}
+        <div className="flex items-center justify-between mb-4">
+          <p className="text-base text-neutral-400">
+            {date} at {time}
+          </p>
+          <ShareBar
+            url={`https://chopaul.com/news/${slug}`}
+            title={item.title}
+            palette="neutral"
+          />
+        </div>
 
         {/* Hero image from crawled source */}
         {item.top_image && (
           <ArticleHeroImage src={item.top_image} alt={item.title} />
         )}
 
-        {/* Keywords + Share */}
-        <div className="flex items-center justify-between mb-4">
-          <div className="flex-1 min-w-0">
-            {item.keywords && item.keywords.length > 0 && (
-              <KeywordPills keywords={item.keywords} size="sm" variant="hashtag" />
-            )}
+        {/* Keywords — centered */}
+        {item.keywords && item.keywords.length > 0 && (
+          <div className="mb-4">
+            <KeywordPills keywords={item.keywords} variant="hashtag" linkable />
           </div>
-          <div className="flex-shrink-0 ml-4">
-            <ShareBar
-              url={`https://chopaul.com/news/${slug}`}
-              title={item.title}
-              palette="neutral"
-            />
-          </div>
-        </div>
+        )}
 
-        {/* Summary — first sentence bold + larger */}
+        {/* Summary — split into paragraphs for readability */}
         {(item.summary || item.description) && (() => {
           const text = (item.summary?.length ?? 0) >= (item.description?.length ?? 0)
             ? item.summary!
             : item.description!
-          // Find first real sentence boundary, skipping abbreviations like U.S., U.K.
+
+          // Split text into sentences, respecting abbreviations like U.S., U.K.
+          const sentences: string[] = []
           const re = /[.!?]/g
           let m: RegExpExecArray | null
-          let splitIdx = -1
+          let lastEnd = 0
           while ((m = re.exec(text)) !== null) {
             const idx = m.index
             if (text[idx] === '.') {
@@ -162,16 +168,31 @@ export default async function ArticlePage({ params }: ArticlePageProps) {
               if (/(?:^|[.\s])([A-Z])$/.test(before)) continue
               if (idx + 1 < text.length && text[idx + 1] !== ' ') continue
             }
-            splitIdx = idx
-            break
+            sentences.push(text.slice(lastEnd, idx + 1).trim())
+            lastEnd = idx + 1
           }
-          const firstSentence = splitIdx >= 0 ? text.slice(0, splitIdx + 1).trim() : text
-          const rest = splitIdx >= 0 ? text.slice(splitIdx + 1).trim() : ''
+          const remaining = text.slice(lastEnd).trim()
+          if (remaining) sentences.push(remaining)
+
+          // Group into paragraphs: first sentence alone (lead), then 2-3 sentences each
+          const lead = sentences[0] || text
+          const rest = sentences.slice(1)
+          const paragraphs: string[] = []
+          for (let i = 0; i < rest.length; i += 2) {
+            paragraphs.push(rest.slice(i, i + 2).join(' '))
+          }
+
           return (
-            <p className="text-base text-neutral-500 leading-relaxed mb-6">
-              <span className="font-semibold text-neutral-700">{firstSentence}</span>
-              {rest && <> {rest}</>}
-            </p>
+            <div className="text-lg leading-8 mb-6 space-y-4">
+              <p className="font-semibold text-neutral-900">{lead}</p>
+              {paragraphs.length > 0 && (
+                <div className="max-w-2xl space-y-4">
+                  {paragraphs.map((p, i) => (
+                    <p key={i} className="text-neutral-600">{p}</p>
+                  ))}
+                </div>
+              )}
+            </div>
           )
         })()}
 

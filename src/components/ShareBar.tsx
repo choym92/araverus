@@ -1,7 +1,15 @@
 'use client';
 
 import { useState } from 'react';
-import { Share2, Twitter, Linkedin, Copy, Check } from 'lucide-react';
+import { Share2, Linkedin, Copy, Check } from 'lucide-react';
+
+function XIcon({ size = 16 }: { size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+      <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" />
+    </svg>
+  );
+}
 
 interface ShareBarProps {
   title: string;
@@ -54,7 +62,7 @@ export default function ShareBar({ title, url, palette = 'gray' }: ShareBarProps
         target="_blank"
         rel="noopener noreferrer"
       >
-        <Twitter size={16} />
+        <XIcon size={16} />
       </a>
 
       <a

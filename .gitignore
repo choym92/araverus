@@ -60,4 +60,4 @@ notebooks/tts_outputs/audio/
 *.mp3
 
 # Serena memories (MCP local state)
-.serena/
+.serena/.claude/worktrees/

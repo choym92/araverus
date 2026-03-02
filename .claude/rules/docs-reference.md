@@ -25,6 +25,7 @@
 | Doc | Content |
 |-----|---------|
 | `docs/2-news-frontend.md` | `/news` page components, data flow, BriefingPlayer |
+| `docs/2.1-thread-stories.md` | Stories tab UI, parent/sub-thread hierarchy, heat scores |
 
 **Blog (3.x)**
 | Doc | Content |
@@ -49,4 +50,5 @@ Before working on a specific area, READ the relevant doc first:
 | Embedding models | `docs/1.3-embedding-ab-test.md` | Model comparison, 3-zone gate |
 | Scoring thresholds / weight tuning | `docs/1.4-news-scoring-tuning.md` | All thresholds, scoring flow, tuning approach |
 | News frontend / components | `docs/2-news-frontend.md` | Component props, data flow, known hacks |
+| Stories tab / thread hierarchy | `docs/2.1-thread-stories.md` | StoriesTab component, heat scores, parent threads |
 | DB schema changes | `docs/schema.md` | Column types, relationships, lifecycle |

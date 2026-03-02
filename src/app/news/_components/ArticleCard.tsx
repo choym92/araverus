@@ -140,19 +140,18 @@ export default function ArticleCard({
   const [carouselIndex, setCarouselIndex] = useState(initialIndex)
   const [direction, setDirection] = useState<1 | -1>(1)
 
-  // Display data: use carousel item if navigated away from initial, else original props
+  // Display data: always use carousel data when thread exists, else original props
   const current = hasThread ? threadTimeline[carouselIndex] : null
-  const isNavigated = carouselIndex !== initialIndex && hasThread && current != null
-  const activeHeadline = isNavigated ? current.title : headline
-  const activeSummary = isNavigated ? (current.summary ?? current.description) : summary
-  const activeSourceCount = isNavigated ? current.source_count : sourceCount
-  const activeCategory = isNavigated ? current.feed_name : category
-  const activeTimestamp = isNavigated ? current.published_at : timestamp
-  const activeImage = isNavigated ? current.top_image : imageUrl
-  const activeLink = isNavigated ? current.link : link
-  const activeSlug = isNavigated ? current.slug : slug
-  const activeImportance = isNavigated ? current.importance : importance
-  const displayKeywords = isNavigated ? current.keywords : keywords
+  const activeHeadline = current ? current.title : headline
+  const activeSummary = current ? (current.summary ?? current.description) : summary
+  const activeSourceCount = current ? current.source_count : sourceCount
+  const activeCategory = current ? current.feed_name : category
+  const activeTimestamp = current ? current.published_at : timestamp
+  const activeImage = current ? current.top_image : imageUrl
+  const activeLink = current ? current.link : link
+  const activeSlug = current ? current.slug : slug
+  const activeImportance = current ? current.importance : importance
+  const displayKeywords = current ? current.keywords : keywords
 
 
   const isMustRead = activeImportance === 'must_read'

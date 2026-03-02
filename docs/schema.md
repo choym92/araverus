@@ -136,8 +136,8 @@ updated_at      TIMESTAMPTZ   -- auto: now()
 - LLM reject: `is_same_event=false AND llm_score < 7` → `relevance_flag='low'`, tries next backup article
 
 ### `wsj_llm_analysis` — LLM Content Analysis
-**Written by**: `llm_analysis.py` → `save_analysis_to_db()`, called from `6_crawl_ranked.py` after each crawl
-**Model**: gpt-4o-mini (temperature=0, max_tokens=500, json_object mode)
+**Written by**: `lib/llm_analysis.py` → `save_analysis_to_db()`, called from `6_crawl_ranked.py` after each crawl
+**Model**: Gemini 2.5 Flash Lite (via `google-genai` SDK)
 **Input**: WSJ title + WSJ description + first 800 chars of crawled content
 
 ```sql
@@ -169,7 +169,7 @@ importance_reranked TEXT        -- must_read | worth_reading | optional (2차 re
                                 --   compares all articles in batch for relative importance
 keywords          TEXT[]        -- 2-4 free-form topic keywords (e.g., {"Fed","interest rates"})
 raw_response      JSONB         -- full LLM JSON response (for debugging)
-model_used        TEXT          -- "gpt-4o-mini"
+model_used        TEXT          -- "gemini-2.5-flash-lite"
 input_tokens      INT           -- prompt token count
 output_tokens     INT           -- completion token count
 created_at        TIMESTAMPTZ   -- auto: now()
@@ -262,12 +262,12 @@ centroid     vector(768)          -- normalized centroid of member embeddings
 member_count INT NOT NULL DEFAULT 0
 first_seen   DATE NOT NULL        -- earliest article in thread
 last_seen    DATE NOT NULL        -- most recent article in thread
-active       BOOLEAN NOT NULL DEFAULT true  -- false when last_seen > 7 days
+status       TEXT NOT NULL DEFAULT 'active' -- 'active' (0-3d) / 'cooling' (3-14d) / 'archived' (14d+)
 created_at   TIMESTAMPTZ DEFAULT now()
 updated_at   TIMESTAMPTZ DEFAULT now()
 ```
 
-**Purpose**: Groups related articles across days into story threads. Centroids updated incrementally. Threads deactivated after 7 days of inactivity.
+**Purpose**: Groups related articles across days into story threads. Centroids updated incrementally. Status transitions: active (0-3d) → cooling (3-14d) → archived (14d+). Resurrection: archived thread matched by new article → back to active.
 
 ### RPC Functions (pgvector)
 
