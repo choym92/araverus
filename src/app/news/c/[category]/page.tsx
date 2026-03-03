@@ -4,6 +4,8 @@ import NewsShell from '../../_components/NewsShell'
 import NewsContent from '../../_components/NewsContent'
 import NewsContentSkeleton from '../../_components/NewsContentSkeleton'
 import { getNewsData, getStoriesData, CATEGORY_SLUG_MAP, CATEGORY_SLUGS } from '../../_lib/data'
+import { createServiceClient } from '@/lib/supabase-server'
+import { NewsService } from '@/lib/news-service'
 import type { Metadata } from 'next'
 
 export const revalidate = 86400
@@ -45,6 +47,12 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   if (!meta) return {}
 
   const canonical = `https://chopaul.com/news/c/${category}`
+
+  const supabase = createServiceClient()
+  const service = new NewsService(supabase)
+  const { en } = await service.getLatestBriefings()
+  const audioUrl = en?.audio_url || undefined
+
   return {
     title: { absolute: meta.title },
     description: meta.description,
@@ -55,6 +63,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
       url: canonical,
       type: 'website',
       images: [{ url: 'https://chopaul.com/og-news-default.png', width: 1200, height: 630 }],
+      ...(audioUrl && { audio: [{ url: audioUrl, type: 'audio/mpeg' }] }),
     },
     twitter: {
       card: 'summary_large_image',
