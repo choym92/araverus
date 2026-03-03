@@ -1,7 +1,25 @@
 import { createServerClient } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
 
+// Known good bots (allowed): Googlebot, Bingbot, GPTBot, ClaudeBot, Applebot,
+// FacebookExternalHit, Twitterbot, LinkedInBot, Slurp, DuckDuckBot, vercel-screenshot
+
+// Known malicious / aggressive bots — block
+const BLOCKED_BOTS = /SemrushBot|AhrefsBot|DotBot|MJ12bot|BLEXBot|PetalBot|YandexBot|Bytespider|MegaIndex|Sogou|Baiduspider|DataForSeoBot|serpstatbot|Seekport|ZoominfoBot|BrightBot/i
+
 export async function middleware(request: NextRequest) {
+  const ua = request.headers.get('user-agent') || ''
+
+  // Block known bad bots
+  if (BLOCKED_BOTS.test(ua)) {
+    return new NextResponse(null, { status: 403 })
+  }
+
+  // Block suspicious no-UA requests to non-API paths
+  if (!ua && !request.nextUrl.pathname.startsWith('/api')) {
+    return new NextResponse(null, { status: 403 })
+  }
+
   let supabaseResponse = NextResponse.next({
     request,
   })
