@@ -22,7 +22,9 @@ sys.path.insert(0, str(Path(__file__).parent))
 from lib.crawl_article import crawl_article, extract_og_image
 from lib.llm_analysis import (
     analyze_content,
+    analyze_content_detailed,
     save_analysis_to_db,
+    save_step2_to_db,
     update_domain_llm_failure,
     reset_domain_llm_success,
 )
@@ -341,9 +343,12 @@ async def process_wsj_item(
         # Try each article until one succeeds
         success = False
         attempts = 0
-        llm_input_tokens = 0
-        llm_output_tokens = 0
-        llm_calls = 0
+        s1_input_tokens = 0
+        s1_output_tokens = 0
+        s1_calls = 0
+        s2_input_tokens = 0
+        s2_output_tokens = 0
+        s2_calls = 0
         for j, article in enumerate(crawlable):
             url = article["resolved_url"]
             domain = article.get("resolved_domain", "")
@@ -435,9 +440,9 @@ async def process_wsj_item(
                         )
 
                         if llm_analysis:
-                            llm_calls += 1
-                            llm_input_tokens += llm_analysis.get("input_tokens") or 0
-                            llm_output_tokens += llm_analysis.get("output_tokens") or 0
+                            s1_calls += 1
+                            s1_input_tokens += llm_analysis.get("input_tokens") or 0
+                            s1_output_tokens += llm_analysis.get("output_tokens") or 0
                             llm_score = llm_analysis.get("relevance_score", 0)
                             is_same_event = llm_analysis.get("is_same_event", False)
                             content_quality = llm_analysis.get("content_quality", "")
@@ -501,6 +506,37 @@ async def process_wsj_item(
                             save_analysis_to_db(supabase, crawl_result_id, llm_analysis)
                             reset_domain_llm_success(supabase, article.get("resolved_domain"))
 
+                        # Step 2: Full content analysis (headline, summary, key_takeaway)
+                        if crawl_result_id and LLM_ENABLED and llm_passed:
+                            print("    → Step 2: Content analysis...", end=" ", flush=True)
+                            step2 = analyze_content_detailed(
+                                wsj_title=wsj.get("title", ""),
+                                wsj_description=wsj.get("description", ""),
+                                crawled_content=crawled_content,
+                            )
+                            if step2:
+                                save_step2_to_db(supabase, crawl_result_id, step2)
+                                s2_in = step2.get("input_tokens") or 0
+                                s2_out = step2.get("output_tokens") or 0
+                                s2_input_tokens += s2_in
+                                s2_output_tokens += s2_out
+                                s2_calls += 1
+                                headline = step2.get("headline")
+                                print(f"✓ headline={headline[:50] + '...' if headline and len(headline) > 50 else headline}")
+                                # Update slug from headline
+                                if headline and wsj.get("id"):
+                                    from utils.slug import generate_slug
+                                    new_slug = generate_slug(headline)
+                                    if new_slug:
+                                        try:
+                                            supabase.table("wsj_items").update(
+                                                {"slug": new_slug}
+                                            ).eq("id", wsj["id"]).is_("slug", None).execute()
+                                        except Exception as e:
+                                            print(f"    ⚠ Slug update failed: {e}")
+                            else:
+                                print("✗ failed")
+
                         skipped = mark_other_articles_skipped(supabase, wsj.get('id'), url)
                         if skipped > 0:
                             print(f"    → Marked {skipped} backup articles as skipped")
@@ -535,9 +571,12 @@ async def process_wsj_item(
         return {
             "success": success,
             "attempts": attempts,
-            "llm_input_tokens": llm_input_tokens,
-            "llm_output_tokens": llm_output_tokens,
-            "llm_calls": llm_calls,
+            "s1_input_tokens": s1_input_tokens,
+            "s1_output_tokens": s1_output_tokens,
+            "s1_calls": s1_calls,
+            "s2_input_tokens": s2_input_tokens,
+            "s2_output_tokens": s2_output_tokens,
+            "s2_calls": s2_calls,
         }
 
 
@@ -644,9 +683,12 @@ async def main():
     wsj_success = sum(1 for r in results if r["success"])
     wsj_failed = sum(1 for r in results if not r["success"])
     total_attempts = sum(r["attempts"] for r in results)
-    total_llm_input = sum(r.get("llm_input_tokens", 0) for r in results)
-    total_llm_output = sum(r.get("llm_output_tokens", 0) for r in results)
-    total_llm_calls = sum(r.get("llm_calls", 0) for r in results)
+    total_s1_input = sum(r.get("s1_input_tokens", 0) for r in results)
+    total_s1_output = sum(r.get("s1_output_tokens", 0) for r in results)
+    total_s1_calls = sum(r.get("s1_calls", 0) for r in results)
+    total_s2_input = sum(r.get("s2_input_tokens", 0) for r in results)
+    total_s2_output = sum(r.get("s2_output_tokens", 0) for r in results)
+    total_s2_calls = sum(r.get("s2_calls", 0) for r in results)
 
     # Write back to file (only when reading from file, not --from-db)
     if not from_db:
@@ -701,17 +743,24 @@ async def main():
                 print(f"  {flag} [{domain}] {length:,} chars, rel:{rel:.2f} - {wsj}...")
 
     # Cost summary (LLM analysis calls only)
-    if total_llm_input or total_llm_output:
+    if total_s1_input or total_s1_output or total_s2_input or total_s2_output:
         print("\nCOST SUMMARY")
         print("-" * 40)
-        cost = print_cost_line(
-            "LLM Analysis (Flash-Lite)",
-            total_llm_input,
-            total_llm_output,
+        cost1 = print_cost_line(
+            "Step 1 Gate (Flash-Lite)",
+            total_s1_input,
+            total_s1_output,
             "gemini-2.5-flash-lite",
-            calls=total_llm_calls,
+            calls=total_s1_calls,
         )
-        print(f"Estimated total: ${cost:.4f}")
+        cost2 = print_cost_line(
+            "Step 2 Analysis (Flash)",
+            total_s2_input,
+            total_s2_output,
+            "gemini-2.5-flash",
+            calls=total_s2_calls,
+        )
+        print(f"Estimated total: ${cost1 + cost2:.4f}")
 
     if from_db:
         print("\nResults saved to database.")

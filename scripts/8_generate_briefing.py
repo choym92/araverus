@@ -244,6 +244,7 @@ class Article:
     is_curated: bool
     published_at: str = ""
     content: str = ""
+    headline: str = ""
     key_entities: list[str] = field(default_factory=list)
     key_numbers: list[str] = field(default_factory=list)
     event_type: str = ""
@@ -420,7 +421,7 @@ def fetch_llm_map(sb, crawl_ids: list[str]) -> dict[str, dict]:
         batch = crawl_ids[i : i + 100]
         analyses = (
             sb.table("wsj_llm_analysis")
-            .select("crawl_result_id,summary,key_entities,key_numbers,event_type,sentiment,importance,keywords")
+            .select("crawl_result_id,summary,headline,key_entities,key_numbers,event_type,sentiment,importance,keywords")
             .in_("crawl_result_id", batch)
             .execute()
         )
@@ -493,7 +494,9 @@ def curate_articles(
                 time_str = f"{int(hours_ago)}h ago" if hours_ago < 48 else f"{int(hours_ago / 24)}d ago"
             except Exception:
                 pass
-        line = f"{i}. [{item['feed_name']}] {item['title']}"
+        llm_headline = llm.get("headline") or ""
+        display_title = llm_headline or item["title"]
+        line = f"{i}. [{item['feed_name']}] {display_title}"
         if time_str:
             line += f" | {time_str}"
         if item.get("description"):
@@ -633,6 +636,7 @@ def assemble_articles(
             description=desc,
             category=item["feed_name"],
             published_at=item.get("published_at", ""),
+            headline=llm.get("headline") or "",
             key_entities=llm.get("key_entities", []),
             key_numbers=[str(n) for n in llm.get("key_numbers", [])],
             event_type=llm.get("event_type", ""),
@@ -691,7 +695,8 @@ def assemble_articles(
 
 
 def _format_article(article: Article) -> str:
-    parts = [f"[{article.category}] {article.title}"]
+    display_title = article.headline or article.title
+    parts = [f"[{article.category}] {display_title}"]
     if article.published_at:
         parts.append(f"  Published: {article.published_at[:16].replace('T', ' ')}")
     if article.description:

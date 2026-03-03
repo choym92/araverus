@@ -70,6 +70,8 @@ export interface NewsItem {
   source: string | null
   slug: string | null
   importance: string | null // 'must_read' | 'worth_reading' | 'optional' (prefers importance_reranked over importance)
+  headline: string | null
+  key_takeaway: string | null
   keywords: string[] | null
   thread_id: string | null
   resolved_url: string | null
@@ -191,6 +193,8 @@ export class NewsService {
           resolved_url,
           wsj_llm_analysis (
             summary,
+            headline,
+            key_takeaway,
             importance,
             importance_reranked,
             keywords
@@ -212,7 +216,13 @@ export class NewsService {
 
     if (error || !data) return []
 
-    return data.map((item: Record<string, unknown>) => {
+    // Visibility gate: only show articles with at least one crawl result
+    return data
+      .filter((item: Record<string, unknown>) => {
+        const crawls = item.wsj_crawl_results as unknown[]
+        return Array.isArray(crawls) ? crawls.length > 0 : crawls != null
+      })
+      .map((item: Record<string, unknown>) => {
       const crawlResults = item.wsj_crawl_results as Record<string, unknown>[]
       const crawlArray = Array.isArray(crawlResults) ? crawlResults : crawlResults ? [crawlResults] : []
       // Use 'ok' crawl for article data, count all candidates
@@ -232,6 +242,8 @@ export class NewsService {
         published_at: item.published_at as string,
         top_image: (crawl?.top_image as string) || null,
         summary: (llm?.summary as string) || null,
+        headline: (llm?.headline as string) || null,
+        key_takeaway: (llm?.key_takeaway as string) || null,
         source: (crawl?.source as string) || null,
         slug: (item.slug as string) || null,
         importance: (llm?.importance_reranked as string) || (llm?.importance as string) || null,
@@ -263,6 +275,8 @@ export class NewsService {
           resolved_url,
           wsj_llm_analysis (
             summary,
+            headline,
+            key_takeaway,
             importance,
             importance_reranked,
             keywords
@@ -280,6 +294,8 @@ export class NewsService {
     const crawlResults = item.wsj_crawl_results as Record<string, unknown>[]
     const crawlArray = Array.isArray(crawlResults) ? crawlResults : crawlResults ? [crawlResults] : []
     const crawl = crawlArray[0] ?? null
+    // Visibility gate: no crawl result = not yet processed
+    if (!crawl) return null
     const analysis = crawl?.wsj_llm_analysis as Record<string, unknown>[] | Record<string, unknown> | undefined
     const llm = Array.isArray(analysis) ? analysis[0] : analysis
 
@@ -297,6 +313,8 @@ export class NewsService {
       published_at: item.published_at as string,
       top_image: (crawl?.top_image as string) || null,
       summary: (llm?.summary as string) || null,
+      headline: (llm?.headline as string) || null,
+      key_takeaway: (llm?.key_takeaway as string) || null,
       source: isSafe ? (crawl?.source as string) || null : null,
       slug: (item.slug as string) || null,
       importance: (llm?.importance_reranked as string) || (llm?.importance as string) || null,
@@ -367,6 +385,8 @@ export class NewsService {
           resolved_url,
           wsj_llm_analysis (
             summary,
+            headline,
+            key_takeaway,
             importance,
             importance_reranked,
             keywords
@@ -398,6 +418,8 @@ export class NewsService {
         published_at: item.published_at as string,
         top_image: (crawl?.top_image as string) || null,
         summary: (llm?.summary as string) || null,
+        headline: (llm?.headline as string) || null,
+        key_takeaway: (llm?.key_takeaway as string) || null,
         source: (crawl?.source as string) || null,
         slug: (item.slug as string) || null,
         importance: (llm?.importance_reranked as string) || (llm?.importance as string) || null,

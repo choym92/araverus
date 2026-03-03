@@ -54,6 +54,7 @@ export async function generateMetadata({ params }: ArticlePageProps): Promise<Me
     return { title: 'Article Not Found | Paul Cho' }
   }
 
+  const displayTitle = item.headline || item.title
   const description = item.summary || item.description || undefined
   const canonical = `https://chopaul.com/news/${item.slug}`
   const image = item.top_image || 'https://chopaul.com/og-news-default.png'
@@ -62,11 +63,11 @@ export async function generateMetadata({ params }: ArticlePageProps): Promise<Me
     : { url: 'https://chopaul.com/og-news-default.png', width: 1200, height: 630 }
 
   return {
-    title: item.title,
+    title: displayTitle,
     description,
     alternates: { canonical },
     openGraph: {
-      title: item.title,
+      title: displayTitle,
       description,
       url: canonical,
       type: 'article',
@@ -74,7 +75,7 @@ export async function generateMetadata({ params }: ArticlePageProps): Promise<Me
     },
     twitter: {
       card: 'summary_large_image',
-      title: item.title,
+      title: displayTitle,
       description,
       images: [image],
     },
@@ -102,22 +103,25 @@ export default async function ArticlePage({ params }: ArticlePageProps) {
     month: 'long',
     day: 'numeric',
     year: 'numeric',
+    timeZone: 'UTC',
   })
 
   const time = new Date(item.published_at).toLocaleTimeString('en-US', {
     hour: 'numeric',
     minute: '2-digit',
+    timeZone: 'UTC',
   })
 
   const articleUrl = `https://chopaul.com/news/${item.slug}`
   const DEFAULT_OG_IMAGE = 'https://chopaul.com/og-news-default.png'
+  const displayTitle = item.headline || item.title
 
   const jsonLd = [
     {
       '@context': 'https://schema.org',
       '@type': 'NewsArticle',
       url: articleUrl,
-      headline: item.title,
+      headline: displayTitle,
       description: item.description || undefined,
       articleBody: item.summary || item.description || undefined,
       articleSection: categoryLabel(item.feed_name),
@@ -154,7 +158,7 @@ export default async function ArticlePage({ params }: ArticlePageProps) {
           name: categoryLabel(item.feed_name),
           item: `https://chopaul.com/news?category=${item.feed_name}`,
         },
-        { '@type': 'ListItem', position: 3, name: item.title, item: articleUrl },
+        { '@type': 'ListItem', position: 3, name: displayTitle, item: articleUrl },
       ],
     },
   ]
@@ -163,7 +167,12 @@ export default async function ArticlePage({ params }: ArticlePageProps) {
     <NewsShell>
       <script
         type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+        dangerouslySetInnerHTML={{
+          __html: JSON.stringify(jsonLd)
+            .replace(/</g, '\\u003c')
+            .replace(/>/g, '\\u003e')
+            .replace(/&/g, '\\u0026'),
+        }}
       />
       <div className="px-6 md:px-12 lg:px-16 py-6 pb-32 max-w-3xl mx-auto">
         {/* Breadcrumb nav */}
@@ -171,7 +180,7 @@ export default async function ArticlePage({ params }: ArticlePageProps) {
           <Link href="/news" className="hover:text-neutral-900 transition-colors">
             News
           </Link>
-          <span>/</span>
+          <span aria-hidden="true">/</span>
           <Link
             href={`/news?category=${item.feed_name}`}
             className="hover:text-neutral-900 transition-colors"
@@ -180,7 +189,7 @@ export default async function ArticlePage({ params }: ArticlePageProps) {
           </Link>
           {item.subcategory && item.subcategory.replace(/-/g, ' ').toUpperCase() !== categoryLabel(item.feed_name).toUpperCase() && (
             <>
-              <span>/</span>
+              <span aria-hidden="true">/</span>
               <span className="text-neutral-500">
                 {formatSubcategory(item.subcategory)}
               </span>
@@ -198,7 +207,7 @@ export default async function ArticlePage({ params }: ArticlePageProps) {
 
         {/* Headline */}
         <h1 className="font-serif text-3xl md:text-4xl leading-tight text-neutral-900 mb-2">
-          {item.title}
+          {displayTitle}
         </h1>
 
         {/* Timestamp + Share */}
@@ -208,14 +217,14 @@ export default async function ArticlePage({ params }: ArticlePageProps) {
           </p>
           <ShareBar
             url={`https://chopaul.com/news/${slug}`}
-            title={item.title}
+            title={displayTitle}
             palette="neutral"
           />
         </div>
 
         {/* Hero image from crawled source */}
         {item.top_image && (
-          <ArticleHeroImage src={item.top_image} alt={item.title} />
+          <ArticleHeroImage src={item.top_image} alt={displayTitle} />
         )}
 
         {/* Keywords — centered */}
@@ -223,6 +232,14 @@ export default async function ArticlePage({ params }: ArticlePageProps) {
           <div className="mb-4">
             <KeywordPills keywords={item.keywords} variant="hashtag" linkable />
           </div>
+        )}
+
+        {/* Key Takeaway */}
+        {item.key_takeaway && (
+          <aside role="note" aria-label="Key Takeaway" className="bg-amber-50/60 border-l-4 border-amber-400 px-4 py-3 mb-6">
+            <p className="font-semibold text-sm text-amber-800 mb-1" aria-hidden="true">Key Takeaway</p>
+            <p className="text-base text-neutral-700">{item.key_takeaway}</p>
+          </aside>
         )}
 
         {/* Summary — split into paragraphs for readability */}
@@ -283,7 +300,12 @@ export default async function ArticlePage({ params }: ArticlePageProps) {
         )}
 
         {/* Source links */}
-        <SourceList sources={sources} wsjUrl={item.link} wsjTitle={item.title} />
+        <SourceList
+          sources={sources}
+          wsjUrl={item.link}
+          wsjTitle={item.title}
+          originalTitle={item.title && item.headline && item.headline !== item.title ? item.title : undefined}
+        />
 
         {/* Related Articles — exclude storyline articles */}
         {(() => {

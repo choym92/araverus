@@ -288,7 +288,7 @@ export default function NewsContent({
                 {leftStories.map((item) => (
                   <ArticleCard
                     key={item.id}
-                    headline={item.title}
+                    headline={item.headline || item.title}
                     summary={item.summary ?? item.description}
                     sourceCount={item.source_count}
                     category={item.feed_name}
@@ -301,6 +301,7 @@ export default function NewsContent({
                     importance={item.importance}
                     keywords={item.keywords}
                     activeKeywords={activeKeywords}
+                    itemId={item.id}
                     {...threadPropsFor(item)}
                   />
                 ))}
@@ -321,7 +322,7 @@ export default function NewsContent({
                 </div>
                 {featured && (
                   <ArticleCard
-                    headline={featured.title}
+                    headline={featured.headline || featured.title}
                     summary={featured.summary ?? featured.description}
                     sourceCount={featured.source_count}
                     category={featured.feed_name}
@@ -334,6 +335,7 @@ export default function NewsContent({
                     importance={featured.importance}
                     keywords={featured.keywords}
                     activeKeywords={activeKeywords}
+                    itemId={featured.id}
                     {...threadPropsFor(featured)}
                   />
                 )}
@@ -343,7 +345,7 @@ export default function NewsContent({
                     {belowFold.slice(0, 4).map((item) => (
                       <ArticleCard
                         key={item.id}
-                        headline={item.title}
+                        headline={item.headline || item.title}
                         summary={item.summary ?? item.description}
                         sourceCount={item.source_count}
                         category={item.feed_name}
@@ -355,6 +357,7 @@ export default function NewsContent({
                         importance={item.importance}
                         keywords={item.keywords}
                         activeKeywords={activeKeywords}
+                        itemId={item.id}
                         {...threadPropsFor(item)}
                       />
                     ))}
@@ -367,7 +370,7 @@ export default function NewsContent({
                 {rightStories.map((item) => (
                   <ArticleCard
                     key={item.id}
-                    headline={item.title}
+                    headline={item.headline || item.title}
                     summary={item.summary ?? item.description}
                     sourceCount={item.source_count}
                     category={item.feed_name}
@@ -380,6 +383,7 @@ export default function NewsContent({
                     importance={item.importance}
                     keywords={item.keywords}
                     activeKeywords={activeKeywords}
+                    itemId={item.id}
                     {...threadPropsFor(item)}
                   />
                 ))}
@@ -392,7 +396,7 @@ export default function NewsContent({
                 {belowFold.slice(4).map((item) => (
                   <ArticleCard
                     key={item.id}
-                    headline={item.title}
+                    headline={item.headline || item.title}
                     summary={item.summary ?? item.description}
                     sourceCount={item.source_count}
                     category={item.feed_name}
@@ -405,6 +409,7 @@ export default function NewsContent({
                     importance={item.importance}
                     keywords={item.keywords}
                     activeKeywords={activeKeywords}
+                    itemId={item.id}
                     {...threadPropsFor(item)}
                   />
                 ))}
