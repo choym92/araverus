@@ -1,4 +1,4 @@
-<!-- Updated: 2026-02-28 -->
+<!-- Updated: 2026-03-03 -->
 # News Platform — Backend & Pipeline
 
 Single source of truth for the finance news pipeline: ingestion, crawling, analysis, briefing generation.
@@ -70,7 +70,10 @@ flowchart LR
 ```mermaid
 flowchart LR
     DB_CRAWL[(wsj_crawl_results<br/>status: pending)] --> |6_crawl_ranked| DB_CRAWL_OK[(wsj_crawl_results<br/>status: success)]
-    DB_CRAWL_OK --> |llm_analysis<br/>Gemini 2.5 Flash| DB_LLM[(wsj_llm_analysis)]
+    DB_CRAWL_OK --> |Step 1: Flash-Lite gate<br/>relevance_score, is_same_event,<br/>confidence, content_quality| STEP1{relevance_flag<br/>ok vs low?}
+    STEP1 -->|ok: ~60/day| STEP2["Step 2: Flash detailed analysis<br/>headline, summary, key_takeaway,<br/>keywords, importance, etc."]
+    STEP2 --> |results → DB_LLM| DB_LLM[(wsj_llm_analysis)]
+    STEP1 -->|low| DB_LLM
     DB_CRAWL_OK --> |domain stats| DB_DOMAIN[(wsj_domain_status)]
 ```
 
@@ -182,7 +185,10 @@ Crawls resolved URLs with quality + relevance verification.
 | `--concurrent N` | 1 | Parallel WSJ items via asyncio.Semaphore |
 
 - Sorted by `weighted_score = 0.50 × embedding + 0.25 × wilson + 0.25 × (avg_llm / 10)`. Defaults: wilson=0.4 when total attempts < 3, avg_llm=5.0 when NULL. Both `weighted_score` and `attempt_order` (1-indexed rank) are stored in `wsj_crawl_results` before the crawl loop for analysis (see `docs/1.4-news-scoring-tuning.md`)
-- Per-article: crawl → garbage check → embedding relevance (≥ 0.25) → LLM verify (gemini-2.5-flash-lite) → accept/reject
+- Per-article: crawl → garbage check → embedding relevance (≥ 0.25) → **Step 1 LLM gate** (Flash-Lite) → accept/reject
+  - **Step 1 (Flash-Lite):** Outputs `relevance_score`, `is_same_event`, `confidence`, `content_quality` → sets `relevance_flag` (ok/low)
+  - **Step 2 (Flash full):** Runs only on `relevance_flag='ok'` articles (~60/day). Outputs `headline`, `summary`, `key_takeaway`, `keywords`, `importance`, etc. Slug is generated from `headline` after Step 2 completes.
+- **Visibility gate:** Articles hidden from frontend until they have crawl results (`crawl_status='success'` + `relevance_flag='ok'`)
 - **Cost tracking:** Accumulates LLM analysis `input_tokens`/`output_tokens` across items, prints `COST SUMMARY` at end
 - Short-but-real fallback: articles ≥150ch AND >1.5× WSJ description length bypass TOO_SHORT, still pass embedding+LLM gates
 - `--concurrent 5` = 5 WSJ items processed in parallel (each item's candidates still sequential)
@@ -382,9 +388,11 @@ erDiagram
     wsj_items {
         uuid id PK
         text title
+        text headline
         text description
         text[] extracted_entities
         text[] llm_search_queries
+        text slug
         bool searched
         bool processed
         bool briefed
@@ -404,7 +412,10 @@ erDiagram
         uuid crawl_result_id FK
         int relevance_score
         bool is_same_event
+        text headline
         text summary
+        text key_takeaway
+        text[] keywords
         text importance
         text importance_reranked
     }

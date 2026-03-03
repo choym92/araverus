@@ -163,7 +163,20 @@ const getNewsData = unstable_cache(
     ])
     const todayIds = new Set(todayItems.map(i => i.id))
     const olderBackfill = allItems.filter(i => !todayIds.has(i.id))
-    const items = [...todayItems, ...olderBackfill].slice(0, 60)
+    const merged = [...todayItems, ...olderBackfill]
+
+    // Dedup by thread: articles >24h old keep only the best per thread
+    const oneDayAgo = Date.now() - 24 * 60 * 60 * 1000
+    const seenThreads = new Set<string>()
+    const items = merged.filter(item => {
+      if (!item.thread_id) return true
+      const isRecent = new Date(item.published_at).getTime() > oneDayAgo
+      if (isRecent) return true
+      // Older articles: keep first (highest-ranked) per thread
+      if (seenThreads.has(item.thread_id)) return false
+      seenThreads.add(item.thread_id)
+      return true
+    }).slice(0, 60)
 
     const [{ en: enBriefing, ko: koBriefing }] = await Promise.all([
       service.getLatestBriefings(),

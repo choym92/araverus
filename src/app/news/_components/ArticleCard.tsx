@@ -26,6 +26,8 @@ interface ArticleCardProps {
   threadTitle?: string | null
   sourceCount?: number
   subcategory?: string | null
+  /** ID of the article this card represents, used to find self in thread timeline */
+  itemId?: string
 }
 
 function timeAgo(timestamp: string): string {
@@ -131,11 +133,13 @@ export default function ArticleCard({
   threadTimeline,
   threadTitle,
   sourceCount = 0,
+  itemId,
 }: ArticleCardProps) {
   const [imageError, setImageError] = useState(false)
   const hasThread = threadTimeline && threadTimeline.length > 1
-  // Start at the latest article (end of timeline, sorted ascending by published_at)
-  const initialIndex = hasThread ? threadTimeline.length - 1 : 0
+  // Start at this card's own article in the timeline, fallback to latest
+  const selfIndex = hasThread ? threadTimeline.findIndex(a => a.id === itemId) : -1
+  const initialIndex = selfIndex >= 0 ? selfIndex : (hasThread ? threadTimeline.length - 1 : 0)
   const [carouselIndex, setCarouselIndex] = useState(initialIndex)
   const [direction, setDirection] = useState<1 | -1>(1)
 

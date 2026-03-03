@@ -5,6 +5,15 @@ import type { CrawlSource } from '@/lib/news-service'
 
 const COLLAPSED_COUNT = 4
 
+function isSafeUrl(url: string): boolean {
+  try {
+    const { protocol } = new URL(url)
+    return protocol === 'https:' || protocol === 'http:'
+  } catch {
+    return false
+  }
+}
+
 function SourceRow({ href, domain, label }: {
   href: string
   domain: string
@@ -39,7 +48,7 @@ function SourceRow({ href, domain, label }: {
   )
 }
 
-export default function SourceList({ sources, wsjUrl, wsjTitle }: { sources: CrawlSource[]; wsjUrl: string; wsjTitle: string }) {
+export default function SourceList({ sources, wsjUrl, wsjTitle, originalTitle }: { sources: CrawlSource[]; wsjUrl: string; wsjTitle: string; originalTitle?: string }) {
   const [expanded, setExpanded] = useState(false)
 
   const visible = expanded ? sources : sources.slice(0, COLLAPSED_COUNT)
@@ -58,15 +67,20 @@ export default function SourceList({ sources, wsjUrl, wsjTitle }: { sources: Cra
           domain="wsj.com"
           label={wsjTitle}
         />
-        {visible.map((src, i) => (
+        {visible.filter((src) => isSafeUrl(src.resolved_url)).map((src) => (
           <SourceRow
-            key={i}
+            key={src.resolved_url}
             href={src.resolved_url}
             domain={src.domain}
             label={src.title || src.source}
           />
         ))}
       </div>
+      {originalTitle && (
+        <p className="text-xs text-neutral-400 mt-3 italic">
+          Originally reported as: &ldquo;{originalTitle}&rdquo;
+        </p>
+      )}
       {hasMore && (
         <button
           onClick={() => setExpanded(!expanded)}

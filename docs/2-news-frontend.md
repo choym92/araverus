@@ -1,4 +1,4 @@
-<!-- Updated: 2026-03-01 -->
+<!-- Updated: 2026-03-03 -->
 # News Platform — Frontend
 
 Technical guide for the `/news` page. WSJ-style 3-column layout with in-card thread carousels, bilingual audio briefing player, and keyword filtering. Powered by the existing news pipeline.
@@ -113,7 +113,7 @@ graph LR
 └───────────────────────────────────────────────────────────────────┘
 ```
 
-#### Article Sorting (date-first, importance within day)
+#### Article Sorting & Deduplication (date-first, importance within day, thread-aware)
 
 Articles are sorted in `sortByDateThenImportance()` before slicing into columns:
 1. **Calendar date** (newest day first): Groups articles by date, ensuring today's articles always appear before yesterday's
@@ -121,6 +121,10 @@ Articles are sorted in `sortByDateThenImportance()` before slicing into columns:
 3. **Crawled**: Articles with `summary` (crawled + LLM analyzed) rank higher — richer card content
 4. **Thread preference**: Articles with `thread_id` rank higher (threaded stories are more significant)
 5. **Recency**: Newer articles first within the same tier
+
+**Thread-based Deduplication (24h boundary)**:
+- **Within 24 hours**: All thread members appear as independent cards (full coverage, readers see all angles)
+- **After 24 hours**: Only the highest-ranked article per thread is shown (dedup older threads, reduce visual clutter). Remaining thread members are accessible via in-card carousel navigation.
 
 #### Featured Hero Selection
 The featured center hero is **not** simply `items[0]`. `NewsContent.tsx` finds the first `must_read` article with a summary via `findIndex()`. This ensures the most important article gets the hero slot regardless of its position in the date-sorted list. Falls back to `items[0]` if no `must_read` article exists.
@@ -145,7 +149,7 @@ Cards with `thread_id` show a thread indicator at the bottom:
 │ ◀  8/8  ▶  US Inflation Slows... 📰│  ← thread indicator
 └─────────────────────────────────────┘
 ```
-- Starts at **latest article** (end of timeline)
+- Starts at **the card's own article** in the timeline (found via `itemId`), falls back to latest article if not found
 - ◀ navigates to older articles, ▶ to newer
 - Framer Motion slide animation (0.25s)
 - Disabled at boundaries (first/last)
@@ -413,7 +417,7 @@ stateDiagram-v2
 
 ```typescript
 interface ArticleCardProps {
-  headline: string
+  headline: string  // from wsj_llm_analysis; fallback to title
   summary: string | null
   source: string | null
   category: string
@@ -425,17 +429,17 @@ interface ArticleCardProps {
   importance?: string | null     // must_read / worth_reading / optional
   keywords?: string[] | null
   activeKeywords?: string[]      // multi-select filter keywords
-  id?: string                    // article ID for carousel position
+  itemId?: string                // ID of this article; used to position carousel at self in thread timeline
   threadTimeline?: NewsItem[] | null  // full thread timeline
   threadTitle?: string | null    // thread display name
   sourceCount?: number           // number of crawl candidates (from source_count)
 }
 ```
 
-- **featured**: Wide hero image (2.5:1 aspect ratio), centered headline, full summary. Meta row shows "via N sources" text. Image has `onError` fallback — hides broken images gracefully.
-- **standard**: Meta row (category/time + "via N sources") on top, then image (112px left-aligned thumbnail) + text side-by-side. headline (line-clamp-2) + summary + keywords. Cards with thread carousel use fixed height (`h-36` + `overflow-hidden`) to prevent layout shift on arrow navigation. `must_read` articles get glow shadow styling instead of border-left. Image has `onError` fallback — hides broken images gracefully.
+- **featured**: Wide hero image (2.5:1 aspect ratio), centered headline (headline || title fallback), full summary. Meta row shows "via N sources" text. Image has `onError` fallback — hides broken images gracefully.
+- **standard**: Meta row (category/time + "via N sources") on top, then image (112px left-aligned thumbnail) + text side-by-side. headline || title (line-clamp-2) + summary + keywords. Cards with thread carousel use fixed height (`h-36` + `overflow-hidden`) to prevent layout shift on arrow navigation. `must_read` articles get glow shadow styling instead of border-left. Image has `onError` fallback — hides broken images gracefully.
 - **Source display**: Replaced individual favicon pills with plain "via N sources" text in the meta row. Source count comes from `NewsItem.source_count` (number of crawl candidates per article).
-- **Thread carousel**: When `threadTimeline.length > 1`, shows ◀ N/M ▶ indicator at card bottom. Starts at latest article (end of timeline). Framer Motion slide animation.
+- **Thread carousel**: When `threadTimeline.length > 1`, shows ◀ N/M ▶ indicator at card bottom. Carousel starts at the article displayed by the card (using `itemId` to find position in timeline), allowing users to browse related articles within the thread. Framer Motion slide animation.
 - **ImportanceBadge**: Star icon for `must_read` articles
 
 ### KeywordPills
@@ -504,12 +508,13 @@ Article detail page layout with semantic structure:
 1. **Breadcrumb** (replacing back nav): `News / Tech / AI` style with smart subcategory formatting — 3 chars or less = ALL CAPS, rest = Title Case. `text-sm` with `mb-3`.
 2. **Hero Image**: Full-width, aspect ratio maintained via wrapper.
 3. **Keywords**: Below image, centered, using `hashtag` variant with `linkable` prop (KeywordPills component). `justify-center` layout.
-4. **Headline & Badge**: Serif headline with optional `must_read` badge displayed inline with category.
+4. **Headline & Badge**: Serif headline using `headline || title` fallback, with optional `must_read` badge displayed inline with category.
 5. **Timestamp & Share Bar**: Share icons moved to right-aligned position above hero. Timestamp styled as `text-base` (increased from `text-sm`).
 6. **Summary**: Split into paragraphs. First sentence = bold lead text. Remaining grouped 2 sentences per `<p>` tag. Body narrowed to `max-w-2xl`.
-7. **SourceList**: Header style matches RelatedSection (`font-serif text-lg border-b-2 border-neutral-900`). Hidden when no sources (returns null).
-8. **TimelineSection**: Collapsible, shows last 5 articles with "Show N older..." expand.
-9. **RelatedSection**: Numbered list with pgvector similarity score bars (7-day window, excludes timeline articles).
+7. **Key Takeaway** (new): Amber callout box with `key_takeaway` text, placed after keywords and before summary. Styled consistently with other callout sections. Shows only when `key_takeaway` is available.
+8. **SourceList**: Header style matches RelatedSection (`font-serif text-lg border-b-2 border-neutral-900`). Shows "Originally reported as:" when `headline` differs from WSJ `title`. Hidden when no sources (returns null).
+9. **TimelineSection**: Collapsible, shows last 5 articles with "Show N older..." expand.
+10. **RelatedSection**: Numbered list with pgvector similarity score bars (7-day window, excludes timeline articles).
 
 ---
 
@@ -550,6 +555,7 @@ classDiagram
         id: string
         feed_name: string
         title: string
+        headline: string | null       // from wsj_llm_analysis Step 2
         description: string | null
         link: string
         creator: string | null
@@ -557,6 +563,7 @@ classDiagram
         published_at: string
         top_image: string | null
         summary: string | null
+        key_takeaway: string | null   // from wsj_llm_analysis Step 2
         source: string | null
         slug: string | null
         importance: string | null
@@ -605,7 +612,7 @@ classDiagram
 | Method | Query | Returns |
 |--------|-------|---------|
 | `getLatestBriefings()` | `wsj_briefings WHERE category IN ('EN','KO') ORDER BY date DESC LIMIT 2` | `{ en: Briefing \| null, ko: Briefing \| null }` |
-| `getNewsItems(opts)` | `wsj_items LEFT JOIN wsj_crawl_results LEFT JOIN wsj_llm_analysis` — fetches all crawl candidates per article, picks the `relevance_flag='ok'` result for display data, counts all candidates for `source_count`. Unsafe domains (UNSAFE_SOURCE_DOMAINS set) have source/resolved_url nulled out. | `NewsItem[]` (flattened; crawl/LLM fields are null for uncrawled articles) |
+| `getNewsItems(opts)` | `wsj_items LEFT JOIN wsj_crawl_results LEFT JOIN wsj_llm_analysis` — **visibility gate:** filters out articles with no crawl results (must have `crawl_status='success'` + `relevance_flag='ok'`). Fetches all crawl candidates per article, picks the `relevance_flag='ok'` result for display data, counts all candidates for `source_count`. Unsafe domains (UNSAFE_SOURCE_DOMAINS set) have source/resolved_url nulled out. | `NewsItem[]` (flattened; crawl/LLM fields are null for uncrawled articles) |
 | `getNewsItemBySlug(slug)` | `wsj_items WHERE slug=? JOIN crawl+llm` filtered by `relevance_flag='ok'` | `NewsItem \| null` |
 | `getRelatedArticles(itemId, limit)` | `match_articles` RPC (pgvector, ±7 days) | `RelatedArticle[]` |
 | `getThreadTimeline(threadId)` | `wsj_items WHERE thread_id=? LEFT JOIN wsj_crawl_results LEFT JOIN wsj_llm_analysis` — same flattening logic as `getNewsItems`, picks ok crawl, counts all candidates | `NewsItem[]` |
