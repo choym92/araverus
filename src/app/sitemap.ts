@@ -1,12 +1,11 @@
 import type { MetadataRoute } from 'next';
 import { createServiceClient } from '@/lib/supabase-server';
 import { NewsService } from '@/lib/news-service';
+import { CATEGORY_SLUGS } from '@/app/news/_lib/data';
 
 const BASE_URL =
   process.env.NEXT_PUBLIC_SITE_URL ||
   (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : 'https://localhost:3000');
-
-const NEWS_CATEGORIES = ['TECH', 'BUSINESS_MARKETS', 'ECONOMY', 'WORLD', 'POLITICS'];
 
 export const revalidate = 86400; // 24h safety net; on-demand revalidation is primary
 
@@ -25,8 +24,8 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     { url: `${BASE_URL}/news`, lastModified: latestNewsDate, changeFrequency: 'daily', priority: 1 },
   ];
 
-  const categoryRoutes: MetadataRoute.Sitemap = NEWS_CATEGORIES.map((cat) => ({
-    url: `${BASE_URL}/news?category=${cat}`,
+  const categoryRoutes: MetadataRoute.Sitemap = CATEGORY_SLUGS.map((slug) => ({
+    url: `${BASE_URL}/news/c/${slug}`,
     lastModified: latestNewsDate,
     changeFrequency: 'daily' as const,
     priority: 0.9,

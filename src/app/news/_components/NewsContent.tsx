@@ -29,12 +29,12 @@ const BriefingPlayer = nextDynamic(
 )
 
 const CATEGORIES = [
-  { label: 'All', slug: '' },
-  { label: 'Markets', slug: 'BUSINESS_MARKETS' },
-  { label: 'Tech', slug: 'TECH' },
-  { label: 'Economy', slug: 'ECONOMY' },
-  { label: 'World', slug: 'WORLD' },
-  { label: 'Politics', slug: 'POLITICS' },
+  { label: 'All', slug: '', href: '/news' },
+  { label: 'Markets', slug: 'BUSINESS_MARKETS', href: '/news/c/markets' },
+  { label: 'Tech', slug: 'TECH', href: '/news/c/tech' },
+  { label: 'Economy', slug: 'ECONOMY', href: '/news/c/economy' },
+  { label: 'World', slug: 'WORLD', href: '/news/c/world' },
+  { label: 'Politics', slug: 'POLITICS', href: '/news/c/politics' },
 ] as const
 
 const TABS = [
@@ -73,7 +73,7 @@ export default function NewsContent({
   parentThreadGroups,
 }: NewsContentProps) {
   const searchParams = useSearchParams()
-  const category = serverCategory || searchParams.get('category') || undefined
+  const category = serverCategory || undefined
   const tab = searchParams.get('tab') || 'today'
   // Support both ?keywords=A,B (new) and ?keyword=A (legacy)
   const activeKeywords: string[] = searchParams.get('keywords')
@@ -97,15 +97,10 @@ export default function NewsContent({
     return true
   })
 
-  // Client-side filtering by category
-  const categoryFiltered = category
-    ? allItems.filter(item => item.feed_name === category)
-    : allItems
-
   // Client-side filtering by keywords/subcategory (OR match)
   const activeSet = new Set(activeKeywords.map((k) => k.toLowerCase()))
   const filteredItems = activeSet.size > 0
-    ? categoryFiltered.filter((item) => {
+    ? allItems.filter((item) => {
         if (item.keywords?.some((kw) => activeSet.has(kw.toLowerCase()))) return true
         if (item.subcategory) {
           const label = item.subcategory.length <= 3
@@ -115,7 +110,7 @@ export default function NewsContent({
         }
         return false
       })
-    : categoryFiltered
+    : allItems
 
   // Pick the most important recent article as featured hero
   const featuredIndex = filteredItems.findIndex(item => item.importance === 'must_read' && item.summary)
@@ -129,13 +124,15 @@ export default function NewsContent({
   const belowFold = remaining.slice(sideCount * 2)
 
   // Build URL helper for tab switching
+  const basePath = category
+    ? CATEGORIES.find(c => c.slug === category)?.href ?? '/news'
+    : '/news'
   const buildTabUrl = (tabValue: string) => {
     const p = new URLSearchParams()
     if (tabValue !== 'today') p.set('tab', tabValue)
-    if (category) p.set('category', category)
     if (activeKeywords.length > 0) p.set('keywords', activeKeywords.join(','))
     const qs = p.toString()
-    return `/news${qs ? `?${qs}` : ''}`
+    return `${basePath}${qs ? `?${qs}` : ''}`
   }
 
   /** Helper to build thread props for an article */
@@ -213,12 +210,8 @@ export default function NewsContent({
                 const isActive = cat.slug === '' ? !category : category === cat.slug
                 const tabParam = tab !== 'today' ? `tab=${tab}` : ''
                 const kwParam = activeKeywords.length > 0 ? `keywords=${encodeURIComponent(activeKeywords.join(','))}` : ''
-                const params = [
-                  cat.slug ? `category=${cat.slug}` : '',
-                  tabParam,
-                  kwParam,
-                ].filter(Boolean).join('&')
-                const href = `/news${params ? `?${params}` : ''}`
+                const qs = [tabParam, kwParam].filter(Boolean).join('&')
+                const href = `${cat.href}${qs ? `?${qs}` : ''}`
                 return (
                   <Link
                     key={cat.slug}
@@ -253,7 +246,7 @@ export default function NewsContent({
               ))}
             </span>
             <Link
-              href={`/news${category ? `?category=${category}` : ''}`}
+              href={basePath}
               className="text-xs text-neutral-400 hover:text-neutral-600 underline"
             >
               ×Clear
@@ -274,7 +267,7 @@ export default function NewsContent({
             </p>
             <p className="text-neutral-400 text-sm mt-2">
               {activeKeywords.length > 0 ? (
-                <Link href="/news" className="underline hover:text-neutral-600">
+                <Link href={basePath} className="underline hover:text-neutral-600">
                   Clear filter
                 </Link>
               ) : (

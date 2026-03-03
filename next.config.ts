@@ -16,6 +16,15 @@ const cspHeader = `
 `.replace(/\n/g, '');
 
 const nextConfig: NextConfig = {
+  async redirects() {
+    return [
+      { source: '/news', has: [{ type: 'query', key: 'category', value: 'TECH' }], destination: '/news/c/tech', permanent: true },
+      { source: '/news', has: [{ type: 'query', key: 'category', value: 'BUSINESS_MARKETS' }], destination: '/news/c/markets', permanent: true },
+      { source: '/news', has: [{ type: 'query', key: 'category', value: 'ECONOMY' }], destination: '/news/c/economy', permanent: true },
+      { source: '/news', has: [{ type: 'query', key: 'category', value: 'WORLD' }], destination: '/news/c/world', permanent: true },
+      { source: '/news', has: [{ type: 'query', key: 'category', value: 'POLITICS' }], destination: '/news/c/politics', permanent: true },
+    ]
+  },
   async headers() {
     return [
       {

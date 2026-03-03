@@ -3,7 +3,7 @@
 
 Technical guide for the `/news` page. WSJ-style 3-column layout with in-card thread carousels, bilingual audio briefing player, and keyword filtering. Powered by the existing news pipeline.
 
-**Dynamic + Cache Architecture**: The page uses `unstable_cache` (30-min TTL) with server-side category filtering via `searchParams`. The Server Component (`page.tsx`) reads `?category=` and follows two fetch paths: **"All" tab** fetches todayItems (24h cutoff, limit 50) + allItems (limit 50), dedupes, and prioritizes today first (max 60); **category tabs** fetch category-specific items (limit 40). A Client Component (`NewsContent.tsx`) handles keyword/subcategory filtering client-side. A Load More API route (`/api/news`) enables pagination beyond the initial fetch.
+**Dynamic + Cache Architecture**: The page has evolved to **route-based category segments** for independent ISR caching. Each category has its own cached page: `/news` (all), `/news/c/tech`, `/news/c/markets`, etc. — each revalidates every 24h independently. The shared data module (`src/app/news/_lib/data.ts`) provides `getNewsData()` and `getStoriesData()` to all routes. Category tabs use `Link` navigation (layout persists, briefing player keeps playing). Server filters articles by `feed_name`; no client-side category filtering. A Load More API route (`/api/news`) enables pagination beyond the initial fetch.
 
 For backend pipeline & threading algorithm details, see `docs/1-news-backend.md` and `docs/1.2-news-threading.md`.
 
@@ -285,16 +285,43 @@ Returns `{ threadTimeline, threadTitle }` for an article. Looks up pre-fetched `
 
 ---
 
-## URL Parameters
+## URL Routes & Parameters
+
+### Route Segments (ISR 24h)
+
+Categories are now implemented as **route segments** instead of query params — each page is independently ISR cached:
+
+| Route | Audience | ISR TTL | Data Source |
+|-------|----------|---------|-------------|
+| `/news` | All articles (all feeds) | 86400s | `getNewsData()` — no feed_name filter |
+| `/news/c/tech` | Tech articles | 86400s | `getNewsData(feedName: 'TECH')` |
+| `/news/c/markets` | Markets articles | 86400s | `getNewsData(feedName: 'BUSINESS_MARKETS')` |
+| `/news/c/economy` | Economy articles | 86400s | `getNewsData(feedName: 'ECONOMY')` |
+| `/news/c/world` | World articles | 86400s | `getNewsData(feedName: 'WORLD')` |
+| `/news/c/politics` | Politics articles | 86400s | `getNewsData(feedName: 'POLITICS')` |
+
+**Legacy URL redirect**: Old `/news?category=TECH` URLs redirect (301) to `/news/c/tech` via `next.config.ts`.
+
+**Navigation**: Category tabs in `NewsContent.tsx` use `<Link>` to navigate between routes. Layout persists (no full-page reload), and the `BriefingPlayer` continues playing across category switches.
+
+**Shared Data Module**: `src/app/news/_lib/data.ts` exports:
+- `getNewsData(feedName?: string)` — fetches articles, optionally filtered by `feed_name`
+- `getStoriesData()` — fetches threaded stories for the Stories tab
+- `CATEGORY_SLUG_MAP` — maps route slugs to feed names (`{ tech: 'TECH', markets: 'BUSINESS_MARKETS', ... }`)
+
+### Search Params (within each route)
+
+Query parameters only affect **within-page filtering** (no route changes):
 
 | Param | Example | Purpose |
 |-------|---------|---------|
-| `category` | `?category=TECH` | Filter articles by `feed_name` |
-| `tab` | `?tab=stories` | Switch tab (default: `today`) |
+| `tab` | `?tab=stories` | Switch tab (default: `today`) — read in `NewsContent` via `useSearchParams()` |
 | `keywords` | `?keywords=Fed,Trade` | Multi-select OR filter by keyword/subcategory (comma-separated) |
 | `keyword` | `?keyword=Fed` | Legacy single-keyword filter (auto-migrated to `keywords`) |
 
-All parameters are combinable: `/news?category=TECH&keywords=AI,Trade&tab=today`
+Example: `/news/c/tech?tab=stories&keywords=AI,Trade` — load Tech category Stories tab with AI+Trade filter.
+
+**Critical**: `searchParams` is read **only** in the Client Component `NewsContent` via `useSearchParams()`, never in the Server Component `page.tsx`. This preserves ISR caching (see `docs/2.3-caching-strategy.md` Rule #1).
 
 ### Tab Structure
 
@@ -304,18 +331,32 @@ All parameters are combinable: `/news?category=TECH&keywords=AI,Trade&tab=today`
 | **Stories** | Narrative timeline — story threads across days/weeks | Placeholder |
 | **Search** | Semantic search over all articles via pgvector | Placeholder |
 
-### Category Constants
+### Category Slug Map
 
 ```typescript
-const CATEGORIES = [
-  { label: 'All', slug: '' },
-  { label: 'Markets', slug: 'BUSINESS_MARKETS' },
-  { label: 'Tech', slug: 'TECH' },
-  { label: 'Economy', slug: 'ECONOMY' },
-  { label: 'World', slug: 'WORLD' },
-  { label: 'Politics', slug: 'POLITICS' },
-]
+// src/app/news/_lib/data.ts
+export const CATEGORY_SLUG_MAP: Record<string, string> = {
+  tech: 'TECH',
+  markets: 'BUSINESS_MARKETS',
+  economy: 'ECONOMY',
+  world: 'WORLD',
+  politics: 'POLITICS',
+}
+
+// UI Constants (for breadcrumbs, category labels)
+export const CATEGORY_LABELS: Record<string, string> = {
+  '': 'All News',
+  tech: 'Tech',
+  markets: 'Markets',
+  economy: 'Economy',
+  world: 'World',
+  politics: 'Politics',
+}
 ```
+
+All categories are rendered as tabs/pills in `NewsContent.tsx`:
+- Active category determined by route segment `/news/c/[category]` or `/news` (all)
+- Tab navigation uses `<Link href={`/news/c/${slug}`}>` (no full reload, layout persists)
 
 ---
 
