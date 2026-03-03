@@ -16,6 +16,16 @@ export default function robots(): MetadataRoute.Robots {
         userAgent: 'Googlebot-News',
         allow: '/news/',
       },
+      {
+        userAgent: 'GPTBot',
+        allow: ['/news/', '/'],
+        disallow: ['/dashboard', '/admin', '/news/c/'],
+      },
+      {
+        userAgent: 'ClaudeBot',
+        allow: '/',
+        disallow: ['/dashboard', '/admin'],
+      },
     ],
     sitemap: `${BASE_URL}/sitemap.xml`,
   };
