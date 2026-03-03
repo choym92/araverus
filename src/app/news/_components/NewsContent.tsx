@@ -73,7 +73,7 @@ export default function NewsContent({
   parentThreadGroups,
 }: NewsContentProps) {
   const searchParams = useSearchParams()
-  const category = serverCategory
+  const category = serverCategory || searchParams.get('category') || undefined
   const tab = searchParams.get('tab') || 'today'
   // Support both ?keywords=A,B (new) and ?keyword=A (legacy)
   const activeKeywords: string[] = searchParams.get('keywords')
@@ -97,10 +97,15 @@ export default function NewsContent({
     return true
   })
 
+  // Client-side filtering by category
+  const categoryFiltered = category
+    ? allItems.filter(item => item.feed_name === category)
+    : allItems
+
   // Client-side filtering by keywords/subcategory (OR match)
   const activeSet = new Set(activeKeywords.map((k) => k.toLowerCase()))
   const filteredItems = activeSet.size > 0
-    ? allItems.filter((item) => {
+    ? categoryFiltered.filter((item) => {
         if (item.keywords?.some((kw) => activeSet.has(kw.toLowerCase()))) return true
         if (item.subcategory) {
           const label = item.subcategory.length <= 3
@@ -110,7 +115,7 @@ export default function NewsContent({
         }
         return false
       })
-    : allItems
+    : categoryFiltered
 
   // Pick the most important recent article as featured hero
   const featuredIndex = filteredItems.findIndex(item => item.importance === 'must_read' && item.summary)

@@ -11,30 +11,13 @@ import type { Metadata } from 'next'
 
 export const revalidate = 86400 // 24h ISR safety net; on-demand revalidation is primary
 
-const CATEGORY_LABELS: Record<string, string> = {
-  BUSINESS_MARKETS: 'Markets',
-  TECH: 'Tech',
-  ECONOMY: 'Economy',
-  WORLD: 'World',
-  POLITICS: 'Politics',
-}
 
-export async function generateMetadata({
-  searchParams,
-}: {
-  searchParams: Promise<{ category?: string }>
-}): Promise<Metadata> {
-  const { category } = await searchParams
-  const label = category ? CATEGORY_LABELS[category] : null
-  const titleText = label
-    ? `${label} News — AI Briefing`
-    : 'AI News Briefing — Tech, Markets & Finance'
+export async function generateMetadata(): Promise<Metadata> {
+  const titleText = 'AI News Briefing — Tech, Markets & Finance'
   const title = { absolute: titleText }
-  const canonical = category ? `https://chopaul.com/news?category=${category}` : 'https://chopaul.com/news'
+  const canonical = 'https://chopaul.com/news'
 
-  const description = label
-    ? `Agentic AI pipeline that threads related ${label} news stories, surfaces trends, and delivers daily briefings.`
-    : 'Agentic AI pipeline that threads related news stories, surfaces trends, and delivers daily briefings across Tech, Markets, and Finance.'
+  const description = 'Agentic AI pipeline that threads related news stories, surfaces trends, and delivers daily briefings across Tech, Markets, and Finance.'
 
   return {
     title,
@@ -287,18 +270,12 @@ const getNewsData = unstable_cache(
   { revalidate: 86400, tags: ['news'] }
 )
 
-export default async function NewsPage({
-  searchParams,
-}: {
-  searchParams: Promise<{ category?: string; tab?: string }>
-}) {
-  const { category, tab } = await searchParams
-  const validCategory = category && category in CATEGORY_LABELS ? category : undefined
-  const activeTab = tab === 'stories' ? 'stories' : 'today'
-
+export default async function NewsPage() {
+  // No searchParams access — keeps page fully static/ISR cacheable.
+  // Category and tab filtering happens client-side in NewsContent.
   const [data, storiesData] = await Promise.all([
-    getNewsData(validCategory),
-    activeTab === 'stories' ? getStoriesData(validCategory) : Promise.resolve([]),
+    getNewsData(undefined),
+    getStoriesData(undefined),
   ])
 
   return (
@@ -311,7 +288,7 @@ export default async function NewsPage({
           threadMeta={data.threadMeta}
           allKeywords={data.allKeywords}
           allSubcategories={data.allSubcategories}
-          serverCategory={validCategory}
+          serverCategory={undefined}
           parentThreadGroups={storiesData}
         />
       </Suspense>
