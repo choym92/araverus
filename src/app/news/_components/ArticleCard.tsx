@@ -100,7 +100,7 @@ function CardWrapper({
 }) {
   if (slug) {
     return (
-      <Link href={`/news/${slug}`} className={className}>
+      <Link href={`/news/${slug}`} prefetch={false} className={className}>
         {children}
       </Link>
     )
