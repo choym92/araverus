@@ -176,7 +176,7 @@ export default function NewsContent({
         className={`bg-white sticky top-20 z-10 transition-[padding] duration-200 ${filterPanelOpen ? 'lg:pr-72' : ''}`}
         aria-label="News navigation"
       >
-        <div className="px-6 md:px-16 lg:px-24">
+        <div className="px-6 md:px-14 lg:px-[4.5rem]">
           {/* Tabs — typography hierarchy (size + weight) */}
           <div className="flex items-center gap-5 py-3">
             {TABS.map((t) => {

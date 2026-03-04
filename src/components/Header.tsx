@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import Image from 'next/image';
-import { Menu, User, LogOut, Loader2 } from 'lucide-react';
+import { Menu, LogOut, Loader2 } from 'lucide-react';
 import { useState } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -51,9 +51,9 @@ export default function Header({ sidebarOpen, onToggleSidebar }: HeaderProps) {
           {/* Logo only - OpenAI style */}
           <Link href="/" className="flex items-center">
             <Image
-              src="/logo.svg"
-              alt="Logo"
-              width={40}
+              src="/logo-header.png"
+              alt="Araverus"
+              width={140}
               height={40}
               className="h-10 w-auto object-contain"
             />
@@ -86,18 +86,8 @@ export default function Header({ sidebarOpen, onToggleSidebar }: HeaderProps) {
                 className="flex items-center gap-2 px-3 py-2 hover:bg-gray-100 rounded-md transition-colors"
                 aria-label="User menu"
               >
-                {user.user_metadata?.avatar_url ? (
-                  /* eslint-disable-next-line @next/next/no-img-element */
-                  <img
-                    src={user.user_metadata.avatar_url}
-                    alt={user.user_metadata?.full_name || 'User'}
-                    className="w-6 h-6 rounded-full"
-                  />
-                ) : (
-                  <User size={18} className="text-gray-600" />
-                )}
-                <span className="text-sm font-medium text-gray-700 max-w-[100px] truncate">
-                  {user.user_metadata?.full_name || user.email?.split('@')[0] || 'User'}
+                <span className="text-base font-medium text-gray-700">
+                  Welcome, {user.user_metadata?.full_name?.split(' ')[0] || user.email?.split('@')[0] || 'User'}
                 </span>
               </button>
 
@@ -139,7 +129,7 @@ export default function Header({ sidebarOpen, onToggleSidebar }: HeaderProps) {
             /* Login Button */
             <button
               onClick={handleLogin}
-              className="px-4 py-2 text-sm font-medium text-gray-700 hover:text-gray-900 hover:bg-gray-100 rounded-md transition-colors"
+              className="px-4 py-2 text-base font-medium text-gray-700 hover:text-gray-900 hover:bg-gray-100 rounded-md transition-colors"
             >
               Log in
             </button>
