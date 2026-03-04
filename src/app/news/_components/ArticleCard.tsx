@@ -145,7 +145,7 @@ export default function ArticleCard({
 
   // Display data: always use carousel data when thread exists, else original props
   const current = hasThread ? threadTimeline[carouselIndex] : null
-  const activeHeadline = current ? current.title : headline
+  const activeHeadline = current ? (current.headline || current.title) : headline
   const activeSummary = current ? (current.summary ?? current.description) : summary
   const activeSourceCount = current ? current.source_count : sourceCount
   const activeCategory = current ? current.feed_name : category

@@ -21,7 +21,7 @@ export default function NewsLoading() {
   return (
     <NewsShell>
       {/* Nav bar skeleton — tabs + category pills */}
-      <nav className="border-b border-neutral-200 bg-white sticky top-20 z-10">
+      <nav className="border-b border-neutral-200 bg-white sticky top-14 md:top-20 z-10">
         <div className="px-6 md:px-12 lg:px-16">
           {/* Tabs */}
           <div className="flex items-center gap-6 border-b border-neutral-100 py-2.5">
