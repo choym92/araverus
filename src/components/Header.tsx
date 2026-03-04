@@ -81,7 +81,7 @@ export default function Header({ sidebarOpen, onToggleSidebar }: HeaderProps) {
                 className="flex items-center gap-1.5 px-2 py-1.5 md:gap-2 md:px-3 md:py-2 hover:bg-gray-100 rounded-md transition-colors"
                 aria-label="User menu"
               >
-                <span className="text-sm md:text-base font-medium text-gray-700">
+                <span className="text-sm md:text-base font-medium text-gray-900">
                   Welcome, {user.user_metadata?.full_name?.split(' ')[0] || user.email?.split('@')[0] || 'User'}
                 </span>
               </button>

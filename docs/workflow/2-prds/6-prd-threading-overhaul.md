@@ -1,4 +1,4 @@
-<!-- Updated: 2026-03-02 -->
+<!-- Updated: 2026-03-04 -->
 # Threading System Full Overhaul
 
 > **Origin**: `~/.claude/plans/graceful-roaming-coral.md` (Claude plan mode)
@@ -14,9 +14,10 @@
 | 3. Author signal | ✅ Done | 2026-02-28 | Author boost + LLM prompt enrichment + cross-validation removed |
 | 3.5. LLM window + summary | ✅ Done | 2026-03-01 | 102 threads, 348/2,118 threaded (16.4%), 3-day window |
 | 4.0. Code changes | ✅ Done | 2026-03-02 | Time-weighted centroid, entity overlap, size penalty/EMA removed. 3 bugs fixed (author boost precision, threshold formula, late re-match centroid) |
-| 4.1-4.5. Golden dataset + grid search | 📋 Notebook ready | 2026-03-02 | `notebooks/threading_gridsearch.ipynb` — 14 cells, awaiting execution |
-| 5. Docs cleanup | ⏳ Partial | 2026-03-02 | `1.2-news-threading.md` updated; `schema.md`, `1-news-backend.md` pending |
-| 6. Parent thread grouping | ⏳ Not started | — | Blocked on Phase 4 completion |
+| 4.1-4.5. Golden dataset + grid search | ✅ Done | 2026-03-04 | Golden dataset: 134 threads, 913 articles, 25 causal links. Grid search: 1,536 combos, best composite 0.8076 (+17.6%). See `docs/4-threading-gridsearch-report.md` |
+| 4.6. Cross-encoder 2-stage experiment | 📋 Planned | 2026-03-04 | Fragmentation 47.8% — cosine alone can't solve. Test Qwen3 as 2nd stage for ambiguous pairs. Cells 15-19 in gridsearch notebook |
+| 5. Docs cleanup | ⏳ Partial | 2026-03-04 | `1.2-news-threading.md`, `1.2.1-reranker-causal-test.md` updated; `schema.md`, `1-news-backend.md` pending |
+| 6. Parent thread grouping | ⏳ Not started | — | Blocked on Phase 4.6 completion |
 
 ---
 

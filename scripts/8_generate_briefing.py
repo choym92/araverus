@@ -36,7 +36,7 @@ from lib.cost_utils import COST_PER_1M
 
 RELEVANCE_THRESHOLD = 0.6
 CONTENT_TRUNCATE_STD = 800
-BRIEFING_TEMPERATURE = 0.6
+BRIEFING_TEMPERATURE = 0.3
 BRIEFING_MAX_OUTPUT_TOKENS = 8192
 BRIEFING_THINKING_BUDGET = 4096
 BRIEFING_MODEL = "gemini-2.5-pro"
@@ -44,6 +44,7 @@ CURATION_MODEL_PRIMARY = "gemini-2.5-pro"
 CURATION_MODEL_FALLBACK = "gemini-2.5-flash"
 CURATION_MAX_RETRIES = 3
 DEFAULT_LOOKBACK_HOURS = 48
+MEMORY_LOOKBACK_DAYS = 2
 
 # TTS
 EN_TTS_VOICE = "en-US-Chirp3-HD-Alnilam"
@@ -389,6 +390,31 @@ def filter_previously_briefed(sb, items: list[dict]) -> list[dict]:
     return filtered
 
 
+def fetch_previous_briefings(
+    sb, target_date: date, lang: str, days: int = MEMORY_LOOKBACK_DAYS
+) -> list[dict]:
+    """Fetch up to N previous briefings for memory context.
+
+    Returns list of {date, briefing_text} ordered oldest-first.
+    """
+    briefings = []
+    for offset in range(days, 0, -1):  # oldest first
+        d = target_date - timedelta(days=offset)
+        resp = (
+            sb.table("wsj_briefings")
+            .select("date, briefing_text")
+            .eq("category", lang.upper())
+            .eq("date", str(d))
+            .limit(1)
+            .execute()
+        )
+        if resp.data and resp.data[0].get("briefing_text"):
+            briefings.append(resp.data[0])
+    if briefings:
+        log.info("Loaded %d previous briefing(s) for %s memory", len(briefings), lang.upper())
+    return briefings
+
+
 def fetch_crawl_map(sb, item_ids: list[str]) -> dict[str, dict]:
     """Fetch best crawl result per wsj_item_id (batched)."""
     crawl_map: dict[str, dict] = {}
@@ -710,13 +736,53 @@ def _format_article(article: Article) -> str:
     return "\n".join(parts)
 
 
-def build_briefing_prompt(articles: list[Article], target_date: date, lang: str) -> str:
+MEMORY_INSTRUCTIONS_EN = """The above are your previous briefings. Treat these as your memory — use them to:
+- Identify ongoing story arcs and how they have evolved over multiple days
+- Recognize which stories are gaining momentum vs. fading
+- Provide richer context when a story has been building (e.g., 'this is now the third day of...')
+- Notice new developments in stories your audience has been following
+
+Do NOT repeat or summarize previous briefings. Your audience already heard them.
+Focus entirely on TODAY's new developments, but with the depth and awareness that comes from understanding the bigger picture."""
+
+MEMORY_INSTRUCTIONS_KO = """위의 내용은 이전 브리핑입니다. 이것을 당신의 기억으로 활용하세요:
+- 며칠에 걸쳐 진행 중인 스토리 아크와 트렌드 변화를 파악하세요
+- 어떤 이야기가 힘을 얻고 있고, 어떤 이야기가 사그라들고 있는지 인식하세요
+- 며칠째 이어지는 이야기에는 더 풍부한 맥락을 제공하세요 (예: '이제 사흘째 이어지고 있는...')
+- 청취자가 따라오고 있는 이야기의 새로운 전개를 짚어주세요
+
+이전 브리핑을 반복하거나 요약하지 마세요. 청취자는 이미 들었습니다.
+오늘의 새로운 전개에만 집중하되, 큰 그림을 이해하는 깊이와 인식을 담아 전달하세요."""
+
+
+def _build_memory_block(previous_briefings: list[dict], lang: str) -> str:
+    """Build memory context from previous briefings."""
+    parts = ["\n\n--- YOUR MEMORY (previous briefing history) ---\n"]
+    for b in previous_briefings:
+        parts.append(f"\n### Briefing from {b['date']}:\n{b['briefing_text']}\n")
+    parts.append("--- END MEMORY ---\n\n")
+    instructions = MEMORY_INSTRUCTIONS_EN if lang == "en" else MEMORY_INSTRUCTIONS_KO
+    parts.append(instructions)
+    return "".join(parts)
+
+
+def build_briefing_prompt(
+    articles: list[Article],
+    target_date: date,
+    lang: str,
+    previous_briefings: list[dict] | None = None,
+) -> str:
     """Build the full prompt for briefing generation."""
     system = BRIEFING_SYSTEM_EN if lang == "en" else BRIEFING_SYSTEM_KO
     date_str = target_date.strftime("%A, %B %d, %Y")
+
+    memory = ""
+    if previous_briefings:
+        memory = _build_memory_block(previous_briefings, lang)
+
     articles_text = f"Date: {date_str}\nToday's articles ({len(articles)} total):\n\n"
     articles_text += "\n\n".join(_format_article(a) for a in articles)
-    return system + "\n\n" + articles_text
+    return system + memory + "\n\n" + articles_text
 
 
 def generate_briefing(
@@ -2022,8 +2088,11 @@ def main() -> None:
         if existing.data:
             log.warning("Briefing already exists for %s/%s — will upsert", date_str, lang.upper())
 
+        # Fetch previous briefings for memory context
+        prev_briefings = fetch_previous_briefings(sb, target, lang)
+
         # Generate briefing (raw text with [CHAPTER:] markers)
-        prompt = build_briefing_prompt(articles, target, lang)
+        prompt = build_briefing_prompt(articles, target, lang, previous_briefings=prev_briefings)
         result = generate_briefing(gemini, prompt, lang, cost)
         if not result:
             log.error("%s briefing failed — skipping", lang.upper())
