@@ -1,7 +1,7 @@
-<!-- Updated: 2026-02-26 -->
+<!-- Updated: 2026-03-04 -->
 # Araverus — Project Architecture
 
-Paul Cho's personal website, blog, and news briefing platform.
+Financial intelligence platform powered by AI, machine learning, and neural networks.
 
 ---
 
@@ -26,24 +26,23 @@ Paul Cho's personal website, blog, and news briefing platform.
 ```
 ┌─────────────────────────────────────────────────────────────────────┐
 │                           ARAVERUS                                  │
-├─────────────────┬──────────────────────┬────────────────────────────┤
-│   Website       │   Blog (MDX)         │   News Pipeline            │
-│   (Next.js)     │                      │   (Python + GH Actions)    │
-├─────────────────┼──────────────────────┼────────────────────────────┤
-│ Landing page    │ content/blog/        │ scripts/                   │
-│ /resume         │ ├── slug/index.mdx   │ ├── 1_wsj_ingest.py          │
-│ /blog           │ └── public/blog/     │ ├── 6_crawl_ranked.py        │
-│ /news           │                      │ ├── 8_generate_briefing.py   │
-│ /admin          │ Categories:          │ └── ...9 scripts total     │
-│ /api/revalidate │                      │                            │
-│ /login          │ Publication,Tutorial │                            │
-│ /dashboard      │ Insight, Release     │ Daily at 6 AM ET           │
-├─────────────────┴──────────────────────┴────────────────────────────┤
+├─────────────────┬──────────────────────────────────────────────────┤
+│   Website       │   News Pipeline                                    │
+│   (Next.js)     │   (Python + GH Actions)                            │
+├─────────────────┼──────────────────────────────────────────────────┤
+│ / → redirect    │ scripts/                                           │
+│ /news           │ ├── 1_wsj_ingest.py                               │
+│ /login          │ ├── 6_crawl_ranked.py                             │
+│ /api/revalidate │ ├── 8_generate_briefing.py                        │
+│                 │ └── ...9 scripts total                            │
+│                 │ Daily at 6 AM ET                                  │
+├─────────────────┴──────────────────────────────────────────────────┤
 │                         Supabase                                     │
 │  Auth · Postgres · Storage                                           │
-│  Tables: user_profiles, blog_posts, blog_assets                      │
+│  Tables: user_profiles                                               │
 │  Tables: wsj_items, wsj_crawl_results, wsj_domain_status,           │
-│          wsj_llm_analysis, wsj_briefings, wsj_briefing_items         │
+│          wsj_llm_analysis, wsj_briefings, wsj_briefing_items,       │
+│          wsj_story_threads, wsj_embeddings                           │
 └─────────────────────────────────────────────────────────────────────┘
 ```
 
@@ -56,44 +55,40 @@ araverus/
 ├── src/
 │   ├── middleware.ts            # Supabase session refresh (auth token renewal)
 │   ├── app/                    # Next.js routes (server-first)
-│   │   ├── page.tsx            # Landing page (hero + particles)
-│   │   ├── blog/               # Blog list + [slug] pages
+│   │   ├── page.tsx            # Root redirect → /news
 │   │   ├── news/               # News page (WSJ-style 3-col + audio briefing)
 │   │   │   ├── page.tsx        # Server component (data fetching)
 │   │   │   ├── layout.tsx      # Metadata
+│   │   │   ├── [slug]/         # Article detail page
+│   │   │   ├── c/[category]/   # Category-specific routes (ISR cached)
 │   │   │   └── _components/    # NewsShell, BriefingPlayer, ArticleCard
-│   │   ├── resume/             # Resume viewer (PDF embed)
-│   │   ├── admin/              # Admin panel (role-gated)
 │   │   ├── auth/callback/      # OAuth callback (server-side PKCE code exchange)
 │   │   ├── login/              # Auth page (Google OAuth sign-in)
-│   │   ├── dashboard/          # Dashboard page (server-guarded)
 │   │   ├── not-found.tsx       # Custom 404 page
 │   │   ├── error.tsx           # Error boundary
 │   │   ├── global-error.tsx    # Root error boundary
 │   │   ├── sitemap.ts          # Dynamic sitemap generation
 │   │   ├── robots.ts           # Robots.txt generation
 │   │   ├── api/                # API routes
-│   │   │   └── revalidate/    # On-demand ISR (pipeline → cache bust)
-│   │   └── rss.xml/            # RSS feed generation
+│   │   │   ├── revalidate/    # On-demand ISR (pipeline → cache bust)
+│   │   │   └── news/          # Pagination API for load-more
+│   │   ├── rss.xml/            # RSS feed generation
+│   │   └── podcast.xml/        # Podcast feed generation
 │   ├── components/             # Reusable UI (client only when needed)
-│   │   ├── Hero.tsx            # Landing hero with particle bg
-│   │   ├── ParticleBackground.tsx  # tsParticles (dynamic import, ssr:false)
-│   │   ├── Header.tsx          # Site header
-│   │   ├── Sidebar.tsx         # Collapsible nav sidebar
-│   │   └── WaveGrid.tsx        # Wave grid animation
+│   │   ├── Header.tsx          # Site header (logo-header.svg)
+│   │   ├── Sidebar.tsx         # Collapsible nav sidebar (News only)
+│   │   └── (archived)          # Hero, ParticleBackground, WaveGrid → archive/
 │   ├── hooks/                  # Custom React hooks
 │   └── lib/                    # Services, utils, clients
-│       ├── blog.service.ts     # Blog CRUD via Supabase
 │       ├── news-service.ts     # News queries (NewsService class)
 │       ├── authz.ts            # Server-side auth guards
 │       ├── supabase-server.ts  # Server Supabase client
-│       ├── supabase.ts         # Browser Supabase client
-│       └── mdx.ts              # MDX utilities
-├── content/blog/               # MDX blog posts (Git-managed)
+│       └── supabase.ts         # Browser Supabase client
 ├── scripts/                    # Python news pipeline
+├── archive/                    # Archived: blog, landing, resume, admin, blog libs
 ├── .github/workflows/          # GitHub Actions
 ├── docs/                       # Project documentation
-└── public/                     # Static assets (images, resume.pdf, logo.svg, audio)
+└── public/                     # Static assets (images, logo.svg, logo-header.svg, audio)
 ```
 
 ---
@@ -110,27 +105,21 @@ araverus/
 
 ## Three Main Systems
 
-### 1. Landing Page & Website
+### 1. Website & Authentication
 
-- **Hero**: Particle constellation animation (tsParticles) with logo-shaped polygon mask
-- **Design**: Monochrome, Playfair Display serif headlines, Inter body text
-- **Pages**: /, /blog, /news, /admin, /login, /dashboard, /auth/callback
-- **A11y**: `prefers-reduced-motion` respected, WCAG AA contrast, keyboard navigation
+- **Home**: `/` redirects to `/news` (Server component redirect)
+- **Pages**: /news, /login, /auth/callback
+- **Header**: Araverus logo (logo-header.svg, SVG inline, transparent bg). Logged-in state shows "Welcome, [first name]" (text only, no avatar). Dropdown shows full name + email + sign out.
+- **Sidebar**: Navigation (News only, no Home link)
+- **A11y**: WCAG AA contrast, keyboard navigation, focus states
+- **Auth**: Google OAuth with Supabase (role-based admin access)
 
-### 2. Blog (MDX)
+### 2. News Platform
 
-- **Source**: `content/blog/<slug>/index.mdx` with frontmatter metadata
-- **Assets**: `public/blog/<slug>/` (images, covers)
-- **Categories**: Publication, Tutorial, Insight, Release
-- **Features**: Static generation, draft system, RSS feed at `/rss.xml`
-- **Authoring**: Git + Obsidian → Push → Vercel auto-deploy
-- **Guide**: See `docs/3-blog-writing-guide.md`
-
-### 3. News Platform
-
-- **Purpose**: Collect WSJ news, find free alternative sources, crawl content, verify relevance, generate EN/KO audio briefings
+- **Purpose**: Collect WSJ news, find free alternative sources, crawl content, verify relevance, thread related stories, generate EN/KO audio briefings
 - **Pipeline**: Python scripts → GitHub Actions (daily 6 AM ET) + Mac Mini (launchd)
-- **Frontend**: `/news` — WSJ-style 3-column layout with audio briefing player (EN/KO), category filtering
+- **Frontend**: `/news` — WSJ-style 3-column layout with audio briefing player (EN/KO), category filtering, story threading
+- **Feeds**: RSS at `/rss.xml`, Podcast RSS at `/podcast.xml` (branded as Araverus)
 - **Backend docs**: See `docs/1-news-backend.md`
 - **Frontend docs**: See `docs/2-news-frontend.md`
 
