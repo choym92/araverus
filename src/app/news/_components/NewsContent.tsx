@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useCallback } from 'react'
-import { useSearchParams } from 'next/navigation'
+import { useSearchParams, useRouter } from 'next/navigation'
 import nextDynamic from 'next/dynamic'
 import Link from 'next/link'
 import type { NewsItem, StoryThread, ParentThreadGroup } from '@/lib/news-service'
@@ -72,6 +72,7 @@ export default function NewsContent({
   serverCategory,
   parentThreadGroups,
 }: NewsContentProps) {
+  const router = useRouter()
   const searchParams = useSearchParams()
   const category = serverCategory || undefined
   const tab = searchParams.get('tab') || 'today'
@@ -134,6 +135,21 @@ export default function NewsContent({
     const qs = p.toString()
     return `${basePath}${qs ? `?${qs}` : ''}`
   }
+
+  /** Toggle a keyword chip on/off (used by mobile inline chips) */
+  const toggleChip = (kw: string) => {
+    const next = new Set(activeKeywords)
+    if (next.has(kw)) next.delete(kw)
+    else next.add(kw)
+    const params = new URLSearchParams(searchParams.toString())
+    if (next.size > 0) params.set('keywords', Array.from(next).join(','))
+    else params.delete('keywords')
+    params.delete('keyword')
+    router.push(`/news${params.size > 0 ? `?${params.toString()}` : ''}`)
+  }
+
+  /** Top chips for mobile inline bar — mix of top subcategories + top keywords */
+  const mobileChips = [...allSubcategories.slice(0, 3), ...allKeywords.slice(0, 5)]
 
   /** Helper to build thread props for an article */
   const threadPropsFor = (item: NewsItem) => ({
@@ -204,9 +220,9 @@ export default function NewsContent({
           </div>
 
           {/* Category nav — WSJ-style uppercase bold */}
-          <div className="flex items-center border-b border-neutral-200">
-            <div className="flex items-center justify-center flex-1">
-              {CATEGORIES.map((cat) => {
+          <div className="overflow-x-auto border-b border-neutral-200 [-webkit-overflow-scrolling:touch] [&::-webkit-scrollbar]:hidden">
+            <div className="flex items-center sm:justify-center min-w-max">
+              {CATEGORIES.map((cat, i) => {
                 const isActive = cat.slug === '' ? !category : category === cat.slug
                 const tabParam = tab !== 'today' ? `tab=${tab}` : ''
                 const kwParam = activeKeywords.length > 0 ? `keywords=${encodeURIComponent(activeKeywords.join(','))}` : ''
@@ -216,7 +232,7 @@ export default function NewsContent({
                   <Link
                     key={cat.slug}
                     href={href}
-                    className={`px-8 py-3 text-xs uppercase tracking-widest whitespace-nowrap transition-colors border-b -mb-px ${
+                    className={`px-8 py-3 text-xs uppercase tracking-widest whitespace-nowrap transition-colors border-b -mb-px ${i === 0 ? 'sm:pl-8 pl-2' : ''} ${
                       isActive
                         ? 'border-neutral-900 text-neutral-900 font-bold'
                         : 'border-transparent text-neutral-400 font-bold hover:text-neutral-900'
@@ -230,6 +246,7 @@ export default function NewsContent({
           </div>
         </div>
       </nav>
+
 
       <div className={`px-6 md:px-16 lg:px-24 py-6 transition-[padding] duration-200 ${filterPanelOpen ? 'lg:pr-72' : ''}`}>
 

@@ -44,7 +44,13 @@ const SPEED_MIN = 0.5
 const SPEED_MAX = 3.0
 const SPEED_STEP = 0.05
 
+export type BriefingTheme = 'light' | 'dark'
+
 interface BriefingContextValue {
+  // Theme
+  theme: BriefingTheme
+  toggleTheme: () => void
+
   // Briefing data
   data: BriefingData | null
   setData: (data: BriefingData) => void
@@ -105,6 +111,20 @@ export function BriefingProvider({ children }: { children: ReactNode }) {
   const audioRef = useRef<HTMLAudioElement>(null)
   const [data, setData] = useState<BriefingData | null>(null)
   const [isFullPlayerVisible, setFullPlayerVisible] = useState(false)
+
+  // Theme state with localStorage persistence
+  const [theme, setTheme] = useState<BriefingTheme>('light')
+  useEffect(() => {
+    const saved = localStorage.getItem('briefing-theme') as BriefingTheme | null
+    if (saved === 'light' || saved === 'dark') setTheme(saved)
+  }, [])
+  const toggleTheme = useCallback(() => {
+    setTheme(prev => {
+      const next = prev === 'dark' ? 'light' : 'dark'
+      localStorage.setItem('briefing-theme', next)
+      return next
+    })
+  }, [])
 
   const [lang, setLang] = useState<'en' | 'ko'>('en')
   const [isPlaying, setIsPlaying] = useState(false)
@@ -392,6 +412,8 @@ export function BriefingProvider({ children }: { children: ReactNode }) {
   }, [sentences, chapters, audioDuration])
 
   const value = useMemo<BriefingContextValue>(() => ({
+    theme,
+    toggleTheme,
     data,
     setData: handleSetData,
     isFullPlayerVisible,
@@ -424,7 +446,7 @@ export function BriefingProvider({ children }: { children: ReactNode }) {
     activeSentenceIndex,
     chapterGroups,
   }), [
-    data, handleSetData, isFullPlayerVisible, lang, isPlaying, currentTime, audioDuration,
+    theme, toggleTheme, data, handleSetData, isFullPlayerVisible, lang, isPlaying, currentTime, audioDuration,
     speed, volume, isMuted, switchLang, togglePlay, skip, handleSeek,
     setSpeed, handleVolumeChange, toggleMute, jumpToChapter, seekTo,
     audioUrl, chapters, transcript, sentences, hasToggle, progress, remaining,

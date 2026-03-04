@@ -244,6 +244,7 @@ sequenceDiagram
 
 | File | Type | Purpose |
 |------|------|---------|
+| `src/lib/news-service.ts` | Server | **Constants:** `SOURCE_SIMILARITY_THRESHOLD=0.75` (embedding filter for source count + article sources list), `TRUSTED_SOURCE_DOMAINS` (~70 domains sorted first in sources list), `UNSAFE_SOURCE_DOMAINS` (5 domains whose source + resolved_url are nulled out). |
 | `src/app/news/layout.tsx` | Server | Metadata only (`title`, `description`) |
 | `src/app/news/loading.tsx` | Server | Skeleton UI shown during server data fetching (Next.js auto-wraps with Suspense) |
 | `src/app/news/page.tsx` | Server | Data fetching (unstable_cache 30min), server-side category filtering via searchParams, `generateMetadata()` for SEO, sorts by date→importance |
@@ -254,10 +255,10 @@ sequenceDiagram
 | `src/app/news/[slug]/_components/RelatedSection.tsx` | Server | Numbered list with similarity score bars (pgvector, 7-day, excludes timeline articles) |
 | `src/app/news/[slug]/_components/TimelineSection.tsx` | Client | Collapsible vertical timeline — shows last 5, "Show N older..." expand, sticky "Show less" bar |
 | `src/app/news/_components/NewsShell.tsx` | Client | Header + Sidebar wrapper (sidebar starts closed, shifts content on open). Mobile: `pt-14`, desktop: `pt-20` |
-| `src/app/news/_components/BriefingPlayer.tsx` | Client | Bilingual audio player with chapters, transcript, sticky mini-player, theme object |
+| `src/app/news/_components/BriefingPlayer.tsx` | Client | Bilingual audio player with chapters, transcript, sticky mini-player, light/dark theme toggle |
 | `src/app/news/_components/ArticleCard.tsx` | Client | Article display (featured/standard) + framer-motion thread carousel |
 | `src/app/news/_components/SourceList.tsx` | Client | Collapsible source list for article detail page — shows WSJ + crawl candidates with favicons |
-| `src/app/news/_components/FilterPanel.tsx` | Client | Filter slide-in right panel (fixed positioning, floats on viewport right edge desktop), backdrop overlay on mobile |
+| `src/app/news/_components/FilterPanel.tsx` | Client | Filter slide-in right panel (desktop only, hidden on mobile via `lg:hidden`) |
 | `src/app/news/_components/KeywordPills.tsx` | Server | Inline dot-separated keyword text with optional link behavior + active state |
 | ~~`src/app/news/_components/ThreadSection.tsx`~~ | ~~Client~~ | **Deleted** — replaced by in-card thread carousels |
 | `src/lib/news-service.ts` | Server | `NewsService` class (Supabase queries, bilingual briefings, threads, related articles) |
@@ -403,7 +404,10 @@ interface BriefingSource {
 ```
 
 #### Theme System
-Uses a `const T` theme object with semantic color tokens (wrapper, text, muted, dim, surface, accent, etc.) replacing 52+ hardcoded Tailwind classes. Chrome metallic gradient accent: `from-gray-300 via-gray-500 to-gray-300`.
+Two theme objects `T_DARK` and `T_LIGHT` with semantic color tokens (wrapper, text, muted, dim, surface, accent, popupBg, popupText, chapterDivider, etc.). Theme state lives in `BriefingContext` (`theme` + `toggleTheme`), persisted via `localStorage('briefing-theme')`, default: `light`. Dark theme uses neutral-950 base with white/opacity variants. Light theme uses warm beige base (`oklch(98.8% 0.003 106.5)`) with stone palette. Both share chrome metallic gradient accent for progress bars. Sun/Moon toggle button in player header (lucide icons). MiniPlayer reads theme from context.
+
+#### Logo
+Player header displays a rounded-square logo (10×10 px) to the left of "Daily Briefing" title. Colors invert with theme: dark mode = white bg / black text, light mode = stone-800 bg / beige text.
 
 #### Player Controls
 - **Play/Pause**: Large white circle button with scale animation
@@ -413,7 +417,7 @@ Uses a `const T` theme object with semantic color tokens (wrapper, text, muted, 
 - **Volume**: Hover to show vertical popup slider (`writing-mode: vertical-lr`), click to mute/unmute. Same pattern for full and mini player.
 - **EN/KO Toggle**: Switch between English and Korean audio (resets playback position)
 - **Chapters**: Desktop: equal-width pill buttons with glow ring (`ring-2 ring-white/40 shadow-glow`) on active, `hover:scale-105 hover:-translate-y-0.5`. Mobile: dropdown select showing current chapter, tap to expand list.
-- **Transcript**: Default open. Sentence-level highlighting grouped by chapter headings (gray-300 color). Click any sentence to seek to its start. Custom smooth scroll animation (800ms cubic ease-in-out, targets upper 1/3 of container). Auto-scroll works even when paused.
+- **Transcript**: Default open. Sentence-level highlighting via `font-semibold` (no background highlight) for both themes. Grouped by chapter headings. Click any sentence to seek to its start. Custom smooth scroll animation (800ms cubic ease-in-out, targets upper 1/3 of container). Auto-scroll works even when paused.
 - **Sources**: Expandable scrollable list (Framer Motion) with numbered articles (larger font), categories, external links. Custom thin scrollbar styling.
 - **Keyboard**: Space (play/pause), Arrow Left/Right (+/-15s), Arrow Up/Down (volume — updates UI state), M (mute)
 - **Mobile**: Double-tap left/right side of controls area to skip -/+15s. Responsive font sizes (text-xs sm:text-sm).
@@ -435,7 +439,7 @@ stateDiagram-v2
     [*] --> FullPlayer: Page load (transcript open by default)
 
     state FullPlayer {
-        [*] --> ShowHeader: AI icon + title + date + sources + duration
+        [*] --> ShowHeader: AI icon + title + date + duration
         ShowHeader --> LangToggle: EN / KO toggle
         LangToggle --> ShowChapters: Desktop pills / Mobile dropdown
         ShowChapters --> ShowControls: Skip -15s | Play | Skip +15s | Volume | Speed
@@ -508,11 +512,11 @@ interface FilterPanelProps {
 }
 ```
 
-Fixed right-side slide-in panel (320px width on desktop, full width on mobile with backdrop overlay). Toggle button floats on right viewport edge, vertically centered. Two sections separated by a divider:
+Fixed right-side slide-in panel (320px width, desktop only via `lg:hidden`). Toggle button floats on right viewport edge, vertically centered. Hidden on mobile — no filter UI on small screens. Two sections separated by a divider:
 - **Subcategory**: Aggregated from `wsj_items.subcategory` (capitalized: "ai" → "AI", "trade" → "Trade")
-- **Keywords**: Aggregated from 7-day / 200-article fetch (not just displayed articles)
+- **Keywords**: Aggregated from 7-day / 200-article fetch (not just displayed articles). Case-insensitive deduplication merges variants (e.g. "Geopolitics" + "geopolitics") under the most frequent form.
 
-Each keyword uses `py-2.5 text-sm` for mobile tap targets. Click to toggle `?keywords=` URL param. OR filtering: articles matching ANY selected keyword or subcategory are shown. Framer Motion slide-in animation. Content area gets `lg:pr-72` on desktop to push left (no overlay). Mobile uses backdrop overlay behind panel.
+Each keyword uses `py-2.5 text-sm` for tap targets. Click to toggle `?keywords=` URL param. OR filtering: articles matching ANY selected keyword or subcategory are shown. Content area gets `lg:pr-72` on desktop to push left (no overlay).
 
 ### NewsContent (Client Component)
 
@@ -520,7 +524,7 @@ Renders tab navigation (Today / Stories / Search) and category pills with filter
 
 **Tab Nav Styling**: Typography-only hierarchy (no underline, no background). Active: `text-base font-semibold`. Inactive: `text-base font-normal text-neutral-400`. Smooth transition on selection.
 
-**Category Pills Styling**: Horizontal pill buttons with `text-xs uppercase tracking-widest` underline style (kept from original). Padding `px-8` (increased from `px-6`). Category tabs now use same today-first + backfill logic as All tab (not simple limit-40). Keywords aggregated from 7-day / 200-article fetch instead of just displayed articles.
+**Category Pills Styling**: Horizontal pill buttons with `text-xs uppercase tracking-widest` underline style (kept from original). Padding `px-8` (increased from `px-6`). Horizontally scrollable on mobile (`overflow-x-auto`, hidden scrollbar). First tab has reduced left padding on mobile (`pl-2 sm:pl-8`) so rightmost tabs peek off-screen as a scroll hint. Category tabs now use same today-first + backfill logic as All tab (not simple limit-40). Keywords aggregated from 7-day / 200-article fetch instead of just displayed articles.
 
 **Column Balance**: Left/right columns now balanced — `sideCount = min(floor(remaining/2), 5)` instead of hardcoded 5/6.
 
@@ -552,7 +556,7 @@ Article detail page layout with semantic structure:
 3. **Keywords**: Below image, centered, using `hashtag` variant with `linkable` prop (KeywordPills component). `justify-center` layout.
 4. **Headline & Badge**: Serif headline using `headline || title` fallback, with optional `must_read` badge displayed inline with category.
 5. **Timestamp & Share Bar**: Share icons moved to right-aligned position above hero. Timestamp styled as `text-base` (increased from `text-sm`).
-6. **Summary**: Split into paragraphs. First sentence = bold lead text. Remaining grouped 2 sentences per `<p>` tag. Body narrowed to `max-w-2xl`.
+6. **Summary**: Split into paragraphs. All sentences use same style (`text-neutral-600`). Grouped 2 sentences per `<p>` tag. Body narrowed to `max-w-2xl`.
 7. **Key Takeaway** (new): Amber callout box with `key_takeaway` text, placed after keywords and before summary. Styled consistently with other callout sections. Shows only when `key_takeaway` is available.
 8. **SourceList**: Header style matches RelatedSection (`font-serif text-lg border-b-2 border-neutral-900`). Shows "Originally reported as:" when `headline` differs from WSJ `title`. Hidden when no sources and no WSJ URL (returns null).
 9. **TimelineSection**: Collapsible, shows last 5 articles with "Show N older..." expand.
@@ -655,11 +659,11 @@ classDiagram
 | Method | Query | Returns |
 |--------|-------|---------|
 | `getLatestBriefings()` | `wsj_briefings WHERE category IN ('EN','KO') ORDER BY date DESC LIMIT 2` | `{ en: Briefing \| null, ko: Briefing \| null }` |
-| `getNewsItems(opts)` | `wsj_items LEFT JOIN wsj_crawl_results LEFT JOIN wsj_llm_analysis` — **visibility gate:** filters out articles with no crawl results (must have `crawl_status='success'` + `relevance_flag='ok'`). Fetches all crawl candidates per article, picks the `relevance_flag='ok'` result for display data, counts all candidates for `source_count`. Unsafe domains (UNSAFE_SOURCE_DOMAINS set) have source/resolved_url nulled out. | `NewsItem[]` (flattened; crawl/LLM fields are null for uncrawled articles) |
+| `getNewsItems(opts)` | `wsj_items LEFT JOIN wsj_crawl_results (embedding_score selected) LEFT JOIN wsj_llm_analysis` — **visibility gate:** filters out articles with no crawl results (must have `crawl_status='success'` + `relevance_flag='ok'`). Fetches all crawl candidates per article, picks the `relevance_flag='ok'` result for display data, counts candidates where `embedding_score >= 0.75 OR relevance_flag = 'ok'` (+ resolved_url not null) for `source_count`. Unsafe domains (UNSAFE_SOURCE_DOMAINS set) have source/resolved_url nulled out. | `NewsItem[]` (flattened; crawl/LLM fields are null for uncrawled articles) |
 | `getNewsItemBySlug(slug)` | `wsj_items WHERE slug=? JOIN crawl+llm` filtered by `relevance_flag='ok'` | `NewsItem \| null` |
 | `getRelatedArticles(itemId, limit)` | `match_articles` RPC (pgvector, ±7 days) | `RelatedArticle[]` |
-| `getThreadTimeline(threadId)` | `wsj_items WHERE thread_id=? LEFT JOIN wsj_crawl_results LEFT JOIN wsj_llm_analysis` — same flattening logic as `getNewsItems`, picks ok crawl, counts all candidates | `NewsItem[]` |
-| `getArticleSources(itemId)` | `wsj_crawl_results WHERE wsj_item_id=? AND resolved_url IS NOT NULL AND (embedding_score >= 0.73 OR relevance_flag = 'ok') ORDER BY embedding_score DESC` — filters out unsafe domains, sorts trusted domains (TRUSTED_SOURCE_DOMAINS ~70 domains) first within embedding score order | `CrawlSource[]` |
+| `getThreadTimeline(threadId)` | `wsj_items WHERE thread_id=? LEFT JOIN wsj_crawl_results (embedding_score selected) LEFT JOIN wsj_llm_analysis` — same flattening logic as `getNewsItems`, picks ok crawl, counts candidates where `embedding_score >= 0.75 OR relevance_flag = 'ok'` (+ resolved_url not null) | `NewsItem[]` |
+| `getArticleSources(itemId)` | `wsj_crawl_results WHERE wsj_item_id=? AND resolved_url IS NOT NULL AND (embedding_score >= 0.75 OR relevance_flag = 'ok') ORDER BY embedding_score DESC` — filters out unsafe domains, sorts trusted domains (TRUSTED_SOURCE_DOMAINS ~70 domains) first within embedding score order | `CrawlSource[]` |
 | `getStoryThread(threadId)` | `wsj_story_threads WHERE id=?` | `StoryThread \| null` |
 | `getThreadsByIds(threadIds)` | `wsj_story_threads WHERE id IN (...)` | `Map<string, StoryThread>` |
 | `getBriefingSources(id)` | `wsj_briefing_items JOIN wsj_items JOIN wsj_crawl_results` | `BriefingSource[]` |
@@ -760,6 +764,12 @@ These are workarounds that should be removed once the pipeline is fully deployed
 ---
 
 ## Known Issues & TODOs
+
+### Data Model Limitations
+
+**Briefing item count mismatch**: `wsj_briefings.item_count` stores **total articles evaluated** (e.g., 96), not **articles actually covered in the briefing** (e.g., 26). This occurs because `8_generate_briefing.py` stores ALL 96 articles in the `wsj_briefing_items` junction table without distinguishing curated vs context-only articles. The actual curated article IDs are available in `curate_articles()` step but not persisted to the database.
+
+**Future improvement**: Add a `curated` boolean column to `wsj_briefing_items` and store the `curated_ids` list returned by `curate_articles()` in a separate column on `wsj_briefings` (e.g., `curated_article_ids` JSONB). This allows the briefing display to show accurate "N articles covered" instead of "N articles evaluated."
 
 ### Frontend Issues
 

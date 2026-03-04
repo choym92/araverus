@@ -1,7 +1,7 @@
 'use client'
 
 import React, { useRef, useState, useEffect } from 'react'
-import { Play, Pause, RotateCcw, RotateCw, ChevronDown, ChevronUp, Captions, Layers, Volume2, VolumeX } from 'lucide-react'
+import { Play, Pause, RotateCcw, RotateCw, ChevronDown, ChevronUp, Captions, Layers, Volume2, VolumeX, Sun, Moon } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useBriefing, formatTime, SPEED_PRESETS, SPEED_MIN, SPEED_MAX, SPEED_STEP } from './BriefingContext'
 import type { BriefingSource, BriefingLangData, BriefingData } from './BriefingContext'
@@ -31,8 +31,8 @@ function categoryLabel(feedName: string): string {
   return map[feedName] || feedName
 }
 
-/** Theme config — swap this object to restyle the entire player */
-const T = {
+/** Theme configs */
+const T_DARK = {
   wrapper: 'bg-neutral-950 text-white shadow-xl',
   text: 'text-white',
   muted: 'text-white/50',
@@ -58,7 +58,7 @@ const T = {
   chapterInactive: 'bg-white/5 text-white/40 hover:bg-white/10 hover:text-white/70',
   chapterTime: 'text-white/25',
   chapterTimeActive: 'text-white/50',
-  transcriptActive: 'text-white bg-white/10 rounded px-0.5 -mx-0.5',
+  transcriptActive: 'text-white font-semibold',
   transcriptPast: 'text-white/50',
   transcriptFuture: 'text-white/25',
   headingActive: 'text-gray-300',
@@ -68,6 +68,50 @@ const T = {
   volumeThumb: '[&::-webkit-slider-thumb]:bg-white',
   sourceHover: 'hover:bg-white/5',
   sourceText: 'text-white/60 group-hover:text-white/90',
+  popupBg: 'bg-neutral-950 border-white/15',
+  popupText: 'text-white',
+  chapterDivider: 'bg-white/50',
+} as const
+
+const T_LIGHT = {
+  wrapper: 'bg-[oklch(98.8%_0.003_106.5)] text-stone-800 shadow-xl ring-1 ring-stone-900/5',
+  text: 'text-stone-800',
+  muted: 'text-stone-500',
+  dim: 'text-stone-400',
+  dimmer: 'text-stone-300',
+  dimmest: 'text-stone-200',
+  surface: 'bg-stone-900/5',
+  surfaceHover: 'hover:bg-stone-900/8',
+  surfaceActive: 'bg-stone-900/12',
+  border: 'border-stone-900/10',
+  borderSubtle: 'border-stone-900/5',
+  accent: 'bg-gradient-to-br from-stone-600 via-stone-800 to-stone-600 text-white',
+  progressBg: 'bg-stone-900/12',
+  progressFill: 'bg-gradient-to-r from-stone-500 via-stone-700 to-stone-500',
+  progressDivider: 'bg-stone-900/15',
+  seekThumb: 'bg-stone-700',
+  playBtn: 'bg-stone-800 text-[oklch(98.8%_0.003_106.5)]',
+  speedBtn: 'bg-stone-900/5 hover:bg-stone-900/10 text-stone-500 hover:text-stone-800',
+  toggleBg: 'bg-stone-900/5',
+  toggleActive: 'bg-stone-900/12 text-stone-800',
+  toggleInactive: 'text-stone-400 hover:text-stone-700',
+  chapterActive: 'bg-stone-800 text-[oklch(98.8%_0.003_106.5)] font-medium shadow-sm',
+  chapterInactive: 'bg-stone-900/5 text-stone-500 hover:bg-stone-900/10 hover:text-stone-700',
+  chapterTime: 'text-stone-400',
+  chapterTimeActive: 'text-stone-300',
+  transcriptActive: 'text-stone-900 font-semibold',
+  transcriptPast: 'text-stone-600',
+  transcriptFuture: 'text-stone-400',
+  headingActive: 'text-stone-700',
+  headingInactive: 'text-stone-400',
+  scrollbar: 'scrollbar-thumb-stone-900/10',
+  volumeTrack: 'bg-stone-900/12',
+  volumeThumb: '[&::-webkit-slider-thumb]:bg-stone-700',
+  sourceHover: 'hover:bg-stone-900/5',
+  sourceText: 'text-stone-500 group-hover:text-stone-800',
+  popupBg: 'bg-[oklch(98.8%_0.003_106.5)] border-stone-900/10',
+  popupText: 'text-stone-800',
+  chapterDivider: 'bg-stone-900/30',
 } as const
 
 export default function BriefingPlayer({
@@ -88,12 +132,15 @@ export default function BriefingPlayer({
   }, [date, duration, en?.audioUrl, ko?.audioUrl]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const {
+    theme, toggleTheme,
     lang, isPlaying, currentTime, audioDuration, speed, volume, isMuted,
     switchLang, togglePlay, skip, handleSeek, setSpeed, handleVolumeChange, toggleMute,
     jumpToChapter, seekTo, setFullPlayerVisible,
     chapters, transcript, sentences, hasToggle, progress,
     activeChapterIndex, activeSentenceIndex, chapterGroups,
   } = ctx
+
+  const T = theme === 'light' ? T_LIGHT : T_DARK
 
   // Local UI state (not shared with mini-player)
   const playerRef = useRef<HTMLDivElement>(null)
@@ -116,7 +163,6 @@ export default function BriefingPlayer({
   const [transcriptExpanded, setTranscriptExpanded] = useState(false)
 
   const remaining = audioDuration - currentTime
-  const count = sourceCount || sources.length
 
   // IntersectionObserver: detect when full player scrolls out of view
   useEffect(() => {
@@ -172,15 +218,15 @@ export default function BriefingPlayer({
       <div className="px-5 pt-5 pb-0">
         <div className="flex items-start justify-between mb-1">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-white flex items-center justify-center shrink-0">
-              <span className="text-base font-bold tracking-tight text-black">AI</span>
+            <div className={`w-10 h-10 rounded-xl ${theme === 'dark' ? 'bg-white' : 'bg-stone-800'} flex items-center justify-center shrink-0`}>
+              <span className={`text-base font-bold tracking-tight ${theme === 'dark' ? 'text-black' : 'text-[oklch(98.8%_0.003_106.5)]'}`}>AI</span>
             </div>
             <div>
               <h3 className="font-semibold text-sm leading-tight">
                 Daily Briefing
               </h3>
               <p className={`text-xs ${T.muted} mt-0.5`}>
-                {date}{count > 0 && ` · ${count} sources`}{audioDuration > 0 && ` · ${Math.ceil(audioDuration / 60)} min`}
+                {date}{audioDuration > 0 && ` · ${Math.ceil(audioDuration / 60)} min`}
               </p>
             </div>
           </div>
@@ -206,6 +252,14 @@ export default function BriefingPlayer({
                 </button>
               </div>
             )}
+            {/* Theme toggle */}
+            <button
+              onClick={toggleTheme}
+              className={`p-1.5 rounded-lg ${T.surfaceHover} transition-colors ${T.muted}`}
+              aria-label={theme === 'dark' ? 'Switch to light theme' : 'Switch to dark theme'}
+            >
+              {theme === 'dark' ? <Sun size={16} /> : <Moon size={16} />}
+            </button>
             {/* Transcript toggle */}
             {(transcript || sentences.length > 0) && (
               <button
@@ -308,7 +362,7 @@ export default function BriefingPlayer({
                     animate={{ opacity: 1, y: 0 }}
                     exit={{ opacity: 0, y: 8 }}
                     transition={{ duration: 0.15 }}
-                    className="absolute bottom-full mb-1 left-1/2 -translate-x-1/2 bg-neutral-950 border border-white/15 rounded-lg shadow-2xl px-3 py-3 z-10 flex flex-col items-center"
+                    className={`absolute bottom-full mb-1 left-1/2 -translate-x-1/2 ${T.popupBg} border rounded-lg shadow-2xl px-3 py-3 z-10 flex flex-col items-center`}
                   >
                     <input
                       type="range"
@@ -342,13 +396,13 @@ export default function BriefingPlayer({
                     animate={{ opacity: 1, y: 0 }}
                     exit={{ opacity: 0, y: 8 }}
                     transition={{ duration: 0.15 }}
-                    className="absolute bottom-full mb-2 right-0 bg-neutral-950 border border-white/15 rounded-xl shadow-2xl p-3 z-10 w-52"
+                    className={`absolute bottom-full mb-2 right-0 ${T.popupBg} border rounded-xl shadow-2xl p-3 z-10 w-52`}
                   >
-                    <p className="text-center text-sm font-semibold text-white mb-2">{speed.toFixed(2)}x</p>
+                    <p className={`text-center text-sm font-semibold ${T.popupText} mb-2`}>{speed.toFixed(2)}x</p>
                     <div className="flex items-center gap-2 mb-2">
                       <button
                         onClick={() => setSpeed(speed - SPEED_STEP)}
-                        className="w-6 h-6 flex items-center justify-center rounded-full bg-white/10 hover:bg-white/20 text-white/70 hover:text-white text-xs font-bold transition-colors"
+                        className={`w-6 h-6 flex items-center justify-center rounded-full ${T.speedBtn} text-xs font-bold transition-colors`}
                         aria-label="Decrease speed"
                       >
                         −
@@ -360,12 +414,12 @@ export default function BriefingPlayer({
                         step={SPEED_STEP}
                         value={speed}
                         onChange={(e) => setSpeed(parseFloat(e.target.value))}
-                        className="flex-1 h-1 bg-white/15 rounded-full appearance-none cursor-pointer [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-3.5 [&::-webkit-slider-thumb]:h-3.5 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-white [&::-webkit-slider-thumb]:shadow-md"
+                        className={`flex-1 h-1 ${T.progressBg} rounded-full appearance-none cursor-pointer [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-3.5 [&::-webkit-slider-thumb]:h-3.5 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:shadow-md ${T.volumeThumb}`}
                         aria-label="Playback speed"
                       />
                       <button
                         onClick={() => setSpeed(speed + SPEED_STEP)}
-                        className="w-6 h-6 flex items-center justify-center rounded-full bg-white/10 hover:bg-white/20 text-white/70 hover:text-white text-xs font-bold transition-colors"
+                        className={`w-6 h-6 flex items-center justify-center rounded-full ${T.speedBtn} text-xs font-bold transition-colors`}
                         aria-label="Increase speed"
                       >
                         +
@@ -377,7 +431,7 @@ export default function BriefingPlayer({
                           key={s}
                           onClick={() => setSpeed(s)}
                           className={`flex-1 text-[11px] font-medium py-1.5 rounded-lg text-center transition-colors ${
-                            Math.abs(speed - s) < 0.01 ? 'text-white bg-white/20' : 'text-white/60 bg-white/5 hover:bg-white/10 hover:text-white'
+                            Math.abs(speed - s) < 0.01 ? `${T.popupText} ${T.surfaceActive}` : `${T.muted} ${T.surface} ${T.surfaceHover}`
                           }`}
                         >
                           {s}x
@@ -409,7 +463,7 @@ export default function BriefingPlayer({
                   animate={{ opacity: 1, y: 0 }}
                   exit={{ opacity: 0, y: 8 }}
                   transition={{ duration: 0.15 }}
-                  className="absolute bottom-full mb-1 left-1/2 -translate-x-1/2 bg-neutral-950 border border-white/15 rounded-lg shadow-2xl px-3 py-4 z-10 flex flex-col items-center"
+                  className={`absolute bottom-full mb-1 left-1/2 -translate-x-1/2 ${T.popupBg} border rounded-lg shadow-2xl px-3 py-4 z-10 flex flex-col items-center`}
                 >
                   <input
                     type="range"
@@ -442,13 +496,13 @@ export default function BriefingPlayer({
                   animate={{ opacity: 1, y: 0 }}
                   exit={{ opacity: 0, y: 8 }}
                   transition={{ duration: 0.15 }}
-                  className="absolute bottom-full mb-2 left-1/2 -translate-x-1/2 bg-neutral-950 border border-white/15 rounded-xl shadow-2xl p-3 z-10 w-52"
+                  className={`absolute bottom-full mb-2 left-1/2 -translate-x-1/2 ${T.popupBg} border rounded-xl shadow-2xl p-3 z-10 w-52`}
                 >
-                  <p className="text-center text-sm font-semibold text-white mb-2">{speed.toFixed(2)}x</p>
+                  <p className={`text-center text-sm font-semibold ${T.popupText} mb-2`}>{speed.toFixed(2)}x</p>
                   <div className="flex items-center gap-2 mb-2">
                     <button
                       onClick={() => setSpeed(speed - SPEED_STEP)}
-                      className="w-6 h-6 flex items-center justify-center rounded-full bg-white/10 hover:bg-white/20 text-white/70 hover:text-white text-xs font-bold transition-colors"
+                      className={`w-6 h-6 flex items-center justify-center rounded-full ${T.speedBtn} text-xs font-bold transition-colors`}
                       aria-label="Decrease speed"
                     >
                       −
@@ -460,12 +514,12 @@ export default function BriefingPlayer({
                       step={SPEED_STEP}
                       value={speed}
                       onChange={(e) => setSpeed(parseFloat(e.target.value))}
-                      className="flex-1 h-1 bg-white/15 rounded-full appearance-none cursor-pointer [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-3.5 [&::-webkit-slider-thumb]:h-3.5 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-white [&::-webkit-slider-thumb]:shadow-md"
+                      className={`flex-1 h-1 ${T.progressBg} rounded-full appearance-none cursor-pointer [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-3.5 [&::-webkit-slider-thumb]:h-3.5 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:shadow-md ${T.volumeThumb}`}
                       aria-label="Playback speed"
                     />
                     <button
                       onClick={() => setSpeed(speed + SPEED_STEP)}
-                      className="w-6 h-6 flex items-center justify-center rounded-full bg-white/10 hover:bg-white/20 text-white/70 hover:text-white text-xs font-bold transition-colors"
+                      className={`w-6 h-6 flex items-center justify-center rounded-full ${T.speedBtn} text-xs font-bold transition-colors`}
                       aria-label="Increase speed"
                     >
                       +
@@ -477,7 +531,7 @@ export default function BriefingPlayer({
                         key={s}
                         onClick={() => { setSpeed(s); setMobileSpeedOpen(false) }}
                         className={`flex-1 text-[11px] font-medium py-1.5 rounded-lg text-center transition-colors ${
-                          Math.abs(speed - s) < 0.01 ? 'text-white bg-white/20' : 'text-white/60 bg-white/5 hover:bg-white/10 hover:text-white'
+                          Math.abs(speed - s) < 0.01 ? `${T.popupText} ${T.surfaceActive}` : `${T.muted} ${T.surface} ${T.surfaceHover}`
                         }`}
                       >
                         {s}x
@@ -538,7 +592,7 @@ export default function BriefingPlayer({
                 className="absolute bottom-full mb-2 -translate-x-1/2 pointer-events-none z-20 flex flex-col items-center"
                 style={{ left: seekHover.x }}
               >
-                <span className="text-[10px] bg-white/10 backdrop-blur-sm text-white/80 px-2 py-1 rounded whitespace-nowrap">
+                <span className={`text-[10px] ${T.surface} backdrop-blur-sm ${T.muted} px-2 py-1 rounded whitespace-nowrap`}>
                   {formatTime(hoverTime)}{hoverChapter ? ` · ${hoverChapter.title}` : ''}
                 </span>
               </div>
@@ -560,7 +614,7 @@ export default function BriefingPlayer({
                 style={{ left: `${start}%`, width: `${end - start}%` }}
               >
                 {ch.position > 0 && (
-                  <div className="absolute left-0 top-1/2 -translate-y-1/2 w-[3px] h-3 bg-white/50 rounded-full" />
+                  <div className={`absolute left-0 top-1/2 -translate-y-1/2 w-[3px] h-3 ${T.chapterDivider} rounded-full`} />
                 )}
               </div>
             )
@@ -609,13 +663,13 @@ export default function BriefingPlayer({
                   transition={{ duration: 0.2, ease: 'easeInOut' }}
                   className="overflow-hidden"
                 >
-                  <div className="mt-1 bg-neutral-950 border border-white/15 rounded-lg py-1 max-h-60 overflow-y-auto overscroll-contain [-webkit-overflow-scrolling:touch]">
+                  <div className={`mt-1 ${T.popupBg} border rounded-lg py-1 max-h-60 overflow-y-auto overscroll-contain [-webkit-overflow-scrolling:touch]`}>
                     {chapters.map((ch, i) => (
                       <button
                         key={i}
                         onClick={() => { jumpToChapter(ch.position); setChapterDropdownOpen(false) }}
                         className={`w-full flex items-center justify-between px-3 py-2 text-xs transition-colors ${
-                          activeChapterIndex === i ? 'text-white bg-white/10' : 'text-white/50 hover:text-white hover:bg-white/5'
+                          activeChapterIndex === i ? `${T.text} ${T.surface}` : `${T.muted} ${T.surfaceHover}`
                         }`}
                       >
                         <span className="truncate">{ch.title}</span>

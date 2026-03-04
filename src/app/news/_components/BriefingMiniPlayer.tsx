@@ -8,12 +8,11 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { useBriefingOptional, formatTime, SPEED_PRESETS, SPEED_MIN, SPEED_MAX, SPEED_STEP } from './BriefingContext'
 
 /** Theme — keep in sync with BriefingPlayer T object */
-const T = {
+const T_DARK = {
   text: 'text-white',
   muted: 'text-white/50',
   dim: 'text-white/40',
   dimmer: 'text-white/25',
-  accent: 'bg-gradient-to-br from-gray-300 via-gray-500 to-gray-300 text-white',
   progressBg: 'bg-white/15',
   progressFill: 'bg-gradient-to-r from-gray-300 via-gray-500 to-gray-300',
   seekThumb: 'bg-white',
@@ -26,6 +25,37 @@ const T = {
   volumeThumb: '[&::-webkit-slider-thumb]:bg-white',
   miniWrapper: 'bg-neutral-950/95 backdrop-blur-md border-t border-white/10 text-white shadow-2xl pb-[env(safe-area-inset-bottom)]',
   miniPlayBtn: 'bg-white text-neutral-950',
+  popupBg: 'bg-neutral-950 border-white/15',
+  popupText: 'text-white',
+  surfaceActive: 'bg-white/20',
+  surface: 'bg-white/5',
+  aiBadgeBg: 'bg-white',
+  aiBadgeText: 'text-black',
+} as const
+
+const T_LIGHT = {
+  text: 'text-stone-900',
+  muted: 'text-stone-500',
+  dim: 'text-stone-400',
+  dimmer: 'text-stone-300',
+  progressBg: 'bg-stone-900/10',
+  progressFill: 'bg-gradient-to-r from-stone-500 via-stone-700 to-stone-500',
+  seekThumb: 'bg-stone-800',
+  speedBtn: 'bg-stone-900/5 hover:bg-stone-900/10 text-stone-500 hover:text-stone-800',
+  toggleBg: 'bg-stone-900/5',
+  toggleActive: 'bg-stone-900/10 text-stone-900',
+  toggleInactive: 'text-stone-400 hover:text-stone-700',
+  surfaceHover: 'hover:bg-stone-900/5',
+  volumeTrack: 'bg-stone-900/10',
+  volumeThumb: '[&::-webkit-slider-thumb]:bg-stone-800',
+  miniWrapper: 'bg-[oklch(98.8%_0.003_106.5)]/95 backdrop-blur-md border-t border-stone-900/10 text-stone-900 shadow-2xl pb-[env(safe-area-inset-bottom)]',
+  miniPlayBtn: 'bg-stone-800 text-[oklch(98.8%_0.003_106.5)]',
+  popupBg: 'bg-[oklch(98.8%_0.003_106.5)] border-stone-900/10',
+  popupText: 'text-stone-900',
+  surfaceActive: 'bg-stone-900/10',
+  surface: 'bg-stone-900/5',
+  aiBadgeBg: 'bg-stone-800',
+  aiBadgeText: 'text-[oklch(98.8%_0.003_106.5)]',
 } as const
 
 export default function BriefingMiniPlayer() {
@@ -54,11 +84,13 @@ export default function BriefingMiniPlayer() {
   if (!ctx || !ctx.audioUrl) return null
 
   const {
-    data, lang, isPlaying, currentTime, audioDuration, speed, volume, isMuted,
+    theme, data, lang, isPlaying, currentTime, audioDuration, speed, volume, isMuted,
     switchLang, togglePlay, handleSeek, setSpeed, handleVolumeChange, toggleMute,
     audioUrl, sentences, hasToggle, progress, activeSentenceIndex,
     isFullPlayerVisible,
   } = ctx
+
+  const T = theme === 'light' ? T_LIGHT : T_DARK
 
   // Show when: audio loaded AND full player is not visible (scrolled away or on article page)
   const shouldShow = !!audioUrl && !isFullPlayerVisible
@@ -77,8 +109,8 @@ export default function BriefingMiniPlayer() {
         >
           <div className="max-w-5xl mx-auto px-4 py-2.5 flex items-center gap-2 sm:gap-3">
             {/* Icon */}
-            <div className="w-8 h-8 rounded-lg bg-white flex items-center justify-center shrink-0">
-              <span className="text-xs font-bold tracking-tight text-black">AI</span>
+            <div className={`w-8 h-8 rounded-lg ${T.aiBadgeBg} flex items-center justify-center shrink-0`}>
+              <span className={`text-xs font-bold tracking-tight ${T.aiBadgeText}`}>AI</span>
             </div>
 
             {/* Title — desktop only */}
@@ -142,7 +174,7 @@ export default function BriefingMiniPlayer() {
                         animate={{ opacity: 1, y: 0 }}
                         exit={{ opacity: 0, y: 8 }}
                         transition={{ duration: 0.15 }}
-                        className="absolute bottom-full mb-1 left-1/2 -translate-x-1/2 bg-neutral-950 border border-white/15 rounded-lg shadow-2xl px-3 py-4 z-10 flex flex-col items-center"
+                        className={`absolute bottom-full mb-1 left-1/2 -translate-x-1/2 ${T.popupBg} border rounded-lg shadow-2xl px-3 py-4 z-10 flex flex-col items-center`}
                       >
                         <input
                           type="range"
@@ -183,13 +215,13 @@ export default function BriefingMiniPlayer() {
                         animate={{ opacity: 1, y: 0 }}
                         exit={{ opacity: 0, y: 8 }}
                         transition={{ duration: 0.15 }}
-                        className="absolute bottom-full mb-2 left-1/2 -translate-x-1/2 bg-neutral-950 border border-white/15 rounded-xl shadow-2xl p-3 z-10 w-48"
+                        className={`absolute bottom-full mb-2 left-1/2 -translate-x-1/2 ${T.popupBg} border rounded-xl shadow-2xl p-3 z-10 w-48`}
                       >
-                        <p className="text-center text-xs font-semibold text-white mb-2">{speed.toFixed(2)}x</p>
+                        <p className={`text-center text-xs font-semibold ${T.popupText} mb-2`}>{speed.toFixed(2)}x</p>
                         <div className="flex items-center gap-1.5 mb-2">
                           <button
                             onClick={() => setSpeed(speed - SPEED_STEP)}
-                            className="w-5 h-5 flex items-center justify-center rounded-full bg-white/10 hover:bg-white/20 text-white/70 hover:text-white text-[10px] font-bold transition-colors"
+                            className={`w-5 h-5 flex items-center justify-center rounded-full ${T.speedBtn} text-[10px] font-bold transition-colors`}
                             aria-label="Decrease speed"
                           >
                             −
@@ -201,12 +233,12 @@ export default function BriefingMiniPlayer() {
                             step={SPEED_STEP}
                             value={speed}
                             onChange={(e) => setSpeed(parseFloat(e.target.value))}
-                            className="flex-1 h-1 bg-white/15 rounded-full appearance-none cursor-pointer [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-3 [&::-webkit-slider-thumb]:h-3 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-white [&::-webkit-slider-thumb]:shadow-md"
+                            className={`flex-1 h-1 ${T.progressBg} rounded-full appearance-none cursor-pointer [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-3 [&::-webkit-slider-thumb]:h-3 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:shadow-md ${T.volumeThumb}`}
                             aria-label="Playback speed"
                           />
                           <button
                             onClick={() => setSpeed(speed + SPEED_STEP)}
-                            className="w-5 h-5 flex items-center justify-center rounded-full bg-white/10 hover:bg-white/20 text-white/70 hover:text-white text-[10px] font-bold transition-colors"
+                            className={`w-5 h-5 flex items-center justify-center rounded-full ${T.speedBtn} text-[10px] font-bold transition-colors`}
                             aria-label="Increase speed"
                           >
                             +
@@ -218,7 +250,7 @@ export default function BriefingMiniPlayer() {
                               key={s}
                               onClick={() => { setSpeed(s); setMiniSpeedOpen(false) }}
                               className={`flex-1 text-[10px] font-medium py-1 rounded-md text-center transition-colors ${
-                                Math.abs(speed - s) < 0.01 ? 'text-white bg-white/20' : 'text-white/60 bg-white/5 hover:bg-white/10 hover:text-white'
+                                Math.abs(speed - s) < 0.01 ? `${T.popupText} ${T.surfaceActive}` : `${T.muted} ${T.surface} ${T.surfaceHover}`
                               }`}
                             >
                               {s}x

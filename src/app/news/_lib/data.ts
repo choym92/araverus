@@ -5,18 +5,33 @@ import type { NewsItem, ParentThreadGroup } from '@/lib/news-service'
 import { readFile, readdir } from 'fs/promises'
 import path from 'path'
 
-/** Aggregate keywords from articles with counts, sorted by frequency */
+/** Aggregate keywords from articles with counts, sorted by frequency.
+ *  Merges case variants (e.g. "Geopolitics" + "geopolitics") under the most frequent form. */
 function aggregateKeywords(items: NewsItem[]): { keyword: string; count: number }[] {
   const counts = new Map<string, number>()
+  const forms = new Map<string, Map<string, number>>() // lowercase → (original → count)
   for (const item of items) {
     if (item.keywords) {
       for (const kw of item.keywords) {
-        counts.set(kw, (counts.get(kw) || 0) + 1)
+        const key = kw.toLowerCase()
+        counts.set(key, (counts.get(key) || 0) + 1)
+        const fm = forms.get(key) ?? new Map<string, number>()
+        fm.set(kw, (fm.get(kw) || 0) + 1)
+        forms.set(key, fm)
       }
     }
   }
   return Array.from(counts.entries())
-    .map(([keyword, count]) => ({ keyword, count }))
+    .map(([key, count]) => {
+      // Pick the most frequent casing as the display name
+      const fm = forms.get(key)!
+      let best = key
+      let bestN = 0
+      for (const [form, n] of fm) {
+        if (n > bestN) { best = form; bestN = n }
+      }
+      return { keyword: best, count }
+    })
     .sort((a, b) => b.count - a.count)
     .slice(0, 20)
 }

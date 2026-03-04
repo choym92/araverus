@@ -70,10 +70,10 @@ export default function FilterPanel({
 
   return (
     <>
-      {/* Mobile backdrop */}
+      {/* Desktop backdrop */}
       {isOpen && (
         <div
-          className="fixed inset-0 bg-black/20 z-10 lg:hidden"
+          className="fixed inset-0 bg-black/20 z-10 hidden lg:block"
           onClick={onClose}
           aria-hidden
         />
@@ -82,7 +82,7 @@ export default function FilterPanel({
       {/* Toggle tab — sits on the left edge of the panel, visible when panel is closed or open */}
       <button
         onClick={isOpen ? onClose : onOpen}
-        className={`fixed right-0 top-1/2 -translate-y-1/2 z-20 flex items-center gap-1.5 px-2 py-3 bg-white rounded-l-lg shadow-md transition-all duration-200 ease-out ${
+        className={`hidden lg:flex fixed right-0 top-1/2 -translate-y-1/2 z-20 items-center gap-1.5 px-2 py-3 bg-white rounded-l-lg shadow-md transition-all duration-200 ease-out ${
           isOpen ? 'right-72' : 'right-0'
         }`}
         aria-label="Toggle filter panel"
@@ -98,7 +98,7 @@ export default function FilterPanel({
 
       {/* Panel */}
       <aside
-        className={`fixed right-0 top-14 md:top-20 h-[calc(100vh-3.5rem)] md:h-[calc(100vh-5rem)] w-72 bg-white z-20 flex flex-col transition-transform duration-200 ease-out ${
+        className={`hidden lg:flex fixed right-0 top-14 md:top-20 h-[calc(100vh-3.5rem)] md:h-[calc(100vh-5rem)] w-72 bg-white z-20 flex-col transition-transform duration-200 ease-out ${
           isOpen ? 'translate-x-0' : 'translate-x-full'
         }`}
         aria-label="Filter panel"

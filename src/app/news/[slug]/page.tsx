@@ -276,7 +276,7 @@ export default async function ArticlePage({ params }: ArticlePageProps) {
 
           return (
             <div className="text-lg leading-8 mb-6 space-y-4">
-              <p className="font-semibold text-neutral-900">{lead}</p>
+              <p className="text-neutral-600">{lead}</p>
               {paragraphs.length > 0 && (
                 <div className="max-w-2xl space-y-4">
                   {paragraphs.map((p, i) => (
