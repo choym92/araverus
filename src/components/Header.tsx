@@ -1,7 +1,6 @@
 'use client';
 
 import Link from 'next/link';
-import Image from 'next/image';
 import { Menu, LogOut, Loader2 } from 'lucide-react';
 import { useState } from 'react';
 import { useAuth } from '@/hooks/useAuth';
@@ -46,20 +45,17 @@ export default function Header({ sidebarOpen, onToggleSidebar }: HeaderProps) {
   return (
     <header className="fixed top-0 right-0 left-0 h-20 pt-2 bg-white/80 backdrop-blur-md z-30">
       <div className="h-full px-6 md:px-12 lg:px-16 flex items-center justify-between">
-        {/* Left side - Logo and Toggle button always visible */}
+        {/* Left side - Logo and Toggle */}
         <div className="flex items-center gap-8">
-          {/* Logo only - OpenAI style */}
           <Link href="/" className="flex items-center">
-            <Image
-              src="/logo-header.png"
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src="/logo-header.svg"
               alt="Araverus"
-              width={140}
-              height={40}
-              className="h-10 w-auto object-contain"
+              className="h-10 w-auto"
             />
           </Link>
 
-          {/* Toggle button - Always visible with improved accessibility */}
           <button
             onClick={onToggleSidebar}
             aria-label={sidebarOpen ? "Close sidebar" : "Open sidebar"}
@@ -71,7 +67,7 @@ export default function Header({ sidebarOpen, onToggleSidebar }: HeaderProps) {
           </button>
         </div>
 
-        {/* Right side - Search and Auth */}
+        {/* Right side - Auth */}
         <div className="flex items-center gap-3">
 
           {loading ? (
@@ -79,7 +75,6 @@ export default function Header({ sidebarOpen, onToggleSidebar }: HeaderProps) {
               <Loader2 size={18} className="animate-spin text-gray-500" />
             </div>
           ) : user ? (
-            /* Authenticated User Menu */
             <div className="relative">
               <button
                 onClick={() => setIsProfileOpen(!isProfileOpen)}

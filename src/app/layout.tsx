@@ -63,7 +63,7 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en">
-      <GoogleAnalytics gaId="G-3R2TBBK842" />
+      <GoogleAnalytics gaId="G-ZF8PZ75W1H" />
       <body
         className={`${inter.variable} ${geistMono.variable} ${playfair.variable} font-sans antialiased`}
       >
