@@ -300,7 +300,7 @@ On-demand cache invalidation after pipeline completes.
 - **Action:** `revalidateTag('news')` (invalidates `unstable_cache` data) + `revalidatePath('/news')` + `revalidatePath('/news/[slug]', 'page')`
 - **Cache warm:** After revalidation, `curl -s $SITE_URL/news` triggers page regeneration so the next real visitor gets fresh data immediately
 - **Non-fatal:** Failure logs WARN only; `unstable_cache` 30min TTL serves as fallback
-- **Env:** `REVALIDATION_SECRET` (shared secret), `SITE_URL` (default: `https://chopaul.com`)
+- **Env:** `REVALIDATION_SECRET` (shared secret), `SITE_URL` (default: `https://araverus.com`)
 - **Timeout:** `--max-time 10`
 
 ### Shared Utilities

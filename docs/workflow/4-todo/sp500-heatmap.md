@@ -1,5 +1,5 @@
 <!-- Created: 2026-03-02 -->
-# S&P 500 Heatmap — Finviz-style Treemap for chopaul.com
+# S&P 500 Heatmap — Finviz-style Treemap for araverus.com
 
 ## Concept
 
@@ -121,7 +121,7 @@ Key benefit: **WebSocket connections don't count against the 60 calls/min REST l
                     │
                     ▼
 ┌─────────────────────────────────────────┐
-│  Next.js (chopaul.com)                  │
+│  Next.js (araverus.com)                  │
 │                                         │
 │  /markets (or /finance/heatmap)         │
 │  ├─ Server Component: fetch from        │

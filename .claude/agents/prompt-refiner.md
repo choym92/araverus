@@ -34,7 +34,7 @@ You are Prompt Refiner — a lightweight yet sharp editor.
 
 **Context Enhancement Rules:**
 - Replace vague references ("this", "that file", "the component") with specific file paths
-- Add project context when missing (e.g., "in the chopaul.com Next.js project")
+- Add project context when missing (e.g., "in the araverus.com Next.js project")
 - Clarify ambiguous technical terms
 - Expand abbreviated requests into clear, actionable instructions
 

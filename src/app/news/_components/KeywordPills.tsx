@@ -46,22 +46,22 @@ export default function KeywordPills({
 
   if (variant === 'hashtag') {
     return (
-      <div className="flex flex-wrap items-center justify-center gap-2">
+      <div className="flex flex-wrap items-center gap-2">
         {sorted.map((kw) => {
           const label = capitalize(kw)
           const isActive = activeSet.has(kw.toLowerCase())
           const cls = isActive
-            ? 'bg-neutral-900 text-white shadow-sm'
-            : 'bg-neutral-100 text-neutral-600 hover:scale-105 hover:shadow-md hover:text-neutral-900 hover:bg-neutral-50'
+            ? 'border-neutral-900 text-neutral-900 bg-neutral-50'
+            : 'border-neutral-300 text-neutral-700 bg-transparent hover:border-neutral-500 hover:text-neutral-900'
 
           if (linkable) {
             return (
               <Link
                 key={kw}
                 href={toggleKeywordsParam(kw, activeKeywords)}
-                className={`inline-flex items-center px-3.5 py-1.5 text-sm rounded-full transition-all duration-200 ease-[cubic-bezier(0.34,1.56,0.64,1)] ${cls}`}
+                className={`inline-flex items-center px-3 py-1 text-[11px] font-medium uppercase tracking-wide rounded-sm border transition-all duration-200 ${cls}`}
               >
-                <span className="text-neutral-400 mr-1">#</span>{label}
+                {label}
                 {isActive && <span className="ml-1.5 text-neutral-400">&times;</span>}
               </Link>
             )
@@ -70,9 +70,9 @@ export default function KeywordPills({
           return (
             <span
               key={kw}
-              className={`inline-flex items-center px-3.5 py-1.5 text-sm rounded-full transition-all duration-200 ease-[cubic-bezier(0.34,1.56,0.64,1)] ${cls}`}
+              className={`inline-flex items-center px-3 py-1 text-[11px] font-medium uppercase tracking-wide rounded-sm border transition-all duration-200 ${cls}`}
             >
-              <span className="text-neutral-400 mr-1">#</span>{label}
+              {label}
             </span>
           )
         })}

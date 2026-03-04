@@ -184,7 +184,7 @@ GOOGLE_CLOUD_PROJECT=            # Chirp 3 HD (EN TTS)
 
 # Pipeline → Vercel cache revalidation
 REVALIDATION_SECRET=             # Shared secret for /api/revalidate
-SITE_URL=https://chopaul.com     # Production URL (default)
+SITE_URL=https://araverus.com     # Production URL (default)
 ```
 
 ---

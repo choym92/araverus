@@ -94,7 +94,7 @@ $VENV "$SCRIPTS/pipeline_health.py" --date "$DATE" || echo "WARN: Health report 
 # ── Phase 7: Cache Revalidation ──────────────────────────
 echo ""
 echo ">>> Phase 7: Cache Revalidation"
-SITE_URL="${SITE_URL:-https://chopaul.com}"
+SITE_URL="${SITE_URL:-https://araverus.com}"
 if [[ -z "${REVALIDATION_SECRET:-}" ]]; then
     echo "ERROR: REVALIDATION_SECRET not set — cache revalidation will be skipped!"
     echo "  Set it in .env.pipeline or Keychain to enable on-demand revalidation."

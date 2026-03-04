@@ -3,7 +3,7 @@
 
 ## Problem
 
-Current news pipeline (WSJ → AI summary → chopaul.com) has legal risks:
+Current news pipeline (WSJ → AI summary → araverus.com) has legal risks:
 - **Headlines**: identical to WSJ originals
 - **Images**: crawled from source articles (AP/Reuters/Getty risk)
 - **Summaries**: AI-generated but derivative of copyrighted articles
@@ -70,7 +70,7 @@ Current news pipeline (WSJ → AI summary → chopaul.com) has legal risks:
 ### 3. Source Attribution (Medium Priority)
 - Add visible attribution: "Based on reporting by [source_name]"
 - Keep link to original article
-- Add footer disclaimer: "chopaul.com aggregates and summarizes publicly reported news. All original reporting belongs to the respective publishers."
+- Add footer disclaimer: "araverus.com aggregates and summarizes publicly reported news. All original reporting belongs to the respective publishers."
 
 ### 4. robots.txt Compliance (Medium Priority)
 - Check robots.txt of crawled domains before fetching

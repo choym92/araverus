@@ -1,0 +1,2762 @@
+{
+  "generated_at": "2026-03-03T12:23:43.947708",
+  "threads": [
+    {
+      "thread_id": "sim_0002",
+      "title": "Terrorist Attack Targets Jews at Sydney\u2019s Bondi Beach, Killi",
+      "articles": [
+        "affb257f-9560-4028-8335-d2ed4c9d11b8",
+        "f41363da-885b-455b-b92f-03fb18b962db",
+        "82641f8a-d099-4f15-95d5-96efdd717f04",
+        "f374e911-0f38-48f9-b53c-ad62adadbd4c",
+        "df028ad1-35fd-4375-a779-7f02d830aab2"
+      ],
+      "links": [
+        {
+          "from": "affb257f",
+          "to": "f41363da",
+          "type": "topical"
+        },
+        {
+          "from": "affb257f",
+          "to": "82641f8a",
+          "type": "analysis"
+        },
+        {
+          "from": "affb257f",
+          "to": "f374e911",
+          "type": "topical"
+        },
+        {
+          "from": "affb257f",
+          "to": "df028ad1",
+          "type": "topical"
+        }
+      ]
+    },
+    {
+      "thread_id": "sim_0010_split0",
+      "title": "Testing AI Fitness Coaches (part 1)",
+      "articles": [
+        "c25f48b5-8941-4ee2-847d-363b8f96b936",
+        "213f61b2-22ae-47ca-b789-fbca2c8efa83"
+      ],
+      "links": []
+    },
+    {
+      "thread_id": "sim_0010_split1",
+      "title": "Testing AI Fitness Coaches (part 2)",
+      "articles": [
+        "13500ce0-0e54-4ca4-b8f7-c9a5b7be550b",
+        "835be18a-37b6-4ee4-9c64-9ef15f524f96",
+        "71ae75b6-01f3-4b66-b2f7-0107ecceb838",
+        "a74cd19d-40fe-44f8-a781-490e619ea48b",
+        "dbe40f65-a9b8-4cd4-89f9-3616b96d20e5",
+        "6715bc12-2645-4b2a-a52f-d7cde2e36e84",
+        "ea69ed8d-38de-4c0c-8092-0c310668cea1",
+        "118c76fa-ef41-4f22-b651-e47377bea273",
+        "2cfd8e9a-f72e-4f7f-afb1-a7aa169cb176",
+        "ad462be1-06b5-486b-8508-9ae616136775",
+        "eb471c1e-54b4-4cec-abd7-4c6c8baef32e",
+        "4da86b9f-0720-4930-929e-f19f344db9ba",
+        "7b1e2a3a-6c58-4926-8895-0f80057e601d",
+        "44c8a2da-6e90-4ae4-8bde-3ae4a7731368",
+        "fd31f799-ba8c-4830-80bf-4064ca547380",
+        "4a075875-340c-43d1-838b-adfdaf7b7e79",
+        "56d8bb64-6205-47b2-a045-1774664e2d76",
+        "44b57877-0f16-47d9-ad1b-7b29a3a6c2cb",
+        "0c284364-c31c-4394-9f94-cc5cad0eecb5",
+        "d57d31e2-f421-4346-a29c-ba595e2cc7c8",
+        "cf931f39-611e-48de-a4da-970ca54fd451",
+        "67f0dc01-91c9-4e8c-9887-3d913073aea5",
+        "c37fdbee-1fd2-4304-baaa-95c48040f870",
+        "3862ec9b-a62e-4cbf-a0d2-0d88c0786457",
+        "4b1d6f2a-338d-46c2-a888-11640d193c24",
+        "c3aed634-f99f-4aa7-9725-3be374f32271",
+        "29108ebb-23e0-4954-8153-7b89770076d4",
+        "9fee6269-f8b7-44cc-9660-3a7497246787",
+        "ada9d1e5-224a-4c47-9dec-6eeb26d102ac",
+        "a21b90ae-2ac9-4d6c-8560-c99f29a4272f",
+        "71019d82-f0ec-4507-809c-3746fbef8960",
+        "ad20fe73-f287-4604-9c0c-854fa38f5471",
+        "cc5131ea-4e0e-4efe-a10e-3a6490fb551e",
+        "c2082119-ae89-43dd-8e38-aedd8f1b33c2",
+        "86d1a7fc-0596-41e2-9866-53fbf197696c",
+        "3a187ab2-cdbe-4d1c-9d79-dea2bf973ba4",
+        "8b05d983-0efa-4ef7-8735-c516d5e1269d",
+        "d014f9b0-7a82-4f76-ab35-c0cee7e5d37b",
+        "beace331-23c6-4531-adde-33fd7686bfa0",
+        "e185d4ce-280f-48bd-a97b-28c5b72c93f3",
+        "b205c772-9d83-4318-a126-5a2fde1846d8",
+        "a4eb642c-7c22-4def-8fc3-6a50a79b33c0",
+        "4d6347a3-bc64-4079-a191-b322512d885b",
+        "89d4cb79-cbc6-4998-81f4-f889a808553f",
+        "c5625432-0aa7-4f7b-8555-f849b82d45c0",
+        "31a577cb-f0e0-48b2-a1c8-f5bdd701d7c8",
+        "c12fe373-c002-46eb-a2e4-b5ccaadf07d8",
+        "cbb76a14-54ab-4dee-8df3-0f7bce8db10a",
+        "75cf0b00-0710-44c2-a52f-6d60bed5883e",
+        "e12e3329-3f83-4f7d-a979-57dba134c22f",
+        "45a28ea2-52c3-4c28-8e48-863526cb4ab4",
+        "8165d163-592a-4923-af79-96db85026abe"
+      ],
+      "links": []
+    },
+    {
+      "thread_id": "sim_0016_split0",
+      "title": "Is Greenland next? Read more in today\u2019s WSJ Politics newslet (part 1)",
+      "articles": [
+        "499a274f-a001-4337-a860-55c0f675052d",
+        "0dc40f29-adee-48d0-a344-5affdc81b8d9",
+        "9fe2c9f3-7a87-4d49-80a0-f6e2642458d9",
+        "832e22cf-816d-4e14-8a0b-40997fe6ddd7",
+        "f5bd1dc5-48f7-4d34-8add-44112df29cb7",
+        "a1428dbd-fbad-41b3-9fd9-774f37768fab",
+        "2459b10b-79cb-406e-b557-d19be7bef02e",
+        "b49f6f86-ab3b-4ca8-aaae-6a35c15027bb",
+        "91058eb0-7be3-4534-af5d-6b36bd907a7c",
+        "169f8722-d72e-478a-954c-0bc7ec76444c",
+        "089743a0-16b8-4e82-ac02-48c095f2d6f8",
+        "2fb41ec1-c9a3-4674-9045-403add78aea3",
+        "82c488eb-f783-428b-ac5a-d4f02b1b11b1",
+        "d1aaf731-1d91-4925-ac9e-2b4b51749933",
+        "f2e20123-b8ea-4e29-bd07-d3b5f38fba9c",
+        "f0b2f6fc-fcff-4348-a219-65594769c8e9",
+        "3d31dabd-3609-4d3a-9c79-01bc68dc29ef",
+        "066cf33a-b2d8-4fed-8f87-b29d0d8bdd9b",
+        "1146456f-7081-4190-b1c0-cdfc33567af8",
+        "fc24cf62-fe21-4f4c-afd7-ba3a06513eed",
+        "c5c8ef68-5201-41c9-86d1-a28e4a39a40c",
+        "855c1185-e14b-4e76-9b4c-44801af71712",
+        "58a6abc3-f484-470d-bd59-07d226233c2b",
+        "cac81880-f78e-4ea8-b47b-893e9bfa0fa8",
+        "ffc19e8a-f63f-4c57-ad37-db4ae8fe75b1",
+        "2fc41fc5-a431-4721-91ca-0d6505f26b1d",
+        "ad37f7e2-8715-4883-becd-11f3dea45267",
+        "40b9c5f3-0b9f-42ca-a0ab-8e2f8768c8d2",
+        "cc3bb96b-41e8-4c46-823a-392ce4fd0c87",
+        "120552de-a606-4d80-969b-e78723afb55f",
+        "d1e0da44-f3a1-4d18-ab2a-f854b5647e89"
+      ],
+      "links": []
+    },
+    {
+      "thread_id": "sim_0016_split1",
+      "title": "Is Greenland next? Read more in today\u2019s WSJ Politics newslet (part 2)",
+      "articles": [
+        "add60c74-4777-4149-beee-f0a22619054e",
+        "23d7ce1d-41f2-4459-b293-b9c8a5a3e96a",
+        "72bba0ad-779f-499d-a4b6-b7706807ee47",
+        "4cddf19c-5a80-4dfd-92dd-a54a8f3670d8"
+      ],
+      "links": []
+    },
+    {
+      "thread_id": "sim_0016_split2",
+      "title": "Is Greenland next? Read more in today\u2019s WSJ Politics newslet (part 3)",
+      "articles": [
+        "75ab7c4e-04d9-42ba-aac3-e6d58a00a33e",
+        "57fcd89b-6832-4679-9b34-5ca5983c76da",
+        "77438a33-3133-4b79-9d7a-393a85b84a03",
+        "374e9700-1955-43f6-afb9-1ead6666da7b",
+        "8cb4d9be-00c0-4dc9-8638-03b699834813",
+        "8378cea7-2c2c-4500-9343-b6a90d330ade",
+        "d9ca6ce8-3cc7-4bcb-abe9-e0d6ff36f13d",
+        "dffb3663-a8d1-422b-bff6-ec62ae14a1d2",
+        "16dddfd5-4578-4ca8-b3ff-39a908af9c77",
+        "7a81451e-8c99-4d2d-ba38-2e2852225805"
+      ],
+      "links": []
+    },
+    {
+      "thread_id": "sim_0016_split3",
+      "title": "Is Greenland next? Read more in today\u2019s WSJ Politics newslet (part 4)",
+      "articles": [
+        "6a3fd6e7-45fb-413f-9441-caee9420cc4d",
+        "336e1c36-32be-4627-aa64-77381d041454",
+        "12bc1e5b-f4fa-4848-98fd-40e860709c83",
+        "26e78010-1536-4052-bd19-0a041c031d77",
+        "4dace691-0432-49e8-909b-a2d9e079b8ed",
+        "2f658d10-954b-4cc3-984e-47b2afa28d81"
+      ],
+      "links": []
+    },
+    {
+      "thread_id": "sim_0017_split1",
+      "title": "Anthropic Raising $10 Billion at $350 Billion Value (part 2)",
+      "articles": [
+        "86c1f875-dbe7-494d-a4e2-f903e606efd2",
+        "a6a89137-88a0-4764-a901-feccbccd24cd",
+        "f800b4d4-6b10-4a8f-9f6c-6b8b952362be",
+        "e38aff12-1ffa-4c70-8d68-100061768ee4",
+        "7f6e7d4f-2d5a-4f93-aeaa-bb2de24c53bf",
+        "a54db7af-56f2-4220-b64b-ec667f2f2c17",
+        "4d85b933-9262-4e23-bb65-738d22bd9ec9",
+        "f81d5778-ea07-48a3-b41a-d1f7f18f9a12",
+        "98dd09fc-83e5-49f6-94a3-14722bb0ab3e",
+        "aa03cb74-17cd-43b2-a051-1b1cb9a4e176",
+        "edfded6c-c27c-4a97-9081-568e14d1a9ee",
+        "1fe7fe7e-cd62-4b71-b53e-b472ad7de785",
+        "ec2cb910-a1d6-43ea-97b4-2c50538a8318",
+        "812832ec-0d4f-4188-8b1a-6fc018e97d08",
+        "8341c6b7-aac4-41ee-8b3a-7c3c1cae3cae",
+        "9bf53e67-1a4c-452a-a71e-e4e2132b24cd",
+        "1653b84f-c71f-4722-8cb1-cfde5d453df8",
+        "0e8ff867-d326-4870-ad41-93f2e9c5811c",
+        "9e160e59-dbe4-4817-b6e0-90d758077983",
+        "5ffec563-3630-4a92-a1c4-caff3acc7c5c",
+        "9e52d6a9-51f2-4c87-8b8b-a217f2041e28",
+        "a1a11927-10f7-4183-902f-2e8b4c33cfc2",
+        "90317790-5786-4f88-a7ba-6d4cbfa964b3"
+      ],
+      "links": []
+    },
+    {
+      "thread_id": "sim_0018_split0",
+      "title": "U.S. Escalates Venezuela Oil Embargo With Two Tanker Seizure (part 1)",
+      "articles": [
+        "d291991c-f1ce-4daa-89fb-35dabcd2fb71",
+        "45757b9c-c683-4f07-a263-c4186abf7bd9",
+        "8df1ae26-b0db-4039-8c86-acd3a600c382",
+        "29f751ed-bbc6-40b3-8aff-a00f7a038727",
+        "c6de209a-7965-4418-aa28-554f829966d9",
+        "bd61ef6b-35f4-4d1d-9736-84d582b929e9",
+        "30e8127e-fe9f-4165-a11f-dfadc1c3b007",
+        "9531f6e1-fe51-401c-b482-69c6c924aeba",
+        "074f8e80-8d91-4ddf-b71f-dd4ed7d4f33f",
+        "1cbaede8-870d-4cb7-87bd-44c9e4128269",
+        "70c4fbf9-5791-49f0-84e3-4bd036352355"
+      ],
+      "links": []
+    },
+    {
+      "thread_id": "sim_0018_split1",
+      "title": "U.S. Escalates Venezuela Oil Embargo With Two Tanker Seizure (part 2)",
+      "articles": [
+        "944ab9fa-a025-4422-aff7-fc416dd58e88",
+        "f5639c36-5194-48e0-b292-5b96a8ad3c5a",
+        "91af0f54-e2b2-48cf-9fbf-f8360d42806c",
+        "89e9de3e-9799-4319-ac21-8bd3d8daa875",
+        "7aceb784-6034-4cc7-87c2-a0340a3f6ea1",
+        "d8b334c5-d9bc-451b-b69e-47462cf94326",
+        "f40495f1-501a-4e80-9a63-f321dfda25c4",
+        "287db48d-8f4a-4a62-8166-cfa038d57da6",
+        "2084fd07-b87e-441d-92ac-dc27c9645137",
+        "406b9f80-97ea-4448-a72a-25ba396e43c8",
+        "7ea01548-df6d-4c0d-85f2-73ed420f4374",
+        "12b437da-e18b-40fc-a1dd-db382688548c",
+        "6f70a681-0720-4976-a218-dd038872cc68",
+        "6910692b-e390-4026-8886-433ec8a58bbb",
+        "1af49dba-6581-4f67-9f8a-a65cd2518292",
+        "4804b88b-a873-4423-94ab-ae62d13e10c5",
+        "721430bb-3d5a-47f3-8469-6f6206984538",
+        "734d4fe4-e498-4c51-8d0a-8f5f3ddddd50",
+        "31e79036-9237-4d88-95a4-38ddab0d0c1e",
+        "9bfd15f4-d7db-404d-a189-0d5d9f57144b",
+        "ac795025-4139-4c1b-bb6e-fe3d1551ab18",
+        "95b19d06-c532-431b-96a5-bf428437cfa9",
+        "27c9f953-7f38-4dbc-87fe-bd1e2dd60060"
+      ],
+      "links": []
+    },
+    {
+      "thread_id": "sim_0019_split1",
+      "title": "Revolution Medicines Draws Takeover Interest (part 2)",
+      "articles": [
+        "6be5efd8-9fcd-4c83-a1ec-9365f32dfc8d",
+        "df968373-4a75-41e0-b240-6692d73924ac",
+        "10a9b891-6ce4-47aa-b425-2609f07dd680",
+        "aa2a7379-dd98-42fa-a07d-e69b650cb670",
+        "32702e08-d9f4-4087-abd9-ca3308f3539b",
+        "1410c734-5811-4a54-91e3-4c738f19a7d5",
+        "f67510b9-ee8e-4333-af4d-6bebe5864c3d",
+        "56ea8a5b-d238-45f4-99c3-9c7724de6c4c",
+        "4ab10b42-829c-4b58-aec6-040e0038d43f",
+        "bd5f0e2f-0816-47ef-b963-98b356ebba56",
+        "a3fa0be2-65f0-4e71-97a4-397940345dfe",
+        "defcc857-7532-4302-9362-dcaff22362da",
+        "9df78772-112a-4146-b932-db79149ff672",
+        "dbff0cbe-fb10-4a6c-989d-2487cd1cb21f",
+        "46c40cbb-7064-438b-9d5f-66331cdc40a8",
+        "9db7f325-7c64-454f-bbc5-08cb09a7cc8a",
+        "e7a6b635-988b-4323-8910-48a13425ab16",
+        "e9d8a1f2-a3d7-4fff-a1d5-f1115b3721d7",
+        "e15693a7-d7b7-4567-97cf-2af5ed2ecec2",
+        "3f7ab246-adeb-409e-ba7f-81ae2a985353",
+        "c5726896-3897-48bc-b895-61d361649f81",
+        "4a6b38e2-3aad-43e6-8f01-d13663678890",
+        "ac8481b2-70c5-4bff-83b8-21f27659a3ba",
+        "83b39eb7-ec1c-49de-a03c-9f86e731b505",
+        "e5e21b0b-5d8d-4b53-b777-0fda305d77c7",
+        "28daad61-2af0-4ec4-89ed-c47caa2b1e02",
+        "8b98ac67-f899-48e4-96a9-e48beeaf505c",
+        "c02d1caf-5933-46e0-a717-5cce5b269b7f",
+        "177f5056-dc86-4f03-9176-9d7567bd7aa5",
+        "c5592e36-6958-49a3-8c0a-e05c7af5fe7d",
+        "4332ac3c-9893-4131-b265-7ad5bace0718",
+        "07c1c66c-661f-4488-80e1-23ca98d20c90",
+        "93fc7edc-293d-4ebc-96d3-749840fd40c3",
+        "e4defd4d-ee90-45a8-90d9-e3d5d6d3a8bc",
+        "4f0278a8-043d-42c8-8445-e67e95970920",
+        "31fe5c04-2188-442c-84bf-d98ca95ea6ef",
+        "146a4bce-5f34-4732-ab78-86d89a011062",
+        "ea4ec109-3cb2-409a-8e62-74180a8ba745",
+        "8f8abbac-bbda-4e71-91ad-1df824062920",
+        "1bb4c828-6e98-4121-8cf5-9e0b6c97f87d",
+        "46b19e03-fbfd-42f5-9706-9cdf9a65cf30",
+        "910e952e-66e4-447e-bf0b-94008cfe2ce9",
+        "fe0b8ce9-54a5-4291-b6b1-8f04046c8924",
+        "929bde23-173b-4d01-9bd2-2e60301b7061",
+        "64144295-52b4-4a0c-afda-f4fa94f22dba",
+        "c26ee9b5-f061-4057-84f3-aed486974cc9",
+        "773ab12b-c94e-4f51-af19-dae94cf24411",
+        "7b65f185-a026-4bd1-91c9-5e9dfaa87baf",
+        "59d2f89b-e692-4347-9226-649fe5014843",
+        "5fd5ce3f-6035-451a-a2dd-5a106c8bc050",
+        "634d4c79-104e-4eb6-b052-b59303072404",
+        "623b57b9-7222-448f-9cf4-4a7dc84652d1",
+        "37fcd6b6-be76-412b-a3b1-161253ea70ad",
+        "e747dc8b-b1ca-4f3c-bba6-db4fb4a6a654",
+        "3b112c29-dd48-4690-9136-a28ad8b83e43",
+        "7da600b4-a7e5-4059-9de4-e77fdad81cb2",
+        "54502414-44ca-4a5e-b0c8-1ceb65c5cced",
+        "5a5df576-0aa9-498d-8e90-be444c6f4417",
+        "fa99f74a-52fe-4963-b923-f2e925393a21",
+        "b73e6f19-a638-4569-b56f-a2ccc653ce1d",
+        "47d7778b-9368-4503-aad4-372f55edc4e8",
+        "ff6bec04-1e0d-4933-af5d-4cdd589cd89d"
+      ],
+      "links": []
+    },
+    {
+      "thread_id": "sim_0020_split1",
+      "title": "Consumer Sentiment Edges Higher, Michigan Survey Finds (part 2)",
+      "articles": [
+        "50395312-5937-4380-be62-e91c0794bcf5",
+        "74695583-ee84-4712-a964-71bd645642f2",
+        "14c63535-157c-48c5-ae24-d9e5524e1bb6",
+        "2f43a589-ccfb-418c-a544-5622351c3965",
+        "e25fb22a-bfbd-4591-8601-8b31682afc01",
+        "b1572237-a9ad-47bb-bdcc-da4f5d295c9a",
+        "a22000b2-2dff-40dd-89ce-0c55da7400c1",
+        "30933996-fd61-4120-b2aa-1c57647755cf",
+        "6fd50e98-0250-4136-b5fc-ee1ff1dbb72f",
+        "e12485b6-0738-4c99-bdac-fe19129d9059",
+        "7d0f498b-32f1-4c61-b239-b14c635f37ed",
+        "c22f40af-fa94-4f73-ab64-392f02df0020",
+        "08cfa06c-f511-49fa-8e0a-075d9ab7a38b",
+        "98ddc280-1656-41eb-8bd1-91146e7f7360",
+        "ec8b2036-545a-49d0-9870-9453b91fdb21",
+        "7b59d63d-d103-4ba2-b811-4d222b248b16",
+        "2c191a12-e31f-42b8-86e5-cfdb15e64e91",
+        "7e3e468d-0959-44d8-b50f-3c649c7b866e",
+        "66bde611-cb4f-4b12-ad88-0618b38a6645",
+        "242bd5b0-00bb-4610-bb8e-0627c5cdde70",
+        "a1beae01-c114-4bf3-b0e8-514c231c3569",
+        "4afeb36b-4ba8-4d90-9ce5-9f81b01011ed",
+        "46dd6f49-92c6-4d2a-8d2b-30e921019c84",
+        "2ce3280e-1785-4753-a7c7-8f35ef5f758f",
+        "558853de-7d68-4f29-8eae-1ac32c409bc6",
+        "55e0be84-9821-4610-888c-f402b71c0acc",
+        "fc84c5ba-f856-433d-b6b6-ece04ebc4a4a",
+        "b8738c68-7de5-400a-a561-277fe38611ac",
+        "2675e001-7090-4950-9f97-993fc45bd860",
+        "55ef1160-fe35-41e4-b70a-8ac5765af4e8",
+        "6b2df082-5dbc-43f0-8efa-dc7b1f5ead1c",
+        "1c323705-8b81-47ed-a073-a7375e699160",
+        "05866df9-4a62-4bf3-bf95-75e318dda3b4",
+        "6f0c114d-0d4e-45d2-823d-8849c73598f0",
+        "0007c4be-be6a-4cfc-be20-cc827632362b",
+        "ab54825d-a1dd-4ead-bbd2-345b7b661d57",
+        "292cfd65-684f-423d-b31b-78766f890c86",
+        "cecac271-90dd-4e1f-836b-8316c0e6ed0f",
+        "fe287af7-6a3a-4911-9764-51595bfa6d19",
+        "8ad0641d-0572-4740-82e1-5df17284fba4",
+        "ffd7fd19-d593-49c9-99eb-9d2d72d73747",
+        "97c2da28-9ff9-4aa0-ba8c-eccf4ba36264",
+        "2e3c0d91-98de-4045-b551-0970270551ce",
+        "5dec7c95-b610-4f71-8712-be12ccb63ad1",
+        "7817d4b7-1201-4a87-8f5c-56ba3a4b1378",
+        "bebc72fd-5799-48f5-8414-fc470afa2a3f",
+        "6a628c49-bd84-47e2-b38a-7f16da997ef6",
+        "c7ddea7d-3ce8-4e20-9d7b-adf2b05b3c73",
+        "47eda6e8-6498-4dc5-ab9a-ea8d66dc5e70"
+      ],
+      "links": []
+    },
+    {
+      "thread_id": "sim_0025_split0",
+      "title": "Trump Calls for 10% Cap on Credit-Card Interest Rates (part 1)",
+      "articles": [
+        "4f452d7c-3537-4cc0-906f-236357ed5090",
+        "ad727bea-fbbd-43fc-82af-42a4251e90f1",
+        "081497cd-32f2-40ad-88e5-122ba556da72",
+        "c66f7d1b-bead-487b-bdb7-fe3ecc0e8878",
+        "c7b7cef4-8632-42d6-b035-b08ceda4628d",
+        "52eda3ca-a6c3-4a4e-b150-127076791484"
+      ],
+      "links": []
+    },
+    {
+      "thread_id": "sim_0025_split1",
+      "title": "Trump Calls for 10% Cap on Credit-Card Interest Rates (part 2)",
+      "articles": [
+        "34622c3f-092b-4317-8864-37a7b480215e",
+        "9a1b7f33-fc74-4b8a-be67-194fa697aa82",
+        "924da2dc-d4b3-425b-ac8c-4f14c4f01c4c",
+        "6a295739-a5ae-4327-af8d-ac0589f63673",
+        "ba458e1c-1f2c-4d0a-b534-96397c95d4ab",
+        "1a32e120-f8b9-4a69-b175-ccae4060009c",
+        "95d9dabd-86aa-47ec-8e3b-591dcd8acd85",
+        "979ac78f-3492-4694-8077-bf83bbcc2ef4",
+        "26d623d7-a2e7-4ae8-a43c-ed1adb945ead",
+        "790a645c-4084-4e4b-b72a-8fe9e1ed84c1",
+        "a53f4c11-1975-4701-87ae-a02d38c67e9e",
+        "5f5cecca-3d63-4294-8f6c-5d0c989294c4",
+        "b0dbc1fc-2d99-4011-830b-3d11d8b4ca50",
+        "c954991c-8818-4acf-8d80-5ebb18b56578",
+        "bcfe3030-bbd9-4689-8c24-45141e5053e5",
+        "080fdaa9-248f-4a79-a0bd-a2c532564065",
+        "badef14a-a7a3-4c6e-b054-a00c57b9c2a0",
+        "347ebac3-5ba4-4099-b1c0-8db21b76aa0e",
+        "053e393e-f0e8-44d0-a190-ff5c7a4b04c0",
+        "5ecb6be0-4709-4731-b051-b0ef0e92fdb7",
+        "887c76c5-ee3b-4aee-a5f2-476ba14fe7f2",
+        "111bac70-9c9a-4438-9180-c3c3bd7d82e7",
+        "100894eb-ddbc-4654-aea3-256fa85750df",
+        "1ef64abb-3267-4145-bf72-cd48dcb9268d",
+        "e804beb4-14ba-4948-a062-bd309d1f26d1",
+        "667b7cf0-54be-45bc-84fa-83e4cfb4625f",
+        "6cfb5629-daf0-431f-90c7-0f5a2786935c",
+        "372f65f2-ef70-48a8-8b39-ddbb3d2d8d88",
+        "dbc6195a-c9ee-49d4-8ce6-7c14b9e8706f",
+        "424e16c1-d52e-46ca-bc0f-a2c09b772d63",
+        "a2243818-4566-4090-b468-36e27f60afba",
+        "cf33ac63-9036-493f-a0ad-c2de3d77ccec",
+        "25f1b45a-1c8c-4488-8ede-928acc74936f",
+        "12d0ea8d-f2a9-47ee-9ff6-fd035f2412da",
+        "c32db58f-c892-41a3-a882-dc7c13370d2c",
+        "1f9aaf11-0383-4482-9863-d02e27967682",
+        "9ceb322f-3d46-4dde-89c0-46ad118e5224",
+        "7dfcbfe0-6e4b-433b-8adf-8c3a76f3e659",
+        "ecaf8897-6020-4cb4-9c29-61549b1f2230",
+        "9af4a812-aeb8-4950-9fda-943b3b1042d7",
+        "2a333841-31b5-4f0e-b012-bb116e277598",
+        "c28ad74a-65d9-43f0-a2b9-8f3b78548ec2",
+        "2483e514-be97-451e-a171-bb59db2d7c29",
+        "061f4f41-9e61-40c5-a88c-683998651193",
+        "93bc968a-9635-41f3-bcea-9ca9972def25",
+        "921845b8-e19e-40da-ab9f-66ed0fb50518",
+        "1914c631-e816-4801-9906-c303e614ef7a",
+        "342b69fb-5f19-41fd-bb93-b0ee8b5a8e54",
+        "98d43918-dd34-469d-9ebd-363941672651",
+        "15e009bb-555b-4add-b42b-086d1c4ffdab",
+        "a4900191-6ddc-4b05-a900-8b8371d351a3"
+      ],
+      "links": []
+    },
+    {
+      "thread_id": "sim_0033_split0",
+      "title": "Boeing Shipped 63 Jets in December, 600 in 2025 (part 1)",
+      "articles": [
+        "fc3599cd-059d-4aad-a6e3-9082356b9a2f",
+        "18678ba2-1579-4953-9640-f37c5c11ef55",
+        "77dd3343-0dad-4a01-97ac-5c5c451ba14a"
+      ],
+      "links": []
+    },
+    {
+      "thread_id": "sim_0036_split0",
+      "title": "MAHA, Ozempic, fibermaxxing: Powerful forces are pushing Ame (part 1)",
+      "articles": [
+        "34888f14-c557-4a4a-9af2-e8e76157e6c6",
+        "833685be-45b8-428b-8f6c-f4e9a9e3105d",
+        "25cd5c1c-7801-4063-aa52-e15aece12eb1",
+        "8ff01a4e-2415-4978-8b43-6d0ff35f3b62",
+        "d1a205da-1de7-4fd5-9773-36615ba56628"
+      ],
+      "links": []
+    },
+    {
+      "thread_id": "sim_0042_split0",
+      "title": "Banks Cry Foul Over High-Yielding Tokens as Crypto Fight Sim (part 1)",
+      "articles": [
+        "03311ac4-20e9-4735-86c0-3ff59db9d73c",
+        "93878d73-95bb-4d01-977e-c534dfbb824a"
+      ],
+      "links": []
+    },
+    {
+      "thread_id": "sim_0042_split1",
+      "title": "Banks Cry Foul Over High-Yielding Tokens as Crypto Fight Sim (part 2)",
+      "articles": [
+        "ce7bd0e9-836f-4520-9ca4-de56dddbdee1",
+        "1457e4e7-52d1-4758-8190-d0dd1d29e6c5",
+        "7621b311-e15a-4dcf-b01f-fb2d542e5e43",
+        "d22d4049-019e-4370-95fe-e453eb9ebb13",
+        "44da4349-f677-4df8-af49-3902688de565",
+        "f259380a-6d52-454f-a34f-a8b66143a972",
+        "b06e8519-167d-491b-ae8d-71736fe735c7"
+      ],
+      "links": []
+    },
+    {
+      "thread_id": "sim_0042_split2",
+      "title": "Banks Cry Foul Over High-Yielding Tokens as Crypto Fight Sim (part 3)",
+      "articles": [
+        "1ec8f829-ca71-4cbb-ac62-eff90b0c5217",
+        "5882f284-499f-4fb0-9e7a-bdffa04c25d7",
+        "f374232a-2b5d-423f-9217-a0abe0770a5c",
+        "219deb3f-5be1-49a1-8ef3-ceac5840b0cc"
+      ],
+      "links": []
+    },
+    {
+      "thread_id": "sim_0047_split1",
+      "title": "Ford, China\u2019s BYD in Talks for Hybrid-Vehicle Batteries Afte (part 2)",
+      "articles": [
+        "8abb1aea-01c6-4e42-9f2f-308ddbefc298",
+        "94fd8b7a-6108-4ab6-bf28-daf586b050dd"
+      ],
+      "links": []
+    },
+    {
+      "thread_id": "sim_0049_split0",
+      "title": "Chinese AI Developers Say They Can\u2019t Beat America Without Be (part 1)",
+      "articles": [
+        "c261f6f5-2dc7-42c5-ae07-6423cae33e6b",
+        "9a627bf3-5ba7-438d-af35-937d91b47123",
+        "1eab22b8-a815-4487-ac40-e51d8771a72e",
+        "ba6a780a-039e-4942-a587-c6ddb1a6fdc4"
+      ],
+      "links": []
+    },
+    {
+      "thread_id": "sim_0049_split1",
+      "title": "Chinese AI Developers Say They Can\u2019t Beat America Without Be (part 2)",
+      "articles": [
+        "64d8687e-10ba-4865-8973-b3dfca5a57d5",
+        "291377fb-1a8a-421e-861e-c856b735e41d",
+        "b880af7a-8be7-4a4c-be59-a457e2e29670",
+        "03fa7218-7600-442c-b4a4-d04db59bc427",
+        "938fcad8-8537-45f7-bcba-c58a10030cd6",
+        "477a79ff-0ecd-46f9-9ea4-20bafce9294d"
+      ],
+      "links": []
+    },
+    {
+      "thread_id": "sim_0049_split2",
+      "title": "Chinese AI Developers Say They Can\u2019t Beat America Without Be (part 3)",
+      "articles": [
+        "0701c8ff-14bd-4c35-9376-20ffdbc989bd",
+        "e1b82bfe-61f3-4d9b-9fe1-8c71d921c355",
+        "03482200-30b3-47fe-920f-b020f30eb29b",
+        "16859329-a060-4618-bc70-5d9d0c475469",
+        "d80cc3e1-a877-4e17-8ab7-3678ba8909f2",
+        "5229e00a-dac1-402f-82c8-bcf6c90404bf",
+        "72b6e265-9c06-4284-a3e1-c66d0f9e4ce8"
+      ],
+      "links": []
+    },
+    {
+      "thread_id": "sim_0049_split3",
+      "title": "Chinese AI Developers Say They Can\u2019t Beat America Without Be (part 4)",
+      "articles": [
+        "7886e345-a735-4369-b582-67a78ef780b8",
+        "97ac9892-c5e2-4000-bf07-ee408daf5d97"
+      ],
+      "links": []
+    },
+    {
+      "thread_id": "sim_0050_split1",
+      "title": "Canadian Leader Spurned by Trump Finds a Warm Embrace in Chi (part 2)",
+      "articles": [
+        "d29400f4-0a0e-4107-a5d6-d721f9c16d8e",
+        "878c71a0-f694-40c3-b350-50a5c5517bdd",
+        "49a6622f-fa2b-4339-b0de-3b44b9c7c016",
+        "5944fe48-8fc3-4bd1-b3d4-1944c7a072c1",
+        "ba6d2e65-fc89-4ecf-a0e2-eae661f12186",
+        "e441abf7-1cd3-4851-8b5f-de6f0b3f1ec0"
+      ],
+      "links": []
+    },
+    {
+      "thread_id": "sim_0050_split2",
+      "title": "Canadian Leader Spurned by Trump Finds a Warm Embrace in Chi (part 3)",
+      "articles": [
+        "1ef08d9c-9818-4389-ae4c-0251b2a6c64c",
+        "7c8bdf0c-de00-41a0-a28c-53e9ca222b88",
+        "29bd94a2-cb4b-4d5a-87d7-db33125b8a1c",
+        "d56dbcb4-bdd9-4085-91c4-9d46373d7f3f"
+      ],
+      "links": []
+    },
+    {
+      "thread_id": "sim_0050_split3",
+      "title": "Canadian Leader Spurned by Trump Finds a Warm Embrace in Chi (part 4)",
+      "articles": [
+        "7717480e-aa59-4cc4-a529-cd2e9bbfb84a",
+        "4caf1a1f-6126-454d-a68a-4db935041e09",
+        "b15d0f62-be6e-496b-b472-bb577038951f",
+        "45afd84f-5b99-471a-84a1-19ed4cb83e26",
+        "c60a2c9b-df4a-4e32-a0df-157b08a38d43"
+      ],
+      "links": []
+    },
+    {
+      "thread_id": "sim_0050_split4",
+      "title": "Canadian Leader Spurned by Trump Finds a Warm Embrace in Chi (part 5)",
+      "articles": [
+        "344ad327-c04f-4486-9757-534f47f6aa5a",
+        "1113912f-c559-418c-990b-bbd9c086af91",
+        "940854bc-eceb-4ed1-a3ff-6e44e568969c"
+      ],
+      "links": []
+    },
+    {
+      "thread_id": "sim_0050_split5",
+      "title": "Canadian Leader Spurned by Trump Finds a Warm Embrace in Chi (part 6)",
+      "articles": [
+        "180d9a53-710f-4d83-bdc2-2c6be2f1be6f",
+        "0ca796fd-9f5d-49b4-bdd9-0c5f191978d2"
+      ],
+      "links": []
+    },
+    {
+      "thread_id": "sim_0050_split6",
+      "title": "Canadian Leader Spurned by Trump Finds a Warm Embrace in Chi (part 7)",
+      "articles": [
+        "7e145815-c429-4b1e-a2d5-f80d28af0208",
+        "446121bb-11ee-4801-b533-b1d6f6b388b8"
+      ],
+      "links": []
+    },
+    {
+      "thread_id": "sim_0050_split7",
+      "title": "Canadian Leader Spurned by Trump Finds a Warm Embrace in Chi (part 8)",
+      "articles": [
+        "98a1337c-9256-4e2a-ad55-cbdfd8f1392e",
+        "3885ba16-2dee-4d0a-b590-9c0dcd33c7d4"
+      ],
+      "links": []
+    },
+    {
+      "thread_id": "sim_0051_split0",
+      "title": "Japan\u2019s Finance Minister Issues Fresh Verbal Warning as Yen  (part 1)",
+      "articles": [
+        "0083c2ab-f0d0-40fe-a532-c9cde21e4e85",
+        "80bafeee-db77-4e27-8ae0-62545f7c5f1b",
+        "57266709-83e7-46e8-8819-3449ccc2d15d",
+        "753e8882-9048-44b9-9a66-d8fed7ddff91",
+        "d7df97c6-9ca2-4dd4-9053-33d4fb3fd701",
+        "ea588c4a-6146-4fef-9c65-ad21bf711886",
+        "367a6159-7a09-436b-b7be-915cd33e86d4",
+        "e169b98d-5b3a-4d13-9a98-f5db1f77fedc",
+        "1f823399-cfb9-4dfb-807c-7a8b480465af",
+        "c8ce8393-2c01-44d7-a42e-1d679ff16ce7",
+        "02de8437-f76f-4b12-8598-5b08c9fead8f"
+      ],
+      "links": []
+    },
+    {
+      "thread_id": "sim_0051_split1",
+      "title": "Japan\u2019s Finance Minister Issues Fresh Verbal Warning as Yen  (part 2)",
+      "articles": [
+        "85afba83-6309-467b-9b70-99864f3a654f",
+        "1ac772eb-0d8d-40e2-8625-5e3ecb999c30",
+        "12b111da-f2ab-428a-89fc-60c8155a4793",
+        "2464ced3-3c70-42ba-907c-15e4c57c7c77",
+        "5a1cdf6d-cd26-4a08-bb1e-6411e3e68a61",
+        "09f969bc-dc40-442d-a556-a66a8f172f6e",
+        "c6ddb8b1-9a60-421d-aba9-d07895df7cfd",
+        "fb534233-44c3-4f5c-b357-ff3d5665be16",
+        "ba3b250e-ea49-4ad1-b255-d7241b9f9f79",
+        "87829dc9-6aa7-4bce-8661-eeb77ace66ba",
+        "9f03c712-8500-4f24-8d62-c5b2e9a50cfe",
+        "c5f38ac6-326f-45c6-8c39-b9fdc1e93603",
+        "58cb9cf5-62df-4284-8bf7-8d750077af99",
+        "8429e4a1-c6b3-4ddd-a03a-6ca4fcffa145",
+        "33df8381-6f5a-4d8d-953d-a70486470709",
+        "7f3cb0f7-cf65-4f8b-9efe-16453a118ba9",
+        "e542a212-8110-4f85-a49d-53f9cbcb8eda",
+        "693a6268-1fab-47b5-93f5-89012f68b6ce",
+        "2979d054-d693-48cf-affa-e71d8356887e",
+        "86996c73-e03b-4086-81b8-7922e835cfbd",
+        "1391bf51-c71b-4989-96a9-60c35efd0483",
+        "cb9d5ef7-4063-4d39-b577-86743c3da64d",
+        "0117a569-8372-4222-8f94-1a81b2c6bbce",
+        "37dca819-6149-4fe0-81a7-5a8588c07376",
+        "84429b27-012d-4277-b19a-f9cc5d08ad23",
+        "7dc4c74a-28c8-41e8-b0fb-14eeb2ed0dcd",
+        "b6ab9298-f3ed-4c30-b3a7-e1a25a097ac7",
+        "8c5d65ce-48f1-4eb0-b815-5678a0380452"
+      ],
+      "links": []
+    },
+    {
+      "thread_id": "sim_0065_split0",
+      "title": "A federal judge imposed new limits Friday on how immigration (part 1)",
+      "articles": [
+        "9085b4c5-5fe4-4860-a0f4-9dea194a6858",
+        "9a722166-a665-41d4-89a0-5fd05c002528",
+        "0fab4305-4c3f-483e-bdee-1e1a82f7240c"
+      ],
+      "links": []
+    },
+    {
+      "thread_id": "sim_0067_split0",
+      "title": "Xi\u2019s Enforcers Punished Nearly a Million in 2025\u2014and China\u2019s (part 1)",
+      "articles": [
+        "9d3f26a1-0b50-4a8c-a943-f916b105db60",
+        "93e63464-22f1-490e-b658-83c9d836d653",
+        "f8a4ec80-c9cd-482e-8b8c-f49da35cbda8",
+        "09de331d-476f-4eaa-b7e1-143848a3f43e"
+      ],
+      "links": []
+    },
+    {
+      "thread_id": "sim_0067_split1",
+      "title": "Xi\u2019s Enforcers Punished Nearly a Million in 2025\u2014and China\u2019s (part 2)",
+      "articles": [
+        "d4afb696-7670-4c57-80b6-cec9d14ac326",
+        "0780d7d9-dce7-46a6-a118-330c73abadd3",
+        "bf9424c3-c5ee-4193-a430-4eff8bf46bb5",
+        "efc71651-9a6d-4e89-8e93-1658640a1e61"
+      ],
+      "links": []
+    },
+    {
+      "thread_id": "sim_0068_split0",
+      "title": "Trump Purchased Netflix, Warner Bonds in Days After Deal Ann (part 1)",
+      "articles": [
+        "281fbfe5-f66c-47ca-a7b9-38578bc6eec3",
+        "38194efd-6260-401a-882d-53e1ac19134f",
+        "ea453afc-a4b6-4966-abe4-254d3f751898",
+        "0c4916ab-619b-4352-8b29-65236ef5cfc7",
+        "5617e5fd-8403-4a20-be40-d12ce86be0d1",
+        "af97ecda-e965-43f2-a05e-9a3fc223ea51",
+        "48bc7866-89e8-413f-9898-0d31ab2c56e6",
+        "e6a4c253-09e6-4de6-9810-c6bb7c607b99",
+        "b1af313c-6ae7-4378-8709-e310db7a1652",
+        "5a48a3dc-cb0c-49a5-a9bf-033004446738",
+        "70d0397d-0aae-4e86-ac84-347c332d9929",
+        "e6ca618a-8978-47bb-b095-c92409f4124b",
+        "2f9b844e-4034-47ab-8b7c-710ea03fd187",
+        "f7dc036c-a41f-49e2-babf-c0af134d257f"
+      ],
+      "links": []
+    },
+    {
+      "thread_id": "sim_0068_split1",
+      "title": "Trump Purchased Netflix, Warner Bonds in Days After Deal Ann (part 2)",
+      "articles": [
+        "ef3e1fb8-5ba0-40bb-b200-4afa58dfd7ec",
+        "dbc44a01-ab44-451a-85dd-062f27657d08",
+        "a355e251-ab95-4246-8c7c-e80da93a50dc",
+        "9c92034f-6ed1-449d-b1aa-b9dc030a7c80"
+      ],
+      "links": []
+    },
+    {
+      "thread_id": "sim_0076",
+      "title": "Pentagon places 1,500 soldiers on alert for possible Minneso",
+      "articles": [
+        "0a8c2a78-5864-459c-a311-792d9bde7689",
+        "7838e6a0-1b86-4ac3-89ab-9a307a091188"
+      ],
+      "links": [
+        {
+          "from": "0a8c2a78",
+          "to": "7838e6a0",
+          "type": "topical"
+        }
+      ]
+    },
+    {
+      "thread_id": "sim_0090_split0",
+      "title": "Goldman Sachs Grapples With Top Lawyer\u2019s Epstein Problem (part 1)",
+      "articles": [
+        "4e5ec0c2-185b-4e5e-8570-84cf4802e9cc",
+        "09a25603-ad60-4332-a6e9-d81c521a51c3",
+        "378bb95d-241b-426a-93fc-9e4632097e38",
+        "1dfe2ffe-7a77-4e40-9673-5f994e50203b",
+        "66fa5f96-ef88-4e2d-a33f-faf60deb3474"
+      ],
+      "links": []
+    },
+    {
+      "thread_id": "sim_0095_split2",
+      "title": "To Make Homes Affordable Again, Someone Has to Lose Out (part 3)",
+      "articles": [
+        "02c44129-2f86-4acf-8af7-27e70bbbcacc",
+        "44f27420-dd1f-4d80-b16e-890829e706a5"
+      ],
+      "links": []
+    },
+    {
+      "thread_id": "sim_0110_split1",
+      "title": "The U.S. Is Actively Seeking Regime Change in Cuba by the En (part 2)",
+      "articles": [
+        "9b5917c7-cb8d-4316-a5bd-a4d08f89fb2a",
+        "7ade8faf-2517-4242-a1f7-a92d9160e873"
+      ],
+      "links": []
+    },
+    {
+      "thread_id": "sim_0116_split0",
+      "title": "Business Activity Picks Up in Parts of Europe and Asia (part 1)",
+      "articles": [
+        "0100520b-9303-4133-af9d-a05d3c7e580c",
+        "d0a9dc10-5cf3-457c-b47e-f98996010900",
+        "14bc568c-6930-46e3-977b-afc793c210c1"
+      ],
+      "links": []
+    },
+    {
+      "thread_id": "sim_0116_split1",
+      "title": "Business Activity Picks Up in Parts of Europe and Asia (part 2)",
+      "articles": [
+        "110cb7fb-8124-430f-bee0-1960b612bd9d",
+        "d4e2aa9d-65b6-4827-bb9c-aaf7e691ae6e",
+        "6232cbcb-d495-41e4-a23a-7abbec0b7f2a",
+        "afdf2435-d7b7-47cb-8303-818700c80b6b"
+      ],
+      "links": []
+    },
+    {
+      "thread_id": "sim_0117_split2",
+      "title": "Consumer Sentiment Improved in January, Michigan Survey Find (part 3)",
+      "articles": [
+        "6d9a435d-1ed3-42f9-943d-4f1427d1ae8c",
+        "4b47932f-9b66-494b-b48b-df6a41a11810"
+      ],
+      "links": []
+    },
+    {
+      "thread_id": "sim_0127_split0",
+      "title": "Wall Street Has Fallen Out of Love With Software Stocks (part 1)",
+      "articles": [
+        "f5382446-7797-4e4b-ba30-22a0df9d2ef3",
+        "05171c50-9d6c-41fd-854f-ec9d64f500dc",
+        "5b22638a-8918-4d81-ab30-e521910f471d",
+        "b766abbb-f24e-4800-8621-27e8883ce905",
+        "eb2db889-ce8e-403a-9043-830a08cd7a68",
+        "81529731-6649-400d-86ef-45739a53a1cc",
+        "265f1289-142d-4f27-aa44-66fe0062ae24",
+        "cf2f4bdb-f691-4b7a-82d0-fe2789e497b7",
+        "3657ca4d-6044-4bc8-9dfc-02c83cb7736e",
+        "67db2a6a-832c-41fa-a8e0-f10bc412dc33",
+        "12ee9acc-4df0-4609-b867-0142b6b3476d",
+        "52225335-e5c2-4e4c-8ef1-e2ad82692396",
+        "9881f848-f4c5-4886-9d0a-a36b4960c30c",
+        "2824970d-751e-4d2b-a133-19f58ca82197",
+        "e12661fc-5fe4-41ce-9b24-7e2d160cbfe4"
+      ],
+      "links": []
+    },
+    {
+      "thread_id": "sim_0127_split1",
+      "title": "Wall Street Has Fallen Out of Love With Software Stocks (part 2)",
+      "articles": [
+        "50d14896-f24a-42ae-b79e-75efb764ee57",
+        "4736da1b-ec81-4ad4-b684-6d730a6159b4",
+        "1ab76826-09d8-4163-b04b-dd5767cd5547",
+        "c7a45949-f48b-44d3-ae00-b54e3aec78cf",
+        "ccd2c45f-4c21-45a6-9587-d7d20b8273c3",
+        "fe0aa61f-d27a-4bba-bdf1-c61170f161e0",
+        "b65c32de-51c1-40c1-8883-a7272c9b6c75",
+        "aab825dc-77d8-4ee4-a2f0-9f6c9e2f070a",
+        "74f3afb7-e6f1-4b3d-941e-7611a11f882c",
+        "213b859f-9a0a-4015-aadc-381dae55f984",
+        "55fdca14-3bdc-4ebe-9242-f36305889e3d",
+        "9a7f11bf-a99c-4713-a204-0edc0d5fbea7",
+        "3e816cbe-788b-436c-8ffc-7c65d0d94738"
+      ],
+      "links": []
+    },
+    {
+      "thread_id": "sim_0128_split2",
+      "title": "AI\u2019s Messy Human Drama (part 3)",
+      "articles": [
+        "2605a24a-6f60-4bb8-b3db-8475ca6709eb",
+        "ac084312-c7eb-4940-bfe3-6ed9982207b0",
+        "fae7652c-57e6-4785-abda-6605b8a7f307"
+      ],
+      "links": []
+    },
+    {
+      "thread_id": "sim_0138",
+      "title": "Israel Says It Will Reopen Gaza Border Crossing as Last Host",
+      "articles": [
+        "37d08cf0-3774-4a40-b0f2-64b9b1c61f28",
+        "ca5ddfc7-a88c-46b9-bc6b-3cb95f22dadb",
+        "82d7b017-5460-480d-a98c-74bf3f2ff34f"
+      ],
+      "links": [
+        {
+          "from": "37d08cf0",
+          "to": "ca5ddfc7",
+          "type": "topical"
+        },
+        {
+          "from": "ca5ddfc7",
+          "to": "82d7b017",
+          "type": "causal"
+        }
+      ]
+    },
+    {
+      "thread_id": "sim_0139_split1",
+      "title": "Trump\u2019s Tariff Threats Designed to Influence Pending USMCA T (part 2)",
+      "articles": [
+        "b2974c9f-2ed0-4021-abc5-ef123a2af806",
+        "c8fe839e-4995-48d5-8d49-636f29d49177"
+      ],
+      "links": []
+    },
+    {
+      "thread_id": "sim_0140_split0",
+      "title": "Gold and Silver Surge to Records, Buoyed by Concerns Over Ta (part 1)",
+      "articles": [
+        "eb1047ec-b683-4c22-8f6e-2cc37f4cc47d",
+        "945bacdd-04ba-474e-82b0-71c502360bfb",
+        "7ae5aa62-56bc-452d-95bf-d4d6354dc6ab",
+        "0109c160-1a14-4cea-84a9-b00c062129ba"
+      ],
+      "links": []
+    },
+    {
+      "thread_id": "sim_0142_split0",
+      "title": "Iran\u2019s Protest Crackdown Looks Deadlier by the Day (part 1)",
+      "articles": [
+        "fc0baded-bfa4-41dd-9a67-7576c07b1904",
+        "828f4348-23be-426e-b426-f6ebe56bf3d0",
+        "99cd924a-b0c8-4829-b371-f2c5a7e24044",
+        "72d26319-e258-4c48-b307-e4be8d574885",
+        "b0c8b889-f055-4451-a287-91d98985ad17",
+        "c7dc8488-73b8-43fd-bd88-63a176469b50"
+      ],
+      "links": []
+    },
+    {
+      "thread_id": "sim_0149_split0",
+      "title": "Bank of Canada Likely to Hold Rates Steady in 2026, Survey F (part 1)",
+      "articles": [
+        "2e6d026b-9a0e-466b-8117-766becc3b734",
+        "2d05990e-dbd4-47f4-b5d7-acf5671642ea"
+      ],
+      "links": []
+    },
+    {
+      "thread_id": "sim_0149_split1",
+      "title": "Bank of Canada Likely to Hold Rates Steady in 2026, Survey F (part 2)",
+      "articles": [
+        "bb2b1fd9-e8a5-44ea-ace7-44228e42e8b7",
+        "d89e69f1-c409-4cfa-ba33-82579f40681d",
+        "fc813f8d-461a-4a84-8fe0-4dbcef233cf2",
+        "04ea098a-6c42-492c-8a8c-5f532101f460",
+        "07be5280-41f7-4309-8364-f8b6a897c6f8",
+        "29086ae3-e64b-4e6c-8934-8b5d6ec7f9df",
+        "111a5956-1797-4ffe-bd0f-8e13867591c0",
+        "2d911794-3b34-4a2f-b278-beee92869c3c",
+        "cf0c281a-16a1-43be-a492-b7fa2517ce04",
+        "924dff85-9021-475e-a137-5cbe1ea20447",
+        "523d634d-7665-43e9-b393-c6cc9836bf1a",
+        "fe69a22f-7915-4aef-aae6-8e4b5fb72462",
+        "b88eceec-e941-41f5-838f-fee4fe9bc526",
+        "6f4c499b-6921-4b58-a2b9-79c9ff6cbea3",
+        "9ecc1901-db36-48f6-96cf-957bda23afcd",
+        "a80899ff-1288-429e-b5d9-5ccc3a704882",
+        "99559842-139a-4805-ac2c-3c60afc38bf6",
+        "f9bf6481-e0e5-4b35-a6d5-eb2d4669c740"
+      ],
+      "links": []
+    },
+    {
+      "thread_id": "sim_0151",
+      "title": "President Trump\u2019s pivot in Minneapolis came after Republican",
+      "articles": [
+        "05a90967-9d32-4496-a814-7731aadaeef4",
+        "13bd2dfa-f806-45de-b003-607281a582de",
+        "4c76f57c-467b-4a18-8d17-c065dfc8a904",
+        "6984c48c-3d6b-4adf-8806-1fc6797c732a",
+        "69967da2-5c10-4d55-b44b-95ac480de528"
+      ],
+      "links": [
+        {
+          "from": "05a90967",
+          "to": "4c76f57c",
+          "type": "topical"
+        },
+        {
+          "from": "13bd2dfa",
+          "to": "4c76f57c",
+          "type": "causal"
+        },
+        {
+          "from": "4c76f57c",
+          "to": "6984c48c",
+          "type": "causal"
+        },
+        {
+          "from": "6984c48c",
+          "to": "69967da2",
+          "type": "causal"
+        },
+        {
+          "from": "05a90967",
+          "to": "69967da2",
+          "type": "topical"
+        }
+      ]
+    },
+    {
+      "thread_id": "sim_0152_split0",
+      "title": "UPS to Cut 30,000 Jobs This Year (part 1)",
+      "articles": [
+        "a413e9db-2f85-41a1-ba6d-84e9f28f462b",
+        "3c94d440-0ab9-414a-a131-f139059574ac"
+      ],
+      "links": []
+    },
+    {
+      "thread_id": "sim_0152_split4",
+      "title": "UPS to Cut 30,000 Jobs This Year (part 5)",
+      "articles": [
+        "689d6b8b-2dde-443d-90c0-33b9e6d7a279",
+        "23729db3-25e6-481c-a7fb-56696f96fb5e"
+      ],
+      "links": []
+    },
+    {
+      "thread_id": "sim_0158_split0",
+      "title": "Oil Futures Rise On Geopolitical Apprehension (part 1)",
+      "articles": [
+        "eed81d54-ed1c-46ed-b340-b39d73eff546",
+        "a9c2bd43-82df-4582-9690-b3578ea2cd4b",
+        "f11afd52-0591-49d7-958b-626214af7298"
+      ],
+      "links": []
+    },
+    {
+      "thread_id": "sim_0160_split0",
+      "title": "Treasury Yields Mixed Ahead of Expected Fed Hold (part 1)",
+      "articles": [
+        "239c3507-6019-4153-80c9-58790dd382e1",
+        "476a1142-8188-43b6-9d2e-f9e1fd6e3101"
+      ],
+      "links": []
+    },
+    {
+      "thread_id": "sim_0169_split2",
+      "title": "President Trump defended Homeland Security Secretary Kristi  (part 3)",
+      "articles": [
+        "cae93a17-1066-48ab-b909-bd54edee36b6",
+        "e39cb655-382d-4e10-a630-57e062885247"
+      ],
+      "links": []
+    },
+    {
+      "thread_id": "sim_0176_split1",
+      "title": "AT&T Sales Rise on Higher Wireless, Consumer Revenue (part 2)",
+      "articles": [
+        "aa815f55-fa4f-4585-8dd1-db4e001c1344",
+        "08f730fb-6de4-4399-ab87-cfb11a7770e5",
+        "d2796133-378d-4a83-99b0-af85e32ffbd8",
+        "d34b09c7-7f85-4309-af6e-19c08e45ae07",
+        "dfc270f7-b07d-4e92-bd57-c2d6548f7128",
+        "95553707-4395-41f1-b2ae-380fccae50f8",
+        "7a89f126-72ef-4bc2-a79f-61c0d44306f5",
+        "193b9212-d5ed-467f-b718-136ec91927c3",
+        "65b644a5-eebf-4138-86e4-26f567826010",
+        "ed492855-ef95-4f3b-9f05-b75429a2d7bf",
+        "2964340d-3cb2-40f3-aa3b-e04c91bb1719",
+        "a9dadaf4-bf33-42b1-a14e-4511d0369ebc",
+        "9f991f18-d72b-4327-9bba-7de9d0c7acf4",
+        "ce0fdffe-9b02-4b25-bcf1-50e10dffda79",
+        "07fa4712-cd99-403f-a36f-e92addfbcf2a",
+        "6e1dad17-11d2-4b3b-a58b-2b621e156eee",
+        "20a45ce1-6317-4c77-a13f-3c32511ffe9f",
+        "9be5fbfd-1f8f-4ca4-8741-4be186e57f32",
+        "4a729cc5-6728-4150-8e53-1556d4a1db10",
+        "991eebe1-6f1f-4793-86f0-b22d69e56a94",
+        "582be9b0-fe8e-4c34-9962-641a1bedadb4",
+        "d45a3b5c-e012-4598-88b9-84c232789a11",
+        "a671d813-1fa8-45b6-acc8-8a5dd9cdc7e2",
+        "667b3eeb-0f4d-4e80-b652-699c500ca9de",
+        "5d18fc9d-3242-4bc2-8ecc-a2808e67195e",
+        "e144d572-82ed-421d-b126-d704fe38dfad",
+        "5e3af20a-1401-46ab-ac7b-5dabc1709742",
+        "7d96a93c-4973-4991-a480-e5d1c86aabc3",
+        "b9d5d900-86a9-4053-9f6d-11050d5fa1c9",
+        "922a0fea-4dd3-4499-8a9b-98c651a1bf27",
+        "367258b5-85fe-484b-b348-29f144341b08",
+        "4aeaa596-cc2c-497f-b937-d718cd080e4c",
+        "2039f0c3-b66d-40a3-a967-c8c753a8bf03",
+        "7e2f74a4-ce94-47b2-b91f-25d6b5e6d72a",
+        "5e197ccc-8a4f-4e62-b607-a0c227e7a1b5",
+        "afa827c0-a705-4694-952e-a603d33aa4e2",
+        "d5d941c1-dfe7-4b3e-80c1-3720874d66b2",
+        "0a10ce8e-ba22-48e7-a335-23f78346977a",
+        "33cf0971-6144-49b4-94ab-2d2ab5e5853e",
+        "1dbfb0cb-e2bb-4bba-b405-a96d495a56cc",
+        "43bc7926-702e-47a2-b1cd-a3aac6c25113",
+        "028ceab5-5d4f-4922-ad04-80f2ac0cc013",
+        "c7b6f82c-4623-4306-8654-5078a58300e0",
+        "bfb7202c-6eb2-4e56-abfd-8148ec4d0b31",
+        "b455f212-f62b-40b9-936b-b01b9f57ab4f",
+        "5b4e8c36-60da-4fb4-996a-66c12cd5b8b2",
+        "02d4e003-e7c6-4833-bcd0-81292caddc1c",
+        "7d7ad733-8c87-416f-af90-507821d95e28",
+        "82cd13b4-c472-4942-acdb-8bf8c2285865"
+      ],
+      "links": []
+    },
+    {
+      "thread_id": "sim_0179_split0",
+      "title": "Talking or Fighting, All of Iran\u2019s Options Are Bad (part 1)",
+      "articles": [
+        "dc2fddf0-fecc-4c67-82f3-0afda46f514d",
+        "d385f768-b998-4d37-8c8a-37de9dc747ee",
+        "2e6b6b0d-d93c-45ed-952e-563014cec2e4",
+        "c7b4a6cc-54c4-4c45-a539-36a0961ccf1a",
+        "ebe5b6dc-65b4-4d16-95f4-240f00f25fe7",
+        "14b2dab4-83b6-4230-b7ee-dd3e66b28d72",
+        "700dacf9-df14-406c-93b5-f95ff4cf606c",
+        "57061843-dc7b-4071-a0f9-f126710e8ae0",
+        "2795f756-4c7a-4ce3-a99f-f6d7621c1b6f",
+        "715f8e55-589e-47b1-9dbd-aca020579c59",
+        "6737f001-0d21-4e73-96a1-493dd112f4a9",
+        "1da5b9e8-f165-488a-9001-782ca7a0c3f2",
+        "d5f3c436-d5d8-4a8a-8050-b74cea48c31e",
+        "14f11052-f52c-4f32-9f81-d42b2c900eb6",
+        "a0572d73-853e-4618-829f-9f60bdab2662",
+        "a0e47671-087f-4bcb-85d7-3133ba5f1de6",
+        "f8cf1cef-887a-4f45-a52a-2a1a6cd1799d",
+        "b76de8d4-198b-4852-8526-ca03230e2a6b",
+        "8dffceeb-bb33-48b9-881a-564f8024a817",
+        "16affd30-d317-44ca-8c3d-8f3960342bae",
+        "4fa523ef-1978-4b89-87c5-be26e3dfc4d3",
+        "47f8761e-175d-42b5-98a1-3d508a75536b",
+        "2616da29-5aa8-4abf-984a-8d8ca1664b5c"
+      ],
+      "links": []
+    },
+    {
+      "thread_id": "sim_0183_split0",
+      "title": "Gold Has Biggest One Day Dollar Gain on Record (part 1)",
+      "articles": [
+        "dfaec84c-6de4-43df-b05b-5f24bd870a97",
+        "57d33acc-ce3e-4f4a-aec5-6a197c809de2",
+        "d887f324-7539-404d-a036-68762403f47c",
+        "123b3b31-05c6-4011-a2e7-c660e55fadea",
+        "660f8423-53b3-4e1b-a8e4-d8e4b0602370",
+        "e4c2f412-2758-4816-b415-fba5f245e375",
+        "2d9b4a0d-6151-4562-95a2-2a6dc8553b72",
+        "c1189e0a-b697-4d20-bd79-765f0e223533"
+      ],
+      "links": []
+    },
+    {
+      "thread_id": "sim_0183_split1",
+      "title": "Gold Has Biggest One Day Dollar Gain on Record (part 2)",
+      "articles": [
+        "557af838-6cfa-4c3c-951f-1e29105cf014",
+        "816e46a2-2464-4735-bc0f-73c9543f1ebf",
+        "e7ac7ec6-2417-4e9c-8692-1b76c46e550c"
+      ],
+      "links": []
+    },
+    {
+      "thread_id": "sim_0184_split0",
+      "title": "The Fed held rates steady and offered little clarity on when (part 1)",
+      "articles": [
+        "4281bf66-364b-4346-9574-22f3b157e473",
+        "9a3ec68c-432e-4817-9dc5-3450d7309efe",
+        "b580d504-0287-4467-8f8a-d0ef6c72cc36",
+        "87ead19d-2f2f-4130-917e-75999f520332",
+        "5cd31fb5-6db6-41da-be11-4b792186e1a3",
+        "2b0a32ae-244f-42a5-85b1-8c5ee9412d90",
+        "97aff462-ac51-45c7-9c4f-0611573aa22e",
+        "c56193f9-a146-486a-8f4f-9b371dfa7b73",
+        "4b524b67-401a-4c6e-a84a-1c1c65c82787",
+        "eae3d615-5821-48f3-9b69-fed775c0eb61",
+        "75823b83-1de4-4186-9e85-ebe45bd13b70",
+        "7e358d8f-2b2b-4221-a66d-9f670c4b0213",
+        "127470cb-322a-48c0-bfe7-d5a3ac33d30a",
+        "e8ab3806-b6bf-4c1e-8bbc-31658e299a13",
+        "cc6dc91f-16df-4ce8-9b7e-cccb1a697013",
+        "7188945c-63c2-4b2f-9768-83f8f2046adb",
+        "a0d80f0f-78d9-4c39-a065-e566f333a4fe",
+        "fbc14e2d-80cf-46ae-9350-982722c0ddf1"
+      ],
+      "links": []
+    },
+    {
+      "thread_id": "sim_0184_split1",
+      "title": "The Fed held rates steady and offered little clarity on when (part 2)",
+      "articles": [
+        "bc64ed84-d7f7-46ab-97ef-1a9053ff05c8",
+        "7b752815-2b11-49d9-83f6-7591f0e479a8",
+        "6b878f6a-cc30-4308-96db-38344b7de601"
+      ],
+      "links": []
+    },
+    {
+      "thread_id": "sim_0196",
+      "title": "Alibaba Teams Up With Zelos on $2 Billion Robovan Business",
+      "articles": [
+        "b0036048-3b12-4891-a200-3f9dc546e895",
+        "53f55066-f51b-4a52-baa2-30b0eb3179e7"
+      ],
+      "links": [
+        {
+          "from": "b0036048",
+          "to": "53f55066",
+          "type": "causal"
+        }
+      ]
+    },
+    {
+      "thread_id": "sim_0203_split1",
+      "title": "Norfolk Southern Profit, Revenue Falls (part 2)",
+      "articles": [
+        "d2ef91b8-72db-4828-afbc-bc51074bf3ff",
+        "34e7cb8e-5348-4953-af24-78dfbd3c1550",
+        "0272c8b4-c029-458a-863d-aeb4082f1399",
+        "c4d8c7da-97de-4f93-bed3-07840acfce5e",
+        "6e4cf251-0517-4633-ba33-82f5e4f2e9d7",
+        "e2a080a7-1e86-4bb5-97cc-793987d80d8d",
+        "48fa44ae-3f2c-4f45-9cf9-a1a231d9a976",
+        "ddb93949-f9d1-4647-a157-1ddcb8b8d71f",
+        "006c83b9-efca-4437-b1fb-8380d8fb98e3",
+        "742a4c9c-9a0e-4124-9e0c-5653d2569af9",
+        "2debf0e9-e476-49b4-b73d-3cafdb1a7765",
+        "bbdd407a-5844-4d91-b04c-c5529f344607",
+        "c8cee3d2-092f-4a06-8c58-49406627113a",
+        "15ae7fed-bb97-4f2d-aa73-109432166b0c",
+        "4e3cdefd-09cd-4c4e-a9fc-82d2c0c88866",
+        "40aeeb9a-2de9-4db0-80a7-f82ab88ce1b7"
+      ],
+      "links": []
+    },
+    {
+      "thread_id": "sim_0210_split0",
+      "title": "Meta Reports Record Sales, Massive Spending Hike on AI Build (part 1)",
+      "articles": [
+        "d15eed8a-15ca-40f3-a56b-724f8ea07844",
+        "e953ad92-18d3-49a1-afba-027536003dc1"
+      ],
+      "links": []
+    },
+    {
+      "thread_id": "sim_0220_split0",
+      "title": "Anthropic-Pentagon Clash Over Limits on AI Puts $200 Million (part 1)",
+      "articles": [
+        "66c38243-b04b-430e-991f-0e76a37db11f",
+        "ec2bdf3d-c768-4cdb-82c0-98c67f704fcd",
+        "0d030953-4636-435b-b8ea-12066a24e124",
+        "088b31a6-abdc-483a-9d69-16caa4a9fc28",
+        "a4fc3fa9-e78e-452c-b11e-428db0791600",
+        "a69639d9-2216-4dbc-9f65-af1c3c5aaedd",
+        "ddf49ac5-1ab8-4984-b8fc-68bcece070d4"
+      ],
+      "links": []
+    },
+    {
+      "thread_id": "sim_0223_split0",
+      "title": "Apple Posts Blowout iPhone Sales, but Investors Focus on Hig (part 1)",
+      "articles": [
+        "1a019e2f-5543-4237-83b9-372ec71b8a01",
+        "ffa535d3-57d2-4cd9-b70f-11d86f453e1a"
+      ],
+      "links": []
+    },
+    {
+      "thread_id": "sim_0229_split1",
+      "title": "Trump is suing the Internal Revenue Service and Treasury Dep (part 2)",
+      "articles": [
+        "3847919d-f0bd-4037-93fa-5b9afe1d6cd0",
+        "323e090f-d0e6-442a-a9a9-0fda71b99ec7",
+        "dedb3014-2a96-4f58-b791-5f55f2968853",
+        "3d70c4d8-b9a2-499d-a43c-c04bfcc58c0b",
+        "cd082672-3f0e-4447-8e37-ad8741efc47a",
+        "de7bfe84-1dfb-4150-8f71-056263ddf0f5",
+        "04bdf188-cc10-4bc7-80dc-a5e422b29786",
+        "0f58568b-d1ff-4c32-8726-bb0cb561d04e",
+        "b3167c35-47a1-40a7-a094-0244037bfa4d",
+        "1ae3e9d8-44f3-46e2-8f5a-ea0df3812c39",
+        "b3f1cecc-0774-4f97-a5d4-661e7e63fd26",
+        "af2f8112-76c5-43f2-98d2-1e22264c9c73",
+        "6536ed7e-42a8-4f24-ba13-d3d800a49126",
+        "882f7757-da76-4d5f-9228-538d89a98a20"
+      ],
+      "links": []
+    },
+    {
+      "thread_id": "sim_0229_split2",
+      "title": "Trump is suing the Internal Revenue Service and Treasury Dep (part 3)",
+      "articles": [
+        "885ea064-ddea-400a-80c5-4179a1e2aea4",
+        "3b3a5e8a-db7c-41ff-873d-7e415ab24465",
+        "05662006-d3da-477a-9739-c8c52a812966",
+        "3f6e8ad4-d554-4c9c-a580-3d6926627aa5",
+        "a7b9934a-fe76-4eb3-8e50-339656a5c1e1",
+        "9b523850-e428-4218-96ed-3ac8a1b24751"
+      ],
+      "links": []
+    },
+    {
+      "thread_id": "sim_0229_split3",
+      "title": "Trump is suing the Internal Revenue Service and Treasury Dep (part 4)",
+      "articles": [
+        "18d78b96-b9be-458f-abae-c951d87773b0",
+        "8a579f24-cbbd-4385-8425-458f8a2a4a8b",
+        "d883d7a1-0510-4084-9e87-3d553d967c7d"
+      ],
+      "links": []
+    },
+    {
+      "thread_id": "sim_0229_split4",
+      "title": "Trump is suing the Internal Revenue Service and Treasury Dep (part 5)",
+      "articles": [
+        "d340a3d1-b128-4c05-bafa-04f899cd6f1f",
+        "cb93bc92-78d6-47b3-8bb4-7231fbe14126"
+      ],
+      "links": []
+    },
+    {
+      "thread_id": "sim_0229_split5",
+      "title": "Trump is suing the Internal Revenue Service and Treasury Dep (part 6)",
+      "articles": [
+        "fa95f7f6-b0b9-4069-9216-25c20c81c71b",
+        "8769bfaa-82a8-4afb-b8a5-c2981142976e",
+        "deb21748-f59f-45cb-b61d-ca61a999f4ac",
+        "5ce5c1b3-6abf-4164-b936-bff43ca3de15",
+        "f62deeae-0e83-4c29-84e2-5581a7712b5e"
+      ],
+      "links": []
+    },
+    {
+      "thread_id": "sim_0230",
+      "title": "Trump Threatens to Ground Canadian Aircraft and Apply Tariff",
+      "articles": [
+        "bd762529-c0b3-43e5-be11-607ee4bf85e7",
+        "2b36d52b-f893-4edd-92f0-dfe8022e35f1",
+        "7ff9c956-bc41-45d3-a50c-f70d74aa177a"
+      ],
+      "links": [
+        {
+          "from": "bd762529",
+          "to": "2b36d52b",
+          "type": "causal"
+        },
+        {
+          "from": "2b36d52b",
+          "to": "7ff9c956",
+          "type": "topical"
+        }
+      ]
+    },
+    {
+      "thread_id": "sim_0239",
+      "title": "Panama High Court Gives Trump a Win Over Canal by Ousting Ho",
+      "articles": [
+        "d8a62405-4e3c-46be-9eb6-07a26a840351",
+        "1d4c555b-5219-4886-a76a-d9a659908866"
+      ],
+      "links": [
+        {
+          "from": "d8a62405",
+          "to": "1d4c555b",
+          "type": "causal"
+        }
+      ]
+    },
+    {
+      "thread_id": "sim_0244",
+      "title": "Trump Faces High-Stakes Choice as Final Nuclear Pact With Ru",
+      "articles": [
+        "d9dbf7fd-899e-4282-93c2-7846cc050321",
+        "4f407555-9b74-4fed-9306-b94325596448"
+      ],
+      "links": [
+        {
+          "from": "d9dbf7fd",
+          "to": "4f407555",
+          "type": "topical"
+        }
+      ]
+    },
+    {
+      "thread_id": "sim_0253",
+      "title": "Wall Street Can\u2019t Decide Whether Kevin Warsh Will Be a Frien",
+      "articles": [
+        "6324a1ce-3d16-449a-addd-9ed060ebd166",
+        "ef28d893-c19b-47bf-b4b3-b6138968f1c1"
+      ],
+      "links": [
+        {
+          "from": "ef28d893",
+          "to": "6324a1ce",
+          "type": "causal"
+        }
+      ]
+    },
+    {
+      "thread_id": "sim_0260",
+      "title": "The Justice Department released what it says is its final tr",
+      "articles": [
+        "97c861fe-4f05-42f8-a2be-29ee7fbcce7b",
+        "1e3d3d65-c6cc-4d30-abab-4f529363536b"
+      ],
+      "links": [
+        {
+          "from": "97c861fe",
+          "to": "1e3d3d65",
+          "type": "topical"
+        }
+      ]
+    },
+    {
+      "thread_id": "sim_0262_split0",
+      "title": "The Senate passed a bipartisan deal Friday to fully fund mos (part 1)",
+      "articles": [
+        "ca6970ae-7cc9-47a0-804c-bc0c0914e3e4",
+        "655884bd-5e01-4703-b293-6d35782b7245",
+        "1d3007f2-fb09-4759-af40-82b2515c15e0",
+        "35ad544b-2ab8-4040-8d39-7f90fc3a3254"
+      ],
+      "links": []
+    },
+    {
+      "thread_id": "sim_0262_split1",
+      "title": "The Senate passed a bipartisan deal Friday to fully fund mos (part 2)",
+      "articles": [
+        "d325beea-b5ae-46b6-b1c4-20b14d7b4910",
+        "8b0f3206-4445-4df6-b398-bd34ddc66317",
+        "6300890c-751c-471e-b8f8-b83557992007",
+        "59cf09fa-f743-47d2-8879-a436db425ea0"
+      ],
+      "links": []
+    },
+    {
+      "thread_id": "sim_0278_split0",
+      "title": "A state-level Democratic win in a region that had voted deci (part 1)",
+      "articles": [
+        "5980f264-90fe-472e-a1b1-b2727660c7f2",
+        "1a61b0f5-f883-441b-9181-0030c3d8dd39",
+        "f6ee29db-c064-4a56-a42f-919dd5a02706"
+      ],
+      "links": []
+    },
+    {
+      "thread_id": "sim_0278_split1",
+      "title": "A state-level Democratic win in a region that had voted deci (part 2)",
+      "articles": [
+        "f856ce4d-a61d-4815-a846-1287d3acc143",
+        "f1c22d55-84e9-44ae-bb87-26fd6b196e54",
+        "ca5a4fe5-4c39-4f94-bf12-6b7a98009ced",
+        "1370cbc3-ce41-4d26-a118-4bf9e9609d8e",
+        "6fa27874-d98f-495c-8789-c25d23e9eba2"
+      ],
+      "links": []
+    },
+    {
+      "thread_id": "sim_0278_split10",
+      "title": "A state-level Democratic win in a region that had voted deci (part 11)",
+      "articles": [
+        "90b4a955-30d2-4e53-bf64-e4f3ee61a27c",
+        "a3fe5926-17fc-453c-8b94-fda2c0699927",
+        "d255b755-07d9-4e32-9b76-a8c864de2be4",
+        "f58950ae-1f8b-45b9-8995-a8334f9714cb",
+        "f931da77-f640-42a9-a1cf-6c4dd8cd39e1"
+      ],
+      "links": []
+    },
+    {
+      "thread_id": "sim_0280_split0",
+      "title": "BlueScope Steel Open to Better Offers After Spurning $8.8 Bi (part 1)",
+      "articles": [
+        "460b23ee-5d58-4905-b6ae-f595a23e63f5",
+        "65830bce-d212-4f72-ad29-3802214a2af6",
+        "f29a08df-0701-4e14-abc9-e9668923e5fa"
+      ],
+      "links": []
+    },
+    {
+      "thread_id": "sim_0298_split0",
+      "title": "President Trump says the Kennedy Center will be closed for r (part 1)",
+      "articles": [
+        "30de4fa8-92d5-46be-85ed-77a36a325363",
+        "d0481bee-a046-4c27-8e16-17b2c451e603"
+      ],
+      "links": []
+    },
+    {
+      "thread_id": "sim_0299_split0",
+      "title": "U.S. weapons makers are fighting a battle on two fronts: ens (part 1)",
+      "articles": [
+        "a8814af7-ed30-4dc7-af79-80dac4b1f4b9",
+        "bbf88447-6475-4179-876a-16c84e2c777b"
+      ],
+      "links": []
+    },
+    {
+      "thread_id": "sim_0308",
+      "title": "The January jobs report won\u2019t be released as scheduled Frida",
+      "articles": [
+        "378ac862-7812-4fac-9150-00c3bc1e75cc",
+        "5cba04c4-24f3-4a50-9fba-6fc32be7553c"
+      ],
+      "links": [
+        {
+          "from": "378ac862",
+          "to": "5cba04c4",
+          "type": "topical"
+        }
+      ]
+    },
+    {
+      "thread_id": "sim_0316_split0",
+      "title": "The Trump administration is preparing to develop a $12 billi (part 1)",
+      "articles": [
+        "ebbbe3b5-15e9-4a63-a099-cf6c6e606778",
+        "623e50f2-747b-40e5-90f5-90382684d73e",
+        "60d390c4-6412-4c21-88e9-97192efa159f",
+        "f3771ddd-2fd5-4fd8-b142-4a8c27415659",
+        "a459f92b-ee9e-4773-9f66-b22d159ddf8a",
+        "9f28c6ff-8f8c-47dd-9d54-ad4d12d0555a",
+        "deedae21-da4f-43e5-a884-a3a59d73ea68",
+        "3df4056f-4fcd-4665-a145-382b4eb64827",
+        "ee59f475-45e7-40e9-83e2-1e0d6083f21e",
+        "a7894d9c-0d0c-4adc-9885-a78b9934aefb"
+      ],
+      "links": []
+    },
+    {
+      "thread_id": "sim_0316_split1",
+      "title": "The Trump administration is preparing to develop a $12 billi (part 2)",
+      "articles": [
+        "6aecb6fd-eea9-4945-b4e5-6697ee24a6fa",
+        "f437a796-8be1-4fb6-b850-56e91c1c89ad",
+        "04c1c93e-b5ac-450e-8ff6-5a72455174b4",
+        "b52c863b-ea55-49e5-85c3-5a7f5599852d",
+        "0ff867d3-b2de-440a-9e43-229acfe8bb73",
+        "526f1d9b-5b09-45eb-bd7c-4e1fc364e7f9",
+        "c2c30915-7fd9-4a38-b951-3b7447cca192",
+        "3355fa8c-8e18-4487-ba12-95dff445fa19",
+        "c627bec4-7dc1-4121-a9ed-5c9dfa859b0f",
+        "09db5fa4-4c02-47c7-934e-8b6012d3bcf4"
+      ],
+      "links": []
+    },
+    {
+      "thread_id": "sim_0318",
+      "title": "Mother of the \u2018Today\u2019 Co-Anchor Savannah Guthrie Remains Mis",
+      "articles": [
+        "37e9078d-1520-4804-a1da-99f0fc082402",
+        "7430dbce-5c28-4684-9b82-42e0376afc9a",
+        "ff9dd2ce-8a19-4ba4-b7bf-9a074aa50c70",
+        "dce32de0-3aa7-4d84-888c-beda94247c5b",
+        "689b1122-4a77-4251-9725-343850952a0f",
+        "92416e22-2238-4427-bcea-3858cc48196b"
+      ],
+      "links": [
+        {
+          "from": "37e9078d",
+          "to": "7430dbce",
+          "type": "causal"
+        },
+        {
+          "from": "7430dbce",
+          "to": "ff9dd2ce",
+          "type": "topical"
+        },
+        {
+          "from": "ff9dd2ce",
+          "to": "dce32de0",
+          "type": "topical"
+        },
+        {
+          "from": "dce32de0",
+          "to": "689b1122",
+          "type": "causal"
+        },
+        {
+          "from": "689b1122",
+          "to": "92416e22",
+          "type": "causal"
+        }
+      ]
+    },
+    {
+      "thread_id": "sim_0319_split0",
+      "title": "SpaceX, xAI Tie Up, Forming $1.25 Trillion Company (part 1)",
+      "articles": [
+        "fa0523e2-1456-48c4-be73-98fb7621f849",
+        "feb24370-efdd-4957-b994-ba15183c7c7a",
+        "04814fd6-df56-42b1-b2f7-a119727f0557"
+      ],
+      "links": []
+    },
+    {
+      "thread_id": "sim_0321_split2",
+      "title": "South Korea Inflation Eases to Five-Month Low (part 3)",
+      "articles": [
+        "83925a19-823b-4d6a-b7bc-60b9d1dcbe31",
+        "816de79f-3358-4875-a799-2358163e8282"
+      ],
+      "links": []
+    },
+    {
+      "thread_id": "sim_0321_split4",
+      "title": "South Korea Inflation Eases to Five-Month Low (part 5)",
+      "articles": [
+        "86b88b37-23d7-45da-98ce-935ba63d1c15",
+        "ca98bbb6-b5c1-4629-bffc-8cd546cc0648"
+      ],
+      "links": []
+    },
+    {
+      "thread_id": "sim_0330",
+      "title": "European Gas Prices Slide on Milder Weather Outlook, Easing ",
+      "articles": [
+        "30e113c9-ff1e-416f-86b1-85e881cd1204",
+        "a8618926-b019-45ad-b2fe-21fc3658bb52",
+        "c46d124f-97b4-41b2-b178-5868e1fadf41",
+        "4f0198c6-1e9f-48e0-97f3-f445f6b7dd26",
+        "f2f7eb27-e0ca-4319-8d8a-4ca9b00f5aef",
+        "0b5b8880-394a-41bf-9581-08eca9a11f90",
+        "1fe654ab-8c88-4911-8bf4-68c70eb18a49"
+      ],
+      "links": [
+        {
+          "from": "30e113c9",
+          "to": "a8618926",
+          "type": "topical"
+        },
+        {
+          "from": "a8618926",
+          "to": "c46d124f",
+          "type": "topical"
+        },
+        {
+          "from": "c46d124f",
+          "to": "4f0198c6",
+          "type": "topical"
+        },
+        {
+          "from": "4f0198c6",
+          "to": "f2f7eb27",
+          "type": "topical"
+        },
+        {
+          "from": "f2f7eb27",
+          "to": "0b5b8880",
+          "type": "topical"
+        },
+        {
+          "from": "0b5b8880",
+          "to": "1fe654ab",
+          "type": "topical"
+        }
+      ]
+    },
+    {
+      "thread_id": "sim_0335_split1",
+      "title": "Gold, Silver Bounce Back After Sharp Selloff (part 2)",
+      "articles": [
+        "0d75bd13-fcfa-41fc-ba53-a7b1c40f187d",
+        "931331b8-015b-4918-a990-b9e66de6879f"
+      ],
+      "links": []
+    },
+    {
+      "thread_id": "sim_0360_split0",
+      "title": "Flirty Emails and Chummy Photos Show How Far Epstein Reached (part 1)",
+      "articles": [
+        "27cd0308-d8b5-4101-bda9-b4cc52859876",
+        "669cf403-82ba-40b9-8c9c-694fb96ad761",
+        "aa0cb3b7-fc26-4829-ad53-1776d91455b9"
+      ],
+      "links": []
+    },
+    {
+      "thread_id": "sim_0362",
+      "title": "New York and New Jersey sued the Trump administration Tuesda",
+      "articles": [
+        "a2a107f5-bbdf-44a3-9018-626577685c6e",
+        "12fb58f4-9db8-4240-b592-6863ba1e2859"
+      ],
+      "links": [
+        {
+          "from": "a2a107f5",
+          "to": "12fb58f4",
+          "type": "causal"
+        }
+      ]
+    },
+    {
+      "thread_id": "sim_0394",
+      "title": "Leader of Paul Weiss Resigns Over Epstein Ties",
+      "articles": [
+        "76a20334-7896-479f-825a-4b9423376f04",
+        "29604ea6-c602-4d49-adee-a416025f5f6e"
+      ],
+      "links": [
+        {
+          "from": "76a20334",
+          "to": "29604ea6",
+          "type": "analysis"
+        }
+      ]
+    },
+    {
+      "thread_id": "sim_0422",
+      "title": "Sunway Healthcare\u2019s Nearly $1 Billion IPO Attracts Foreign I",
+      "articles": [
+        "205f9fe8-d8c3-4044-b516-40e543a8dab7",
+        "1713f4f2-6487-4ef6-9b1b-2402348782bd"
+      ],
+      "links": [
+        {
+          "from": "205f9fe8",
+          "to": "1713f4f2",
+          "type": "topical"
+        }
+      ]
+    },
+    {
+      "thread_id": "sim_0425",
+      "title": "Failed Rio Tinto-Glencore Talks Show Big Copper Deals Are Ha",
+      "articles": [
+        "a5bc6de6-5b3f-4db8-bc74-06d42e285c40",
+        "271c2bed-a912-459e-9afe-224a4f63a4eb"
+      ],
+      "links": [
+        {
+          "from": "a5bc6de6",
+          "to": "271c2bed",
+          "type": "causal"
+        }
+      ]
+    },
+    {
+      "thread_id": "sim_0429_split0",
+      "title": "Oil on Track for First Decline in Weeks, With Focus on U.S.- (part 1)",
+      "articles": [
+        "fd2d889d-bd7f-4b5f-8640-787491f38684",
+        "5319b370-1a2d-403f-b7b1-1d466dff2bf0"
+      ],
+      "links": []
+    },
+    {
+      "thread_id": "sim_0430",
+      "title": "Jeep Maker Stellantis Books $26 Billion Charges in Strategy ",
+      "articles": [
+        "257af62e-159e-4a03-abb9-37b2940f8bdb",
+        "f8706258-41ac-432b-97b3-8bb8b65d8c5f"
+      ],
+      "links": [
+        {
+          "from": "257af62e",
+          "to": "f8706258",
+          "type": "causal"
+        }
+      ]
+    },
+    {
+      "thread_id": "sim_0452",
+      "title": "U.S. Accuses China of Secretly Conducting Nuclear Tests",
+      "articles": [
+        "ea528d0b-f4bb-4c2a-a84c-27407586bdbd",
+        "28893fae-2c09-472f-b4d1-90087a6a2ed0"
+      ],
+      "links": [
+        {
+          "from": "ea528d0b",
+          "to": "28893fae",
+          "type": "causal"
+        }
+      ]
+    },
+    {
+      "thread_id": "sim_0502_split0",
+      "title": "The White House is at loggerheads with Congress over one of  (part 1)",
+      "articles": [
+        "4ffab5b5-5e97-4f14-9e2c-86c712b7e1f1",
+        "4c896bad-6ffb-4c6b-85f6-129493981d96"
+      ],
+      "links": []
+    },
+    {
+      "thread_id": "sim_0505",
+      "title": "The Trump administration is planning this week to repeal the",
+      "articles": [
+        "3131b5e7-993d-4e0a-939e-a60fb3321c46",
+        "6678d9f9-037e-4939-b441-f8c1806d1e9c"
+      ],
+      "links": [
+        {
+          "from": "3131b5e7",
+          "to": "6678d9f9",
+          "type": "causal"
+        }
+      ]
+    },
+    {
+      "thread_id": "sim_0507_split0",
+      "title": "Monte Dei Paschi Net Profit Surges After Mediobanca Takeover (part 1)",
+      "articles": [
+        "7fc95fbe-3b74-48f2-80e6-5e45418da1ea",
+        "ada8deda-933a-49b3-a4ee-8417d9f7035d"
+      ],
+      "links": []
+    },
+    {
+      "thread_id": "sim_0508",
+      "title": "Oil Inches Lower With U.S.-Iran Tensions in Focus",
+      "articles": [
+        "ab735e38-83ea-4d68-91e2-6864dc41ce48",
+        "df9e940c-c577-40de-a8ad-81c0b1f49b46"
+      ],
+      "links": [
+        {
+          "from": "ab735e38",
+          "to": "df9e940c",
+          "type": "topical"
+        }
+      ]
+    },
+    {
+      "thread_id": "sim_0519",
+      "title": "Sterling Stays Weaker Even as U.K. Government Bond Yields Fa",
+      "articles": [
+        "d6ff02ad-5eba-41cd-bbe4-378c42d03b71",
+        "676cd3bf-2626-4be9-9c09-2388a50507ba"
+      ],
+      "links": [
+        {
+          "from": "676cd3bf",
+          "to": "d6ff02ad",
+          "type": "causal"
+        }
+      ]
+    },
+    {
+      "thread_id": "sim_0550_split0",
+      "title": "FAA Halts El Paso Flights for Unspecified Security Reasons (part 1)",
+      "articles": [
+        "b4aabfaa-0a32-4f22-a5a1-cc7ddd6c70df",
+        "bfc31255-1186-45ad-a1d2-c5c68997a5c9",
+        "3e8858c7-be16-4d3b-9a12-4c53efd0fb13"
+      ],
+      "links": []
+    },
+    {
+      "thread_id": "sim_0565",
+      "title": "The U.S. budget deficit will widen over the next decade as i",
+      "articles": [
+        "e56a5152-d88b-4333-9ed9-098bea38ef10",
+        "52108859-c7ac-4bfb-a0f3-608d28402b16"
+      ],
+      "links": [
+        {
+          "from": "e56a5152",
+          "to": "52108859",
+          "type": "topical"
+        }
+      ]
+    },
+    {
+      "thread_id": "sim_0566",
+      "title": "Accused Canada Shooter an 18-Year-Old Known to Police, Autho",
+      "articles": [
+        "411dd0dd-c64c-423b-b0f3-a984cf5da5f6",
+        "a0e35775-8790-4486-b11c-fa752b96feda",
+        "afb6f4cc-c371-48d2-9774-90029ce05aa5",
+        "a5ec180b-36a5-4e23-95a3-232fe8a2dde8"
+      ],
+      "links": [
+        {
+          "from": "411dd0dd",
+          "to": "a0e35775",
+          "type": "topical"
+        },
+        {
+          "from": "411dd0dd",
+          "to": "afb6f4cc",
+          "type": "topical"
+        },
+        {
+          "from": "afb6f4cc",
+          "to": "a5ec180b",
+          "type": "causal"
+        }
+      ]
+    },
+    {
+      "thread_id": "sim_0575",
+      "title": "President Trump lashed out at GOP Gov. Kevin Stitt of Oklaho",
+      "articles": [
+        "55107a97-a3f7-470b-976f-2ca83d915d31",
+        "0c035cc2-cc45-46c6-af35-3b40f8cd97a9"
+      ],
+      "links": [
+        {
+          "from": "55107a97",
+          "to": "0c035cc2",
+          "type": "topical"
+        }
+      ]
+    },
+    {
+      "thread_id": "sim_0625_split0",
+      "title": "Europe\u2019s Exports to U.S. Rose Despite Tariffs, as Imports Fr (part 1)",
+      "articles": [
+        "54fc87df-fecb-4211-9cc9-de5e075fdaa2",
+        "4577e26b-968d-487d-9c2d-d93a2cba207f",
+        "966f92b1-f826-4ffe-ae4c-95fdbb0ed075",
+        "a9d25d55-c806-4827-bf37-a103d92651ec",
+        "ca282054-e348-4e4a-9369-5e6e9a6f6f6a"
+      ],
+      "links": []
+    },
+    {
+      "thread_id": "sim_0672_split0",
+      "title": "Britain\u2019s Monarchy Can\u2019t Escape the Shadow of the Epstein Sc (part 1)",
+      "articles": [
+        "34a79035-f1e0-4e49-b61f-cf6638e44263",
+        "f29369e9-a5c0-4adc-a03a-2af579860c29",
+        "c6ab2082-3ab2-430d-a836-f5d4f4fd4bd2",
+        "2a0e251d-486c-4ea8-b484-0d1b89ca2af0"
+      ],
+      "links": []
+    },
+    {
+      "thread_id": "sim_0678",
+      "title": "How Jet Engines Are Powering Data Centers",
+      "articles": [
+        "3ba8caa4-7e8b-4029-bc9c-db5e1600e4d7",
+        "0ae49f2b-59d0-40a7-b963-a20c207fb6c8"
+      ],
+      "links": [
+        {
+          "from": "3ba8caa4",
+          "to": "0ae49f2b",
+          "type": "topical"
+        }
+      ]
+    },
+    {
+      "thread_id": "sim_0706",
+      "title": "A Giant ISIS Detention Facility Comes Apart in Syria\u2019s Deser",
+      "articles": [
+        "d6015f53-0518-4ca2-9f58-ecbedfb22cc0",
+        "b8e06bd8-bf79-4ebe-97cf-f4705bc9114c"
+      ],
+      "links": [
+        {
+          "from": "d6015f53",
+          "to": "b8e06bd8",
+          "type": "topical"
+        }
+      ]
+    },
+    {
+      "thread_id": "sim_0718_split0",
+      "title": "ECB President Christine Lagarde hasn\u2019t made a decision on wh (part 1)",
+      "articles": [
+        "0b51a98e-6bf8-4426-b1b4-abb940cc4b30",
+        "ff0980ce-7f3a-442a-ad4e-37374e252631",
+        "80fc3349-3ba9-40e5-bafa-3b7efaf9b8b6",
+        "cdeee8e9-84ef-427e-950e-a9038642a3d1"
+      ],
+      "links": []
+    },
+    {
+      "thread_id": "sim_0736",
+      "title": "The top Republican challenger to Rep. Tony Gonzales called f",
+      "articles": [
+        "e620c42f-4f63-43ee-b4d5-b20847b13a7c",
+        "eda8f1a1-91b1-4caf-8d5f-aceaeee9bac3"
+      ],
+      "links": [
+        {
+          "from": "e620c42f",
+          "to": "eda8f1a1",
+          "type": "causal"
+        }
+      ]
+    },
+    {
+      "thread_id": "sim_0743",
+      "title": "European Gas Prices Soar As U.S.-Iran Tensions Raise Alarm O",
+      "articles": [
+        "3f7f9d14-6e01-4e57-80d3-1d8570e35d9c",
+        "dccb2f39-0d77-403f-9768-d8a61778f004"
+      ],
+      "links": [
+        {
+          "from": "3f7f9d14",
+          "to": "dccb2f39",
+          "type": "topical"
+        }
+      ]
+    },
+    {
+      "thread_id": "sim_0760",
+      "title": "Private-Credit Warning Signs Flash After Blue Owl Unloads $1",
+      "articles": [
+        "e2266ebc-eb1d-4210-bc40-26bab691b81f",
+        "a2c27f30-5f1a-41bf-b24b-545aa397c5db"
+      ],
+      "links": [
+        {
+          "from": "e2266ebc",
+          "to": "a2c27f30",
+          "type": "causal"
+        }
+      ]
+    },
+    {
+      "thread_id": "sim_0781_split0",
+      "title": "The Supreme Court decision to strike down President Trump\u2019s  (part 1)",
+      "articles": [
+        "8d624e7c-20a7-4fb5-995a-1dfbfee04fc2",
+        "88f6e0fd-8b92-46ef-baaf-9e114ba52828",
+        "da1aef9a-9e59-4936-b4f9-f89f3a21d84f",
+        "f9f9ba5d-02a5-4a4c-93dc-57deafdf0a4c",
+        "ad47e5b7-23b8-4e01-9931-7facd6016353",
+        "0d5ab7cb-8ff9-4eff-ac79-57ffed5096db",
+        "50de5e24-269b-4914-ae58-67bf2ee4022f",
+        "b908e626-6490-43ea-8f9c-51ae5902e601",
+        "8e539705-2fd6-4b7e-b392-bf941e406b45",
+        "f59a9a93-c201-40b1-9730-08f5b7556c37",
+        "acba532c-8e79-477f-bef9-d702e5f66e94",
+        "d31be87f-cf6c-443a-bc26-3369dc990661",
+        "9f5259f7-6d0c-4344-bbf0-91b592ad082a"
+      ],
+      "links": []
+    },
+    {
+      "thread_id": "sim_0781_split1",
+      "title": "The Supreme Court decision to strike down President Trump\u2019s  (part 2)",
+      "articles": [
+        "a1f4a209-1f80-45a7-ae51-19d1726ecdcc",
+        "08701af2-73f0-4fda-a889-3bec5c56cb64"
+      ],
+      "links": []
+    },
+    {
+      "thread_id": "sim_0789",
+      "title": "Trump Demands Netflix Oust Susan Rice From Board",
+      "articles": [
+        "e5a7bd97-9248-4b4e-b3c8-18d10acf631e",
+        "17e67f3a-3f81-45d5-9612-8373286165c0"
+      ],
+      "links": [
+        {
+          "from": "e5a7bd97",
+          "to": "17e67f3a",
+          "type": "topical"
+        }
+      ]
+    },
+    {
+      "thread_id": "sim_0790",
+      "title": "Trump Says He Is Sending Hospital Ship to Greenland",
+      "articles": [
+        "933b5cd6-d6bb-4b90-aded-34e9b15b3f03",
+        "834ebdd6-5b0a-4d34-81b2-c1df376fe9ed",
+        "ccebfd3e-701e-4736-adc0-bb3ea9a3ee42"
+      ],
+      "links": [
+        {
+          "from": "933b5cd6",
+          "to": "834ebdd6",
+          "type": "causal"
+        },
+        {
+          "from": "933b5cd6",
+          "to": "ccebfd3e",
+          "type": "analysis"
+        }
+      ]
+    },
+    {
+      "thread_id": "sim_0794_split0",
+      "title": "A man was shot and killed Sunday after breaching the secure  (part 1)",
+      "articles": [
+        "2b83c6c3-a9be-4188-ac69-3067138a2dbe",
+        "577c1038-9c38-4323-bc21-b512c3bcefab"
+      ],
+      "links": []
+    },
+    {
+      "thread_id": "sim_0798",
+      "title": "Mexico Takes on Cartels as Killing of Drug Kingpin Sparks Vi",
+      "articles": [
+        "9199d08b-c770-418e-a0b4-3b37a40e1f47",
+        "66ea6eed-78f9-4feb-96d2-c89db163252a",
+        "1953816a-3c0c-4b3f-8d3f-c43079adafab"
+      ],
+      "links": [
+        {
+          "from": "1953816a",
+          "to": "9199d08b",
+          "type": "causal"
+        },
+        {
+          "from": "1953816a",
+          "to": "66ea6eed",
+          "type": "causal"
+        },
+        {
+          "from": "9199d08b",
+          "to": "66ea6eed",
+          "type": "topical"
+        }
+      ]
+    },
+    {
+      "thread_id": "sim_0799",
+      "title": "Gunmen Wreak Chaos in Mexican Coastal Retreat After Cartel K",
+      "articles": [
+        "b7b3fa64-e526-41cf-8ecb-1c81f998ab16",
+        "c32a1c82-ed3f-41e7-845a-d1261ce1de90"
+      ],
+      "links": [
+        {
+          "from": "b7b3fa64",
+          "to": "c32a1c82",
+          "type": "analysis"
+        },
+        {
+          "from": "b7b3fa64",
+          "to": "c32a1c82",
+          "type": "causal"
+        }
+      ]
+    },
+    {
+      "thread_id": "sim_0819",
+      "title": "Viral Doomsday Report Lays Bare Wall Street\u2019s Deep Anxiety A",
+      "articles": [
+        "e7318d59-a064-4fc6-89e0-52546cdf24a2",
+        "c3cc2fce-b1e9-475e-b999-ef6dd8c431c5"
+      ],
+      "links": [
+        {
+          "from": "e7318d59",
+          "to": "c3cc2fce",
+          "type": "topical"
+        }
+      ]
+    },
+    {
+      "thread_id": "sim_0865",
+      "title": "U.K. Delays Controversial Deal Linked to U.S. Military Base ",
+      "articles": [
+        "252c4f74-b6e9-4c7b-ae9e-0c7b65bc8e82",
+        "1ef2dfcf-0d06-4a0e-801b-1c97b5b359bd"
+      ],
+      "links": [
+        {
+          "from": "252c4f74",
+          "to": "1ef2dfcf",
+          "type": "causal"
+        }
+      ]
+    },
+    {
+      "thread_id": "sim_0868_split0",
+      "title": "Tech Stocks Rally in Front of Nvidia Results (part 1)",
+      "articles": [
+        "3f94ebc6-81be-4949-8ae3-f646e718fbee",
+        "b56bdaaa-88c6-4607-b969-c775c68a68d3"
+      ],
+      "links": []
+    },
+    {
+      "thread_id": "sim_0870",
+      "title": "Americans Are Leaving the U.S. in Record Numbers",
+      "articles": [
+        "097a1ce5-fa3a-4f16-90ea-3c41742d6c80",
+        "2eed1098-03ab-4986-ac81-321702f1872b"
+      ],
+      "links": [
+        {
+          "from": "097a1ce5",
+          "to": "2eed1098",
+          "type": "topical"
+        }
+      ]
+    }
+  ],
+  "singletons": [
+    "c86ac4fa",
+    "d9bd524f",
+    "f0cbc721",
+    "7444691e",
+    "e49ad0c1",
+    "42ca3930",
+    "2b36e9d0",
+    "fe6656d6",
+    "4baec0a4",
+    "c2cc90f3",
+    "f5dce225",
+    "94748b49",
+    "07929ba1",
+    "70b3fc15",
+    "17623f4b",
+    "616ed5ba",
+    "5e9d81ea",
+    "e2814f25",
+    "1603495c",
+    "8f7b1f2d",
+    "f9ae6887",
+    "9795d785",
+    "af4a9efc",
+    "e2deeeaa",
+    "0100bb5f",
+    "63be5055",
+    "29199653",
+    "cffbd7e1",
+    "7e809fe9",
+    "975ea6e1",
+    "757ff4ea",
+    "90453414",
+    "a80ebede",
+    "78854a4d",
+    "be1b99ac",
+    "cc15812f",
+    "0d18aa6e",
+    "11099fa8",
+    "ff767dc1",
+    "bb7d55c1",
+    "91028a7f",
+    "163bf8af",
+    "4a14b122",
+    "2e7ad768",
+    "b2128f28",
+    "e96e4e24",
+    "d8447d15",
+    "956cc1e8",
+    "68604805",
+    "813ee323",
+    "991fde78",
+    "3dd04af8",
+    "26963acd",
+    "b9497ae3",
+    "dab317a3",
+    "a8824836",
+    "0cf3ae89",
+    "e8617e88",
+    "256f1331",
+    "6215b48a",
+    "285bbc45",
+    "ea68c67a",
+    "a9a0ef82",
+    "9f7d3c25",
+    "3ee1646b",
+    "2b736178",
+    "e3a7315a",
+    "18e5ee40",
+    "13c8579a",
+    "87ffb860",
+    "e251df50",
+    "7c95d2ec",
+    "b18757c6",
+    "a2bc1c4d",
+    "b06ad09b",
+    "6a3677b4",
+    "1e2cb188",
+    "76489898",
+    "0e8da341",
+    "b2d0ac28",
+    "10bf5766",
+    "4293393f",
+    "038c1ff4",
+    "923fd2a9",
+    "128f4955",
+    "5da60a02",
+    "c9e0bb82",
+    "d16ac047",
+    "aab464ed",
+    "5a5724a8",
+    "db4d45b1",
+    "8d94b02c",
+    "f9c8cbf1",
+    "b638f579",
+    "427fcd65",
+    "fa7e9019",
+    "af4dcd06",
+    "1316999f",
+    "bde56768",
+    "65c54b52",
+    "17115570",
+    "b2a054dd",
+    "76adf96b",
+    "6397e557",
+    "ce4c8f96",
+    "aa1de4a3",
+    "44ccf00b",
+    "6502a7d6",
+    "8064b441",
+    "b0764f1d",
+    "308c9c88",
+    "f78b5dd9",
+    "f7ac01c1",
+    "dd443ae8",
+    "67e1c142",
+    "05717eae",
+    "760e375a",
+    "1b7fdb0f",
+    "8e2f30b1",
+    "a36a025e",
+    "5a4b03df",
+    "1ff75a46",
+    "c4077de3",
+    "44479056",
+    "04a7503e",
+    "e38509bb",
+    "af6e5a05",
+    "e50ec86d",
+    "ea758416",
+    "be8860b0",
+    "80eec3b7",
+    "9194b14a",
+    "75ac89f3",
+    "e92003ff",
+    "61fa6d67",
+    "3698e006",
+    "23bbaf44",
+    "53134c39",
+    "f15abe80",
+    "7b7eefab",
+    "05b7e762",
+    "d59332bf",
+    "cae81372",
+    "00063da6",
+    "04b6ebaa",
+    "d68204cc",
+    "ee06d9f6",
+    "ccff0515",
+    "48a0328c",
+    "26a35ad4",
+    "8871b839",
+    "a8d37db8",
+    "e3b49a66",
+    "5972f8d6",
+    "42490788",
+    "30bf54b0",
+    "b8a8c31b",
+    "fbdd95c3",
+    "106ce984",
+    "e993a05c",
+    "73104221",
+    "0ebe10a5",
+    "99c206ce",
+    "bc6b4647",
+    "e11f81b4",
+    "0c67bb70",
+    "f7fc0fad",
+    "0ee0f3ae",
+    "365f7045",
+    "59327a37",
+    "d7dbe446",
+    "d37ff2cf",
+    "ec832267",
+    "b5d22a68",
+    "00ae22dd",
+    "c1b92e87",
+    "ce98a9b9",
+    "59c504e0",
+    "9be60e3e",
+    "56cc5517",
+    "1bbdbb7e",
+    "a8e5bfd7",
+    "0a7732fb",
+    "76cfec0b",
+    "ad5e3219",
+    "b5212961",
+    "df4f64c4",
+    "41a0ea26",
+    "c504253c",
+    "0ae544c3",
+    "0d3de0ac",
+    "63a6c3e6",
+    "1e00df5a",
+    "ef376ae0",
+    "477f0d42",
+    "001a8f5b",
+    "770b55b3",
+    "31dba791",
+    "4de6c56a",
+    "b07ea329",
+    "b0febb4b",
+    "224bc67a",
+    "18814a04",
+    "d897b729",
+    "2f1aedb0",
+    "b8dbb3d8",
+    "02db523e",
+    "b165d9ae",
+    "cc49ee36",
+    "4bbfd87c",
+    "e986b26b",
+    "fe9acfd5",
+    "367927fc",
+    "a4beac69",
+    "d9ec8b82",
+    "71b6fa26",
+    "f886a09c",
+    "f5883cb0",
+    "cbd9d040",
+    "c8c7d156",
+    "d85d9133",
+    "e4ea1fd1",
+    "2f541ce1",
+    "b9ff8bdf",
+    "a02b6f5c",
+    "ef759ef5",
+    "317816c7",
+    "54318fdb",
+    "a50957c0",
+    "0c254650",
+    "a4014e3f",
+    "2fac0ae9",
+    "d95ff855",
+    "8b6aafa1",
+    "cdca9278",
+    "edaf7507",
+    "bf8cadcd",
+    "a822131b",
+    "ee759064",
+    "0642bfad",
+    "77343ed0",
+    "f2e15987",
+    "c2e2408b",
+    "69c847b8",
+    "370d55b8",
+    "cfa749bb",
+    "4bfe2b39",
+    "47bfd5c5",
+    "1d309b9e",
+    "a6b735af",
+    "440dd13f",
+    "c57d0840",
+    "b40c871c",
+    "0b0384c7",
+    "c31d24f1",
+    "af283346",
+    "852ecb73",
+    "c5c67da8",
+    "89d00b10",
+    "dbe1b300",
+    "4ffb4345",
+    "475ea0f3",
+    "43f8319a",
+    "80c63913",
+    "7fe1c3ee",
+    "ac00c016",
+    "ace1c410",
+    "d442cb69",
+    "5ad1b6af",
+    "e1dd3785",
+    "a4b3b8aa",
+    "4d269cad",
+    "482bb7d2",
+    "31cc8611",
+    "a6a778de",
+    "375ac8d2",
+    "6ef78ec7",
+    "b1ec72fe",
+    "9eda0c51",
+    "f6065392",
+    "5234bf5f",
+    "9569ad23",
+    "679c98f9",
+    "85517be4",
+    "e2a35b9b",
+    "a1b944bf",
+    "ef2c4d6e",
+    "18b262a8",
+    "94a122ea",
+    "0570b49f",
+    "042fbb7d",
+    "2a97e2c1",
+    "fc3c171d",
+    "e70acb7f",
+    "04e10740",
+    "c72c2e97",
+    "fcd50daf",
+    "db24e082",
+    "b4f8903a",
+    "74ff723f",
+    "f65cbba0",
+    "6f0b7df1",
+    "7d402244",
+    "919bb5b8",
+    "42a86b6f",
+    "34d53d3b",
+    "9e4df828",
+    "52bbc5f8",
+    "02f2784c",
+    "c7f4f1f0",
+    "dab340be",
+    "cdc330c2",
+    "4a2b9442",
+    "cb5bcf65",
+    "df599340",
+    "27223f0d",
+    "214f9802",
+    "ac52481c",
+    "bcb28994",
+    "769107c8",
+    "f2ab3f0a",
+    "be26c6ab",
+    "d53e8654",
+    "e426c0da",
+    "349c8540",
+    "31c5457e",
+    "9c91840d",
+    "2fe3b213",
+    "182ced20",
+    "62976bcc",
+    "4487753e",
+    "4a1b580a",
+    "123328ac",
+    "9c9413fe",
+    "e034d807",
+    "39646c26",
+    "b347fe06",
+    "e09230c7",
+    "71992207",
+    "7a0c00ca",
+    "19e20d10",
+    "f21f939a",
+    "5106fb91",
+    "f1fe176b",
+    "ee55882a",
+    "1468c28a",
+    "dc0b66a1",
+    "3b2d9d82",
+    "0682d4ba",
+    "1e925025",
+    "026a668f",
+    "f9308a9a",
+    "b8ac859d",
+    "f045a5dc",
+    "9c3e3758",
+    "e964c5fb",
+    "228ea37c",
+    "2608db8d",
+    "59dbcee3",
+    "6546e33c",
+    "1f089282",
+    "8030ae25",
+    "420c79c7",
+    "f8f5cf7d",
+    "82cb4025",
+    "ff15ebe9",
+    "2bfa1fa2",
+    "c9bd6f35",
+    "bd53c176",
+    "b740fb44",
+    "f95e2fbe",
+    "a19e0c46",
+    "052c6baf",
+    "c11c2955",
+    "84f1c7dd",
+    "d7554203",
+    "3b3355a6",
+    "d89e1325",
+    "17a959a6",
+    "009a3cf7",
+    "4dd7efc2",
+    "085a6ab9",
+    "43f5db44",
+    "6bff6823",
+    "0c57607c",
+    "e39bf8cf",
+    "6ec76518",
+    "486a1f6e",
+    "8a76cc22",
+    "c5087388",
+    "10c184ea",
+    "fe5cc5c7",
+    "51426331",
+    "e7c406c5",
+    "3571b028",
+    "34336a1d",
+    "1aef0a18",
+    "a04fd140",
+    "d1a702ac",
+    "ddd68ee9",
+    "6a0ae6d3",
+    "d2251b88",
+    "aeb353af",
+    "3128a222",
+    "42e25d6f",
+    "57db22ed",
+    "1e8f65c3",
+    "6d33cb36",
+    "e2d821b5",
+    "9ac070e7",
+    "1f0d78b3",
+    "f3358042",
+    "29927fc8",
+    "14f14038",
+    "d5e4ef51",
+    "626339ac",
+    "7db6f771",
+    "6498347b",
+    "3085c19a",
+    "c8e24627",
+    "3d227caf",
+    "8a49a840",
+    "b99fc64a",
+    "a8d47807",
+    "f59f47ba",
+    "78e12f3e",
+    "778e6290",
+    "e91e4ba1",
+    "23961d40",
+    "271f11eb",
+    "e7468819",
+    "7b4bb536",
+    "e2b1aaa1",
+    "510a5493",
+    "7570cdeb",
+    "de994f80",
+    "644fb789",
+    "f7c428c7",
+    "41c4f470",
+    "35fd6e7e",
+    "350dbd94",
+    "3bab01c2",
+    "7354a257",
+    "0d4cf497",
+    "68e78bb7",
+    "f7aa7901",
+    "d61bb87d",
+    "0b94301b",
+    "0c590597",
+    "28a14182",
+    "48e41708",
+    "419424a1",
+    "9f005dab",
+    "4618e740",
+    "6bbe225c",
+    "576cb36e",
+    "2f8b19ed",
+    "903478ae",
+    "fefd04c4",
+    "bb7caf14",
+    "31d1068e",
+    "16b6b5df",
+    "1142233c",
+    "63de06ac",
+    "d8b81703",
+    "ec7ddc6c",
+    "4c49db8b",
+    "0fa44556",
+    "2f36ba92",
+    "bb7aec98",
+    "401bdaf2",
+    "ca96dbac",
+    "54f43fe8",
+    "2e03e7c5",
+    "83279e9b",
+    "94d0a3e7",
+    "9dda07ac",
+    "e725db43",
+    "51e04bee",
+    "6c492611",
+    "6416e8c0",
+    "80c212cf",
+    "d7e1241d",
+    "eee6f28c",
+    "4ad70088",
+    "2c518820",
+    "cdd02037",
+    "ab1473af",
+    "6adbabc6",
+    "4f0bf52a",
+    "a7641a2c",
+    "b4d3b6e9",
+    "bdb125aa",
+    "48f9159e",
+    "fca678c8",
+    "731bbbb9",
+    "28e8c89f",
+    "508d073a",
+    "7d2a3c22",
+    "b2f4e826",
+    "d0bd944f",
+    "1c124441",
+    "6de61b6a",
+    "0bf8a8da",
+    "596cafac",
+    "d7e4b9fe",
+    "9e369f11",
+    "189fab48",
+    "cd670e7a",
+    "c0a922fa",
+    "ebc72c68",
+    "9534ea4d",
+    "5258d88e",
+    "52b80a3c",
+    "e066daf6",
+    "fdd41ad3",
+    "d0c7fae3",
+    "058bfbcd",
+    "b85f7b0b",
+    "ec0b5e79",
+    "d229a1a7",
+    "ee6ee9c3",
+    "23e26ae5",
+    "f6ba8cac",
+    "32e5d2cb",
+    "ba4a479e",
+    "59953954",
+    "74838566",
+    "38357ee6",
+    "ec7efe7e",
+    "c913277d",
+    "7b7c807e",
+    "df7cdf4f",
+    "82fa58ff",
+    "3b0152b7",
+    "ea128cec",
+    "5f3ef38b",
+    "41b22e86",
+    "7cc5b535",
+    "86edadd4",
+    "653d5234",
+    "7c91617f",
+    "e3695872",
+    "a4c6e2bd",
+    "606da7b2",
+    "70c47641",
+    "129c013e",
+    "9b8625df",
+    "44a6de63",
+    "e84ef1d6",
+    "4f501773",
+    "b51eb7bb",
+    "3fa00143",
+    "10e7f05d",
+    "e0f7e778",
+    "19b679a8"
+  ],
+  "meta": {
+    "total_golden_threads": 134,
+    "total_golden_articles": 913,
+    "total_singletons": 556,
+    "causal_links": 25
+  }
+}

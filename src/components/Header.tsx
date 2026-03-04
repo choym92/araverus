@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import Image from 'next/image';
-import { Search, Menu, User, LogOut, Loader2 } from 'lucide-react';
+import { Menu, User, LogOut, Loader2 } from 'lucide-react';
 import { useState } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -73,12 +73,6 @@ export default function Header({ sidebarOpen, onToggleSidebar }: HeaderProps) {
 
         {/* Right side - Search and Auth */}
         <div className="flex items-center gap-3">
-          <button
-            className="p-2 hover:bg-gray-100 rounded-md transition-colors"
-            aria-label="Search"
-          >
-            <Search size={20} className="text-gray-600" />
-          </button>
 
           {loading ? (
             <div className="px-4 py-2">
