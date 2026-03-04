@@ -305,7 +305,7 @@ export default async function ArticlePage({ params }: ArticlePageProps) {
           sources={sources}
           wsjUrl={item.link}
           wsjTitle={item.title}
-          originalTitle={item.title && item.headline && item.headline !== item.title ? item.title : undefined}
+          originalTitle={undefined}
         />
 
         {/* Related Articles — exclude storyline articles */}

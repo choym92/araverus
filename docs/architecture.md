@@ -16,7 +16,7 @@ Financial intelligence platform powered by AI, machine learning, and neural netw
 | Animations | Framer Motion, tsParticles |
 | News Pipeline | Python scripts, GitHub Actions + Mac Mini (launchd) |
 | AI/LLM | Gemini 2.5 Pro (briefing + TTS), GPT-4o-mini (analysis), Chirp 3 HD (EN TTS) |
-| Analytics | Vercel Analytics + Google Analytics (GA4: G-3R2TBBK842) |
+| Analytics | Vercel Analytics + Google Analytics (GA4: G-ZF8PZ75W1H, property "Araverus") |
 | CI/CD | Vercel (frontend), GitHub Actions + Mac Mini (pipeline) |
 
 ---

@@ -172,8 +172,8 @@ export default function BriefingPlayer({
       <div className="px-5 pt-5 pb-0">
         <div className="flex items-start justify-between mb-1">
           <div className="flex items-center gap-3">
-            <div className={`w-10 h-10 rounded-xl ${T.accent} flex items-center justify-center shrink-0`}>
-              <span className="text-base font-bold tracking-tight">AI</span>
+            <div className="w-10 h-10 rounded-xl bg-white flex items-center justify-center shrink-0">
+              <span className="text-base font-bold tracking-tight text-black">AI</span>
             </div>
             <div>
               <h3 className="font-semibold text-sm leading-tight">

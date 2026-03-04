@@ -54,7 +54,7 @@ export default function SourceList({ sources, wsjUrl, wsjTitle, originalTitle }:
   const visible = expanded ? sources : sources.slice(0, COLLAPSED_COUNT)
   const hasMore = sources.length > COLLAPSED_COUNT
 
-  if (sources.length === 0) return null
+  if (sources.length === 0 && !wsjUrl) return null
 
   return (
     <div className="mb-12">

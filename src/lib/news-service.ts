@@ -31,7 +31,7 @@ const TRUSTED_SOURCE_DOMAINS = new Set([
 ])
 
 /** Minimum embedding similarity to include in source list (filters off-topic results). */
-const SOURCE_SIMILARITY_THRESHOLD = 0.68
+const SOURCE_SIMILARITY_THRESHOLD = 0.73
 
 const UNSAFE_SOURCE_DOMAINS = new Set([
   'marketscreener.com',
@@ -189,6 +189,7 @@ export class NewsService {
         wsj_crawl_results (
           top_image,
           relevance_flag,
+          embedding_score,
           source,
           resolved_url,
           wsj_llm_analysis (
@@ -225,7 +226,7 @@ export class NewsService {
       .map((item: Record<string, unknown>) => {
       const crawlResults = item.wsj_crawl_results as Record<string, unknown>[]
       const crawlArray = Array.isArray(crawlResults) ? crawlResults : crawlResults ? [crawlResults] : []
-      // Use 'ok' crawl for article data, count all candidates
+      // Use 'ok' crawl for article data, count only relevant sources
       const crawl = crawlArray.find((c) => c.relevance_flag === 'ok') ?? crawlArray[0] ?? null
       const analysis = crawl?.wsj_llm_analysis as Record<string, unknown>[] | Record<string, unknown> | undefined
       const llm = Array.isArray(analysis) ? analysis[0] : analysis
@@ -250,7 +251,7 @@ export class NewsService {
         keywords: (llm?.keywords as string[]) || null,
         thread_id: (item.thread_id as string) || null,
         resolved_url: resolvedUrl,
-        source_count: crawlArray.length,
+        source_count: 1 + crawlArray.filter((c) => c.resolved_url && ((c.embedding_score as number) >= SOURCE_SIMILARITY_THRESHOLD || c.relevance_flag === 'ok')).length,
       }
     })
   }
@@ -381,6 +382,7 @@ export class NewsService {
         wsj_crawl_results (
           top_image,
           relevance_flag,
+          embedding_score,
           source,
           resolved_url,
           wsj_llm_analysis (
@@ -426,7 +428,7 @@ export class NewsService {
         keywords: (llm?.keywords as string[]) || null,
         thread_id: (item.thread_id as string) || null,
         resolved_url: resolvedUrl,
-        source_count: crawlArray.length,
+        source_count: 1 + crawlArray.filter((c) => c.resolved_url && ((c.embedding_score as number) >= SOURCE_SIMILARITY_THRESHOLD || c.relevance_flag === 'ok')).length,
       }
     })
   }
@@ -490,12 +492,13 @@ export class NewsService {
   }
 
   async getArticleSources(itemId: string): Promise<CrawlSource[]> {
+    // Fetch sources that either pass embedding threshold OR were adopted by the pipeline (relevance_flag='ok')
     const { data } = await this.supabase
       .from('wsj_crawl_results')
-      .select('title, source, resolved_url, embedding_score')
+      .select('title, source, resolved_url, embedding_score, relevance_flag')
       .eq('wsj_item_id', itemId)
       .not('resolved_url', 'is', null)
-      .gte('embedding_score', SOURCE_SIMILARITY_THRESHOLD)
+      .or(`embedding_score.gte.${SOURCE_SIMILARITY_THRESHOLD},relevance_flag.eq.ok`)
       .order('embedding_score', { ascending: false })
 
     if (!data) return []

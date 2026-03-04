@@ -98,7 +98,7 @@ export default function FilterPanel({
 
       {/* Panel */}
       <aside
-        className={`fixed right-0 top-20 h-[calc(100vh-5rem)] w-72 bg-white z-20 flex flex-col transition-transform duration-200 ease-out ${
+        className={`fixed right-0 top-14 md:top-20 h-[calc(100vh-3.5rem)] md:h-[calc(100vh-5rem)] w-72 bg-white z-20 flex flex-col transition-transform duration-200 ease-out ${
           isOpen ? 'translate-x-0' : 'translate-x-full'
         }`}
         aria-label="Filter panel"
