@@ -9,7 +9,7 @@ function escapeXml(s: string) {
 
 const getRssData = unstable_cache(
   async () => {
-    const SITE = process.env.NEXT_PUBLIC_SITE_URL || 'https://chopaul.com';
+    const SITE = process.env.NEXT_PUBLIC_SITE_URL || 'https://araverus.com';
 
     const supabase = createServiceClient()
     const service = new NewsService(supabase)
@@ -42,17 +42,17 @@ const getRssData = unstable_cache(
     return `<?xml version="1.0" encoding="UTF-8"?>
   <rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
     <channel>
-      <title>${escapeXml('chopaul.com — AI-Powered News & Finance Insights')}</title>
+      <title>${escapeXml('Araverus — Financial Intelligence')}</title>
       <link>${SITE}</link>
       <description>${escapeXml('Agentic AI pipeline that threads related news stories, surfaces trends, and delivers daily briefings across Tech, Markets, and Finance.')}</description>
       <language>en</language>
-      <copyright>Copyright ${new Date().getFullYear()} chopaul.com</copyright>
+      <copyright>Copyright ${new Date().getFullYear()} Araverus</copyright>
       <ttl>60</ttl>
       <lastBuildDate>${latestDate}</lastBuildDate>
       <atom:link href="${SITE}/rss.xml" rel="self" type="application/rss+xml" />
       <image>
         <url>${SITE}/logo-publisher.png</url>
-        <title>${escapeXml('chopaul.com')}</title>
+        <title>${escapeXml('Araverus')}</title>
         <link>${SITE}</link>
       </image>
       ${newsRssItems}

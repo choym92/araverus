@@ -156,7 +156,7 @@ export default async function BlogPostPage({
       {/* Share Buttons */}
       <div className="mt-12 pt-8 border-t border-gray-200">
         <ShareBar
-          url={`https://chopaul.com/blog/${post.slug}`}
+          url={`https://araverus.com/blog/${post.slug}`}
           title={post.frontmatter.title}
         />
       </div>

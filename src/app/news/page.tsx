@@ -12,7 +12,7 @@ export const revalidate = 86400 // 24h ISR safety net; on-demand revalidation is
 export async function generateMetadata(): Promise<Metadata> {
   const titleText = 'AI News Briefing — Tech, Markets & Finance'
   const title = { absolute: titleText }
-  const canonical = 'https://chopaul.com/news'
+  const canonical = 'https://araverus.com/news'
 
   const description = 'Agentic AI pipeline that threads related news stories, surfaces trends, and delivers daily briefings across Tech, Markets, and Finance.'
 
@@ -30,14 +30,14 @@ export async function generateMetadata(): Promise<Metadata> {
       description,
       url: canonical,
       type: 'website',
-      images: [{ url: 'https://chopaul.com/og-news-default.png', width: 1200, height: 630 }],
+      images: [{ url: 'https://araverus.com/og-news-default.png', width: 1200, height: 630 }],
       ...(audioUrl && { audio: [{ url: audioUrl, type: 'audio/mpeg' }] }),
     },
     twitter: {
       card: 'summary_large_image',
       title: titleText,
       description,
-      images: ['https://chopaul.com/og-news-default.png'],
+      images: ['https://araverus.com/og-news-default.png'],
     },
   }
 }
@@ -54,7 +54,7 @@ export default async function NewsPage() {
     '@type': 'PodcastEpisode',
     name: `AI News Briefing — ${data.briefingPlayerData.date}`,
     datePublished: data.briefingPlayerData.date,
-    url: 'https://chopaul.com/news',
+    url: 'https://araverus.com/news',
     associatedMedia: {
       '@type': 'MediaObject',
       contentUrl: audioUrl,
@@ -63,8 +63,8 @@ export default async function NewsPage() {
     },
     partOfSeries: {
       '@type': 'PodcastSeries',
-      name: 'AI News Briefing — chopaul.com',
-      url: 'https://chopaul.com/news',
+      name: 'AI News Briefing — Araverus',
+      url: 'https://araverus.com/news',
     },
   } : null
 

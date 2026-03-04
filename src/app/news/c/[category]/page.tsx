@@ -46,7 +46,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const meta = CATEGORY_META[category]
   if (!meta) return {}
 
-  const canonical = `https://chopaul.com/news/c/${category}`
+  const canonical = `https://araverus.com/news/c/${category}`
 
   const supabase = createServiceClient()
   const service = new NewsService(supabase)
@@ -62,14 +62,14 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
       description: meta.description,
       url: canonical,
       type: 'website',
-      images: [{ url: 'https://chopaul.com/og-news-default.png', width: 1200, height: 630 }],
+      images: [{ url: 'https://araverus.com/og-news-default.png', width: 1200, height: 630 }],
       ...(audioUrl && { audio: [{ url: audioUrl, type: 'audio/mpeg' }] }),
     },
     twitter: {
       card: 'summary_large_image',
       title: meta.title,
       description: meta.description,
-      images: ['https://chopaul.com/og-news-default.png'],
+      images: ['https://araverus.com/og-news-default.png'],
     },
   }
 }

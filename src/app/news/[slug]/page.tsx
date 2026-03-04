@@ -51,16 +51,16 @@ export async function generateMetadata({ params }: ArticlePageProps): Promise<Me
   const item = await service.getNewsItemBySlug(slug)
 
   if (!item) {
-    return { title: 'Article Not Found | Paul Cho' }
+    return { title: 'Article Not Found | Araverus' }
   }
 
   const displayTitle = item.headline || item.title
   const description = item.summary || item.description || undefined
-  const canonical = `https://chopaul.com/news/${item.slug}`
-  const image = item.top_image || 'https://chopaul.com/og-news-default.png'
+  const canonical = `https://araverus.com/news/${item.slug}`
+  const image = item.top_image || 'https://araverus.com/og-news-default.png'
   const imageObj = item.top_image
     ? { url: item.top_image }
-    : { url: 'https://chopaul.com/og-news-default.png', width: 1200, height: 630 }
+    : { url: 'https://araverus.com/og-news-default.png', width: 1200, height: 630 }
 
   return {
     title: displayTitle,
@@ -112,8 +112,8 @@ export default async function ArticlePage({ params }: ArticlePageProps) {
     timeZone: 'UTC',
   })
 
-  const articleUrl = `https://chopaul.com/news/${item.slug}`
-  const DEFAULT_OG_IMAGE = 'https://chopaul.com/og-news-default.png'
+  const articleUrl = `https://araverus.com/news/${item.slug}`
+  const DEFAULT_OG_IMAGE = 'https://araverus.com/og-news-default.png'
   const displayTitle = item.headline || item.title
 
   const jsonLd = [
@@ -129,14 +129,14 @@ export default async function ArticlePage({ params }: ArticlePageProps) {
       isAccessibleForFree: true,
       datePublished: item.published_at,
       dateModified: item.published_at,
-      author: { '@type': 'Person', name: 'Paul Cho', url: 'https://chopaul.com' },
+      author: { '@type': 'Organization', name: 'Araverus', url: 'https://araverus.com' },
       publisher: {
         '@type': 'Organization',
-        name: 'chopaul.com',
-        url: 'https://chopaul.com',
+        name: 'Araverus',
+        url: 'https://araverus.com',
         logo: {
           '@type': 'ImageObject',
-          url: 'https://chopaul.com/logo-publisher.png',
+          url: 'https://araverus.com/logo-publisher.png',
           width: 600,
           height: 60,
         },
@@ -151,12 +151,12 @@ export default async function ArticlePage({ params }: ArticlePageProps) {
       '@context': 'https://schema.org',
       '@type': 'BreadcrumbList',
       itemListElement: [
-        { '@type': 'ListItem', position: 1, name: 'News', item: 'https://chopaul.com/news' },
+        { '@type': 'ListItem', position: 1, name: 'News', item: 'https://araverus.com/news' },
         {
           '@type': 'ListItem',
           position: 2,
           name: categoryLabel(item.feed_name),
-          item: `https://chopaul.com/news?category=${item.feed_name}`,
+          item: `https://araverus.com/news?category=${item.feed_name}`,
         },
         { '@type': 'ListItem', position: 3, name: displayTitle, item: articleUrl },
       ],
@@ -216,7 +216,7 @@ export default async function ArticlePage({ params }: ArticlePageProps) {
             {date} at {time}
           </p>
           <ShareBar
-            url={`https://chopaul.com/news/${slug}`}
+            url={`https://araverus.com/news/${slug}`}
             title={displayTitle}
             palette="neutral"
           />
@@ -290,7 +290,7 @@ export default async function ArticlePage({ params }: ArticlePageProps) {
 
         {/* Story Timeline — same thread across days */}
         {thread && timeline.length > 1 && (
-          <div className="mb-8">
+          <div className="mt-8 pt-8 border-t border-neutral-200">
             <TimelineSection
               threadTitle={thread.title}
               articles={timeline}
@@ -300,6 +300,7 @@ export default async function ArticlePage({ params }: ArticlePageProps) {
         )}
 
         {/* Source links */}
+        <div className="mt-8 pt-8 border-t border-neutral-200" />
         <SourceList
           sources={sources}
           wsjUrl={item.link}
@@ -312,18 +313,14 @@ export default async function ArticlePage({ params }: ArticlePageProps) {
           const timelineIds = new Set(timeline.map(a => a.id))
           const filtered = related.filter(a => !timelineIds.has(a.id))
           return filtered.length > 0 ? (
-            <div className="mb-10">
+            <div className="mt-8 pt-8 border-t border-neutral-200">
               <RelatedSection title="Related Articles" articles={filtered} />
             </div>
           ) : null
         })()}
 
         {/* Footer */}
-        <div className="border-t border-neutral-200 pt-6 text-center">
-          <p className="text-xs text-neutral-400">
-            Data sourced from public RSS feeds and News APIs.
-          </p>
-        </div>
+        <div className="border-t border-neutral-200 pt-6 text-center" />
       </div>
     </NewsShell>
   )

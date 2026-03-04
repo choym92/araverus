@@ -5,16 +5,16 @@ import BriefingMiniPlayer from './_components/BriefingMiniPlayer'
 const podcastSeriesJsonLd = {
   '@context': 'https://schema.org',
   '@type': 'PodcastSeries',
-  name: 'AI News Briefing — chopaul.com',
+  name: 'AI News Briefing — Araverus',
   description: 'Daily AI-curated audio briefing covering tech, markets, and finance news.',
-  url: 'https://chopaul.com/news',
-  webFeed: 'https://chopaul.com/podcast.xml',
-  author: { '@type': 'Person', name: 'Paul Cho' },
-  image: 'https://chopaul.com/podcast-cover.png',
+  url: 'https://araverus.com/news',
+  webFeed: 'https://araverus.com/podcast.xml',
+  author: { '@type': 'Organization', name: 'Araverus' },
+  image: 'https://araverus.com/podcast-cover.png',
 }
 
 export const metadata: Metadata = {
-  title: 'News | Paul Cho',
+  title: 'News | Araverus',
   description: 'Daily curated finance news and audio briefings from trusted sources.',
   alternates: {
     types: {

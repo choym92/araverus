@@ -9,7 +9,7 @@ function escapeXml(s: string) {
 
 const getPodcastData = unstable_cache(
   async () => {
-    const SITE = process.env.NEXT_PUBLIC_SITE_URL || 'https://chopaul.com';
+    const SITE = process.env.NEXT_PUBLIC_SITE_URL || 'https://araverus.com';
 
     const supabase = createServiceClient();
     const service = new NewsService(supabase);
@@ -40,12 +40,12 @@ const getPodcastData = unstable_cache(
   xmlns:itunes="http://www.itunes.apple.com/dtds/podcast-1.0.dtd"
   xmlns:atom="http://www.w3.org/2005/Atom">
   <channel>
-    <title>${escapeXml('AI News Briefing — chopaul.com')}</title>
+    <title>${escapeXml('AI News Briefing — Araverus')}</title>
     <link>${SITE}/news</link>
     <language>en</language>
-    <copyright>Copyright ${new Date().getFullYear()} chopaul.com</copyright>
+    <copyright>Copyright ${new Date().getFullYear()} Araverus</copyright>
     <description>${escapeXml('Agentic AI pipeline that threads related news stories, surfaces trends, and delivers daily audio briefings across Tech, Markets, and Finance.')}</description>
-    <itunes:author>chopaul.com</itunes:author>
+    <itunes:author>Araverus</itunes:author>
     <itunes:summary>${escapeXml('Daily AI-curated audio briefing covering tech, markets, and finance news.')}</itunes:summary>
     <itunes:category text="News">
       <itunes:category text="Daily News"/>
@@ -56,7 +56,7 @@ const getPodcastData = unstable_cache(
     <atom:link href="${SITE}/podcast.xml" rel="self" type="application/rss+xml"/>
     <image>
       <url>${SITE}/podcast-cover.png</url>
-      <title>${escapeXml('AI News Briefing — chopaul.com')}</title>
+      <title>${escapeXml('AI News Briefing — Araverus')}</title>
       <link>${SITE}/news</link>
     </image>
     ${itemXml}
