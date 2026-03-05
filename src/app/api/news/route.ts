@@ -10,7 +10,8 @@ export async function GET(request: NextRequest) {
   const { searchParams } = request.nextUrl
   const category = searchParams.get('category') || undefined
   const offset = Math.max(0, parseInt(searchParams.get('offset') || '0', 10) || 0)
-  const limit = Math.min(50, Math.max(1, parseInt(searchParams.get('limit') || '20', 10) || 20))
+  const maxLimit = category ? 20 : 60
+  const limit = Math.min(maxLimit, Math.max(1, parseInt(searchParams.get('limit') || String(maxLimit), 10) || maxLimit))
 
   if (category && !VALID_CATEGORIES.has(category)) {
     return NextResponse.json({ error: 'Invalid category' }, { status: 400 })

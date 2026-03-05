@@ -237,13 +237,17 @@ Article embeddings + story thread clustering.
 
 | Flag | Action |
 |------|--------|
-| *(none)* | Full run: embed + thread + deactivate stale |
+| *(none)* | Full run: embed + thread + status update + CE merge |
 | `--embed-only` | Skip thread matching |
+| `--skip-merge` | Skip CE merge pass |
+| `--seed-golden PATH` | Reset threads + seed from golden dataset JSON, then exit |
+| `--backfill-by-date` | Chronological backfill mode (legacy) |
 | `--dry-run` | Preview only |
 
-- **Model:** BAAI/bge-base-en-v1.5 (768d)
-- Thread matching: cosine > 0.70 → existing thread, else LLM groups into new threads
-- Threads deactivated after 7 days inactive
+- **Embedding:** BAAI/bge-base-en-v1.5 (768d)
+- **Thread matching:** cosine > 0.60 → existing thread, else LLM groups into new threads
+- **CE merge:** post-hoc merge of similar threads via GTE-ModernBERT cross-encoder (threshold 0.85)
+- **Lifecycle:** active (0-3d) → cooling (3-14d) → archived (14d+)
 
 ### Phase 5: Briefing
 

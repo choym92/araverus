@@ -19,6 +19,8 @@ Ran `backfill_headlines.py --cleanup` on 2026-03-04, clearing 1,318 non-ok headl
 
 3. **RSS/Sitemap**: Check `/rss.xml` and `/sitemap.xml` — no headline-less articles should appear
 
+4. **Search Console**: Submit `https://araverus.com/sitemap-news.xml` (one-time, after deploy confirms it's live)
+
 ## Script Retention
 `scripts/backfill_headlines.py` kept as maintenance tool:
 - `--cleanup`: Re-run periodically to enforce headline=ok invariant

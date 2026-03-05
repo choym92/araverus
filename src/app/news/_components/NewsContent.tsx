@@ -146,7 +146,8 @@ export default function NewsContent({
     setLoadingMore(true)
     try {
       const offset = items.length + extraItems.length
-      const params = new URLSearchParams({ offset: String(offset), limit: '20' })
+      const loadLimit = category ? '20' : '60'
+      const params = new URLSearchParams({ offset: String(offset), limit: loadLimit })
       if (category) params.set('category', category)
       const res = await fetch(`/api/news?${params}`)
       if (!res.ok) throw new Error('Failed to load')
@@ -393,7 +394,7 @@ export default function NewsContent({
             {/* Below-fold remaining stories */}
             {belowFold.length > 4 && (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-x-8">
-                {belowFold.slice(4).map((item) => (
+                {belowFold.slice(4, 4 + Math.floor((belowFold.length - 4) / 3) * 3).map((item) => (
                   <ArticleCard
                     key={item.id}
                     headline={item.title}
