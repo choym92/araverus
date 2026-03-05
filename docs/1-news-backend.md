@@ -274,9 +274,9 @@ python 8_generate_briefing.py --date 2026-02-23 --regen-audio  # Redo TTS+timest
 - **Summary fallback chain:** Curated articles get full content → summary → description. Standard articles get summary → content[:800] → description. Title-only articles get description → title.
 - **LLM:** Gemini 2.5 Pro (curation + briefing generation, temp 0.3, think 4K)
 - **Briefing memory:** Fetches up to 2 previous briefings (`MEMORY_LOOKBACK_DAYS=2`) from `wsj_briefings` and injects them as memory context. Enables trend awareness, story arc tracking, and reduced redundancy. Memory is always-on when previous briefings exist.
-- **TTS EN:** Google Cloud Chirp 3 HD (`en-US-Chirp3-HD-Alnilam`), Whisper alignment (CPU). Pre-processing normalizes smart quotes/curly apostrophes to ASCII before non-ASCII cleanup (prevents "we'll" → "we LL").
-- **TTS KO:** Google Cloud Chirp 3 HD (`ko-KR-Chirp3-HD-Kore`), byte-aware chunking (4800 byte limit), CTC forced alignment + Whisper hybrid correction
-- **Timestamps:** KO uses CTC forced alignment (ctc-forced-aligner) with Whisper drift correction; EN uses Whisper transcription with original text mapping
+- **TTS EN:** Google Cloud Chirp 3 HD (`en-US-Chirp3-HD-Alnilam`), per-sentence synthesis. Pre-processing normalizes smart quotes/curly apostrophes to ASCII, expands contractions, normalizes abbreviations before non-ASCII cleanup.
+- **TTS KO:** Google Cloud Chirp 3 HD (`ko-KR-Chirp3-HD-Kore`), per-sentence synthesis with number preprocessing.
+- **Timestamps:** Per-sentence TTS — each sentence is synthesized individually and timestamps are computed from PCM byte offsets (mathematically exact, no drift). Abbreviation-safe sentence splitter protects U.S., U.K., Dr., Inc., etc. from false splits. No post-hoc alignment (Whisper/CTC) needed.
 - **`--regen-audio`:** Fetches existing briefing text from DB, regenerates TTS + timestamps + uploads without re-running article fetch/curation/LLM
 - **Output:** `scripts/output/briefings/{date}/`
 
