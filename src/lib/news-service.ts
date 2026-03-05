@@ -410,12 +410,12 @@ export class NewsService {
         )
       `)
       .eq('thread_id', threadId)
-      .order('published_at', { ascending: true })
-      .limit(20)
+      .order('published_at', { ascending: false })
+      .limit(30)
 
     if (error || !data) return []
 
-    return data.map((item: Record<string, unknown>) => {
+    const result = data.map((item: Record<string, unknown>) => {
       const crawlResults = item.wsj_crawl_results as Record<string, unknown>[]
       const crawlArray = Array.isArray(crawlResults) ? crawlResults : crawlResults ? [crawlResults] : []
       const crawlWithHeadline = crawlArray.find((c) => {
@@ -454,6 +454,10 @@ export class NewsService {
       }
     })
     .filter(Boolean) as NewsItem[]
+
+    // Re-sort ascending (query fetches newest-first to prioritize recent, but timeline displays oldest-first)
+    result.sort((a, b) => new Date(a.published_at).getTime() - new Date(b.published_at).getTime())
+    return result
   }
 
 
