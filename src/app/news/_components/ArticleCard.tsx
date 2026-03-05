@@ -183,7 +183,7 @@ export default function ArticleCard({
     return (
       <article className={`pb-6 mb-6 ${
         isMustRead
-          ? 'bg-white rounded-xl shadow-[0_2px_20px_rgba(245,158,11,0.2)] hover:shadow-[0_4px_25px_rgba(245,158,11,0.3)] transition-shadow p-4'
+          ? 'border-l-2 border-l-amber-400 pl-4'
           : ''
       }`}>
         <CardWrapper slug={activeSlug} link={activeLink} className="group block">
@@ -275,7 +275,7 @@ export default function ArticleCard({
     <article
       className={`pb-5 mb-5 ${
         isMustRead
-          ? 'bg-white rounded-xl shadow-[0_2px_20px_rgba(245,158,11,0.2)] hover:shadow-[0_4px_25px_rgba(245,158,11,0.3)] transition-shadow p-4'
+          ? 'border-b border-neutral-200 border-l-2 border-l-amber-400 pl-4'
           : 'border-b border-neutral-200'
       }`}
     >
