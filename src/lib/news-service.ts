@@ -489,6 +489,7 @@ export class NewsService {
       .select(`
         wsj_items (
           title,
+          slug,
           feed_name,
           link,
           wsj_crawl_results (
@@ -509,10 +510,11 @@ export class NewsService {
       const llmData = crawl?.wsj_llm_analysis as Record<string, unknown>[] | Record<string, unknown> | undefined
       const llmRow = Array.isArray(llmData) ? llmData[0] : llmData
       const aiHeadline = (llmRow?.headline as string) || null
+      const slug = item?.slug as string | undefined
       return {
-        title: aiHeadline || '',
+        title: aiHeadline || (item?.title as string) || '',
         feed_name: (item?.feed_name as string) || '',
-        link: (item?.link as string) || '',
+        link: slug ? `/news/${slug}` : (item?.link as string) || '',
         source: (crawl?.source as string) || null,
       }
     })

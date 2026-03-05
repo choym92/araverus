@@ -828,8 +828,8 @@ export default function BriefingPlayer({
                   <a
                     key={i}
                     href={src.link || undefined}
-                    target={src.link ? '_blank' : undefined}
-                    rel={src.link ? 'noopener noreferrer' : undefined}
+                    target={src.link?.startsWith('/') ? undefined : '_blank'}
+                    rel={src.link?.startsWith('/') ? undefined : 'noopener noreferrer'}
                     className={`flex items-center gap-2 py-1.5 px-1 -mx-1 rounded ${T.sourceHover} transition-colors group`}
                   >
                     <span className={`text-xs ${T.dim} tabular-nums shrink-0 w-4 text-right`}>
