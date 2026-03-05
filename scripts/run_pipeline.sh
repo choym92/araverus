@@ -91,6 +91,11 @@ echo ""
 echo ">>> Phase 6: Health Report"
 $VENV "$SCRIPTS/pipeline_health.py" --date "$DATE" || echo "WARN: Health report failed (continuing)"
 
+# ── Phase 6.5: Notify Search Engines ──────────────────────
+echo ""
+echo ">>> Phase 6.5: Notify Search Engines (IndexNow + WebSub)"
+$VENV "$SCRIPTS/9_notify_search_engines.py" --hours 24 || echo "WARN: Search engine notification failed (non-fatal)"
+
 # ── Phase 7: Cache Revalidation ──────────────────────────
 echo ""
 echo ">>> Phase 7: Cache Revalidation"
