@@ -1,7 +1,7 @@
-<!-- Updated: 2026-02-25 -->
-# TODO: Security & Website Completeness
+<!-- Updated: 2026-03-05 -->
+# TODO: Security, Legal & Website Completeness
 
-Security audit and missing features identified 2026-02-25.
+Consolidated from: security audit (02-25), news legal compliance (03-02), auth RLS migration (02-17).
 
 ---
 
@@ -37,3 +37,16 @@ Security audit and missing features identified 2026-02-25.
 - [ ] **Skip-to-content link** — Accessibility best practice, missing from root layout.
 - [ ] **`prefers-reduced-motion`** — 3D landing page (Three.js, particles) should respect motion preference.
 - [ ] **Remove unused `zod` dependency** — In `package.json` but no validation schemas use it (or start using it for input validation).
+
+## Legal / Compliance (from news-legal-compliance)
+
+- [x] **AI headline rewrite** — Pipeline generates original headlines via LLM. Done.
+- [x] **Remove crawled images** — Switched to publisher logos. Done.
+- [ ] **Source attribution** — Add "Based on reporting by [source]" + link on article detail page. Footer disclaimer.
+- [ ] **robots.txt compliance in crawler** — Check target site robots.txt before fetching. Respect `Disallow` / `crawl-delay`.
+
+## Auth / RLS (from auth-rls-migration)
+
+- [x] **Remove hardcoded admin email** — Done (server-side role check).
+- [ ] **Enable RLS on blog tables** — Deprioritized: blog is MDX-based. SQL ready in deleted `auth-rls-migration.md` (git history). Revisit if CMS migration happens.
+- [ ] **Add RLS for pipeline tables** — `wsj_items`, `wsj_crawl_results`, etc. currently have no RLS. Low risk (service key only), but defense-in-depth.

@@ -1,4 +1,4 @@
-<!-- Updated: 2026-03-02 -->
+<!-- Updated: 2026-03-05 -->
 # Docs Reference
 
 ### Project Documentation Map
@@ -16,15 +16,11 @@
 | `docs/1-news-backend.md` | Pipeline scripts, crawling, briefing generation |
 | `docs/1.1-news-google-search.md` | Google News search flow, domain blocking layers, -site: logic |
 | `docs/1.2-news-threading.md` | Thread grouping algorithm, scoring |
-| `docs/1.2.1-reranker-causal-test.md` | Cross-encoder reranker experiment for threading + causal detection |
-| `docs/1.3-embedding-ab-test.md` | Embedding model A/B test results |
+| `docs/1.2-news-threading-visual.md` | Mermaid diagram companion to 1.2 |
+| `docs/1.2-news-threading-archive.md` | Historical R&D: reranker experiments, grid search, PRD, future ideas |
+| `docs/archive/1.3-embedding-ab-test.md` | Embedding model A/B test results (archived) |
 | `docs/1.4-news-scoring-tuning.md` | Scoring pipeline thresholds, tuning infrastructure |
 | `docs/pipeline-audit/` | Per-script audit docs (8 files) |
-
-**Workflow / Plans**
-| Doc | Content |
-|-----|---------|
-| `docs/workflow/2-prds/6-prd-threading-overhaul.md` | Threading overhaul master plan (Phase 1-6), progress tracker |
 
 **News Frontend (2.x)**
 | Doc | Content |
@@ -53,9 +49,8 @@ Before working on a specific area, READ the relevant doc first:
 | Pipeline scripts / crawling | `docs/1-news-backend.md` | Script flags, crawl logic, cost |
 | Google News search / domain blocking | `docs/1.1-news-google-search.md` | Search flow, -site: logic, filtering layers |
 | News threading | `docs/1.2-news-threading.md` | Algorithm, scoring constants |
-| Threading overhaul plan | `docs/workflow/2-prds/6-prd-threading-overhaul.md` | Phase 1-6 master plan, progress tracker |
-| Reranker / causal threading | `docs/1.2.1-reranker-causal-test.md` | Cross-encoder experiment, causal labeling, go/no-go |
-| Embedding models | `docs/1.3-embedding-ab-test.md` | Model comparison, 3-zone gate |
+| Threading R&D history | `docs/1.2-news-threading-archive.md` | Experiments, grid search, PRD, future ideas |
+| Embedding models | `docs/archive/1.3-embedding-ab-test.md` | Model comparison, 3-zone gate (archived — not cost-effective under 2-step LLM) |
 | Scoring thresholds / weight tuning | `docs/1.4-news-scoring-tuning.md` | All thresholds, scoring flow, tuning approach |
 | News frontend / components | `docs/2-news-frontend.md` | Component props, data flow, known hacks |
 | Stories tab / thread hierarchy | `docs/2.1-thread-stories.md` | StoriesTab component, heat scores, parent threads |
