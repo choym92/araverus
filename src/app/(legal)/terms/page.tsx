@@ -34,10 +34,10 @@ export default function TermsPage() {
         </div>
 
         <div>
-          <h2 className="mb-2 text-xl font-semibold">3. AI-Generated Content Disclaimer</h2>
+          <h2 className="mb-2 text-xl font-semibold">3. AI-Powered Content Disclaimer</h2>
           <p>
             News briefings and summaries on Araverus are curated and generated using artificial
-            intelligence. While we use deterministic settings to maximize accuracy, AI-generated
+            intelligence. While we use deterministic settings to maximize accuracy, AI-powered
             content may still contain errors or inaccuracies. We do not guarantee the completeness
             or reliability of any content on this site.
           </p>

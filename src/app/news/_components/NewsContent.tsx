@@ -112,10 +112,17 @@ export default function NewsContent({
       })
     : allItems
 
+  // Stable sort: must_read first, then by original order (newest-first from API)
+  const sortedItems = [...filteredItems].sort((a, b) => {
+    const aM = a.importance === 'must_read' ? 0 : 1
+    const bM = b.importance === 'must_read' ? 0 : 1
+    return aM - bM
+  })
+
   // Pick featured hero: first article with a summary (list is already sorted newest-first)
-  const featuredIndex = filteredItems.findIndex(item => item.summary)
-  const featured = featuredIndex >= 0 ? filteredItems[featuredIndex] : filteredItems[0] || null
-  const remaining = filteredItems.filter((_, i) => i !== (featuredIndex >= 0 ? featuredIndex : 0))
+  const featuredIndex = sortedItems.findIndex(item => item.summary)
+  const featured = featuredIndex >= 0 ? sortedItems[featuredIndex] : sortedItems[0] || null
+  const remaining = sortedItems.filter((_, i) => i !== (featuredIndex >= 0 ? featuredIndex : 0))
 
   // Card slicing for 3-column layout — balanced left/right
   const sideCount = Math.min(Math.floor(remaining.length / 2), 5)
@@ -466,12 +473,6 @@ export default function NewsContent({
           </div>
         )}
 
-        {/* Footer */}
-        <div className="border-t border-neutral-200 mt-12 pt-6 text-center">
-          <p className="text-xs text-neutral-400">
-            Data sourced from public RSS feeds and News APIs.
-          </p>
-        </div>
       </div>
     </>
   )
