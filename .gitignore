@@ -59,7 +59,8 @@ notebooks/tts_outputs/audio/
 *.wav
 *.mp3
 
-# Notebook intermediate outputs (regenerable from notebooks)
+# Notebooks and intermediate outputs (large, regenerable)
+notebooks/*.ipynb
 notebooks/*.pkl
 notebooks/*.png
 
