@@ -25,15 +25,23 @@ export default function AboutPage() {
         </p>
 
         <div>
+          <h2 className="mb-2 text-xl font-semibold">Our Mission</h2>
+          <p>
+            Financial news is fragmented and overwhelming. Araverus exists to cut through the noise
+            — providing clear, AI-powered intelligence so you can stay informed without the
+            information overload.
+          </p>
+        </div>
+
+        <div>
           <h2 className="mb-2 text-xl font-semibold">How It Works</h2>
           <p>
-            Our system accumulates financial news from hundreds of trusted sources in real time.
-            Articles are transformed into vector embeddings and clustered into coherent threads
-            using pretrained re-rank models and neural network-based similarity scoring. Each
-            thread then passes through multiple batches of validation with multi-agent pipelines
-            — cross-checking facts, resolving contradictions, and scoring relevance — before
-            generating original briefings. The result is a streamlined daily digest: not
-            aggregated headlines, but synthesized intelligence written from multiple sources.
+            Our system accumulates financial news from hundreds of trusted sources, updated in
+            daily batches. Using machine learning and neural network-based vector embedding 
+            similarity scoring, articles are clustered into coherent story threads and scored 
+            for relevance. Each thread then passes through multi-agent validation pipelines 
+            before generating original briefings. The result is a streamlined daily digest: 
+            not aggregated headlines, but synthesized intelligence written from multiple sources.
           </p>
         </div>
 
@@ -45,15 +53,6 @@ export default function AboutPage() {
             checks and human oversight. Despite our rigorous validation pipeline, AI-generated
             content may occasionally contain inaccuracies. We encourage readers to verify critical
             information through primary sources.
-          </p>
-        </div>
-
-        <div>
-          <h2 className="mb-2 text-xl font-semibold">Our Mission</h2>
-          <p>
-            Financial news is fragmented and overwhelming. Araverus exists to cut through the noise
-            — providing clear, AI-powered intelligence so you can stay informed without the
-            information overload.
           </p>
         </div>
 
