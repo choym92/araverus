@@ -218,7 +218,7 @@ export class NewsService {
     if (error || !data) return []
 
     // Visibility gate: only show articles with an AI headline (implies ok crawl)
-    return (data
+    return data
       .map((item: Record<string, unknown>) => {
       const crawlResults = item.wsj_crawl_results as Record<string, unknown>[]
       const crawlArray = Array.isArray(crawlResults) ? crawlResults : crawlResults ? [crawlResults] : []
@@ -258,7 +258,7 @@ export class NewsService {
         source_count: 1 + crawlArray.filter((c) => c.resolved_url && ((c.embedding_score as number) >= SOURCE_SIMILARITY_THRESHOLD || c.relevance_flag === 'ok')).length,
       }
     })
-    .filter((item): item is NewsItem => item !== null)) as NewsItem[]
+    .filter(Boolean) as NewsItem[]
   }
 
   async getNewsItemBySlug(slug: string): Promise<NewsItem | null> {
@@ -453,7 +453,7 @@ export class NewsService {
         source_count: 1 + crawlArray.filter((c) => c.resolved_url && ((c.embedding_score as number) >= SOURCE_SIMILARITY_THRESHOLD || c.relevance_flag === 'ok')).length,
       }
     })
-    .filter((item): item is NewsItem => item !== null)
+    .filter(Boolean) as NewsItem[]
   }
 
 
