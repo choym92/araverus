@@ -1,0 +1,5108 @@
+{
+  "generated_at": "2026-03-04T19:59:48.005689",
+  "version": "2.1",
+  "meta": {
+    "description": "Golden v2.1 \u2014 split-then-merge: HDBSCAN + strict Gemini split \u2192 Gemini merge pass",
+    "v1_threads": 134,
+    "v2_threads": 187,
+    "v21_threads": 170,
+    "thread_definition": "ONE developing story (cause/effect chain allowed), max 15 articles"
+  },
+  "threads": [
+    {
+      "title": "Big Tech's AI Investment Push in India",
+      "articles": [
+        "c2082119-ae89-43dd-8e38-aedd8f1b33c2",
+        "86d1a7fc-0596-41e2-9866-53fbf197696c"
+      ],
+      "links": [
+        {
+          "from": "c2082119",
+          "to": "86d1a7fc",
+          "type": "topical"
+        }
+      ],
+      "thread_id": "v2.1_0000"
+    },
+    {
+      "title": "AI's Performance and Niche in Marketing",
+      "articles": [
+        "a4eb642c-7c22-4def-8fc3-6a50a79b33c0",
+        "4d6347a3-bc64-4079-a191-b322512d885b"
+      ],
+      "links": [
+        {
+          "from": "a4eb642c",
+          "to": "4d6347a3",
+          "type": "topical"
+        }
+      ],
+      "thread_id": "v2.1_0001"
+    },
+    {
+      "title": "AI Agents: OpenAI's Initiatives and Broader Business Adoption",
+      "articles": [
+        "ea69ed8d-38de-4c0c-8092-0c310668cea1",
+        "8b05d983-0efa-4ef7-8735-c516d5e1269d",
+        "7b1e2a3a-6c58-4926-8895-0f80057e601d",
+        "8165d163-592a-4923-af79-96db85026abe"
+      ],
+      "links": [
+        {
+          "from": "ea69ed8d",
+          "to": "8b05d983",
+          "type": "topical"
+        },
+        {
+          "from": "7b1e2a3a",
+          "to": "8165d163",
+          "type": "topical"
+        },
+        {
+          "from": "ea69ed8d",
+          "to": "7b1e2a3a",
+          "type": "causal"
+        },
+        {
+          "from": "8b05d983",
+          "to": "8165d163",
+          "type": "causal"
+        },
+        {
+          "from": "ea69ed8d",
+          "to": "8b05d983",
+          "type": "sequential"
+        }
+      ],
+      "thread_id": "v2.1_0002"
+    },
+    {
+      "title": "Regulatory Scrutiny on Google's AI Practices",
+      "articles": [
+        "4da86b9f-0720-4930-929e-f19f344db9ba",
+        "44c8a2da-6e90-4ae4-8bde-3ae4a7731368"
+      ],
+      "links": [
+        {
+          "from": "4da86b9f",
+          "to": "44c8a2da",
+          "type": "topical"
+        }
+      ],
+      "thread_id": "v2.1_0003"
+    },
+    {
+      "title": "China's Military AI Development Mimicking Animals",
+      "articles": [
+        "ad462be1-06b5-486b-8508-9ae616136775",
+        "d57d31e2-f421-4346-a29c-ba595e2cc7c8"
+      ],
+      "links": [
+        {
+          "from": "ad462be1",
+          "to": "d57d31e2",
+          "type": "topical"
+        }
+      ],
+      "thread_id": "v2.1_0004"
+    },
+    {
+      "title": "Autonomous Vehicle Safety Incidents and Investigations",
+      "articles": [
+        "56d8bb64-6205-47b2-a045-1774664e2d76",
+        "c12fe373-c002-46eb-a2e4-b5ccaadf07d8"
+      ],
+      "links": [
+        {
+          "from": "56d8bb64",
+          "to": "c12fe373",
+          "type": "causal"
+        }
+      ],
+      "thread_id": "v2.1_0005"
+    },
+    {
+      "title": "Autonomous Vehicle Development and Fleet Expansion",
+      "articles": [
+        "eb471c1e-54b4-4cec-abd7-4c6c8baef32e",
+        "75cf0b00-0710-44c2-a52f-6d60bed5883e"
+      ],
+      "links": [
+        {
+          "from": "eb471c1e",
+          "to": "75cf0b00",
+          "type": "topical"
+        }
+      ],
+      "thread_id": "v2.1_0006"
+    },
+    {
+      "title": "AI's Economic and Workforce Impact",
+      "articles": [
+        "4a075875-340c-43d1-838b-adfdaf7b7e79",
+        "c3aed634-f99f-4aa7-9725-3be374f32271",
+        "ada9d1e5-224a-4c47-9dec-6eeb26d102ac",
+        "71019d82-f0ec-4507-809c-3746fbef8960",
+        "cc5131ea-4e0e-4efe-a10e-3a6490fb551e"
+      ],
+      "links": [
+        {
+          "from": "4a075875",
+          "to": "c3aed634",
+          "type": "causal"
+        },
+        {
+          "from": "c3aed634",
+          "to": "71019d82",
+          "type": "topical"
+        },
+        {
+          "from": "4a075875",
+          "to": "cc5131ea",
+          "type": "causal"
+        },
+        {
+          "from": "ada9d1e5",
+          "to": "cc5131ea",
+          "type": "topical"
+        }
+      ],
+      "thread_id": "v2.1_0007"
+    },
+    {
+      "title": "Elon Musk's xAI Company Developments",
+      "articles": [
+        "dbe40f65-a9b8-4cd4-89f9-3616b96d20e5",
+        "cf931f39-611e-48de-a4da-970ca54fd451"
+      ],
+      "links": [
+        {
+          "from": "dbe40f65",
+          "to": "cf931f39",
+          "type": "topical"
+        }
+      ],
+      "thread_id": "v2.1_0008"
+    },
+    {
+      "title": "Google's Diverse AI Tools and Partnerships",
+      "articles": [
+        "a74cd19d-40fe-44f8-a781-490e619ea48b",
+        "3862ec9b-a62e-4cbf-a0d2-0d88c0786457",
+        "a21b90ae-2ac9-4d6c-8560-c99f29a4272f"
+      ],
+      "links": [
+        {
+          "from": "a74cd19d",
+          "to": "3862ec9b",
+          "type": "topical"
+        },
+        {
+          "from": "3862ec9b",
+          "to": "a21b90ae",
+          "type": "topical"
+        }
+      ],
+      "thread_id": "v2.1_0009"
+    },
+    {
+      "title": "Trump's Attempt to Acquire Greenland: Geopolitical Maneuvers, Tariff Threats, and Global Economic Fallout",
+      "articles": [
+        "832e22cf-816d-4e14-8a0b-40997fe6ddd7",
+        "f5bd1dc5-48f7-4d34-8add-44112df29cb7",
+        "a1428dbd-fbad-41b3-9fd9-774f37768fab",
+        "ad37f7e2-8715-4883-becd-11f3dea45267",
+        "91058eb0-7be3-4534-af5d-6b36bd907a7c",
+        "089743a0-16b8-4e82-ac02-48c095f2d6f8",
+        "2fb41ec1-c9a3-4674-9045-403add78aea3",
+        "499a274f-a001-4337-a860-55c0f675052d",
+        "0dc40f29-adee-48d0-a344-5affdc81b8d9",
+        "9fe2c9f3-7a87-4d49-80a0-f6e2642458d9",
+        "b49f6f86-ab3b-4ca8-aaae-6a35c15027bb",
+        "82c488eb-f783-428b-ac5a-d4f02b1b11b1",
+        "f0b2f6fc-fcff-4348-a219-65594769c8e9",
+        "3d31dabd-3609-4d3a-9c79-01bc68dc29ef",
+        "fc24cf62-fe21-4f4c-afd7-ba3a06513eed",
+        "c5c8ef68-5201-41c9-86d1-a28e4a39a40c",
+        "cac81880-f78e-4ea8-b47b-893e9bfa0fa8",
+        "2fc41fc5-a431-4721-91ca-0d6505f26b1d",
+        "40b9c5f3-0b9f-42ca-a0ab-8e2f8768c8d2",
+        "cc3bb96b-41e8-4c46-823a-392ce4fd0c87",
+        "120552de-a606-4d80-969b-e78723afb55f",
+        "d1e0da44-f3a1-4d18-ab2a-f854b5647e89",
+        "2459b10b-79cb-406e-b557-d19be7bef02e",
+        "169f8722-d72e-478a-954c-0bc7ec76444c",
+        "d1aaf731-1d91-4925-ac9e-2b4b51749933",
+        "f2e20123-b8ea-4e29-bd07-d3b5f38fba9c",
+        "066cf33a-b2d8-4fed-8f87-b29d0d8bdd9b",
+        "1146456f-7081-4190-b1c0-cdfc33567af8",
+        "855c1185-e14b-4e76-9b4c-44801af71712",
+        "58a6abc3-f484-470d-bd59-07d226233c2b",
+        "ffc19e8a-f63f-4c57-ad37-db4ae8fe75b1"
+      ],
+      "links": [
+        {
+          "from": "832e22cf",
+          "to": "f5bd1dc5",
+          "type": "analysis"
+        },
+        {
+          "from": "832e22cf",
+          "to": "a1428dbd",
+          "type": "analysis"
+        },
+        {
+          "from": "832e22cf",
+          "to": "ad37f7e2",
+          "type": "causal"
+        },
+        {
+          "from": "089743a0",
+          "to": "91058eb0",
+          "type": "causal"
+        },
+        {
+          "from": "2fb41ec1",
+          "to": "91058eb0",
+          "type": "causal"
+        },
+        {
+          "from": "089743a0",
+          "to": "2fb41ec1",
+          "type": "topical"
+        },
+        {
+          "from": "499a274f",
+          "to": "0dc40f29",
+          "type": "causal"
+        },
+        {
+          "from": "0dc40f29",
+          "to": "9fe2c9f3",
+          "type": "topical"
+        },
+        {
+          "from": "0dc40f29",
+          "to": "b49f6f86",
+          "type": "topical"
+        },
+        {
+          "from": "0dc40f29",
+          "to": "82c488eb",
+          "type": "causal"
+        },
+        {
+          "from": "0dc40f29",
+          "to": "f0b2f6fc",
+          "type": "causal"
+        },
+        {
+          "from": "f0b2f6fc",
+          "to": "3d31dabd",
+          "type": "causal"
+        },
+        {
+          "from": "f0b2f6fc",
+          "to": "fc24cf62",
+          "type": "analysis"
+        },
+        {
+          "from": "f0b2f6fc",
+          "to": "c5c8ef68",
+          "type": "causal"
+        },
+        {
+          "from": "f0b2f6fc",
+          "to": "cac81880",
+          "type": "causal"
+        },
+        {
+          "from": "c5c8ef68",
+          "to": "2fc41fc5",
+          "type": "causal"
+        },
+        {
+          "from": "cac81880",
+          "to": "40b9c5f3",
+          "type": "causal"
+        },
+        {
+          "from": "82c488eb",
+          "to": "cc3bb96b",
+          "type": "causal"
+        },
+        {
+          "from": "f0b2f6fc",
+          "to": "120552de",
+          "type": "topical"
+        },
+        {
+          "from": "cc3bb96b",
+          "to": "d1e0da44",
+          "type": "causal"
+        },
+        {
+          "from": "2459b10b",
+          "to": "169f8722",
+          "type": "causal"
+        },
+        {
+          "from": "2459b10b",
+          "to": "d1aaf731",
+          "type": "causal"
+        },
+        {
+          "from": "d1aaf731",
+          "to": "f2e20123",
+          "type": "causal"
+        },
+        {
+          "from": "2459b10b",
+          "to": "066cf33a",
+          "type": "analysis"
+        },
+        {
+          "from": "2459b10b",
+          "to": "1146456f",
+          "type": "causal"
+        },
+        {
+          "from": "2459b10b",
+          "to": "855c1185",
+          "type": "topical"
+        },
+        {
+          "from": "2459b10b",
+          "to": "58a6abc3",
+          "type": "causal"
+        },
+        {
+          "from": "2459b10b",
+          "to": "ffc19e8a",
+          "type": "causal"
+        },
+        {
+          "from": "2",
+          "to": "0",
+          "type": "topical"
+        },
+        {
+          "from": "0",
+          "to": "1",
+          "type": "causal"
+        },
+        {
+          "from": "0",
+          "to": "3",
+          "type": "causal"
+        },
+        {
+          "from": "2",
+          "to": "3",
+          "type": "causal"
+        }
+      ],
+      "thread_id": "v2.1_0010"
+    },
+    {
+      "title": "Europe's Strategic Autonomy and the Future of the US-Europe Alliance",
+      "articles": [
+        "57fcd89b-6832-4679-9b34-5ca5983c76da",
+        "77438a33-3133-4b79-9d7a-393a85b84a03",
+        "d9ca6ce8-3cc7-4bcb-abe9-e0d6ff36f13d",
+        "dffb3663-a8d1-422b-bff6-ec62ae14a1d2",
+        "16dddfd5-4578-4ca8-b3ff-39a908af9c77",
+        "7a81451e-8c99-4d2d-ba38-2e2852225805"
+      ],
+      "links": [
+        {
+          "from": "57fcd89b",
+          "to": "77438a33",
+          "type": "causal"
+        },
+        {
+          "from": "d9ca6ce8",
+          "to": "dffb3663",
+          "type": "topical"
+        },
+        {
+          "from": "dffb3663",
+          "to": "7a81451e",
+          "type": "analysis"
+        },
+        {
+          "from": "16dddfd5",
+          "to": "7a81451e",
+          "type": "analysis"
+        },
+        {
+          "from": "d9ca6ce8",
+          "to": "16dddfd5",
+          "type": "topical"
+        },
+        {
+          "from": "0",
+          "to": "1",
+          "type": "topical"
+        }
+      ],
+      "thread_id": "v2.1_0011"
+    },
+    {
+      "title": "Anthropic's Claude Expands Capabilities and Market Disruption",
+      "articles": [
+        "86c1f875-dbe7-494d-a4e2-f903e606efd2",
+        "a6a89137-88a0-4764-a901-feccbccd24cd",
+        "e38aff12-1ffa-4c70-8d68-100061768ee4",
+        "1fe7fe7e-cd62-4b71-b53e-b472ad7de785",
+        "9e160e59-dbe4-4817-b6e0-90d758077983"
+      ],
+      "links": [
+        {
+          "from": "86c1f875",
+          "to": "a6a89137",
+          "type": "topical"
+        },
+        {
+          "from": "a6a89137",
+          "to": "e38aff12",
+          "type": "causal"
+        },
+        {
+          "from": "e38aff12",
+          "to": "1fe7fe7e",
+          "type": "analysis"
+        },
+        {
+          "from": "e38aff12",
+          "to": "9e160e59",
+          "type": "topical"
+        },
+        {
+          "from": "1fe7fe7e",
+          "to": "9e160e59",
+          "type": "topical"
+        }
+      ],
+      "thread_id": "v2.1_0012"
+    },
+    {
+      "title": "Anthropic's Super Bowl Ad and OpenAI Rivalry",
+      "articles": [
+        "f800b4d4-6b10-4a8f-9f6c-6b8b952362be",
+        "7f6e7d4f-2d5a-4f93-aeaa-bb2de24c53bf"
+      ],
+      "links": [
+        {
+          "from": "f800b4d4",
+          "to": "7f6e7d4f",
+          "type": "causal"
+        }
+      ],
+      "thread_id": "v2.1_0013"
+    },
+    {
+      "title": "Anthropic's AI Ethics and Morality Initiatives",
+      "articles": [
+        "a54db7af-56f2-4220-b64b-ec667f2f2c17",
+        "98dd09fc-83e5-49f6-94a3-14722bb0ab3e"
+      ],
+      "links": [
+        {
+          "from": "a54db7af",
+          "to": "98dd09fc",
+          "type": "topical"
+        }
+      ],
+      "thread_id": "v2.1_0014"
+    },
+    {
+      "title": "Anthropic Corporate Developments and Challenges",
+      "articles": [
+        "f81d5778-ea07-48a3-b41a-d1f7f18f9a12",
+        "ec2cb910-a1d6-43ea-97b4-2c50538a8318",
+        "0e8ff867-d326-4870-ad41-93f2e9c5811c"
+      ],
+      "links": [
+        {
+          "from": "f81d5778",
+          "to": "ec2cb910",
+          "type": "topical"
+        },
+        {
+          "from": "ec2cb910",
+          "to": "0e8ff867",
+          "type": "topical"
+        }
+      ],
+      "thread_id": "v2.1_0015"
+    },
+    {
+      "title": "Industry Trend: Tech Firms Enforcing Employee AI Adoption",
+      "articles": [
+        "9e52d6a9-51f2-4c87-8b8b-a217f2041e28",
+        "90317790-5786-4f88-a7ba-6d4cbfa964b3"
+      ],
+      "links": [
+        {
+          "from": "9e52d6a9",
+          "to": "90317790",
+          "type": "topical"
+        }
+      ],
+      "thread_id": "v2.1_0016"
+    },
+    {
+      "title": "U.S. Escalates Enforcement of Venezuela Oil Embargo",
+      "articles": [
+        "d291991c-f1ce-4daa-89fb-35dabcd2fb71",
+        "45757b9c-c683-4f07-a263-c4186abf7bd9",
+        "8df1ae26-b0db-4039-8c86-acd3a600c382",
+        "29f751ed-bbc6-40b3-8aff-a00f7a038727",
+        "c6de209a-7965-4418-aa28-554f829966d9",
+        "bd61ef6b-35f4-4d1d-9736-84d582b929e9"
+      ],
+      "links": [
+        {
+          "from": "d291991c",
+          "to": "45757b9c",
+          "type": "causal"
+        },
+        {
+          "from": "45757b9c",
+          "to": "8df1ae26",
+          "type": "causal"
+        },
+        {
+          "from": "8df1ae26",
+          "to": "29f751ed",
+          "type": "analysis"
+        },
+        {
+          "from": "8df1ae26",
+          "to": "c6de209a",
+          "type": "causal"
+        },
+        {
+          "from": "45757b9c",
+          "to": "bd61ef6b",
+          "type": "causal"
+        }
+      ],
+      "thread_id": "v2.1_0017"
+    },
+    {
+      "title": "U.S. Eases Sanctions to Revive Venezuela Oil Production",
+      "articles": [
+        "30e8127e-fe9f-4165-a11f-dfadc1c3b007",
+        "9531f6e1-fe51-401c-b482-69c6c924aeba",
+        "074f8e80-8d91-4ddf-b71f-dd4ed7d4f33f",
+        "1cbaede8-870d-4cb7-87bd-44c9e4128269"
+      ],
+      "links": [
+        {
+          "from": "30e8127e",
+          "to": "9531f6e1",
+          "type": "causal"
+        },
+        {
+          "from": "30e8127e",
+          "to": "074f8e80",
+          "type": "topical"
+        },
+        {
+          "from": "074f8e80",
+          "to": "1cbaede8",
+          "type": "causal"
+        }
+      ],
+      "thread_id": "v2.1_0018"
+    },
+    {
+      "title": "Venezuela's Oil Sector: Company Struggles and Illicit Trade Under Sanctions",
+      "articles": [
+        "91af0f54-e2b2-48cf-9fbf-f8360d42806c",
+        "89e9de3e-9799-4319-ac21-8bd3d8daa875",
+        "944ab9fa-a025-4422-aff7-fc416dd58e88",
+        "6910692b-e390-4026-8886-433ec8a58bbb"
+      ],
+      "links": [
+        {
+          "from": "91af0f54",
+          "to": "89e9de3e",
+          "type": "topical"
+        },
+        {
+          "from": "944ab9fa",
+          "to": "6910692b",
+          "type": "topical"
+        },
+        {
+          "from": "0",
+          "to": "4",
+          "type": "topical"
+        }
+      ],
+      "thread_id": "v2.1_0019"
+    },
+    {
+      "title": "U.S.-Iran Diplomatic Efforts and Oil Market Impact",
+      "articles": [
+        "7aceb784-6034-4cc7-87c2-a0340a3f6ea1",
+        "7ea01548-df6d-4c0d-85f2-73ed420f4374",
+        "12b437da-e18b-40fc-a1dd-db382688548c"
+      ],
+      "links": [
+        {
+          "from": "7aceb784",
+          "to": "7ea01548",
+          "type": "topical"
+        },
+        {
+          "from": "7ea01548",
+          "to": "12b437da",
+          "type": "causal"
+        }
+      ],
+      "thread_id": "v2.1_0020"
+    },
+    {
+      "title": "Weekly U.S. Crude Oil Inventory Reports",
+      "articles": [
+        "f40495f1-501a-4e80-9a63-f321dfda25c4",
+        "6f70a681-0720-4976-a218-dd038872cc68",
+        "734d4fe4-e498-4c51-8d0a-8f5f3ddddd50",
+        "27c9f953-7f38-4dbc-87fe-bd1e2dd60060"
+      ],
+      "links": [
+        {
+          "from": "f40495f1",
+          "to": "6f70a681",
+          "type": "topical"
+        },
+        {
+          "from": "6f70a681",
+          "to": "734d4fe4",
+          "type": "topical"
+        },
+        {
+          "from": "734d4fe4",
+          "to": "27c9f953",
+          "type": "topical"
+        }
+      ],
+      "thread_id": "v2.1_0021"
+    },
+    {
+      "title": "OPEC and IEA Global Oil Market Outlooks",
+      "articles": [
+        "721430bb-3d5a-47f3-8469-6f6206984538",
+        "ac795025-4139-4c1b-bb6e-fe3d1551ab18"
+      ],
+      "links": [
+        {
+          "from": "721430bb",
+          "to": "ac795025",
+          "type": "topical"
+        }
+      ],
+      "thread_id": "v2.1_0022"
+    },
+    {
+      "title": "Global Sanctions and Ship Seizures in the Oil Industry",
+      "articles": [
+        "31e79036-9237-4d88-95a4-38ddab0d0c1e",
+        "9bfd15f4-d7db-404d-a189-0d5d9f57144b",
+        "95b19d06-c532-431b-96a5-bf428437cfa9"
+      ],
+      "links": [
+        {
+          "from": "31e79036",
+          "to": "9bfd15f4",
+          "type": "topical"
+        },
+        {
+          "from": "31e79036",
+          "to": "95b19d06",
+          "type": "causal"
+        }
+      ],
+      "thread_id": "v2.1_0023"
+    },
+    {
+      "title": "Biotech Funding Outlook and Market Trends",
+      "articles": [
+        "6be5efd8-9fcd-4c83-a1ec-9365f32dfc8d",
+        "df968373-4a75-41e0-b240-6692d73924ac"
+      ],
+      "links": [
+        {
+          "from": "6be5efd8",
+          "to": "df968373",
+          "type": "topical"
+        }
+      ],
+      "thread_id": "v2.1_0024"
+    },
+    {
+      "title": "UnitedHealth Earnings Report and Market Impact",
+      "articles": [
+        "4332ac3c-9893-4131-b265-7ad5bace0718",
+        "ea4ec109-3cb2-409a-8e62-74180a8ba745"
+      ],
+      "links": [
+        {
+          "from": "4332ac3c",
+          "to": "ea4ec109",
+          "type": "causal"
+        }
+      ],
+      "thread_id": "v2.1_0025"
+    },
+    {
+      "title": "Gold Price Surge and Mining Industry Response",
+      "articles": [
+        "e5e21b0b-5d8d-4b53-b777-0fda305d77c7",
+        "8b98ac67-f899-48e4-96a9-e48beeaf505c"
+      ],
+      "links": [
+        {
+          "from": "e5e21b0b",
+          "to": "8b98ac67",
+          "type": "causal"
+        }
+      ],
+      "thread_id": "v2.1_0026"
+    },
+    {
+      "title": "Social Media Teen Mental Health Lawsuits and Settlements",
+      "articles": [
+        "83b39eb7-ec1c-49de-a03c-9f86e731b505",
+        "31fe5c04-2188-442c-84bf-d98ca95ea6ef"
+      ],
+      "links": [
+        {
+          "from": "83b39eb7",
+          "to": "31fe5c04",
+          "type": "causal"
+        }
+      ],
+      "thread_id": "v2.1_0027"
+    },
+    {
+      "title": "ADM Settles SEC Accounting Fraud Claims",
+      "articles": [
+        "1bb4c828-6e98-4121-8cf5-9e0b6c97f87d",
+        "8f8abbac-bbda-4e71-91ad-1df824062920"
+      ],
+      "links": [
+        {
+          "from": "1bb4c828",
+          "to": "8f8abbac",
+          "type": "topical"
+        }
+      ],
+      "thread_id": "v2.1_0028"
+    },
+    {
+      "title": "US Job Market Shows Signs of Cooling Amidst Challenges",
+      "articles": [
+        "50395312-5937-4380-be62-e91c0794bcf5",
+        "74695583-ee84-4712-a964-71bd645642f2",
+        "98ddc280-1656-41eb-8bd1-91146e7f7360",
+        "6b2df082-5dbc-43f0-8efa-dc7b1f5ead1c"
+      ],
+      "links": [
+        {
+          "from": "50395312",
+          "to": "74695583",
+          "type": "analysis"
+        },
+        {
+          "from": "74695583",
+          "to": "98ddc280",
+          "type": "topical"
+        },
+        {
+          "from": "74695583",
+          "to": "6b2df082",
+          "type": "analysis"
+        }
+      ],
+      "thread_id": "v2.1_0029"
+    },
+    {
+      "title": "Rising Costs Impact US Consumer Behavior and Spending",
+      "articles": [
+        "fc84c5ba-f856-433d-b6b6-ece04ebc4a4a",
+        "b8738c68-7de5-400a-a561-277fe38611ac",
+        "47eda6e8-6498-4dc5-ab9a-ea8d66dc5e70"
+      ],
+      "links": [
+        {
+          "from": "fc84c5ba",
+          "to": "b8738c68",
+          "type": "topical"
+        },
+        {
+          "from": "fc84c5ba",
+          "to": "47eda6e8",
+          "type": "causal"
+        }
+      ],
+      "thread_id": "v2.1_0030"
+    },
+    {
+      "title": "International Bodies Update Global Economic Growth Forecasts",
+      "articles": [
+        "a22000b2-2dff-40dd-89ce-0c55da7400c1",
+        "0007c4be-be6a-4cfc-be20-cc827632362b"
+      ],
+      "links": [
+        {
+          "from": "a22000b2",
+          "to": "0007c4be",
+          "type": "topical"
+        }
+      ],
+      "thread_id": "v2.1_0031"
+    },
+    {
+      "title": "China's Economic Growth and Policy Focus on Domestic Demand",
+      "articles": [
+        "ab54825d-a1dd-4ead-bbd2-345b7b661d57",
+        "ffd7fd19-d593-49c9-99eb-9d2d72d73747"
+      ],
+      "links": [
+        {
+          "from": "ab54825d",
+          "to": "ffd7fd19",
+          "type": "causal"
+        }
+      ],
+      "thread_id": "v2.1_0032"
+    },
+    {
+      "title": "UK House Prices See Unexpected January Jump",
+      "articles": [
+        "2f43a589-ccfb-418c-a544-5622351c3965",
+        "05866df9-4a62-4bf3-bf95-75e318dda3b4"
+      ],
+      "links": [
+        {
+          "from": "2f43a589",
+          "to": "05866df9",
+          "type": "topical"
+        }
+      ],
+      "thread_id": "v2.1_0033"
+    },
+    {
+      "title": "US Dollar Weakens Amid Fed Turmoil and Global Shifts",
+      "articles": [
+        "242bd5b0-00bb-4610-bb8e-0627c5cdde70",
+        "2675e001-7090-4950-9f97-993fc45bd860",
+        "6a628c49-bd84-47e2-b38a-7f16da997ef6"
+      ],
+      "links": [
+        {
+          "from": "242bd5b0",
+          "to": "2675e001",
+          "type": "topical"
+        },
+        {
+          "from": "2675e001",
+          "to": "6a628c49",
+          "type": "causal"
+        },
+        {
+          "from": "242bd5b0",
+          "to": "6a628c49",
+          "type": "causal"
+        }
+      ],
+      "thread_id": "v2.1_0034"
+    },
+    {
+      "title": "US Housing Market Shows Signs of Recovery",
+      "articles": [
+        "30933996-fd61-4120-b2aa-1c57647755cf",
+        "7d0f498b-32f1-4c61-b239-b14c635f37ed",
+        "5dec7c95-b610-4f71-8712-be12ccb63ad1"
+      ],
+      "links": [
+        {
+          "from": "30933996",
+          "to": "7d0f498b",
+          "type": "topical"
+        },
+        {
+          "from": "7d0f498b",
+          "to": "5dec7c95",
+          "type": "causal"
+        },
+        {
+          "from": "30933996",
+          "to": "5dec7c95",
+          "type": "causal"
+        }
+      ],
+      "thread_id": "v2.1_0035"
+    },
+    {
+      "title": "Airline Industry Projects Higher Profits Driven by Premium Travel",
+      "articles": [
+        "6fd50e98-0250-4136-b5fc-ee1ff1dbb72f",
+        "c7ddea7d-3ce8-4e20-9d7b-adf2b05b3c73"
+      ],
+      "links": [
+        {
+          "from": "6fd50e98",
+          "to": "c7ddea7d",
+          "type": "topical"
+        }
+      ],
+      "thread_id": "v2.1_0036"
+    },
+    {
+      "title": "Banking Sector Reports Mixed Profits and Outlook",
+      "articles": [
+        "a1beae01-c114-4bf3-b0e8-514c231c3569",
+        "4afeb36b-4ba8-4d90-9ce5-9f81b01011ed",
+        "08cfa06c-f511-49fa-8e0a-075d9ab7a38b"
+      ],
+      "links": [
+        {
+          "from": "a1beae01",
+          "to": "4afeb36b",
+          "type": "topical"
+        },
+        {
+          "from": "a1beae01",
+          "to": "08cfa06c",
+          "type": "analysis"
+        },
+        {
+          "from": "4afeb36b",
+          "to": "08cfa06c",
+          "type": "analysis"
+        }
+      ],
+      "thread_id": "v2.1_0037"
+    },
+    {
+      "title": "UK Inflation and Australian Monetary Policy Outlook",
+      "articles": [
+        "e12485b6-0738-4c99-bdac-fe19129d9059",
+        "2c191a12-e31f-42b8-86e5-cfdb15e64e91"
+      ],
+      "links": [
+        {
+          "from": "e12485b6",
+          "to": "2c191a12",
+          "type": "topical"
+        }
+      ],
+      "thread_id": "v2.1_0038"
+    },
+    {
+      "title": "Broader American Societal and Economic Challenges",
+      "articles": [
+        "55ef1160-fe35-41e4-b70a-8ac5765af4e8",
+        "fe287af7-6a3a-4911-9764-51595bfa6d19",
+        "97c2da28-9ff9-4aa0-ba8c-eccf4ba36264"
+      ],
+      "links": [
+        {
+          "from": "55ef1160",
+          "to": "fe287af7",
+          "type": "topical"
+        },
+        {
+          "from": "55ef1160",
+          "to": "97c2da28",
+          "type": "topical"
+        },
+        {
+          "from": "fe287af7",
+          "to": "97c2da28",
+          "type": "topical"
+        }
+      ],
+      "thread_id": "v2.1_0039"
+    },
+    {
+      "title": "Trump's Strategy to Influence and Reshape the Federal Reserve",
+      "articles": [
+        "34622c3f-092b-4317-8864-37a7b480215e",
+        "372f65f2-ef70-48a8-8b39-ddbb3d2d8d88",
+        "9af4a812-aeb8-4950-9fda-943b3b1042d7",
+        "93bc968a-9635-41f3-bcea-9ca9972def25",
+        "342b69fb-5f19-41fd-bb93-b0ee8b5a8e54",
+        "15e009bb-555b-4add-b42b-086d1c4ffdab",
+        "a4900191-6ddc-4b05-a900-8b8371d351a3",
+        "5f5cecca-3d63-4294-8f6c-5d0c989294c4",
+        "12d0ea8d-f2a9-47ee-9ff6-fd035f2412da",
+        "790a645c-4084-4e4b-b72a-8fe9e1ed84c1",
+        "100894eb-ddbc-4654-aea3-256fa85750df"
+      ],
+      "links": [
+        {
+          "from": "34622c3f",
+          "to": "372f65f2",
+          "type": "topical"
+        },
+        {
+          "from": "372f65f2",
+          "to": "9af4a812",
+          "type": "topical"
+        },
+        {
+          "from": "372f65f2",
+          "to": "93bc968a",
+          "type": "topical"
+        },
+        {
+          "from": "372f65f2",
+          "to": "342b69fb",
+          "type": "causal"
+        },
+        {
+          "from": "342b69fb",
+          "to": "15e009bb",
+          "type": "causal"
+        },
+        {
+          "from": "15e009bb",
+          "to": "a4900191",
+          "type": "analysis"
+        },
+        {
+          "from": "5f5cecca",
+          "to": "12d0ea8d",
+          "type": "topical"
+        },
+        {
+          "from": "790a645c",
+          "to": "100894eb",
+          "type": "topical"
+        },
+        {
+          "from": 0,
+          "to": 4,
+          "type": "causal"
+        },
+        {
+          "from": 1,
+          "to": 4,
+          "type": "causal"
+        },
+        {
+          "from": 0,
+          "to": 1,
+          "type": "topical"
+        }
+      ],
+      "thread_id": "v2.1_0040"
+    },
+    {
+      "title": "Trump's Executive Order Targets Wall Street Home Purchases",
+      "articles": [
+        "b0dbc1fc-2d99-4011-830b-3d11d8b4ca50",
+        "111bac70-9c9a-4438-9180-c3c3bd7d82e7"
+      ],
+      "links": [
+        {
+          "from": "b0dbc1fc",
+          "to": "111bac70",
+          "type": "causal"
+        }
+      ],
+      "thread_id": "v2.1_0041"
+    },
+    {
+      "title": "Government Shutdown Threatens Over DHS Funding and Immigration",
+      "articles": [
+        "6cfb5629-daf0-431f-90c7-0f5a2786935c",
+        "ecaf8897-6020-4cb4-9c29-61549b1f2230",
+        "061f4f41-9e61-40c5-a88c-683998651193"
+      ],
+      "links": [
+        {
+          "from": "6cfb5629",
+          "to": "ecaf8897",
+          "type": "topical"
+        },
+        {
+          "from": "ecaf8897",
+          "to": "061f4f41",
+          "type": "causal"
+        },
+        {
+          "from": "6cfb5629",
+          "to": "061f4f41",
+          "type": "causal"
+        }
+      ],
+      "thread_id": "v2.1_0042"
+    },
+    {
+      "title": "Fulton County 2020 Election Investigation Continues",
+      "articles": [
+        "9ceb322f-3d46-4dde-89c0-46ad118e5224",
+        "921845b8-e19e-40da-ab9f-66ed0fb50518"
+      ],
+      "links": [
+        {
+          "from": "9ceb322f",
+          "to": "921845b8",
+          "type": "causal"
+        }
+      ],
+      "thread_id": "v2.1_0043"
+    },
+    {
+      "title": "Corporate and Trump Responses to Minneapolis Events",
+      "articles": [
+        "424e16c1-d52e-46ca-bc0f-a2c09b772d63",
+        "dbc6195a-c9ee-49d4-8ce6-7c14b9e8706f",
+        "7dfcbfe0-6e4b-433b-8adf-8c3a76f3e659",
+        "2483e514-be97-451e-a171-bb59db2d7c29"
+      ],
+      "links": [
+        {
+          "from": "424e16c1",
+          "to": "dbc6195a",
+          "type": "causal"
+        },
+        {
+          "from": "dbc6195a",
+          "to": "2483e514",
+          "type": "topical"
+        },
+        {
+          "from": "7dfcbfe0",
+          "to": "2483e514",
+          "type": "topical"
+        }
+      ],
+      "thread_id": "v2.1_0044"
+    },
+    {
+      "title": "New Food Stamp Policy Changes and Restrictions Implemented",
+      "articles": [
+        "a2243818-4566-4090-b468-36e27f60afba",
+        "cf33ac63-9036-493f-a0ad-c2de3d77ccec"
+      ],
+      "links": [
+        {
+          "from": "a2243818",
+          "to": "cf33ac63",
+          "type": "topical"
+        }
+      ],
+      "thread_id": "v2.1_0045"
+    },
+    {
+      "title": "Japan's Yen Weakness and Intervention Speculation",
+      "articles": [
+        "0083c2ab-f0d0-40fe-a532-c9cde21e4e85",
+        "57266709-83e7-46e8-8819-3449ccc2d15d",
+        "753e8882-9048-44b9-9a66-d8fed7ddff91",
+        "d7df97c6-9ca2-4dd4-9053-33d4fb3fd701",
+        "ea588c4a-6146-4fef-9c65-ad21bf711886",
+        "e169b98d-5b3a-4d13-9a98-f5db1f77fedc",
+        "1f823399-cfb9-4dfb-807c-7a8b480465af",
+        "02de8437-f76f-4b12-8598-5b08c9fead8f"
+      ],
+      "links": [
+        {
+          "from": "0083c2ab",
+          "to": "57266709",
+          "type": "causal"
+        },
+        {
+          "from": "57266709",
+          "to": "753e8882",
+          "type": "topical"
+        },
+        {
+          "from": "0083c2ab",
+          "to": "d7df97c6",
+          "type": "causal"
+        },
+        {
+          "from": "57266709",
+          "to": "ea588c4a",
+          "type": "analysis"
+        },
+        {
+          "from": "57266709",
+          "to": "e169b98d",
+          "type": "causal"
+        },
+        {
+          "from": "d7df97c6",
+          "to": "1f823399",
+          "type": "topical"
+        },
+        {
+          "from": "1f823399",
+          "to": "02de8437",
+          "type": "causal"
+        }
+      ],
+      "thread_id": "v2.1_0046"
+    },
+    {
+      "title": "BOJ's Stance on Inflation and Monetary Policy",
+      "articles": [
+        "367a6159-7a09-436b-b7be-915cd33e86d4",
+        "c8ce8393-2c01-44d7-a42e-1d679ff16ce7"
+      ],
+      "links": [
+        {
+          "from": "367a6159",
+          "to": "c8ce8393",
+          "type": "causal"
+        }
+      ],
+      "thread_id": "v2.1_0047"
+    },
+    {
+      "title": "US Dollar Fluctuations: Impact of Tariffs, Fed Outlook, and Economic Data",
+      "articles": [
+        "cb9d5ef7-4063-4d39-b577-86743c3da64d",
+        "0117a569-8372-4222-8f94-1a81b2c6bbce",
+        "7dc4c74a-28c8-41e8-b0fb-14eeb2ed0dcd",
+        "b6ab9298-f3ed-4c30-b3a7-e1a25a097ac7",
+        "85afba83-6309-467b-9b70-99864f3a654f",
+        "12b111da-f2ab-428a-89fc-60c8155a4793",
+        "2464ced3-3c70-42ba-907c-15e4c57c7c77",
+        "5a1cdf6d-cd26-4a08-bb1e-6411e3e68a61",
+        "fb534233-44c3-4f5c-b357-ff3d5665be16",
+        "8429e4a1-c6b3-4ddd-a03a-6ca4fcffa145",
+        "33df8381-6f5a-4d8d-953d-a70486470709",
+        "e542a212-8110-4f85-a49d-53f9cbcb8eda",
+        "2979d054-d693-48cf-affa-e71d8356887e",
+        "1391bf51-c71b-4989-96a9-60c35efd0483",
+        "84429b27-012d-4277-b19a-f9cc5d08ad23"
+      ],
+      "links": [
+        {
+          "from": "cb9d5ef7",
+          "to": "0117a569",
+          "type": "causal"
+        },
+        {
+          "from": "cb9d5ef7",
+          "to": "7dc4c74a",
+          "type": "causal"
+        },
+        {
+          "from": "cb9d5ef7",
+          "to": "b6ab9298",
+          "type": "causal"
+        },
+        {
+          "from": "7dc4c74a",
+          "to": "b6ab9298",
+          "type": "causal"
+        },
+        {
+          "from": "85afba83",
+          "to": "12b111da",
+          "type": "topical"
+        },
+        {
+          "from": "85afba83",
+          "to": "2464ced3",
+          "type": "topical"
+        },
+        {
+          "from": "2464ced3",
+          "to": "5a1cdf6d",
+          "type": "causal"
+        },
+        {
+          "from": "2464ced3",
+          "to": "fb534233",
+          "type": "topical"
+        },
+        {
+          "from": "fb534233",
+          "to": "8429e4a1",
+          "type": "topical"
+        },
+        {
+          "from": "12b111da",
+          "to": "33df8381",
+          "type": "topical"
+        },
+        {
+          "from": "33df8381",
+          "to": "e542a212",
+          "type": "topical"
+        },
+        {
+          "from": "85afba83",
+          "to": "2979d054",
+          "type": "topical"
+        },
+        {
+          "from": "2979d054",
+          "to": "1391bf51",
+          "type": "topical"
+        },
+        {
+          "from": "1391bf51",
+          "to": "84429b27",
+          "type": "topical"
+        },
+        {
+          "from": "0",
+          "to": "2",
+          "type": "causal"
+        }
+      ],
+      "thread_id": "v2.1_0048"
+    },
+    {
+      "title": "ECB Monetary Policy Outlook Amid Eurozone Inflation and Currency Effects",
+      "articles": [
+        "1ac772eb-0d8d-40e2-8625-5e3ecb999c30",
+        "c6ddb8b1-9a60-421d-aba9-d07895df7cfd",
+        "ba3b250e-ea49-4ad1-b255-d7241b9f9f79",
+        "87829dc9-6aa7-4bce-8661-eeb77ace66ba",
+        "9f03c712-8500-4f24-8d62-c5b2e9a50cfe"
+      ],
+      "links": [
+        {
+          "from": "1ac772eb",
+          "to": "c6ddb8b1",
+          "type": "topical"
+        },
+        {
+          "from": "ba3b250e",
+          "to": "87829dc9",
+          "type": "topical"
+        },
+        {
+          "from": "87829dc9",
+          "to": "c6ddb8b1",
+          "type": "causal"
+        },
+        {
+          "from": "c6ddb8b1",
+          "to": "9f03c712",
+          "type": "analysis"
+        },
+        {
+          "from": "1ac772eb",
+          "to": "9f03c712",
+          "type": "topical"
+        }
+      ],
+      "thread_id": "v2.1_0049"
+    },
+    {
+      "title": "Euro Strength and ECB Initiatives to Boost Global Role",
+      "articles": [
+        "7f3cb0f7-cf65-4f8b-9efe-16453a118ba9",
+        "693a6268-1fab-47b5-93f5-89012f68b6ce"
+      ],
+      "links": [
+        {
+          "from": "12b111da",
+          "to": "7f3cb0f7",
+          "type": "topical"
+        },
+        {
+          "from": "7f3cb0f7",
+          "to": "693a6268",
+          "type": "causal"
+        }
+      ],
+      "thread_id": "v2.1_0050"
+    },
+    {
+      "title": "AI Transformation: Market Bets and Corporate Strategies for Resilience",
+      "articles": [
+        "50d14896-f24a-42ae-b79e-75efb764ee57",
+        "c7a45949-f48b-44d3-ae00-b54e3aec78cf",
+        "aab825dc-77d8-4ee4-a2f0-9f6c9e2f070a",
+        "213b859f-9a0a-4015-aadc-381dae55f984",
+        "55fdca14-3bdc-4ebe-9242-f36305889e3d",
+        "3e816cbe-788b-436c-8ffc-7c65d0d94738"
+      ],
+      "links": [
+        {
+          "from": "50d14896",
+          "to": "aab825dc",
+          "type": "topical"
+        },
+        {
+          "from": "c7a45949",
+          "to": "aab825dc",
+          "type": "topical"
+        },
+        {
+          "from": "213b859f",
+          "to": "55fdca14",
+          "type": "topical"
+        },
+        {
+          "from": "55fdca14",
+          "to": "3e816cbe",
+          "type": "topical"
+        },
+        {
+          "from": "Wall Street's Bet on AI-Immune \"HALO\" Stocks",
+          "to": "Corporate Strategies and Confidence Amid AI Transformation",
+          "type": "topical"
+        }
+      ],
+      "thread_id": "v2.1_0051"
+    },
+    {
+      "title": "AI's Disruptive Impact on Specific Industries",
+      "articles": [
+        "4736da1b-ec81-4ad4-b684-6d730a6159b4",
+        "b65c32de-51c1-40c1-8883-a7272c9b6c75"
+      ],
+      "links": [
+        {
+          "from": "4736da1b",
+          "to": "b65c32de",
+          "type": "topical"
+        }
+      ],
+      "thread_id": "v2.1_0052"
+    },
+    {
+      "title": "Q4 US Wireless Telecom Subscriber Performance",
+      "articles": [
+        "aa815f55-fa4f-4585-8dd1-db4e001c1344",
+        "ed492855-ef95-4f3b-9f05-b75429a2d7bf"
+      ],
+      "links": [
+        {
+          "from": "aa815f55",
+          "to": "ed492855",
+          "type": "topical"
+        }
+      ],
+      "thread_id": "v2.1_0053"
+    },
+    {
+      "title": "Q4 Media & Publishing Sector Earnings",
+      "articles": [
+        "08f730fb-6de4-4399-ab87-cfb11a7770e5",
+        "d2796133-378d-4a83-99b0-af85e32ffbd8",
+        "dfc270f7-b07d-4e92-bd57-c2d6548f7128"
+      ],
+      "links": [
+        {
+          "from": "08f730fb",
+          "to": "d2796133",
+          "type": "topical"
+        },
+        {
+          "from": "08f730fb",
+          "to": "dfc270f7",
+          "type": "topical"
+        },
+        {
+          "from": "d2796133",
+          "to": "dfc270f7",
+          "type": "topical"
+        }
+      ],
+      "thread_id": "v2.1_0054"
+    },
+    {
+      "title": "Luxury Sector Performance and Outlook",
+      "articles": [
+        "a9dadaf4-bf33-42b1-a14e-4511d0369ebc",
+        "2964340d-3cb2-40f3-aa3b-e04c91bb1719",
+        "6e1dad17-11d2-4b3b-a58b-2b621e156eee"
+      ],
+      "links": [
+        {
+          "from": "a9dadaf4",
+          "to": "2964340d",
+          "type": "topical"
+        },
+        {
+          "from": "a9dadaf4",
+          "to": "6e1dad17",
+          "type": "topical"
+        },
+        {
+          "from": "2964340d",
+          "to": "6e1dad17",
+          "type": "topical"
+        }
+      ],
+      "thread_id": "v2.1_0055"
+    },
+    {
+      "title": "Amazon's Rise to Surpass Walmart in Revenue",
+      "articles": [
+        "991eebe1-6f1f-4793-86f0-b22d69e56a94",
+        "d45a3b5c-e012-4598-88b9-84c232789a11"
+      ],
+      "links": [
+        {
+          "from": "991eebe1",
+          "to": "d45a3b5c",
+          "type": "causal"
+        }
+      ],
+      "thread_id": "v2.1_0056"
+    },
+    {
+      "title": "Restaurant & Casual Dining Sector Q4 Performance",
+      "articles": [
+        "5e3af20a-1401-46ab-ac7b-5dabc1709742",
+        "afa827c0-a705-4694-952e-a603d33aa4e2",
+        "028ceab5-5d4f-4922-ad04-80f2ac0cc013",
+        "c7b6f82c-4623-4306-8654-5078a58300e0"
+      ],
+      "links": [
+        {
+          "from": "5e3af20a",
+          "to": "afa827c0",
+          "type": "topical"
+        },
+        {
+          "from": "5e3af20a",
+          "to": "028ceab5",
+          "type": "topical"
+        },
+        {
+          "from": "5e3af20a",
+          "to": "c7b6f82c",
+          "type": "topical"
+        },
+        {
+          "from": "afa827c0",
+          "to": "028ceab5",
+          "type": "topical"
+        },
+        {
+          "from": "afa827c0",
+          "to": "c7b6f82c",
+          "type": "topical"
+        },
+        {
+          "from": "028ceab5",
+          "to": "c7b6f82c",
+          "type": "topical"
+        }
+      ],
+      "thread_id": "v2.1_0057"
+    },
+    {
+      "title": "European Telecoms Q4 Financial Results",
+      "articles": [
+        "b9d5d900-86a9-4053-9f6d-11050d5fa1c9",
+        "d5d941c1-dfe7-4b3e-80c1-3720874d66b2"
+      ],
+      "links": [
+        {
+          "from": "b9d5d900",
+          "to": "d5d941c1",
+          "type": "topical"
+        }
+      ],
+      "thread_id": "v2.1_0058"
+    },
+    {
+      "title": "Airline Sector Q4 Financial Results",
+      "articles": [
+        "367258b5-85fe-484b-b348-29f144341b08",
+        "1dbfb0cb-e2bb-4bba-b405-a96d495a56cc"
+      ],
+      "links": [
+        {
+          "from": "367258b5",
+          "to": "1dbfb0cb",
+          "type": "topical"
+        }
+      ],
+      "thread_id": "v2.1_0059"
+    },
+    {
+      "title": "US-Iran Military Escalation: Buildup, War Preparations, and Strike Considerations",
+      "articles": [
+        "dc2fddf0-fecc-4c67-82f3-0afda46f514d",
+        "2e6b6b0d-d93c-45ed-952e-563014cec2e4",
+        "d5f3c436-d5d8-4a8a-8050-b74cea48c31e",
+        "a0572d73-853e-4618-829f-9f60bdab2662",
+        "a0e47671-087f-4bcb-85d7-3133ba5f1de6",
+        "2616da29-5aa8-4abf-984a-8d8ca1664b5c",
+        "1da5b9e8-f165-488a-9001-782ca7a0c3f2",
+        "14f11052-f52c-4f32-9f81-d42b2c900eb6",
+        "b76de8d4-198b-4852-8526-ca03230e2a6b",
+        "16affd30-d317-44ca-8c3d-8f3960342bae"
+      ],
+      "links": [
+        {
+          "from": "dc2fddf0",
+          "to": "2e6b6b0d",
+          "type": "causal"
+        },
+        {
+          "from": "2e6b6b0d",
+          "to": "d5f3c436",
+          "type": "causal"
+        },
+        {
+          "from": "d5f3c436",
+          "to": "a0572d73",
+          "type": "causal"
+        },
+        {
+          "from": "a0572d73",
+          "to": "a0e47671",
+          "type": "topical"
+        },
+        {
+          "from": "a0e47671",
+          "to": "2616da29",
+          "type": "causal"
+        },
+        {
+          "from": "1da5b9e8",
+          "to": "14f11052",
+          "type": "causal"
+        },
+        {
+          "from": "1da5b9e8",
+          "to": "b76de8d4",
+          "type": "topical"
+        },
+        {
+          "from": "14f11052",
+          "to": "16affd30",
+          "type": "causal"
+        },
+        {
+          "from": "d5f3c436",
+          "to": "14f11052",
+          "type": "sequential"
+        },
+        {
+          "from": "2e6b6b0d",
+          "to": "1da5b9e8",
+          "type": "causal"
+        },
+        {
+          "from": "a0572d73",
+          "to": "b76de8d4",
+          "type": "causal"
+        }
+      ],
+      "thread_id": "v2.1_0060"
+    },
+    {
+      "title": "US-Iran Tensions Over Nuclear and Missile Programs",
+      "articles": [
+        "2795f756-4c7a-4ce3-a99f-f6d7621c1b6f",
+        "4fa523ef-1978-4b89-87c5-be26e3dfc4d3",
+        "47f8761e-175d-42b5-98a1-3d508a75536b"
+      ],
+      "links": [
+        {
+          "from": "2795f756",
+          "to": "4fa523ef",
+          "type": "causal"
+        },
+        {
+          "from": "4fa523ef",
+          "to": "47f8761e",
+          "type": "topical"
+        },
+        {
+          "from": "2795f756",
+          "to": "47f8761e",
+          "type": "topical"
+        }
+      ],
+      "thread_id": "v2.1_0061"
+    },
+    {
+      "title": "US-Iran Nuclear Diplomacy and High-Stakes Talks",
+      "articles": [
+        "d385f768-b998-4d37-8c8a-37de9dc747ee",
+        "c7b4a6cc-54c4-4c45-a539-36a0961ccf1a",
+        "ebe5b6dc-65b4-4d16-95f4-240f00f25fe7",
+        "14b2dab4-83b6-4230-b7ee-dd3e66b28d72",
+        "700dacf9-df14-406c-93b5-f95ff4cf606c",
+        "57061843-dc7b-4071-a0f9-f126710e8ae0",
+        "715f8e55-589e-47b1-9dbd-aca020579c59",
+        "6737f001-0d21-4e73-96a1-493dd112f4a9",
+        "8dffceeb-bb33-48b9-881a-564f8024a817"
+      ],
+      "links": [
+        {
+          "from": "d385f768",
+          "to": "c7b4a6cc",
+          "type": "causal"
+        },
+        {
+          "from": "c7b4a6cc",
+          "to": "ebe5b6dc",
+          "type": "topical"
+        },
+        {
+          "from": "d385f768",
+          "to": "14b2dab4",
+          "type": "topical"
+        },
+        {
+          "from": "ebe5b6dc",
+          "to": "700dacf9",
+          "type": "causal"
+        },
+        {
+          "from": "700dacf9",
+          "to": "57061843",
+          "type": "causal"
+        },
+        {
+          "from": "57061843",
+          "to": "715f8e55",
+          "type": "topical"
+        },
+        {
+          "from": "57061843",
+          "to": "6737f001",
+          "type": "topical"
+        },
+        {
+          "from": "6737f001",
+          "to": "8dffceeb",
+          "type": "topical"
+        }
+      ],
+      "thread_id": "v2.1_0062"
+    },
+    {
+      "title": "Federal Reserve's January Rate Decision and Evolving Outlook",
+      "articles": [
+        "4281bf66-364b-4346-9574-22f3b157e473",
+        "9a3ec68c-432e-4817-9dc5-3450d7309efe",
+        "b580d504-0287-4467-8f8a-d0ef6c72cc36",
+        "87ead19d-2f2f-4130-917e-75999f520332",
+        "75823b83-1de4-4186-9e85-ebe45bd13b70",
+        "e8ab3806-b6bf-4c1e-8bbc-31658e299a13",
+        "5cd31fb5-6db6-41da-be11-4b792186e1a3",
+        "2b0a32ae-244f-42a5-85b1-8c5ee9412d90",
+        "97aff462-ac51-45c7-9c4f-0611573aa22e",
+        "c56193f9-a146-486a-8f4f-9b371dfa7b73",
+        "4b524b67-401a-4c6e-a84a-1c1c65c82787",
+        "eae3d615-5821-48f3-9b69-fed775c0eb61",
+        "7e358d8f-2b2b-4221-a66d-9f670c4b0213",
+        "127470cb-322a-48c0-bfe7-d5a3ac33d30a",
+        "cc6dc91f-16df-4ce8-9b7e-cccb1a697013",
+        "7188945c-63c2-4b2f-9768-83f8f2046adb",
+        "a0d80f0f-78d9-4c39-a065-e566f333a4fe",
+        "fbc14e2d-80cf-46ae-9350-982722c0ddf1"
+      ],
+      "links": [
+        {
+          "from": "4281bf66",
+          "to": "9a3ec68c",
+          "type": "topical"
+        },
+        {
+          "from": "4281bf66",
+          "to": "b580d504",
+          "type": "topical"
+        },
+        {
+          "from": "4281bf66",
+          "to": "87ead19d",
+          "type": "topical"
+        },
+        {
+          "from": "4281bf66",
+          "to": "75823b83",
+          "type": "causal"
+        },
+        {
+          "from": "e8ab3806",
+          "to": "75823b83",
+          "type": "causal"
+        },
+        {
+          "from": "e8ab3806",
+          "to": "87ead19d",
+          "type": "causal"
+        },
+        {
+          "from": "c56193f9",
+          "to": "7e358d8f",
+          "type": "causal"
+        },
+        {
+          "from": "7e358d8f",
+          "to": "fbc14e2d",
+          "type": "causal"
+        },
+        {
+          "from": "4b524b67",
+          "to": "7188945c",
+          "type": "topical"
+        },
+        {
+          "from": "97aff462",
+          "to": "a0d80f0f",
+          "type": "topical"
+        }
+      ],
+      "thread_id": "v2.1_0063"
+    },
+    {
+      "title": "Epstein Files Release: Public Fallout and Key Figures' Responses",
+      "articles": [
+        "3847919d-f0bd-4037-93fa-5b9afe1d6cd0",
+        "1ae3e9d8-44f3-46e2-8f5a-ea0df3812c39",
+        "b3f1cecc-0774-4f97-a5d4-661e7e63fd26",
+        "323e090f-d0e6-442a-a9a9-0fda71b99ec7",
+        "dedb3014-2a96-4f58-b791-5f55f2968853",
+        "cd082672-3f0e-4447-8e37-ad8741efc47a",
+        "af2f8112-76c5-43f2-98d2-1e22264c9c73",
+        "6536ed7e-42a8-4f24-ba13-d3d800a49126",
+        "882f7757-da76-4d5f-9228-538d89a98a20",
+        "3d70c4d8-b9a2-499d-a43c-c04bfcc58c0b",
+        "de7bfe84-1dfb-4150-8f71-056263ddf0f5",
+        "04bdf188-cc10-4bc7-80dc-a5e422b29786",
+        "0f58568b-d1ff-4c32-8726-bb0cb561d04e"
+      ],
+      "links": [
+        {
+          "from": "3847919d",
+          "to": "1ae3e9d8",
+          "type": "causal"
+        },
+        {
+          "from": "3847919d",
+          "to": "b3f1cecc",
+          "type": "causal"
+        },
+        {
+          "from": "323e090f",
+          "to": "dedb3014",
+          "type": "causal"
+        },
+        {
+          "from": "dedb3014",
+          "to": "cd082672",
+          "type": "topical"
+        },
+        {
+          "from": "cd082672",
+          "to": "af2f8112",
+          "type": "causal"
+        },
+        {
+          "from": "af2f8112",
+          "to": "6536ed7e",
+          "type": "topical"
+        },
+        {
+          "from": "6536ed7e",
+          "to": "882f7757",
+          "type": "analysis"
+        },
+        {
+          "from": "3d70c4d8",
+          "to": "de7bfe84",
+          "type": "causal"
+        },
+        {
+          "from": "04bdf188",
+          "to": "0f58568b",
+          "type": "topical"
+        }
+      ],
+      "thread_id": "v2.1_0064"
+    },
+    {
+      "title": "Supreme Court Strikes Down Trump Tariffs: Global Trade Impact, Corporate Refunds, and Political Fallout",
+      "articles": [
+        "8d624e7c-20a7-4fb5-995a-1dfbfee04fc2",
+        "88f6e0fd-8b92-46ef-baaf-9e114ba52828",
+        "da1aef9a-9e59-4936-b4f9-f89f3a21d84f",
+        "f9f9ba5d-02a5-4a4c-93dc-57deafdf0a4c",
+        "50de5e24-269b-4914-ae58-67bf2ee4022f",
+        "b908e626-6490-43ea-8f9c-51ae5902e601",
+        "f59a9a93-c201-40b1-9730-08f5b7556c37",
+        "0d5ab7cb-8ff9-4eff-ac79-57ffed5096db",
+        "8e539705-2fd6-4b7e-b392-bf941e406b45",
+        "d31be87f-cf6c-443a-bc26-3369dc990661",
+        "ad47e5b7-23b8-4e01-9931-7facd6016353",
+        "acba532c-8e79-477f-bef9-d702e5f66e94",
+        "9f5259f7-6d0c-4344-bbf0-91b592ad082a"
+      ],
+      "links": [
+        {
+          "from": "8d624e7c",
+          "to": "88f6e0fd",
+          "type": "topical"
+        },
+        {
+          "from": "88f6e0fd",
+          "to": "da1aef9a",
+          "type": "analysis"
+        },
+        {
+          "from": "8d624e7c",
+          "to": "f9f9ba5d",
+          "type": "causal"
+        },
+        {
+          "from": "8d624e7c",
+          "to": "50de5e24",
+          "type": "causal"
+        },
+        {
+          "from": "f9f9ba5d",
+          "to": "b908e626",
+          "type": "topical"
+        },
+        {
+          "from": "f9f9ba5d",
+          "to": "f59a9a93",
+          "type": "topical"
+        },
+        {
+          "from": "0d5ab7cb",
+          "to": "8e539705",
+          "type": "causal"
+        },
+        {
+          "from": "0d5ab7cb",
+          "to": "d31be87f",
+          "type": "causal"
+        },
+        {
+          "from": "8e539705",
+          "to": "d31be87f",
+          "type": "causal"
+        },
+        {
+          "from": "ad47e5b7",
+          "to": "acba532c",
+          "type": "causal"
+        },
+        {
+          "from": "ad47e5b7",
+          "to": "9f5259f7",
+          "type": "causal"
+        },
+        {
+          "from": "acba532c",
+          "to": "9f5259f7",
+          "type": "causal"
+        },
+        {
+          "from": "8d624e7c",
+          "to": "0d5ab7cb",
+          "type": "causal"
+        },
+        {
+          "from": "8d624e7c",
+          "to": "ad47e5b7",
+          "type": "causal"
+        },
+        {
+          "from": "0d5ab7cb",
+          "to": "acba532c",
+          "type": "topical"
+        }
+      ],
+      "thread_id": "v2.1_0065"
+    },
+    {
+      "title": "China's Access to Advanced AI Chips Amid U.S. Restrictions",
+      "articles": [
+        "c261f6f5-2dc7-42c5-ae07-6423cae33e6b",
+        "9a627bf3-5ba7-438d-af35-937d91b47123"
+      ],
+      "links": [
+        {
+          "from": "c261f6f5",
+          "to": "9a627bf3",
+          "type": "causal"
+        }
+      ],
+      "thread_id": "v2.1_0066"
+    },
+    {
+      "title": "Chinese Tech Company Earnings",
+      "articles": [
+        "1eab22b8-a815-4487-ac40-e51d8771a72e",
+        "ba6a780a-039e-4942-a587-c6ddb1a6fdc4"
+      ],
+      "links": [
+        {
+          "from": "1eab22b8",
+          "to": "ba6a780a",
+          "type": "topical"
+        }
+      ],
+      "thread_id": "v2.1_0067"
+    },
+    {
+      "title": "TSMC's Global Manufacturing Expansion Amid Geopolitical Shifts",
+      "articles": [
+        "0701c8ff-14bd-4c35-9376-20ffdbc989bd",
+        "5229e00a-dac1-402f-82c8-bcf6c90404bf"
+      ],
+      "links": [
+        {
+          "from": "0701c8ff",
+          "to": "5229e00a",
+          "type": "causal"
+        }
+      ],
+      "thread_id": "v2.1_0068"
+    },
+    {
+      "title": "Semiconductor Industry Earnings and Orders",
+      "articles": [
+        "e1b82bfe-61f3-4d9b-9fe1-8c71d921c355",
+        "03482200-30b3-47fe-920f-b020f30eb29b",
+        "16859329-a060-4618-bc70-5d9d0c475469",
+        "d80cc3e1-a877-4e17-8ab7-3678ba8909f2"
+      ],
+      "links": [
+        {
+          "from": "e1b82bfe",
+          "to": "03482200",
+          "type": "topical"
+        },
+        {
+          "from": "03482200",
+          "to": "16859329",
+          "type": "topical"
+        },
+        {
+          "from": "16859329",
+          "to": "d80cc3e1",
+          "type": "topical"
+        }
+      ],
+      "thread_id": "v2.1_0069"
+    },
+    {
+      "title": "Kim Jong Un's Daughter's Rise and Succession Speculation",
+      "articles": [
+        "7717480e-aa59-4cc4-a529-cd2e9bbfb84a",
+        "c60a2c9b-df4a-4e32-a0df-157b08a38d43"
+      ],
+      "links": [
+        {
+          "from": "7717480e",
+          "to": "c60a2c9b",
+          "type": "topical"
+        }
+      ],
+      "thread_id": "v2.1_0070"
+    },
+    {
+      "title": "North Korea's Nuclear Ambitions and Defiance",
+      "articles": [
+        "4caf1a1f-6126-454d-a68a-4db935041e09",
+        "b15d0f62-be6e-496b-b472-bb577038951f",
+        "45afd84f-5b99-471a-84a1-19ed4cb83e26"
+      ],
+      "links": [
+        {
+          "from": "4caf1a1f",
+          "to": "b15d0f62",
+          "type": "causal"
+        },
+        {
+          "from": "b15d0f62",
+          "to": "45afd84f",
+          "type": "causal"
+        }
+      ],
+      "thread_id": "v2.1_0071"
+    },
+    {
+      "title": "U.S. Trade Dynamics and Deficit Under Trump",
+      "articles": [
+        "966f92b1-f826-4ffe-ae4c-95fdbb0ed075",
+        "a9d25d55-c806-4827-bf37-a103d92651ec"
+      ],
+      "links": [
+        {
+          "from": "966f92b1",
+          "to": "a9d25d55",
+          "type": "topical"
+        }
+      ],
+      "thread_id": "v2.1_0072"
+    },
+    {
+      "title": "European Exports to U.S. Amid Tariff Environment",
+      "articles": [
+        "54fc87df-fecb-4211-9cc9-de5e075fdaa2",
+        "4577e26b-968d-487d-9c2d-d93a2cba207f"
+      ],
+      "links": [
+        {
+          "from": "54fc87df",
+          "to": "4577e26b",
+          "type": "topical"
+        }
+      ],
+      "thread_id": "v2.1_0073"
+    },
+    {
+      "title": "Warner Bros. Discovery Acquisition Battle",
+      "articles": [
+        "38194efd-6260-401a-882d-53e1ac19134f",
+        "ea453afc-a4b6-4966-abe4-254d3f751898",
+        "0c4916ab-619b-4352-8b29-65236ef5cfc7",
+        "5617e5fd-8403-4a20-be40-d12ce86be0d1",
+        "af97ecda-e965-43f2-a05e-9a3fc223ea51",
+        "48bc7866-89e8-413f-9898-0d31ab2c56e6",
+        "e6a4c253-09e6-4de6-9810-c6bb7c607b99",
+        "b1af313c-6ae7-4378-8709-e310db7a1652",
+        "5a48a3dc-cb0c-49a5-a9bf-033004446738",
+        "70d0397d-0aae-4e86-ac84-347c332d9929",
+        "e6ca618a-8978-47bb-b095-c92409f4124b",
+        "2f9b844e-4034-47ab-8b7c-710ea03fd187",
+        "f7dc036c-a41f-49e2-babf-c0af134d257f"
+      ],
+      "links": [
+        {
+          "from": "38194efd",
+          "to": "ea453afc",
+          "type": "causal"
+        },
+        {
+          "from": "ea453afc",
+          "to": "0c4916ab",
+          "type": "causal"
+        },
+        {
+          "from": "38194efd",
+          "to": "5617e5fd",
+          "type": "causal"
+        },
+        {
+          "from": "38194efd",
+          "to": "48bc7866",
+          "type": "causal"
+        },
+        {
+          "from": "38194efd",
+          "to": "af97ecda",
+          "type": "topical"
+        },
+        {
+          "from": "af97ecda",
+          "to": "e6a4c253",
+          "type": "topical"
+        },
+        {
+          "from": "af97ecda",
+          "to": "b1af313c",
+          "type": "causal"
+        },
+        {
+          "from": "b1af313c",
+          "to": "5a48a3dc",
+          "type": "causal"
+        },
+        {
+          "from": "e6a4c253",
+          "to": "70d0397d",
+          "type": "topical"
+        },
+        {
+          "from": "5a48a3dc",
+          "to": "e6ca618a",
+          "type": "causal"
+        },
+        {
+          "from": "e6ca618a",
+          "to": "2f9b844e",
+          "type": "analysis"
+        },
+        {
+          "from": "e6ca618a",
+          "to": "f7dc036c",
+          "type": "analysis"
+        }
+      ],
+      "thread_id": "v2.1_0074"
+    },
+    {
+      "title": "AI Disruption Triggers Software Stock Selloff",
+      "articles": [
+        "f5382446-7797-4e4b-ba30-22a0df9d2ef3",
+        "05171c50-9d6c-41fd-854f-ec9d64f500dc",
+        "5b22638a-8918-4d81-ab30-e521910f471d",
+        "b766abbb-f24e-4800-8621-27e8883ce905",
+        "eb2db889-ce8e-403a-9043-830a08cd7a68",
+        "81529731-6649-400d-86ef-45739a53a1cc",
+        "265f1289-142d-4f27-aa44-66fe0062ae24",
+        "cf2f4bdb-f691-4b7a-82d0-fe2789e497b7",
+        "3657ca4d-6044-4bc8-9dfc-02c83cb7736e",
+        "52225335-e5c2-4e4c-8ef1-e2ad82692396",
+        "2824970d-751e-4d2b-a133-19f58ca82197",
+        "e12661fc-5fe4-41ce-9b24-7e2d160cbfe4"
+      ],
+      "links": [
+        {
+          "from": "05171c50",
+          "to": "f5382446",
+          "type": "causal"
+        },
+        {
+          "from": "5b22638a",
+          "to": "05171c50",
+          "type": "causal"
+        },
+        {
+          "from": "b766abbb",
+          "to": "5b22638a",
+          "type": "causal"
+        },
+        {
+          "from": "eb2db889",
+          "to": "b766abbb",
+          "type": "topical"
+        },
+        {
+          "from": "81529731",
+          "to": "b766abbb",
+          "type": "causal"
+        },
+        {
+          "from": "265f1289",
+          "to": "81529731",
+          "type": "causal"
+        },
+        {
+          "from": "cf2f4bdb",
+          "to": "265f1289",
+          "type": "topical"
+        },
+        {
+          "from": "3657ca4d",
+          "to": "cf2f4bdb",
+          "type": "causal"
+        },
+        {
+          "from": "52225335",
+          "to": "3657ca4d",
+          "type": "causal"
+        },
+        {
+          "from": "2824970d",
+          "to": "52225335",
+          "type": "topical"
+        },
+        {
+          "from": "e12661fc",
+          "to": "2824970d",
+          "type": "analysis"
+        }
+      ],
+      "thread_id": "v2.1_0075"
+    },
+    {
+      "title": "Philippine Central Bank Rate Cut and Future Outlook",
+      "articles": [
+        "9ecc1901-db36-48f6-96cf-957bda23afcd",
+        "a80899ff-1288-429e-b5d9-5ccc3a704882"
+      ],
+      "links": [
+        {
+          "from": "9ecc1901",
+          "to": "a80899ff",
+          "type": "causal"
+        }
+      ],
+      "thread_id": "v2.1_0076"
+    },
+    {
+      "title": "Agricultural Sector Outlook and Equipment Demand",
+      "articles": [
+        "742a4c9c-9a0e-4124-9e0c-5653d2569af9",
+        "15ae7fed-bb97-4f2d-aa73-109432166b0c"
+      ],
+      "links": [
+        {
+          "from": "742a4c9c",
+          "to": "15ae7fed",
+          "type": "topical"
+        }
+      ],
+      "thread_id": "v2.1_0077"
+    },
+    {
+      "title": "Trump Administration's Critical Minerals Strategy",
+      "articles": [
+        "ebbbe3b5-15e9-4a63-a099-cf6c6e606778",
+        "623e50f2-747b-40e5-90f5-90382684d73e",
+        "60d390c4-6412-4c21-88e9-97192efa159f",
+        "f3771ddd-2fd5-4fd8-b142-4a8c27415659",
+        "deedae21-da4f-43e5-a884-a3a59d73ea68"
+      ],
+      "links": [
+        {
+          "from": "ebbbe3b5",
+          "to": "623e50f2",
+          "type": "topical"
+        },
+        {
+          "from": "ebbbe3b5",
+          "to": "60d390c4",
+          "type": "causal"
+        },
+        {
+          "from": "ebbbe3b5",
+          "to": "f3771ddd",
+          "type": "analysis"
+        },
+        {
+          "from": "ebbbe3b5",
+          "to": "deedae21",
+          "type": "causal"
+        }
+      ],
+      "thread_id": "v2.1_0078"
+    },
+    {
+      "title": "US Coal Industry Revival Efforts",
+      "articles": [
+        "c627bec4-7dc1-4121-a9ed-5c9dfa859b0f",
+        "09db5fa4-4c02-47c7-934e-8b6012d3bcf4"
+      ],
+      "links": [
+        {
+          "from": "c627bec4",
+          "to": "09db5fa4",
+          "type": "topical"
+        }
+      ],
+      "thread_id": "v2.1_0079"
+    },
+    {
+      "title": "Bondi Beach Terrorist Attack and Aftermath",
+      "articles": [
+        "affb257f-9560-4028-8335-d2ed4c9d11b8",
+        "f41363da-885b-455b-b92f-03fb18b962db",
+        "82641f8a-d099-4f15-95d5-96efdd717f04",
+        "f374e911-0f38-48f9-b53c-ad62adadbd4c",
+        "df028ad1-35fd-4375-a779-7f02d830aab2"
+      ],
+      "links": [
+        {
+          "from": "affb257f",
+          "to": "f41363da",
+          "type": "causal"
+        },
+        {
+          "from": "affb257f",
+          "to": "82641f8a",
+          "type": "causal"
+        },
+        {
+          "from": "affb257f",
+          "to": "f374e911",
+          "type": "causal"
+        },
+        {
+          "from": "f41363da",
+          "to": "f374e911",
+          "type": "causal"
+        },
+        {
+          "from": "f374e911",
+          "to": "df028ad1",
+          "type": "causal"
+        }
+      ],
+      "thread_id": "v2.1_0080"
+    },
+    {
+      "title": "Trump's Proposed Credit-Card Rate Cap and Reactions",
+      "articles": [
+        "4f452d7c-3537-4cc0-906f-236357ed5090",
+        "ad727bea-fbbd-43fc-82af-42a4251e90f1",
+        "081497cd-32f2-40ad-88e5-122ba556da72",
+        "c7b7cef4-8632-42d6-b035-b08ceda4628d",
+        "52eda3ca-a6c3-4a4e-b150-127076791484"
+      ],
+      "links": [
+        {
+          "from": "4f452d7c",
+          "to": "ad727bea",
+          "type": "analysis"
+        },
+        {
+          "from": "4f452d7c",
+          "to": "081497cd",
+          "type": "causal"
+        },
+        {
+          "from": "4f452d7c",
+          "to": "c7b7cef4",
+          "type": "causal"
+        },
+        {
+          "from": "c7b7cef4",
+          "to": "52eda3ca",
+          "type": "analysis"
+        },
+        {
+          "from": "081497cd",
+          "to": "52eda3ca",
+          "type": "analysis"
+        }
+      ],
+      "thread_id": "v2.1_0081"
+    },
+    {
+      "title": "Boeing's 2025 Aircraft Deliveries and Market Impact",
+      "articles": [
+        "fc3599cd-059d-4aad-a6e3-9082356b9a2f",
+        "18678ba2-1579-4953-9640-f37c5c11ef55",
+        "77dd3343-0dad-4a01-97ac-5c5c451ba14a"
+      ],
+      "links": [
+        {
+          "from": "fc3599cd",
+          "to": "18678ba2",
+          "type": "causal"
+        },
+        {
+          "from": "fc3599cd",
+          "to": "77dd3343",
+          "type": "causal"
+        }
+      ],
+      "thread_id": "v2.1_0082"
+    },
+    {
+      "title": "US Crypto Regulatory Developments",
+      "articles": [
+        "03311ac4-20e9-4735-86c0-3ff59db9d73c",
+        "93878d73-95bb-4d01-977e-c534dfbb824a"
+      ],
+      "links": [
+        {
+          "from": "03311ac4",
+          "to": "93878d73",
+          "type": "topical"
+        }
+      ],
+      "thread_id": "v2.1_0083"
+    },
+    {
+      "title": "Crypto Market Downturn and Impacts",
+      "articles": [
+        "ce7bd0e9-836f-4520-9ca4-de56dddbdee1",
+        "7621b311-e15a-4dcf-b01f-fb2d542e5e43",
+        "d22d4049-019e-4370-95fe-e453eb9ebb13",
+        "44da4349-f677-4df8-af49-3902688de565",
+        "f259380a-6d52-454f-a34f-a8b66143a972",
+        "b06e8519-167d-491b-ae8d-71736fe735c7"
+      ],
+      "links": [
+        {
+          "from": "ce7bd0e9",
+          "to": "7621b311",
+          "type": "causal"
+        },
+        {
+          "from": "ce7bd0e9",
+          "to": "d22d4049",
+          "type": "topical"
+        },
+        {
+          "from": "ce7bd0e9",
+          "to": "44da4349",
+          "type": "causal"
+        },
+        {
+          "from": "ce7bd0e9",
+          "to": "f259380a",
+          "type": "causal"
+        },
+        {
+          "from": "ce7bd0e9",
+          "to": "b06e8519",
+          "type": "analysis"
+        }
+      ],
+      "thread_id": "v2.1_0084"
+    },
+    {
+      "title": "Canada-China Trade Relations and EV Imports",
+      "articles": [
+        "8abb1aea-01c6-4e42-9f2f-308ddbefc298",
+        "94fd8b7a-6108-4ab6-bf28-daf586b050dd"
+      ],
+      "links": [
+        {
+          "from": "8abb1aea",
+          "to": "94fd8b7a",
+          "type": "causal"
+        }
+      ],
+      "thread_id": "v2.1_0085"
+    },
+    {
+      "title": "Global Memory Chip Shortage and Its Industry Impact",
+      "articles": [
+        "64d8687e-10ba-4865-8973-b3dfca5a57d5",
+        "291377fb-1a8a-421e-861e-c856b735e41d",
+        "b880af7a-8be7-4a4c-be59-a457e2e29670",
+        "03fa7218-7600-442c-b4a4-d04db59bc427",
+        "938fcad8-8537-45f7-bcba-c58a10030cd6",
+        "477a79ff-0ecd-46f9-9ea4-20bafce9294d"
+      ],
+      "links": [
+        {
+          "from": "64d8687e",
+          "to": "291377fb",
+          "type": "causal"
+        },
+        {
+          "from": "291377fb",
+          "to": "b880af7a",
+          "type": "topical"
+        },
+        {
+          "from": "b880af7a",
+          "to": "03fa7218",
+          "type": "causal"
+        },
+        {
+          "from": "64d8687e",
+          "to": "938fcad8",
+          "type": "causal"
+        },
+        {
+          "from": "938fcad8",
+          "to": "477a79ff",
+          "type": "causal"
+        }
+      ],
+      "thread_id": "v2.1_0086"
+    },
+    {
+      "title": "Apple's Push for U.S. Chip Manufacturing",
+      "articles": [
+        "7886e345-a735-4369-b582-67a78ef780b8",
+        "97ac9892-c5e2-4000-bf07-ee408daf5d97"
+      ],
+      "links": [
+        {
+          "from": "7886e345",
+          "to": "97ac9892",
+          "type": "analysis"
+        }
+      ],
+      "thread_id": "v2.1_0087"
+    },
+    {
+      "title": "Epstein Scandal Fallout in the UK",
+      "articles": [
+        "d29400f4-0a0e-4107-a5d6-d721f9c16d8e",
+        "878c71a0-f694-40c3-b350-50a5c5517bdd",
+        "49a6622f-fa2b-4339-b0de-3b44b9c7c016",
+        "ba6d2e65-fc89-4ecf-a0e2-eae661f12186",
+        "e441abf7-1cd3-4851-8b5f-de6f0b3f1ec0"
+      ],
+      "links": [
+        {
+          "from": "d29400f4",
+          "to": "49a6622f",
+          "type": "causal"
+        },
+        {
+          "from": "49a6622f",
+          "to": "ba6d2e65",
+          "type": "causal"
+        },
+        {
+          "from": "ba6d2e65",
+          "to": "e441abf7",
+          "type": "causal"
+        },
+        {
+          "from": "d29400f4",
+          "to": "878c71a0",
+          "type": "topical"
+        }
+      ],
+      "thread_id": "v2.1_0088"
+    },
+    {
+      "title": "Japan's Takaichi Secures Landslide Election Victory",
+      "articles": [
+        "1ef08d9c-9818-4389-ae4c-0251b2a6c64c",
+        "7c8bdf0c-de00-41a0-a28c-53e9ca222b88",
+        "29bd94a2-cb4b-4d5a-87d7-db33125b8a1c",
+        "d56dbcb4-bdd9-4085-91c4-9d46373d7f3f"
+      ],
+      "links": [
+        {
+          "from": "1ef08d9c",
+          "to": "7c8bdf0c",
+          "type": "topical"
+        },
+        {
+          "from": "7c8bdf0c",
+          "to": "29bd94a2",
+          "type": "causal"
+        },
+        {
+          "from": "29bd94a2",
+          "to": "d56dbcb4",
+          "type": "causal"
+        }
+      ],
+      "thread_id": "v2.1_0089"
+    },
+    {
+      "title": "UK Political Uncertainty and Economic Impact",
+      "articles": [
+        "344ad327-c04f-4486-9757-534f47f6aa5a",
+        "1113912f-c559-418c-990b-bbd9c086af91"
+      ],
+      "links": [
+        {
+          "from": "1113912f",
+          "to": "344ad327",
+          "type": "causal"
+        }
+      ],
+      "thread_id": "v2.1_0090"
+    },
+    {
+      "title": "Jimmy Lai Sentenced in Hong Kong, Straining U.S.-China Ties",
+      "articles": [
+        "180d9a53-710f-4d83-bdc2-2c6be2f1be6f",
+        "0ca796fd-9f5d-49b4-bdd9-0c5f191978d2"
+      ],
+      "links": [
+        {
+          "from": "180d9a53",
+          "to": "0ca796fd",
+          "type": "topical"
+        }
+      ],
+      "thread_id": "v2.1_0091"
+    },
+    {
+      "title": "Bangladesh's Post-Revolution Election and Gen Z's Role",
+      "articles": [
+        "7e145815-c429-4b1e-a2d5-f80d28af0208",
+        "446121bb-11ee-4801-b533-b1d6f6b388b8"
+      ],
+      "links": [
+        {
+          "from": "7e145815",
+          "to": "446121bb",
+          "type": "topical"
+        }
+      ],
+      "thread_id": "v2.1_0092"
+    },
+    {
+      "title": "Federal Judge Rulings on Immigration Enforcement in Minnesota",
+      "articles": [
+        "9085b4c5-5fe4-4860-a0f4-9dea194a6858",
+        "9a722166-a665-41d4-89a0-5fd05c002528",
+        "0fab4305-4c3f-483e-bdee-1e1a82f7240c"
+      ],
+      "links": [
+        {
+          "from": "9085b4c5",
+          "to": "9a722166",
+          "type": "topical"
+        },
+        {
+          "from": "9a722166",
+          "to": "0fab4305",
+          "type": "causal"
+        }
+      ],
+      "thread_id": "v2.1_0093"
+    },
+    {
+      "title": "Xi Jinping's Military Purges and Power Consolidation",
+      "articles": [
+        "d4afb696-7670-4c57-80b6-cec9d14ac326",
+        "9d3f26a1-0b50-4a8c-a943-f916b105db60",
+        "93e63464-22f1-490e-b658-83c9d836d653",
+        "0780d7d9-dce7-46a6-a118-330c73abadd3",
+        "f8a4ec80-c9cd-482e-8b8c-f49da35cbda8",
+        "09de331d-476f-4eaa-b7e1-143848a3f43e",
+        "bf9424c3-c5ee-4193-a430-4eff8bf46bb5",
+        "efc71651-9a6d-4e89-8e93-1658640a1e61"
+      ],
+      "links": [
+        {
+          "from": "d4afb696",
+          "to": "0780d7d9",
+          "type": "topical"
+        },
+        {
+          "from": "0780d7d9",
+          "to": "9d3f26a1",
+          "type": "causal"
+        },
+        {
+          "from": "9d3f26a1",
+          "to": "93e63464",
+          "type": "causal"
+        },
+        {
+          "from": "9d3f26a1",
+          "to": "f8a4ec80",
+          "type": "topical"
+        },
+        {
+          "from": "93e63464",
+          "to": "f8a4ec80",
+          "type": "topical"
+        },
+        {
+          "from": "f8a4ec80",
+          "to": "09de331d",
+          "type": "causal"
+        },
+        {
+          "from": "09de331d",
+          "to": "efc71651",
+          "type": "analysis"
+        },
+        {
+          "from": "0780d7d9",
+          "to": "bf9424c3",
+          "type": "topical"
+        },
+        {
+          "from": "9d3f26a1",
+          "to": "bf9424c3",
+          "type": "topical"
+        },
+        {
+          "from": "bf9424c3",
+          "to": "efc71651",
+          "type": "analysis"
+        }
+      ],
+      "thread_id": "v2.1_0094"
+    },
+    {
+      "title": "Federal Response to Minnesota Unrest",
+      "articles": [
+        "0a8c2a78-5864-459c-a311-792d9bde7689",
+        "7838e6a0-1b86-4ac3-89ab-9a307a091188"
+      ],
+      "links": [
+        {
+          "from": "0a8c2a78",
+          "to": "7838e6a0",
+          "type": "causal"
+        }
+      ],
+      "thread_id": "v2.1_0095"
+    },
+    {
+      "title": "Goldman Sachs Top Lawyer's Epstein Scandal and Resignation",
+      "articles": [
+        "4e5ec0c2-185b-4e5e-8570-84cf4802e9cc",
+        "09a25603-ad60-4332-a6e9-d81c521a51c3",
+        "378bb95d-241b-426a-93fc-9e4632097e38",
+        "1dfe2ffe-7a77-4e40-9673-5f994e50203b",
+        "66fa5f96-ef88-4e2d-a33f-faf60deb3474"
+      ],
+      "links": [
+        {
+          "from": "4e5ec0c2",
+          "to": "09a25603",
+          "type": "causal"
+        },
+        {
+          "from": "09a25603",
+          "to": "378bb95d",
+          "type": "causal"
+        },
+        {
+          "from": "378bb95d",
+          "to": "1dfe2ffe",
+          "type": "topical"
+        },
+        {
+          "from": "1dfe2ffe",
+          "to": "66fa5f96",
+          "type": "analysis"
+        }
+      ],
+      "thread_id": "v2.1_0096"
+    },
+    {
+      "title": "US Regional Manufacturing Activity",
+      "articles": [
+        "d4e2aa9d-65b6-4827-bb9c-aaf7e691ae6e",
+        "afdf2435-d7b7-47cb-8303-818700c80b6b"
+      ],
+      "links": [
+        {
+          "from": "d4e2aa9d",
+          "to": "afdf2435",
+          "type": "topical"
+        }
+      ],
+      "thread_id": "v2.1_0097"
+    },
+    {
+      "title": "February Consumer Sentiment (Michigan Survey)",
+      "articles": [
+        "6d9a435d-1ed3-42f9-943d-4f1427d1ae8c",
+        "4b47932f-9b66-494b-b48b-df6a41a11810"
+      ],
+      "links": [
+        {
+          "from": "6d9a435d",
+          "to": "4b47932f",
+          "type": "topical"
+        }
+      ],
+      "thread_id": "v2.1_0098"
+    },
+    {
+      "title": "SpaceX IPO Preparations",
+      "articles": [
+        "2605a24a-6f60-4bb8-b3db-8475ca6709eb",
+        "ac084312-c7eb-4940-bfe3-6ed9982207b0"
+      ],
+      "links": [
+        {
+          "from": "2605a24a",
+          "to": "ac084312",
+          "type": "topical"
+        }
+      ],
+      "thread_id": "v2.1_0099"
+    },
+    {
+      "title": "Reopening of Gaza-Egypt Border Crossing",
+      "articles": [
+        "37d08cf0-3774-4a40-b0f2-64b9b1c61f28",
+        "ca5ddfc7-a88c-46b9-bc6b-3cb95f22dadb",
+        "82d7b017-5460-480d-a98c-74bf3f2ff34f"
+      ],
+      "links": [
+        {
+          "from": "37d08cf0",
+          "to": "ca5ddfc7",
+          "type": "causal"
+        },
+        {
+          "from": "ca5ddfc7",
+          "to": "82d7b017",
+          "type": "causal"
+        }
+      ],
+      "thread_id": "v2.1_0100"
+    },
+    {
+      "title": "US Trade Policy and its Impact on Canadian Economy",
+      "articles": [
+        "b2974c9f-2ed0-4021-abc5-ef123a2af806",
+        "c8fe839e-4995-48d5-8d49-636f29d49177"
+      ],
+      "links": [
+        {
+          "from": "b2974c9f",
+          "to": "c8fe839e",
+          "type": "causal"
+        }
+      ],
+      "thread_id": "v2.1_0101"
+    },
+    {
+      "title": "Gold and Silver Price Volatility Around Record Highs",
+      "articles": [
+        "945bacdd-04ba-474e-82b0-71c502360bfb",
+        "7ae5aa62-56bc-452d-95bf-d4d6354dc6ab",
+        "0109c160-1a14-4cea-84a9-b00c062129ba"
+      ],
+      "links": [
+        {
+          "from": "945bacdd",
+          "to": "7ae5aa62",
+          "type": "topical"
+        },
+        {
+          "from": "7ae5aa62",
+          "to": "0109c160",
+          "type": "causal"
+        }
+      ],
+      "thread_id": "v2.1_0102"
+    },
+    {
+      "title": "Escalating Protests and Crackdown in Iran",
+      "articles": [
+        "828f4348-23be-426e-b426-f6ebe56bf3d0",
+        "99cd924a-b0c8-4829-b371-f2c5a7e24044",
+        "72d26319-e258-4c48-b307-e4be8d574885",
+        "b0c8b889-f055-4451-a287-91d98985ad17",
+        "c7dc8488-73b8-43fd-bd88-63a176469b50"
+      ],
+      "links": [
+        {
+          "from": "828f4348",
+          "to": "99cd924a",
+          "type": "topical"
+        },
+        {
+          "from": "99cd924a",
+          "to": "72d26319",
+          "type": "causal"
+        },
+        {
+          "from": "72d26319",
+          "to": "b0c8b889",
+          "type": "topical"
+        },
+        {
+          "from": "b0c8b889",
+          "to": "c7dc8488",
+          "type": "topical"
+        }
+      ],
+      "thread_id": "v2.1_0103"
+    },
+    {
+      "title": "Bank of Canada Holds Policy Rate Steady",
+      "articles": [
+        "2e6d026b-9a0e-466b-8117-766becc3b734",
+        "2d05990e-dbd4-47f4-b5d7-acf5671642ea"
+      ],
+      "links": [
+        {
+          "from": "2e6d026b",
+          "to": "2d05990e",
+          "type": "topical"
+        }
+      ],
+      "thread_id": "v2.1_0104"
+    },
+    {
+      "title": "Trump Administration's Evolving Immigration Enforcement in Minnesota",
+      "articles": [
+        "05a90967-9d32-4496-a814-7731aadaeef4",
+        "13bd2dfa-f806-45de-b003-607281a582de",
+        "4c76f57c-467b-4a18-8d17-c065dfc8a904",
+        "6984c48c-3d6b-4adf-8806-1fc6797c732a",
+        "69967da2-5c10-4d55-b44b-95ac480de528"
+      ],
+      "links": [
+        {
+          "from": "05a90967",
+          "to": "13bd2dfa",
+          "type": "causal"
+        },
+        {
+          "from": "13bd2dfa",
+          "to": "4c76f57c",
+          "type": "causal"
+        },
+        {
+          "from": "4c76f57c",
+          "to": "6984c48c",
+          "type": "causal"
+        },
+        {
+          "from": "6984c48c",
+          "to": "69967da2",
+          "type": "causal"
+        }
+      ],
+      "thread_id": "v2.1_0105"
+    },
+    {
+      "title": "UPS Job Cuts and Restructuring",
+      "articles": [
+        "a413e9db-2f85-41a1-ba6d-84e9f28f462b",
+        "3c94d440-0ab9-414a-a131-f139059574ac"
+      ],
+      "links": [
+        {
+          "from": "a413e9db",
+          "to": "3c94d440",
+          "type": "causal"
+        }
+      ],
+      "thread_id": "v2.1_0106"
+    },
+    {
+      "title": "Saks Bankruptcy and Store Closures",
+      "articles": [
+        "689d6b8b-2dde-443d-90c0-33b9e6d7a279",
+        "23729db3-25e6-481c-a7fb-56696f96fb5e"
+      ],
+      "links": [
+        {
+          "from": "689d6b8b",
+          "to": "23729db3",
+          "type": "causal"
+        }
+      ],
+      "thread_id": "v2.1_0107"
+    },
+    {
+      "title": "Oil Futures React to Geopolitical Tensions",
+      "articles": [
+        "eed81d54-ed1c-46ed-b340-b39d73eff546",
+        "a9c2bd43-82df-4582-9690-b3578ea2cd4b",
+        "f11afd52-0591-49d7-958b-626214af7298"
+      ],
+      "links": [
+        {
+          "from": "eed81d54",
+          "to": "a9c2bd43",
+          "type": "topical"
+        },
+        {
+          "from": "a9c2bd43",
+          "to": "f11afd52",
+          "type": "causal"
+        }
+      ],
+      "thread_id": "v2.1_0108"
+    },
+    {
+      "title": "Treasury Yields and Fed Rate Decision",
+      "articles": [
+        "239c3507-6019-4153-80c9-58790dd382e1",
+        "476a1142-8188-43b6-9d2e-f9e1fd6e3101"
+      ],
+      "links": [
+        {
+          "from": "239c3507",
+          "to": "476a1142",
+          "type": "causal"
+        }
+      ],
+      "thread_id": "v2.1_0109"
+    },
+    {
+      "title": "Investigation into DHS Secretary Kristi Noem's Conduct",
+      "articles": [
+        "cae93a17-1066-48ab-b909-bd54edee36b6",
+        "e39cb655-382d-4e10-a630-57e062885247"
+      ],
+      "links": [
+        {
+          "from": "cae93a17",
+          "to": "e39cb655",
+          "type": "topical"
+        }
+      ],
+      "thread_id": "v2.1_0110"
+    },
+    {
+      "title": "Gold Price Surge and Market Volatility",
+      "articles": [
+        "dfaec84c-6de4-43df-b05b-5f24bd870a97",
+        "57d33acc-ce3e-4f4a-aec5-6a197c809de2",
+        "d887f324-7539-404d-a036-68762403f47c",
+        "123b3b31-05c6-4011-a2e7-c660e55fadea",
+        "660f8423-53b3-4e1b-a8e4-d8e4b0602370",
+        "e4c2f412-2758-4816-b415-fba5f245e375",
+        "2d9b4a0d-6151-4562-95a2-2a6dc8553b72",
+        "c1189e0a-b697-4d20-bd79-765f0e223533"
+      ],
+      "links": [
+        {
+          "from": "dfaec84c",
+          "to": "57d33acc",
+          "type": "topical"
+        },
+        {
+          "from": "57d33acc",
+          "to": "d887f324",
+          "type": "topical"
+        },
+        {
+          "from": "d887f324",
+          "to": "123b3b31",
+          "type": "topical"
+        },
+        {
+          "from": "123b3b31",
+          "to": "660f8423",
+          "type": "causal"
+        },
+        {
+          "from": "660f8423",
+          "to": "e4c2f412",
+          "type": "topical"
+        },
+        {
+          "from": "e4c2f412",
+          "to": "2d9b4a0d",
+          "type": "topical"
+        },
+        {
+          "from": "2d9b4a0d",
+          "to": "c1189e0a",
+          "type": "topical"
+        }
+      ],
+      "thread_id": "v2.1_0111"
+    },
+    {
+      "title": "Copper Price Movements and Market Factors",
+      "articles": [
+        "557af838-6cfa-4c3c-951f-1e29105cf014",
+        "816e46a2-2464-4735-bc0f-73c9543f1ebf",
+        "e7ac7ec6-2417-4e9c-8692-1b76c46e550c"
+      ],
+      "links": [
+        {
+          "from": "557af838",
+          "to": "816e46a2",
+          "type": "topical"
+        },
+        {
+          "from": "816e46a2",
+          "to": "e7ac7ec6",
+          "type": "topical"
+        }
+      ],
+      "thread_id": "v2.1_0112"
+    },
+    {
+      "title": "Alibaba-Zelos Robovan Business Partnership",
+      "articles": [
+        "b0036048-3b12-4891-a200-3f9dc546e895",
+        "53f55066-f51b-4a52-baa2-30b0eb3179e7"
+      ],
+      "links": [
+        {
+          "from": "b0036048",
+          "to": "53f55066",
+          "type": "analysis"
+        }
+      ],
+      "thread_id": "v2.1_0113"
+    },
+    {
+      "title": "Meta's Earnings and AI Investment Strategy",
+      "articles": [
+        "d15eed8a-15ca-40f3-a56b-724f8ea07844",
+        "e953ad92-18d3-49a1-afba-027536003dc1"
+      ],
+      "links": [
+        {
+          "from": "d15eed8a",
+          "to": "e953ad92",
+          "type": "analysis"
+        }
+      ],
+      "thread_id": "v2.1_0114"
+    },
+    {
+      "title": "Anthropic-Pentagon Clash Over AI Ethics in Warfare",
+      "articles": [
+        "66c38243-b04b-430e-991f-0e76a37db11f",
+        "ec2bdf3d-c768-4cdb-82c0-98c67f704fcd",
+        "0d030953-4636-435b-b8ea-12066a24e124",
+        "088b31a6-abdc-483a-9d69-16caa4a9fc28",
+        "a4fc3fa9-e78e-452c-b11e-428db0791600",
+        "a69639d9-2216-4dbc-9f65-af1c3c5aaedd",
+        "ddf49ac5-1ab8-4984-b8fc-68bcece070d4"
+      ],
+      "links": [
+        {
+          "from": "66c38243",
+          "to": "ec2bdf3d",
+          "type": "causal"
+        },
+        {
+          "from": "ec2bdf3d",
+          "to": "0d030953",
+          "type": "topical"
+        },
+        {
+          "from": "0d030953",
+          "to": "088b31a6",
+          "type": "causal"
+        },
+        {
+          "from": "088b31a6",
+          "to": "a4fc3fa9",
+          "type": "causal"
+        },
+        {
+          "from": "a4fc3fa9",
+          "to": "a69639d9",
+          "type": "topical"
+        },
+        {
+          "from": "a69639d9",
+          "to": "ddf49ac5",
+          "type": "causal"
+        }
+      ],
+      "thread_id": "v2.1_0115"
+    },
+    {
+      "title": "Apple iPhone Sales and Investor Concerns",
+      "articles": [
+        "1a019e2f-5543-4237-83b9-372ec71b8a01",
+        "ffa535d3-57d2-4cd9-b70f-11d86f453e1a"
+      ],
+      "links": [
+        {
+          "from": "1a019e2f",
+          "to": "ffa535d3",
+          "type": "analysis"
+        }
+      ],
+      "thread_id": "v2.1_0116"
+    },
+    {
+      "title": "Whistleblower Complaint Against Tulsi Gabbard",
+      "articles": [
+        "885ea064-ddea-400a-80c5-4179a1e2aea4",
+        "3b3a5e8a-db7c-41ff-873d-7e415ab24465",
+        "05662006-d3da-477a-9739-c8c52a812966",
+        "3f6e8ad4-d554-4c9c-a580-3d6926627aa5",
+        "a7b9934a-fe76-4eb3-8e50-339656a5c1e1"
+      ],
+      "links": [
+        {
+          "from": "885ea064",
+          "to": "3b3a5e8a",
+          "type": "topical"
+        },
+        {
+          "from": "3b3a5e8a",
+          "to": "05662006",
+          "type": "topical"
+        },
+        {
+          "from": "05662006",
+          "to": "3f6e8ad4",
+          "type": "topical"
+        },
+        {
+          "from": "3f6e8ad4",
+          "to": "a7b9934a",
+          "type": "causal"
+        }
+      ],
+      "thread_id": "v2.1_0117"
+    },
+    {
+      "title": "Trump's Order to Release UFO Files",
+      "articles": [
+        "18d78b96-b9be-458f-abae-c951d87773b0",
+        "8a579f24-cbbd-4385-8425-458f8a2a4a8b",
+        "d883d7a1-0510-4084-9e87-3d553d967c7d"
+      ],
+      "links": [
+        {
+          "from": "18d78b96",
+          "to": "8a579f24",
+          "type": "topical"
+        },
+        {
+          "from": "18d78b96",
+          "to": "d883d7a1",
+          "type": "causal"
+        }
+      ],
+      "thread_id": "v2.1_0118"
+    },
+    {
+      "title": "Investigation into Labor Secretary's Husband",
+      "articles": [
+        "d340a3d1-b128-4c05-bafa-04f899cd6f1f",
+        "cb93bc92-78d6-47b3-8bb4-7231fbe14126"
+      ],
+      "links": [
+        {
+          "from": "d340a3d1",
+          "to": "cb93bc92",
+          "type": "causal"
+        }
+      ],
+      "thread_id": "v2.1_0119"
+    },
+    {
+      "title": "Trump Threatens to Ground Canadian Aircraft and Apply Tariff",
+      "articles": [
+        "bd762529-c0b3-43e5-be11-607ee4bf85e7",
+        "2b36d52b-f893-4edd-92f0-dfe8022e35f1",
+        "7ff9c956-bc41-45d3-a50c-f70d74aa177a"
+      ],
+      "links": [
+        {
+          "from": "bd762529",
+          "to": "2b36d52b",
+          "type": "causal"
+        },
+        {
+          "from": "2b36d52b",
+          "to": "7ff9c956",
+          "type": "causal"
+        }
+      ],
+      "thread_id": "v2.1_0120"
+    },
+    {
+      "title": "Panama High Court Ruling on Canal Port Operator",
+      "articles": [
+        "d8a62405-4e3c-46be-9eb6-07a26a840351",
+        "1d4c555b-5219-4886-a76a-d9a659908866"
+      ],
+      "links": [
+        {
+          "from": "d8a62405",
+          "to": "1d4c555b",
+          "type": "causal"
+        }
+      ],
+      "thread_id": "v2.1_0121"
+    },
+    {
+      "title": "Trump's Decision on Expiring Nuclear Pact with Russia",
+      "articles": [
+        "d9dbf7fd-899e-4282-93c2-7846cc050321",
+        "4f407555-9b74-4fed-9306-b94325596448"
+      ],
+      "links": [
+        {
+          "from": "d9dbf7fd",
+          "to": "4f407555",
+          "type": "causal"
+        }
+      ],
+      "thread_id": "v2.1_0122"
+    },
+    {
+      "title": "Kevin Warsh's Nomination for Fed Chair",
+      "articles": [
+        "6324a1ce-3d16-449a-addd-9ed060ebd166",
+        "ef28d893-c19b-47bf-b4b3-b6138968f1c1"
+      ],
+      "links": [
+        {
+          "from": "6324a1ce",
+          "to": "ef28d893",
+          "type": "topical"
+        }
+      ],
+      "thread_id": "v2.1_0123"
+    },
+    {
+      "title": "Justice Department Releases Jeffrey Epstein Files",
+      "articles": [
+        "97c861fe-4f05-42f8-a2be-29ee7fbcce7b",
+        "1e3d3d65-c6cc-4d30-abab-4f529363536b"
+      ],
+      "links": [
+        {
+          "from": "97c861fe",
+          "to": "1e3d3d65",
+          "type": "causal"
+        }
+      ],
+      "thread_id": "v2.1_0124"
+    },
+    {
+      "title": "Partial Government Shutdown and Funding Resolution",
+      "articles": [
+        "ca6970ae-7cc9-47a0-804c-bc0c0914e3e4",
+        "655884bd-5e01-4703-b293-6d35782b7245",
+        "1d3007f2-fb09-4759-af40-82b2515c15e0",
+        "35ad544b-2ab8-4040-8d39-7f90fc3a3254"
+      ],
+      "links": [
+        {
+          "from": "ca6970ae",
+          "to": "655884bd",
+          "type": "causal"
+        },
+        {
+          "from": "655884bd",
+          "to": "1d3007f2",
+          "type": "topical"
+        },
+        {
+          "from": "1d3007f2",
+          "to": "35ad544b",
+          "type": "causal"
+        }
+      ],
+      "thread_id": "v2.1_0125"
+    },
+    {
+      "title": "DHS Funding Dispute and Shutdown Over Immigration",
+      "articles": [
+        "d325beea-b5ae-46b6-b1c4-20b14d7b4910",
+        "8b0f3206-4445-4df6-b398-bd34ddc66317",
+        "6300890c-751c-471e-b8f8-b83557992007",
+        "59cf09fa-f743-47d2-8879-a436db425ea0"
+      ],
+      "links": [
+        {
+          "from": "d325beea",
+          "to": "8b0f3206",
+          "type": "topical"
+        },
+        {
+          "from": "8b0f3206",
+          "to": "6300890c",
+          "type": "causal"
+        },
+        {
+          "from": "6300890c",
+          "to": "59cf09fa",
+          "type": "causal"
+        }
+      ],
+      "thread_id": "v2.1_0126"
+    },
+    {
+      "title": "Texas State Senate Special Election Win",
+      "articles": [
+        "5980f264-90fe-472e-a1b1-b2727660c7f2",
+        "1a61b0f5-f883-441b-9181-0030c3d8dd39"
+      ],
+      "links": [
+        {
+          "from": "5980f264",
+          "to": "1a61b0f5",
+          "type": "causal"
+        }
+      ],
+      "thread_id": "v2.1_0127"
+    },
+    {
+      "title": "President Trump's State of the Union Address",
+      "articles": [
+        "f856ce4d-a61d-4815-a846-1287d3acc143",
+        "f1c22d55-84e9-44ae-bb87-26fd6b196e54",
+        "ca5a4fe5-4c39-4f94-bf12-6b7a98009ced",
+        "1370cbc3-ce41-4d26-a118-4bf9e9609d8e",
+        "6fa27874-d98f-495c-8789-c25d23e9eba2"
+      ],
+      "links": [
+        {
+          "from": "f856ce4d",
+          "to": "f1c22d55",
+          "type": "topical"
+        },
+        {
+          "from": "f1c22d55",
+          "to": "ca5a4fe5",
+          "type": "topical"
+        },
+        {
+          "from": "f1c22d55",
+          "to": "1370cbc3",
+          "type": "causal"
+        },
+        {
+          "from": "ca5a4fe5",
+          "to": "1370cbc3",
+          "type": "topical"
+        },
+        {
+          "from": "1370cbc3",
+          "to": "6fa27874",
+          "type": "causal"
+        }
+      ],
+      "thread_id": "v2.1_0128"
+    },
+    {
+      "title": "Republican Party and Trump's Strategy Ahead of Midterm Elections",
+      "articles": [
+        "90b4a955-30d2-4e53-bf64-e4f3ee61a27c",
+        "a3fe5926-17fc-453c-8b94-fda2c0699927",
+        "d255b755-07d9-4e32-9b76-a8c864de2be4",
+        "f58950ae-1f8b-45b9-8995-a8334f9714cb",
+        "f931da77-f640-42a9-a1cf-6c4dd8cd39e1"
+      ],
+      "links": [
+        {
+          "from": "90b4a955",
+          "to": "a3fe5926",
+          "type": "topical"
+        },
+        {
+          "from": "a3fe5926",
+          "to": "d255b755",
+          "type": "topical"
+        },
+        {
+          "from": "d255b755",
+          "to": "f58950ae",
+          "type": "topical"
+        },
+        {
+          "from": "f58950ae",
+          "to": "f931da77",
+          "type": "topical"
+        }
+      ],
+      "thread_id": "v2.1_0129"
+    },
+    {
+      "title": "BlueScope Steel Takeover Bid",
+      "articles": [
+        "460b23ee-5d58-4905-b6ae-f595a23e63f5",
+        "65830bce-d212-4f72-ad29-3802214a2af6",
+        "f29a08df-0701-4e14-abc9-e9668923e5fa"
+      ],
+      "links": [
+        {
+          "from": "460b23ee",
+          "to": "65830bce",
+          "type": "causal"
+        },
+        {
+          "from": "65830bce",
+          "to": "f29a08df",
+          "type": "causal"
+        }
+      ],
+      "thread_id": "v2.1_0130"
+    },
+    {
+      "title": "Trump's Plan for Kennedy Center Renovations",
+      "articles": [
+        "30de4fa8-92d5-46be-85ed-77a36a325363",
+        "d0481bee-a046-4c27-8e16-17b2c451e603"
+      ],
+      "links": [
+        {
+          "from": "30de4fa8",
+          "to": "d0481bee",
+          "type": "analysis"
+        }
+      ],
+      "thread_id": "v2.1_0131"
+    },
+    {
+      "title": "Pentagon's Performance Review Warning to Defense Contractors",
+      "articles": [
+        "a8814af7-ed30-4dc7-af79-80dac4b1f4b9",
+        "bbf88447-6475-4179-876a-16c84e2c777b"
+      ],
+      "links": [
+        {
+          "from": "a8814af7",
+          "to": "bbf88447",
+          "type": "topical"
+        }
+      ],
+      "thread_id": "v2.1_0132"
+    },
+    {
+      "title": "Impact of Government Shutdown on Economic Data Release",
+      "articles": [
+        "378ac862-7812-4fac-9150-00c3bc1e75cc",
+        "5cba04c4-24f3-4a50-9fba-6fc32be7553c"
+      ],
+      "links": [
+        {
+          "from": "378ac862",
+          "to": "5cba04c4",
+          "type": "causal"
+        }
+      ],
+      "thread_id": "v2.1_0133"
+    },
+    {
+      "title": "Search for Savannah Guthrie's Missing Mother",
+      "articles": [
+        "37e9078d-1520-4804-a1da-99f0fc082402",
+        "7430dbce-5c28-4684-9b82-42e0376afc9a",
+        "ff9dd2ce-8a19-4ba4-b7bf-9a074aa50c70",
+        "dce32de0-3aa7-4d84-888c-beda94247c5b",
+        "689b1122-4a77-4251-9725-343850952a0f",
+        "92416e22-2238-4427-bcea-3858cc48196b"
+      ],
+      "links": [
+        {
+          "from": "37e9078d",
+          "to": "7430dbce",
+          "type": "causal"
+        },
+        {
+          "from": "7430dbce",
+          "to": "ff9dd2ce",
+          "type": "causal"
+        },
+        {
+          "from": "ff9dd2ce",
+          "to": "dce32de0",
+          "type": "causal"
+        },
+        {
+          "from": "dce32de0",
+          "to": "689b1122",
+          "type": "causal"
+        },
+        {
+          "from": "689b1122",
+          "to": "92416e22",
+          "type": "causal"
+        }
+      ],
+      "thread_id": "v2.1_0134"
+    },
+    {
+      "title": "SpaceX and xAI Merger Announcement and Analysis",
+      "articles": [
+        "fa0523e2-1456-48c4-be73-98fb7621f849",
+        "feb24370-efdd-4957-b994-ba15183c7c7a",
+        "04814fd6-df56-42b1-b2f7-a119727f0557"
+      ],
+      "links": [
+        {
+          "from": "fa0523e2",
+          "to": "feb24370",
+          "type": "analysis"
+        },
+        {
+          "from": "fa0523e2",
+          "to": "04814fd6",
+          "type": "analysis"
+        }
+      ],
+      "thread_id": "v2.1_0135"
+    },
+    {
+      "title": "Japan Inflation Trends and BOJ Policy Implications",
+      "articles": [
+        "86b88b37-23d7-45da-98ce-935ba63d1c15",
+        "ca98bbb6-b5c1-4629-bffc-8cd546cc0648"
+      ],
+      "links": [
+        {
+          "from": "86b88b37",
+          "to": "ca98bbb6",
+          "type": "topical"
+        }
+      ],
+      "thread_id": "v2.1_0136"
+    },
+    {
+      "title": "Ongoing Decline in European Natural Gas Prices",
+      "articles": [
+        "30e113c9-ff1e-416f-86b1-85e881cd1204",
+        "a8618926-b019-45ad-b2fe-21fc3658bb52",
+        "c46d124f-97b4-41b2-b178-5868e1fadf41",
+        "4f0198c6-1e9f-48e0-97f3-f445f6b7dd26",
+        "f2f7eb27-e0ca-4319-8d8a-4ca9b00f5aef",
+        "0b5b8880-394a-41bf-9581-08eca9a11f90",
+        "1fe654ab-8c88-4911-8bf4-68c70eb18a49"
+      ],
+      "links": [
+        {
+          "from": "30e113c9",
+          "to": "a8618926",
+          "type": "topical"
+        },
+        {
+          "from": "a8618926",
+          "to": "c46d124f",
+          "type": "topical"
+        },
+        {
+          "from": "c46d124f",
+          "to": "4f0198c6",
+          "type": "topical"
+        },
+        {
+          "from": "4f0198c6",
+          "to": "f2f7eb27",
+          "type": "topical"
+        },
+        {
+          "from": "f2f7eb27",
+          "to": "0b5b8880",
+          "type": "topical"
+        },
+        {
+          "from": "0b5b8880",
+          "to": "1fe654ab",
+          "type": "topical"
+        }
+      ],
+      "thread_id": "v2.1_0137"
+    },
+    {
+      "title": "Silver Prices Plunge After Brief Rebound",
+      "articles": [
+        "0d75bd13-fcfa-41fc-ba53-a7b1c40f187d",
+        "931331b8-015b-4918-a990-b9e66de6879f"
+      ],
+      "links": [
+        {
+          "from": "0d75bd13",
+          "to": "931331b8",
+          "type": "topical"
+        }
+      ],
+      "thread_id": "v2.1_0138"
+    },
+    {
+      "title": "Casey Wasserman's Agency Fallout Over Epstein Ties",
+      "articles": [
+        "27cd0308-d8b5-4101-bda9-b4cc52859876",
+        "669cf403-82ba-40b9-8c9c-694fb96ad761",
+        "aa0cb3b7-fc26-4829-ad53-1776d91455b9"
+      ],
+      "links": [
+        {
+          "from": "27cd0308",
+          "to": "669cf403",
+          "type": "causal"
+        },
+        {
+          "from": "669cf403",
+          "to": "aa0cb3b7",
+          "type": "causal"
+        }
+      ],
+      "thread_id": "v2.1_0139"
+    },
+    {
+      "title": "NY/NJ Lawsuit Over Gateway Tunnel Funding",
+      "articles": [
+        "a2a107f5-bbdf-44a3-9018-626577685c6e",
+        "12fb58f4-9db8-4240-b592-6863ba1e2859"
+      ],
+      "links": [
+        {
+          "from": "a2a107f5",
+          "to": "12fb58f4",
+          "type": "causal"
+        }
+      ],
+      "thread_id": "v2.1_0140"
+    },
+    {
+      "title": "Paul Weiss Leader Resigns Over Epstein Ties",
+      "articles": [
+        "76a20334-7896-479f-825a-4b9423376f04",
+        "29604ea6-c602-4d49-adee-a416025f5f6e"
+      ],
+      "links": [
+        {
+          "from": "76a20334",
+          "to": "29604ea6",
+          "type": "topical"
+        }
+      ],
+      "thread_id": "v2.1_0141"
+    },
+    {
+      "title": "Sunway Healthcare's Major IPO Developments",
+      "articles": [
+        "205f9fe8-d8c3-4044-b516-40e543a8dab7",
+        "1713f4f2-6487-4ef6-9b1b-2402348782bd"
+      ],
+      "links": [
+        {
+          "from": "205f9fe8",
+          "to": "1713f4f2",
+          "type": "causal"
+        }
+      ],
+      "thread_id": "v2.1_0142"
+    },
+    {
+      "title": "Failed Rio Tinto-Glencore Copper Deal Talks",
+      "articles": [
+        "a5bc6de6-5b3f-4db8-bc74-06d42e285c40",
+        "271c2bed-a912-459e-9afe-224a4f63a4eb"
+      ],
+      "links": [
+        {
+          "from": "a5bc6de6",
+          "to": "271c2bed",
+          "type": "causal"
+        }
+      ],
+      "thread_id": "v2.1_0143"
+    },
+    {
+      "title": "Oil Prices Decline Amid Supply Outlook and Iran Risks",
+      "articles": [
+        "fd2d889d-bd7f-4b5f-8640-787491f38684",
+        "5319b370-1a2d-403f-b7b1-1d466dff2bf0"
+      ],
+      "links": [
+        {
+          "from": "fd2d889d",
+          "to": "5319b370",
+          "type": "topical"
+        }
+      ],
+      "thread_id": "v2.1_0144"
+    },
+    {
+      "title": "Stellantis EV Strategy Reset and Financial Impact",
+      "articles": [
+        "257af62e-159e-4a03-abb9-37b2940f8bdb",
+        "f8706258-41ac-432b-97b3-8bb8b65d8c5f"
+      ],
+      "links": [
+        {
+          "from": "257af62e",
+          "to": "f8706258",
+          "type": "causal"
+        }
+      ],
+      "thread_id": "v2.1_0145"
+    },
+    {
+      "title": "U.S. Allegations of China's Secret Nuclear Tests",
+      "articles": [
+        "ea528d0b-f4bb-4c2a-a84c-27407586bdbd",
+        "28893fae-2c09-472f-b4d1-90087a6a2ed0"
+      ],
+      "links": [
+        {
+          "from": "ea528d0b",
+          "to": "28893fae",
+          "type": "topical"
+        }
+      ],
+      "thread_id": "v2.1_0146"
+    },
+    {
+      "title": "Trump Administration Repeals Obama-Era Climate Finding, Faces Lawsuit",
+      "articles": [
+        "3131b5e7-993d-4e0a-939e-a60fb3321c46",
+        "6678d9f9-037e-4939-b441-f8c1806d1e9c"
+      ],
+      "links": [
+        {
+          "from": "3131b5e7",
+          "to": "6678d9f9",
+          "type": "causal"
+        }
+      ],
+      "thread_id": "v2.1_0147"
+    },
+    {
+      "title": "Monte Dei Paschi's Financial Performance Post-Mediobanca Integration",
+      "articles": [
+        "7fc95fbe-3b74-48f2-80e6-5e45418da1ea",
+        "ada8deda-933a-49b3-a4ee-8417d9f7035d"
+      ],
+      "links": [
+        {
+          "from": "7fc95fbe",
+          "to": "ada8deda",
+          "type": "causal"
+        }
+      ],
+      "thread_id": "v2.1_0148"
+    },
+    {
+      "title": "Oil Prices React to U.S.-Iran Diplomatic Developments",
+      "articles": [
+        "ab735e38-83ea-4d68-91e2-6864dc41ce48",
+        "df9e940c-c577-40de-a8ad-81c0b1f49b46"
+      ],
+      "links": [
+        {
+          "from": "ab735e38",
+          "to": "df9e940c",
+          "type": "causal"
+        }
+      ],
+      "thread_id": "v2.1_0149"
+    },
+    {
+      "title": "UK Political Uncertainty Impacts Sterling and Bond Yields",
+      "articles": [
+        "d6ff02ad-5eba-41cd-bbe4-378c42d03b71",
+        "676cd3bf-2626-4be9-9c09-2388a50507ba"
+      ],
+      "links": [
+        {
+          "from": "d6ff02ad",
+          "to": "676cd3bf",
+          "type": "causal"
+        }
+      ],
+      "thread_id": "v2.1_0150"
+    },
+    {
+      "title": "El Paso Airspace Closure Due to Laser Incident Against Suspected Drones",
+      "articles": [
+        "b4aabfaa-0a32-4f22-a5a1-cc7ddd6c70df",
+        "bfc31255-1186-45ad-a1d2-c5c68997a5c9",
+        "3e8858c7-be16-4d3b-9a12-4c53efd0fb13"
+      ],
+      "links": [
+        {
+          "from": "b4aabfaa",
+          "to": "bfc31255",
+          "type": "causal"
+        },
+        {
+          "from": "bfc31255",
+          "to": "3e8858c7",
+          "type": "causal"
+        }
+      ],
+      "thread_id": "v2.1_0151"
+    },
+    {
+      "title": "CBO Projections on U.S. Budget Deficit and National Debt",
+      "articles": [
+        "e56a5152-d88b-4333-9ed9-098bea38ef10",
+        "52108859-c7ac-4bfb-a0f3-608d28402b16"
+      ],
+      "links": [
+        {
+          "from": "e56a5152",
+          "to": "52108859",
+          "type": "topical"
+        }
+      ],
+      "thread_id": "v2.1_0152"
+    },
+    {
+      "title": "Canada School Shooting and OpenAI's Role",
+      "articles": [
+        "411dd0dd-c64c-423b-b0f3-a984cf5da5f6",
+        "afb6f4cc-c371-48d2-9774-90029ce05aa5",
+        "a5ec180b-36a5-4e23-95a3-232fe8a2dde8"
+      ],
+      "links": [
+        {
+          "from": "411dd0dd",
+          "to": "afb6f4cc",
+          "type": "topical"
+        },
+        {
+          "from": "afb6f4cc",
+          "to": "a5ec180b",
+          "type": "causal"
+        }
+      ],
+      "thread_id": "v2.1_0153"
+    },
+    {
+      "title": "Trump's Criticism of Oklahoma Gov. Kevin Stitt",
+      "articles": [
+        "55107a97-a3f7-470b-976f-2ca83d915d31",
+        "0c035cc2-cc45-46c6-af35-3b40f8cd97a9"
+      ],
+      "links": [
+        {
+          "from": "55107a97",
+          "to": "0c035cc2",
+          "type": "topical"
+        }
+      ],
+      "thread_id": "v2.1_0154"
+    },
+    {
+      "title": "Prince Andrew and the Epstein Scandal",
+      "articles": [
+        "34a79035-f1e0-4e49-b61f-cf6638e44263",
+        "f29369e9-a5c0-4adc-a03a-2af579860c29",
+        "c6ab2082-3ab2-430d-a836-f5d4f4fd4bd2",
+        "2a0e251d-486c-4ea8-b484-0d1b89ca2af0"
+      ],
+      "links": [
+        {
+          "from": "34a79035",
+          "to": "f29369e9",
+          "type": "causal"
+        },
+        {
+          "from": "34a79035",
+          "to": "c6ab2082",
+          "type": "topical"
+        },
+        {
+          "from": "f29369e9",
+          "to": "2a0e251d",
+          "type": "analysis"
+        }
+      ],
+      "thread_id": "v2.1_0155"
+    },
+    {
+      "title": "Jet Engine Technology for Data Center Power",
+      "articles": [
+        "3ba8caa4-7e8b-4029-bc9c-db5e1600e4d7",
+        "0ae49f2b-59d0-40a7-b963-a20c207fb6c8"
+      ],
+      "links": [
+        {
+          "from": "3ba8caa4",
+          "to": "0ae49f2b",
+          "type": "topical"
+        }
+      ],
+      "thread_id": "v2.1_0156"
+    },
+    {
+      "title": "ISIS Detention Facility Collapse in Syria",
+      "articles": [
+        "d6015f53-0518-4ca2-9f58-ecbedfb22cc0",
+        "b8e06bd8-bf79-4ebe-97cf-f4705bc9114c"
+      ],
+      "links": [
+        {
+          "from": "d6015f53",
+          "to": "b8e06bd8",
+          "type": "causal"
+        }
+      ],
+      "thread_id": "v2.1_0157"
+    },
+    {
+      "title": "Christine Lagarde's ECB Term Decision",
+      "articles": [
+        "0b51a98e-6bf8-4426-b1b4-abb940cc4b30",
+        "ff0980ce-7f3a-442a-ad4e-37374e252631",
+        "80fc3349-3ba9-40e5-bafa-3b7efaf9b8b6"
+      ],
+      "links": [
+        {
+          "from": "0b51a98e",
+          "to": "ff0980ce",
+          "type": "causal"
+        },
+        {
+          "from": "ff0980ce",
+          "to": "80fc3349",
+          "type": "topical"
+        }
+      ],
+      "thread_id": "v2.1_0158"
+    },
+    {
+      "title": "Allegations Against Rep. Tony Gonzales",
+      "articles": [
+        "e620c42f-4f63-43ee-b4d5-b20847b13a7c",
+        "eda8f1a1-91b1-4caf-8d5f-aceaeee9bac3"
+      ],
+      "links": [
+        {
+          "from": "e620c42f",
+          "to": "eda8f1a1",
+          "type": "causal"
+        }
+      ],
+      "thread_id": "v2.1_0159"
+    },
+    {
+      "title": "European Gas Prices Rise Amid US-Iran Tensions",
+      "articles": [
+        "3f7f9d14-6e01-4e57-80d3-1d8570e35d9c",
+        "dccb2f39-0d77-403f-9768-d8a61778f004"
+      ],
+      "links": [
+        {
+          "from": "3f7f9d14",
+          "to": "dccb2f39",
+          "type": "topical"
+        }
+      ],
+      "thread_id": "v2.1_0160"
+    },
+    {
+      "title": "Private-Credit Warning Signs After Blue Owl Asset Sale",
+      "articles": [
+        "e2266ebc-eb1d-4210-bc40-26bab691b81f",
+        "a2c27f30-5f1a-41bf-b24b-545aa397c5db"
+      ],
+      "links": [
+        {
+          "from": "e2266ebc",
+          "to": "a2c27f30",
+          "type": "causal"
+        }
+      ],
+      "thread_id": "v2.1_0161"
+    },
+    {
+      "title": "Trump Demands Netflix Oust Susan Rice",
+      "articles": [
+        "e5a7bd97-9248-4b4e-b3c8-18d10acf631e",
+        "17e67f3a-3f81-45d5-9612-8373286165c0"
+      ],
+      "links": [
+        {
+          "from": "e5a7bd97",
+          "to": "17e67f3a",
+          "type": "causal"
+        }
+      ],
+      "thread_id": "v2.1_0162"
+    },
+    {
+      "title": "Trump's Greenland Hospital Ship Claim and Refutation",
+      "articles": [
+        "933b5cd6-d6bb-4b90-aded-34e9b15b3f03",
+        "834ebdd6-5b0a-4d34-81b2-c1df376fe9ed",
+        "ccebfd3e-701e-4736-adc0-bb3ea9a3ee42"
+      ],
+      "links": [
+        {
+          "from": "933b5cd6",
+          "to": "834ebdd6",
+          "type": "causal"
+        },
+        {
+          "from": "933b5cd6",
+          "to": "ccebfd3e",
+          "type": "topical"
+        }
+      ],
+      "thread_id": "v2.1_0163"
+    },
+    {
+      "title": "Cuban Border Guard Incident with U.S. Speedboat",
+      "articles": [
+        "2b83c6c3-a9be-4188-ac69-3067138a2dbe",
+        "577c1038-9c38-4323-bc21-b512c3bcefab"
+      ],
+      "links": [
+        {
+          "from": "2b83c6c3",
+          "to": "577c1038",
+          "type": "topical"
+        }
+      ],
+      "thread_id": "v2.1_0164"
+    },
+    {
+      "title": "Killing of Drug Kingpin El Mencho Sparks Widespread Cartel Violence in Mexico",
+      "articles": [
+        "9199d08b-c770-418e-a0b4-3b37a40e1f47",
+        "b7b3fa64-e526-41cf-8ecb-1c81f998ab16",
+        "66ea6eed-78f9-4feb-96d2-c89db163252a",
+        "1953816a-3c0c-4b3f-8d3f-c43079adafab",
+        "c32a1c82-ed3f-41e7-845a-d1261ce1de90"
+      ],
+      "links": [
+        {
+          "from": "9199d08b",
+          "to": "b7b3fa64",
+          "type": "causal"
+        },
+        {
+          "from": "9199d08b",
+          "to": "66ea6eed",
+          "type": "causal"
+        },
+        {
+          "from": "9199d08b",
+          "to": "1953816a",
+          "type": "topical"
+        },
+        {
+          "from": "b7b3fa64",
+          "to": "c32a1c82",
+          "type": "topical"
+        }
+      ],
+      "thread_id": "v2.1_0165"
+    },
+    {
+      "title": "Wall Street Reacts to Viral AI Doomsday Report",
+      "articles": [
+        "e7318d59-a064-4fc6-89e0-52546cdf24a2",
+        "c3cc2fce-b1e9-475e-b999-ef6dd8c431c5"
+      ],
+      "links": [
+        {
+          "from": "e7318d59",
+          "to": "c3cc2fce",
+          "type": "causal"
+        }
+      ],
+      "thread_id": "v2.1_0166"
+    },
+    {
+      "title": "Controversy Over U.K. Deal for Diego Garcia Military Base",
+      "articles": [
+        "252c4f74-b6e9-4c7b-ae9e-0c7b65bc8e82",
+        "1ef2dfcf-0d06-4a0e-801b-1c97b5b359bd"
+      ],
+      "links": [
+        {
+          "from": "252c4f74",
+          "to": "1ef2dfcf",
+          "type": "topical"
+        }
+      ],
+      "thread_id": "v2.1_0167"
+    },
+    {
+      "title": "Nvidia Earnings Report and Investor Reaction",
+      "articles": [
+        "3f94ebc6-81be-4949-8ae3-f646e718fbee",
+        "b56bdaaa-88c6-4607-b969-c775c68a68d3"
+      ],
+      "links": [
+        {
+          "from": "3f94ebc6",
+          "to": "b56bdaaa",
+          "type": "causal"
+        }
+      ],
+      "thread_id": "v2.1_0168"
+    },
+    {
+      "title": "Americans Are Leaving the U.S. in Record Numbers",
+      "articles": [
+        "097a1ce5-fa3a-4f16-90ea-3c41742d6c80",
+        "2eed1098-03ab-4986-ac81-321702f1872b"
+      ],
+      "links": [
+        {
+          "from": "097a1ce5",
+          "to": "2eed1098",
+          "type": "topical"
+        }
+      ],
+      "thread_id": "v2.1_0169"
+    }
+  ],
+  "singletons": [
+    "c86ac4fa",
+    "d9bd524f",
+    "f0cbc721",
+    "7444691e",
+    "e49ad0c1",
+    "42ca3930",
+    "2b36e9d0",
+    "fe6656d6",
+    "4baec0a4",
+    "c2cc90f3",
+    "f5dce225",
+    "94748b49",
+    "07929ba1",
+    "70b3fc15",
+    "17623f4b",
+    "616ed5ba",
+    "5e9d81ea",
+    "e2814f25",
+    "1603495c",
+    "8f7b1f2d",
+    "f9ae6887",
+    "9795d785",
+    "af4a9efc",
+    "e2deeeaa",
+    "0100bb5f",
+    "63be5055",
+    "29199653",
+    "cffbd7e1",
+    "7e809fe9",
+    "975ea6e1",
+    "757ff4ea",
+    "90453414",
+    "a80ebede",
+    "78854a4d",
+    "be1b99ac",
+    "cc15812f",
+    "0d18aa6e",
+    "11099fa8",
+    "ff767dc1",
+    "bb7d55c1",
+    "91028a7f",
+    "163bf8af",
+    "4a14b122",
+    "2e7ad768",
+    "b2128f28",
+    "e96e4e24",
+    "d8447d15",
+    "956cc1e8",
+    "68604805",
+    "813ee323",
+    "991fde78",
+    "3dd04af8",
+    "26963acd",
+    "b9497ae3",
+    "dab317a3",
+    "a8824836",
+    "0cf3ae89",
+    "e8617e88",
+    "256f1331",
+    "6215b48a",
+    "285bbc45",
+    "ea68c67a",
+    "a9a0ef82",
+    "9f7d3c25",
+    "3ee1646b",
+    "2b736178",
+    "e3a7315a",
+    "18e5ee40",
+    "13c8579a",
+    "87ffb860",
+    "e251df50",
+    "7c95d2ec",
+    "b18757c6",
+    "a2bc1c4d",
+    "b06ad09b",
+    "6a3677b4",
+    "1e2cb188",
+    "76489898",
+    "0e8da341",
+    "b2d0ac28",
+    "10bf5766",
+    "4293393f",
+    "038c1ff4",
+    "923fd2a9",
+    "128f4955",
+    "5da60a02",
+    "c9e0bb82",
+    "d16ac047",
+    "aab464ed",
+    "5a5724a8",
+    "db4d45b1",
+    "8d94b02c",
+    "f9c8cbf1",
+    "b638f579",
+    "427fcd65",
+    "fa7e9019",
+    "af4dcd06",
+    "1316999f",
+    "bde56768",
+    "65c54b52",
+    "17115570",
+    "b2a054dd",
+    "76adf96b",
+    "6397e557",
+    "ce4c8f96",
+    "aa1de4a3",
+    "44ccf00b",
+    "6502a7d6",
+    "8064b441",
+    "b0764f1d",
+    "308c9c88",
+    "f78b5dd9",
+    "f7ac01c1",
+    "dd443ae8",
+    "67e1c142",
+    "05717eae",
+    "760e375a",
+    "1b7fdb0f",
+    "8e2f30b1",
+    "a36a025e",
+    "5a4b03df",
+    "1ff75a46",
+    "c4077de3",
+    "44479056",
+    "04a7503e",
+    "e38509bb",
+    "af6e5a05",
+    "e50ec86d",
+    "ea758416",
+    "be8860b0",
+    "80eec3b7",
+    "9194b14a",
+    "75ac89f3",
+    "e92003ff",
+    "61fa6d67",
+    "3698e006",
+    "23bbaf44",
+    "53134c39",
+    "f15abe80",
+    "7b7eefab",
+    "05b7e762",
+    "d59332bf",
+    "cae81372",
+    "00063da6",
+    "04b6ebaa",
+    "d68204cc",
+    "ee06d9f6",
+    "ccff0515",
+    "48a0328c",
+    "26a35ad4",
+    "8871b839",
+    "a8d37db8",
+    "e3b49a66",
+    "5972f8d6",
+    "42490788",
+    "30bf54b0",
+    "b8a8c31b",
+    "fbdd95c3",
+    "106ce984",
+    "e993a05c",
+    "73104221",
+    "0ebe10a5",
+    "99c206ce",
+    "bc6b4647",
+    "e11f81b4",
+    "0c67bb70",
+    "f7fc0fad",
+    "0ee0f3ae",
+    "365f7045",
+    "59327a37",
+    "d7dbe446",
+    "d37ff2cf",
+    "ec832267",
+    "b5d22a68",
+    "00ae22dd",
+    "c1b92e87",
+    "ce98a9b9",
+    "59c504e0",
+    "9be60e3e",
+    "56cc5517",
+    "1bbdbb7e",
+    "a8e5bfd7",
+    "0a7732fb",
+    "76cfec0b",
+    "ad5e3219",
+    "b5212961",
+    "df4f64c4",
+    "41a0ea26",
+    "c504253c",
+    "0ae544c3",
+    "0d3de0ac",
+    "63a6c3e6",
+    "1e00df5a",
+    "ef376ae0",
+    "477f0d42",
+    "001a8f5b",
+    "770b55b3",
+    "31dba791",
+    "4de6c56a",
+    "b07ea329",
+    "b0febb4b",
+    "224bc67a",
+    "18814a04",
+    "d897b729",
+    "2f1aedb0",
+    "b8dbb3d8",
+    "02db523e",
+    "b165d9ae",
+    "cc49ee36",
+    "4bbfd87c",
+    "e986b26b",
+    "fe9acfd5",
+    "367927fc",
+    "a4beac69",
+    "d9ec8b82",
+    "71b6fa26",
+    "f886a09c",
+    "f5883cb0",
+    "cbd9d040",
+    "c8c7d156",
+    "d85d9133",
+    "e4ea1fd1",
+    "2f541ce1",
+    "b9ff8bdf",
+    "a02b6f5c",
+    "ef759ef5",
+    "317816c7",
+    "54318fdb",
+    "a50957c0",
+    "0c254650",
+    "a4014e3f",
+    "2fac0ae9",
+    "d95ff855",
+    "8b6aafa1",
+    "cdca9278",
+    "edaf7507",
+    "bf8cadcd",
+    "a822131b",
+    "ee759064",
+    "0642bfad",
+    "77343ed0",
+    "f2e15987",
+    "c2e2408b",
+    "69c847b8",
+    "370d55b8",
+    "cfa749bb",
+    "4bfe2b39",
+    "47bfd5c5",
+    "1d309b9e",
+    "a6b735af",
+    "440dd13f",
+    "c57d0840",
+    "b40c871c",
+    "0b0384c7",
+    "c31d24f1",
+    "af283346",
+    "852ecb73",
+    "c5c67da8",
+    "89d00b10",
+    "dbe1b300",
+    "4ffb4345",
+    "475ea0f3",
+    "43f8319a",
+    "80c63913",
+    "7fe1c3ee",
+    "ac00c016",
+    "ace1c410",
+    "d442cb69",
+    "5ad1b6af",
+    "e1dd3785",
+    "a4b3b8aa",
+    "4d269cad",
+    "482bb7d2",
+    "31cc8611",
+    "a6a778de",
+    "375ac8d2",
+    "6ef78ec7",
+    "b1ec72fe",
+    "9eda0c51",
+    "f6065392",
+    "5234bf5f",
+    "9569ad23",
+    "679c98f9",
+    "85517be4",
+    "e2a35b9b",
+    "a1b944bf",
+    "ef2c4d6e",
+    "18b262a8",
+    "94a122ea",
+    "0570b49f",
+    "042fbb7d",
+    "2a97e2c1",
+    "fc3c171d",
+    "e70acb7f",
+    "04e10740",
+    "c72c2e97",
+    "fcd50daf",
+    "db24e082",
+    "b4f8903a",
+    "74ff723f",
+    "f65cbba0",
+    "6f0b7df1",
+    "7d402244",
+    "919bb5b8",
+    "42a86b6f",
+    "34d53d3b",
+    "9e4df828",
+    "52bbc5f8",
+    "02f2784c",
+    "c7f4f1f0",
+    "dab340be",
+    "cdc330c2",
+    "4a2b9442",
+    "cb5bcf65",
+    "df599340",
+    "27223f0d",
+    "214f9802",
+    "ac52481c",
+    "bcb28994",
+    "769107c8",
+    "f2ab3f0a",
+    "be26c6ab",
+    "d53e8654",
+    "e426c0da",
+    "349c8540",
+    "31c5457e",
+    "9c91840d",
+    "2fe3b213",
+    "182ced20",
+    "62976bcc",
+    "4487753e",
+    "4a1b580a",
+    "123328ac",
+    "9c9413fe",
+    "e034d807",
+    "39646c26",
+    "b347fe06",
+    "e09230c7",
+    "71992207",
+    "7a0c00ca",
+    "19e20d10",
+    "f21f939a",
+    "5106fb91",
+    "f1fe176b",
+    "ee55882a",
+    "1468c28a",
+    "dc0b66a1",
+    "3b2d9d82",
+    "0682d4ba",
+    "1e925025",
+    "026a668f",
+    "f9308a9a",
+    "b8ac859d",
+    "f045a5dc",
+    "9c3e3758",
+    "e964c5fb",
+    "228ea37c",
+    "2608db8d",
+    "59dbcee3",
+    "6546e33c",
+    "1f089282",
+    "8030ae25",
+    "420c79c7",
+    "f8f5cf7d",
+    "82cb4025",
+    "ff15ebe9",
+    "2bfa1fa2",
+    "c9bd6f35",
+    "bd53c176",
+    "b740fb44",
+    "f95e2fbe",
+    "a19e0c46",
+    "052c6baf",
+    "c11c2955",
+    "84f1c7dd",
+    "d7554203",
+    "3b3355a6",
+    "d89e1325",
+    "17a959a6",
+    "009a3cf7",
+    "4dd7efc2",
+    "085a6ab9",
+    "43f5db44",
+    "6bff6823",
+    "0c57607c",
+    "e39bf8cf",
+    "6ec76518",
+    "486a1f6e",
+    "8a76cc22",
+    "c5087388",
+    "10c184ea",
+    "fe5cc5c7",
+    "51426331",
+    "e7c406c5",
+    "3571b028",
+    "34336a1d",
+    "1aef0a18",
+    "a04fd140",
+    "d1a702ac",
+    "ddd68ee9",
+    "6a0ae6d3",
+    "d2251b88",
+    "aeb353af",
+    "3128a222",
+    "42e25d6f",
+    "57db22ed",
+    "1e8f65c3",
+    "6d33cb36",
+    "e2d821b5",
+    "9ac070e7",
+    "1f0d78b3",
+    "f3358042",
+    "29927fc8",
+    "14f14038",
+    "d5e4ef51",
+    "626339ac",
+    "7db6f771",
+    "6498347b",
+    "3085c19a",
+    "c8e24627",
+    "3d227caf",
+    "8a49a840",
+    "b99fc64a",
+    "a8d47807",
+    "f59f47ba",
+    "78e12f3e",
+    "778e6290",
+    "e91e4ba1",
+    "23961d40",
+    "271f11eb",
+    "e7468819",
+    "7b4bb536",
+    "e2b1aaa1",
+    "510a5493",
+    "7570cdeb",
+    "de994f80",
+    "644fb789",
+    "f7c428c7",
+    "41c4f470",
+    "35fd6e7e",
+    "350dbd94",
+    "3bab01c2",
+    "7354a257",
+    "0d4cf497",
+    "68e78bb7",
+    "f7aa7901",
+    "d61bb87d",
+    "0b94301b",
+    "0c590597",
+    "28a14182",
+    "48e41708",
+    "419424a1",
+    "9f005dab",
+    "4618e740",
+    "6bbe225c",
+    "576cb36e",
+    "2f8b19ed",
+    "903478ae",
+    "fefd04c4",
+    "bb7caf14",
+    "31d1068e",
+    "16b6b5df",
+    "1142233c",
+    "63de06ac",
+    "d8b81703",
+    "ec7ddc6c",
+    "4c49db8b",
+    "0fa44556",
+    "2f36ba92",
+    "bb7aec98",
+    "401bdaf2",
+    "ca96dbac",
+    "54f43fe8",
+    "2e03e7c5",
+    "83279e9b",
+    "94d0a3e7",
+    "9dda07ac",
+    "e725db43",
+    "51e04bee",
+    "6c492611",
+    "6416e8c0",
+    "80c212cf",
+    "d7e1241d",
+    "eee6f28c",
+    "4ad70088",
+    "2c518820",
+    "cdd02037",
+    "ab1473af",
+    "6adbabc6",
+    "4f0bf52a",
+    "a7641a2c",
+    "b4d3b6e9",
+    "bdb125aa",
+    "48f9159e",
+    "fca678c8",
+    "731bbbb9",
+    "28e8c89f",
+    "508d073a",
+    "7d2a3c22",
+    "b2f4e826",
+    "d0bd944f",
+    "1c124441",
+    "6de61b6a",
+    "0bf8a8da",
+    "596cafac",
+    "d7e4b9fe",
+    "9e369f11",
+    "189fab48",
+    "cd670e7a",
+    "c0a922fa",
+    "ebc72c68",
+    "9534ea4d",
+    "5258d88e",
+    "52b80a3c",
+    "e066daf6",
+    "fdd41ad3",
+    "d0c7fae3",
+    "058bfbcd",
+    "b85f7b0b",
+    "ec0b5e79",
+    "d229a1a7",
+    "ee6ee9c3",
+    "23e26ae5",
+    "f6ba8cac",
+    "32e5d2cb",
+    "ba4a479e",
+    "59953954",
+    "74838566",
+    "38357ee6",
+    "ec7efe7e",
+    "c913277d",
+    "7b7c807e",
+    "df7cdf4f",
+    "82fa58ff",
+    "3b0152b7",
+    "ea128cec",
+    "5f3ef38b",
+    "41b22e86",
+    "7cc5b535",
+    "86edadd4",
+    "653d5234",
+    "7c91617f",
+    "e3695872",
+    "a4c6e2bd",
+    "606da7b2",
+    "70c47641",
+    "129c013e",
+    "9b8625df",
+    "44a6de63",
+    "e84ef1d6",
+    "4f501773",
+    "b51eb7bb",
+    "3fa00143",
+    "10e7f05d",
+    "e0f7e778",
+    "19b679a8",
+    "65b644a5-eebf-4138-86e4-26f567826010",
+    "d34b09c7-7f85-4309-af6e-19c08e45ae07",
+    "9f28c6ff-8f8c-47dd-9d54-ad4d12d0555a",
+    "20a45ce1-6317-4c77-a13f-3c32511ffe9f",
+    "5882f284-499f-4fb0-9e7a-bdffa04c25d7",
+    "badef14a-a7a3-4c6e-b054-a00c57b9c2a0",
+    "bb2b1fd9-e8a5-44ea-ace7-44228e42e8b7",
+    "213f61b2-22ae-47ca-b789-fbca2c8efa83",
+    "04ea098a-6c42-492c-8a8c-5f532101f460",
+    "e12e3329-3f83-4f7d-a979-57dba134c22f",
+    "7e2f74a4-ce94-47b2-b91f-25d6b5e6d72a",
+    "a7894d9c-0d0c-4adc-9885-a78b9934aefb",
+    "1ab76826-09d8-4163-b04b-dd5767cd5547",
+    "48fa44ae-3f2c-4f45-9cf9-a1a231d9a976",
+    "04c1c93e-b5ac-450e-8ff6-5a72455174b4",
+    "0ff867d3-b2de-440a-9e43-229acfe8bb73",
+    "406b9f80-97ea-4448-a72a-25ba396e43c8",
+    "43bc7926-702e-47a2-b1cd-a3aac6c25113",
+    "b1572237-a9ad-47bb-bdcc-da4f5d295c9a",
+    "a45992b",
+    "336e1c36-32be-4627-aa64-77381d041454",
+    "ddb93949-f9d1-4647-a157-1ddcb8b8d71f",
+    "111a5956-1797-4ffe-bd0f-8e13867591c0",
+    "4c896bad-6ffb-4c6b-85f6-129493981d96",
+    "7b752815-2b11-49d9-83f6-7591f0e479a8",
+    "89d4cb79-cbc6-4998-81f4-f889a808553f",
+    "86996c73-e03b-4086-81b8-7922e835cfbd",
+    "523d634d-7665-43e9-b393-c6cc9836bf1a",
+    "9be5fbfd-1f8f-4ca4-8741-4be186e57f32",
+    "c8cee3d2-092f-4a06-8c58-49406627113a",
+    "fc813f8d-461a-4a84-8fe0-4dbcef233cf2",
+    "67f0dc01-91c9-4e8c-9887-3d913073aea5",
+    "1ef64abb-3267-4145-bf72-cd48dcb9268d",
+    "26e78010-1536-4052-bd19-0a041c031d77",
+    "7a89f126-72ef-4bc2-a79f-61c0d44306f5",
+    "292cfd65-684f-423d-b31b-78766f890c86",
+    "07fa4712-cd99-403f-a36f-e92addfbcf2a",
+    "7d96a93c-4973-4991-a480-e5d1c86aabc3",
+    "34888f14-c557-4a4a-9af2-e8e76157e6c6",
+    "12bc1e5b-f4fa-4848-98fd-40e860709c83",
+    "835be18a-37b6-4ee4-9c64-9ef15f524f96",
+    "67db2a6a-832c-41fa-a8e0-f10bc412dc33",
+    "44b57877-0f16-47d9-ad1b-7b29a3a6c2cb",
+    "cdeee8e9-84ef-427e-950e-a9038642a3d1",
+    "6b878f6a-cc30-4308-96db-38344b7de601",
+    "34e7cb8e-5348-4953-af24-78dfbd3c1550",
+    "ad20fe73-f287-4604-9c0c-854fa38f5471",
+    "347ebac3-5ba4-4099-b1c0-8db21b76aa0e",
+    "1af49dba-6581-4f67-9f8a-a65cd2518292",
+    "6f0c114d-0d4e-45d2-823d-8849c73598f0",
+    "924da2dc-d4b3-425b-ac8c-4f14c4f01c4c",
+    "4b1d6f2a-338d-46c2-a888-11640d193c24",
+    "9881f848-f4c5-4886-9d0a-a36b4960c30c",
+    "ce0fdffe-9b02-4b25-bcf1-50e10dffda79",
+    "8cb4d9be-00c0-4dc9-8638-03b699834813",
+    "833685be-45b8-428b-8f6c-f4e9a9e3105d",
+    "cf0c281a-16a1-43be-a492-b7fa2517ce04",
+    "f8cf1cef-887a-4f45-a52a-2a1a6cd1799d",
+    "95d9dabd-86aa-47ec-8e3b-591dcd8acd85",
+    "fe0aa61f-d27a-4bba-bdf1-c61170f161e0",
+    "72bba0ad-779f-499d-a4b6-b7706807ee47",
+    "23d7ce1d-41f2-4459-b293-b9c8a5a3e96a",
+    "4ffab5b5-5e97-4f14-9e2c-86c712b7e1f1",
+    "80bafeee-db77-4e27-8ae0-62545f7c5f1b",
+    "0c284364-c31c-4394-9f94-cc5cad0eecb5",
+    "6e4cf251-0517-4633-ba33-82f5e4f2e9d7",
+    "6715bc12-2645-4b2a-a52f-d7cde2e36e84",
+    "bebc72fd-5799-48f5-8414-fc470afa2a3f",
+    "f6ee29db-c064-4a56-a42f-919dd5a02706",
+    "bbdd407a-5844-4d91-b04c-c5529f344607",
+    "98d43918-dd34-469d-9ebd-363941672651",
+    "cbb76a14-54ab-4dee-8df3-0f7bce8db10a",
+    "006c83b9-efca-4437-b1fb-8380d8fb98e3",
+    "374e9700-1955-43f6-afb9-1ead6666da7b",
+    "922a0fea-4dd3-4499-8a9b-98c651a1bf27",
+    "219deb3f-5be1-49a1-8ef3-ceac5840b0cc",
+    "fd31f799-ba8c-4830-80bf-4064ca547380",
+    "887c76c5-ee3b-4aee-a5f2-476ba14fe7f2",
+    "14c63535-157c-48c5-ae24-d9e5524e1bb6",
+    "a1a11927-10f7-4183-902f-2e8b4c33cfc2",
+    "08701af2-73f0-4fda-a889-3bec5c56cb64",
+    "c37fdbee-1fd2-4304-baaa-95c48040f870",
+    "979ac78f-3492-4694-8077-bf83bbcc2ef4",
+    "2f658d10-954b-4cc3-984e-47b2afa28d81",
+    "33cf0971-6144-49b4-94ab-2d2ab5e5853e",
+    "02d4e003-e7c6-4833-bcd0-81292caddc1c",
+    "558853de-7d68-4f29-8eae-1ac32c409bc6",
+    "deb21748-f59f-45cb-b61d-ca61a999f4ac",
+    "46b19e03-fbfd-42f5-9706-9cdf9a65cf30",
+    "c954991c-8818-4acf-8d80-5ebb18b56578",
+    "13500ce0-0e54-4ca4-b8f7-c9a5b7be550b",
+    "3885ba16-2dee-4d0a-b590-9c0dcd33c7d4",
+    "c66f7d1b-bead-487b-bdb7-fe3ecc0e8878",
+    "fae7652c-57e6-4785-abda-6605b8a7f307",
+    "ba458e1c-1f2c-4d0a-b534-96397c95d4ab",
+    "0100520b-9303-4133-af9d-a05d3c7e580c",
+    "74f3afb7-e6f1-4b3d-941e-7611a11f882c",
+    "e804beb4-14ba-4948-a062-bd309d1f26d1",
+    "31a577cb-f0e0-48b2-a1c8-f5bdd701d7c8",
+    "929bde23-173b-4d01-9bd2-2e60301b7061",
+    "c5625432-0aa7-4f7b-8555-f849b82d45c0",
+    "0272c8b4-c029-458a-863d-aeb4082f1399",
+    "d89e69f1-c409-4cfa-ba33-82579f40681d",
+    "40aeeb9a-2de9-4db0-80a7-f82ab88ce1b7",
+    "46dd6f49-92c6-4d2a-8d2b-30e921019c84",
+    "1a32e120-f8b9-4a69-b175-ccae4060009c",
+    "1ec8f829-ca71-4cbb-ac62-eff90b0c5217",
+    "9b5917c7-cb8d-4316-a5bd-a4d08f89fb2a",
+    "1457e4e7-52d1-4758-8190-d0dd1d29e6c5",
+    "526f1d9b-5b09-45eb-bd7c-4e1fc364e7f9",
+    "7d7ad733-8c87-416f-af90-507821d95e28",
+    "3355fa8c-8e18-4487-ba12-95dff445fa19",
+    "c25f48b5-8941-4ee2-847d-363b8f96b936",
+    "8378cea7-2c2c-4500-9343-b6a90d330ade",
+    "c2c30915-7fd9-4a38-b951-3b7447cca192",
+    "812832ec-0d4f-4188-8b1a-6fc018e97d08",
+    "4a729cc5-6728-4150-8e53-1556d4a1db10",
+    "b455f212-f62b-40b9-936b-b01b9f57ab4f",
+    "7e3e468d-0959-44d8-b50f-3c649c7b866e",
+    "4cddf19c-5a80-4dfd-92dd-a54a8f3670d8",
+    "aa2a7379-dd98-42fa-a07d-e69b650cb670",
+    "1f9aaf11-0383-4482-9863-d02e27967682",
+    "5b4e8c36-60da-4fb4-996a-66c12cd5b8b2",
+    "07be5280-41f7-4309-8364-f8b6a897c6f8",
+    "924dff85-9021-475e-a137-5cbe1ea20447",
+    "ca282054-e348-4e4a-9369-5e6e9a6f6f6a",
+    "02c44129-2f86-4acf-8af7-27e70bbbcacc",
+    "110cb7fb-8124-430f-bee0-1960b612bd9d",
+    "8769bfaa-82a8-4afb-b8a5-c2981142976e",
+    "55e0be84-9821-4610-888c-f402b71c0acc",
+    "d2ef91b8-72db-4828-afbc-bc51074bf3ff",
+    "d1a205da-1de7-4fd5-9773-36615ba56628",
+    "5ffec563-3630-4a92-a1c4-caff3acc7c5c",
+    "a1f4a209-1f80-45a7-ae51-19d1726ecdcc",
+    "14bc568c-6930-46e3-977b-afc793c210c1",
+    "2cfd8e9a-f72e-4f7f-afb1-a7aa169cb176",
+    "70c4fbf9-5791-49f0-84e3-4bd036352355",
+    "9f991f18-d72b-4327-9bba-7de9d0c7acf4",
+    "6a3fd6e7-45fb-413f-9441-caee9420cc4d",
+    "beace331-23c6-4531-adde-33fd7686bfa0",
+    "f437a796-8be1-4fb6-b850-56e91c1c89ad",
+    "4d85b933-9262-4e23-bb65-738d22bd9ec9",
+    "29086ae3-e64b-4e6c-8934-8b5d6ec7f9df",
+    "b88eceec-e941-41f5-838f-fee4fe9bc526",
+    "f374232a-2b5d-423f-9217-a0abe0770a5c",
+    "66bde611-cb4f-4b12-ad88-0618b38a6645",
+    "667b7cf0-54be-45bc-84fa-83e4cfb4625f",
+    "add60c74-4777-4149-beee-f0a22619054e",
+    "c5f38ac6-326f-45c6-8c39-b9fdc1e93603",
+    "e4defd4d-ee90-45a8-90d9-e3d5d6d3a8bc",
+    "09f969bc-dc40-442d-a556-a66a8f172f6e",
+    "58cb9cf5-62df-4284-8bf7-8d750077af99",
+    "c4d8c7da-97de-4f93-bed3-07840acfce5e",
+    "fc0baded-bfa4-41dd-9a67-7576c07b1904",
+    "2ce3280e-1785-4753-a7c7-8f35ef5f758f",
+    "193b9212-d5ed-467f-b718-136ec91927c3",
+    "9c92034f-6ed1-449d-b1aa-b9dc030a7c80",
+    "d8b334c5-d9bc-451b-b69e-47462cf94326",
+    "12ee9acc-4df0-4609-b867-0142b6b3476d",
+    "b205c772-9d83-4318-a126-5a2fde1846d8",
+    "bc64ed84-d7f7-46ab-97ef-1a9053ff05c8",
+    "29108ebb-23e0-4954-8153-7b89770076d4",
+    "7b59d63d-d103-4ba2-b811-4d222b248b16",
+    "b3167c35-47a1-40a7-a094-0244037bfa4d",
+    "281fbfe5-f66c-47ca-a7b9-38578bc6eec3",
+    "8c5d65ce-48f1-4eb0-b815-5678a0380452",
+    "a671d813-1fa8-45b6-acc8-8a5dd9cdc7e2",
+    "e144d572-82ed-421d-b126-d704fe38dfad",
+    "72b6e265-9c06-4284-a3e1-c66d0f9e4ce8",
+    "fa95f7f6-b0b9-4069-9216-25c20c81c71b",
+    "f62deeae-0e83-4c29-84e2-5581a7712b5e",
+    "8ff01a4e-2415-4978-8b43-6d0ff35f3b62",
+    "ee59f475-45e7-40e9-83e2-1e0d6083f21e",
+    "71ae75b6-01f3-4b66-b2f7-0107ecceb838",
+    "e25fb22a-bfbd-4591-8601-8b31682afc01",
+    "82cd13b4-c472-4942-acdb-8bf8c2285865",
+    "e2a080a7-1e86-4bb5-97cc-793987d80d8d",
+    "9bf53e67-1a4c-452a-a71e-e4e2132b24cd",
+    "8341c6b7-aac4-41ee-8b3a-7c3c1cae3cae",
+    "2d911794-3b34-4a2f-b278-beee92869c3c",
+    "6232cbcb-d495-41e4-a23a-7abbec0b7f2a",
+    "6a297539",
+    "fe69a22f-7915-4aef-aae6-8e4b5fb72462",
+    "e185d4ce-280f-48bd-a97b-28c5b72c93f3",
+    "9db7f325-7c64-454f-bbc5-08cb09a7cc8a",
+    "0a10ce8e-ba22-48e7-a335-23f78346977a",
+    "98a1337c-9256-4e2a-ad55-cbdfd8f1392e",
+    "9a7f11bf-a99c-4713-a204-0edc0d5fbea7",
+    "f9bf6481-e0e5-4b35-a6d5-eb2d4669c740",
+    "9a1b7f33-fc74-4b8a-be67-194fa697aa82",
+    "7ade8faf-2517-4242-a1f7-a92d9160e873",
+    "2e3c0d91-98de-4045-b551-0970270551ce",
+    "eb1047ec-b683-4c22-8f6e-2cc37f4cc47d",
+    "ec8b2036-545a-49d0-9870-9453b91fdb21",
+    "2039f0c3-b66d-40a3-a967-c8c753a8bf03",
+    "c32db58f-c892-41a3-a882-dc7c13370d2c",
+    "5d18fc9d-3242-4bc2-8ecc-a2808e67195e",
+    "4dace691-0432-49e8-909b-a2d9e079b8ed",
+    "25cd5c1c-7801-4063-aa52-e15aece12eb1",
+    "f5639c36-5194-48e0-b292-5b96a8ad3c5a",
+    "bcfe3030-bbd9-4689-8c24-45141e5053e5",
+    "582be9b0-fe8e-4c34-9962-641a1bedadb4",
+    "a0e35775-8790-4486-b11c-fa752b96feda",
+    "b52c863b-ea55-49e5-85c3-5a7f5599852d",
+    "5e197ccc-8a4f-4e62-b607-a0c227e7a1b5",
+    "4e3cdefd-09cd-4c4e-a9fc-82d2c0c88866",
+    "1653b84f-c71f-4722-8cb1-cfde5d453df8",
+    "118c76fa-ef41-4f22-b651-e47377bea273",
+    "5ecb6be0-4709-4731-b051-b0ef0e92fdb7",
+    "26d623d7-a2e7-4ae8-a43c-ed1adb945ead",
+    "bfb7202c-6eb2-4e56-abfd-8148ec4d0b31",
+    "99559842-139a-4805-ac2c-3c60afc38bf6",
+    "c22f40af-fa94-4f73-ab64-392f02df0020",
+    "edfded6c-c27c-4a97-9081-568e14d1a9ee",
+    "e15693a7-d7b7-4567-97cf-2af5ed2ecec2",
+    "a53f4c11-1975-4701-87ae-a02d38c67e9e",
+    "d014f9b0-7a82-4f76-ab35-c0cee7e5d37b",
+    "8ad0641d-0572-4740-82e1-5df17284fba4",
+    "6f4c499b-6921-4b58-a2b9-79c9ff6cbea3",
+    "2debf0e9-e476-49b4-b73d-3cafdb1a7765",
+    "44f27420-dd1f-4d80-b16e-890829e706a5",
+    "3a187ab2-cdbe-4d1c-9d79-dea2bf973ba4",
+    "9b523850-e428-4218-96ed-3ac8a1b24751",
+    "1c323705-8b81-47ed-a073-a7375e699160",
+    "287db48d-8f4a-4a62-8166-cfa038d57da6",
+    "7817d4b7-1201-4a87-8f5c-56ba3a4b1378",
+    "940854bc-eceb-4ed1-a3ff-6e44e568969c",
+    "4aeaa596-cc2c-497f-b937-d718cd080e4c",
+    "9fee6269-f8b7-44cc-9660-3a7497246787",
+    "9df78772-112a-4146-b932-db79149ff672",
+    "053e393e-f0e8-44d0-a190-ff5c7a4b04c0",
+    "25f1b45a-1c8c-4488-8ede-928acc74936f",
+    "45a28ea2-52c3-4c28-8e48-863526cb4ab4",
+    "cecac271-90dd-4e1f-836b-8316c0e6ed0f",
+    "667b3eeb-0f4d-4e80-b652-699c500ca9de",
+    "95553707-4395-41f1-b2ae-380fccae50f8",
+    "3df4056f-4fcd-4665-a145-382b4eb64827",
+    "6aecb6fd-eea9-4945-b4e5-6697ee24a6fa",
+    "080fdaa9-248f-4a79-a0bd-a2c532564065",
+    "1914c631-e816-4801-9906-c303e614ef7a",
+    "c28ad74a-65d9-43f0-a2b9-8f3b78548ec2",
+    "5ce5c1b3-6abf-4164-b936-bff43ca3de15",
+    "2084fd07-b87e-441d-92ac-dc27c9645137",
+    "2a333841-31b5-4f0e-b012-bb116e277598",
+    "ccd2c45f-4c21-45a6-9587-d7d20b8273c3"
+  ]
+}

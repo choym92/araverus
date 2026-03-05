@@ -59,5 +59,9 @@ notebooks/tts_outputs/audio/
 *.wav
 *.mp3
 
+# Notebook intermediate outputs (regenerable from notebooks)
+notebooks/*.pkl
+notebooks/*.png
+
 # Serena memories (MCP local state)
 .serena/.claude/worktrees/

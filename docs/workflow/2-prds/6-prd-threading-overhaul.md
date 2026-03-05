@@ -1,4 +1,4 @@
-<!-- Updated: 2026-03-04 -->
+<!-- Updated: 2026-03-05 (Phase 4.8 complete) -->
 # Threading System Full Overhaul
 
 > **Origin**: `~/.claude/plans/graceful-roaming-coral.md` (Claude plan mode)
@@ -15,9 +15,10 @@
 | 3.5. LLM window + summary | ✅ Done | 2026-03-01 | 102 threads, 348/2,118 threaded (16.4%), 3-day window |
 | 4.0. Code changes | ✅ Done | 2026-03-02 | Time-weighted centroid, entity overlap, size penalty/EMA removed. 3 bugs fixed (author boost precision, threshold formula, late re-match centroid) |
 | 4.1-4.5. Golden dataset + grid search | ✅ Done | 2026-03-04 | Golden dataset: 134 threads, 913 articles, 25 causal links. Grid search: 1,536 combos, best composite 0.8076 (+17.6%). See `docs/4-threading-gridsearch-report.md` |
-| 4.6. Cross-encoder 2-stage experiment | 📋 Planned | 2026-03-04 | Fragmentation 47.8% — cosine alone can't solve. Test Qwen3 as 2nd stage for ambiguous pairs. Cells 15-19 in gridsearch notebook |
+| 4.6. Golden v2.1 + CE experiments | ✅ Done | 2026-03-04 | Golden v2.1 (170 threads, 88% spot-check). CE rescue No-Go. Greedy+CE Merge Go (composite 0.8108, contam 0.009). Louvain tested (0.8255 but contam 0.217). Better embeddings No-Go. See `docs/1.2.1-reranker-causal-test.md` Phase 3. |
+| 4.7. Apply params + CE merge pass | ✅ Done | 2026-03-05 | Params already applied (v4.6). CE merge pass added (`merge_similar_threads_ce()`). Golden seed implemented (`--seed-golden`). CE threshold tuned 0.60→0.85 after production testing. DB seeded with golden v2.1 → 163 threads, 882 threaded articles. |
 | 5. Docs cleanup | ⏳ Partial | 2026-03-04 | `1.2-news-threading.md`, `1.2.1-reranker-causal-test.md` updated; `schema.md`, `1-news-backend.md` pending |
-| 6. Parent thread grouping | ⏳ Not started | — | Blocked on Phase 4.6 completion |
+| 6. Parent thread grouping | ⏳ Not started | — | Blocked on Phase 4.7 completion |
 
 ---
 

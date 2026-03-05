@@ -94,10 +94,11 @@ const _getNewsDataCached = unstable_cache(
     const service = new NewsService(supabase)
 
     // Today's articles first, backfill with older (deduped)
+    const initialLimit = cat ? 60 : 100
     const todayCutoff = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString()
     const [todayItems, allItems] = await Promise.all([
-      service.getNewsItems({ category: cat, limit: 50, since: todayCutoff }),
-      service.getNewsItems({ category: cat, limit: 50 }),
+      service.getNewsItems({ category: cat, limit: initialLimit, since: todayCutoff }),
+      service.getNewsItems({ category: cat, limit: initialLimit }),
     ])
     const todayIds = new Set(todayItems.map(i => i.id))
     const olderBackfill = allItems.filter(i => !todayIds.has(i.id))
@@ -113,7 +114,7 @@ const _getNewsDataCached = unstable_cache(
       if (seenThreads.has(item.thread_id)) return false
       seenThreads.add(item.thread_id)
       return true
-    }).slice(0, 60)
+    }).slice(0, initialLimit)
 
     const [{ en: enBriefing, ko: koBriefing }] = await Promise.all([
       service.getLatestBriefings(),

@@ -1,0 +1,46 @@
+{
+  "date": "2026-03-04",
+  "prev_briefing_date": "2026-03-03",
+  "article_count": 188,
+  "yesterday_context_chars": 464,
+  "A": {
+    "elapsed": 47.290595054626465,
+    "input_tokens": 63480,
+    "output_tokens": 1983,
+    "thinking_tokens": 3024,
+    "words": 1522
+  },
+  "C": {
+    "elapsed": 40.69803714752197,
+    "input_tokens": 63645,
+    "output_tokens": 2062,
+    "thinking_tokens": 2206,
+    "words": 1589
+  },
+  "D": {
+    "elapsed": 47.86670184135437,
+    "input_tokens": 65742,
+    "output_tokens": 2090,
+    "thinking_tokens": 2882,
+    "words": 1653
+  },
+  "prev_briefing_chars": 10585,
+  "F": {
+    "elapsed": 43.04626107215881,
+    "input_tokens": 67968,
+    "output_tokens": 2152,
+    "thinking_tokens": 2384,
+    "words": 1730
+  },
+  "prev_briefing_d2_chars": 9966,
+  "prev_briefing_d2_date": "2026-03-02",
+  "G": {
+    "elapsed": 42.07668137550354,
+    "input_tokens": 70238,
+    "output_tokens": 1834,
+    "thinking_tokens": 2437,
+    "words": 1472
+  },
+  "prev_briefing_d3_chars": 10607,
+  "prev_briefing_d3_date": "2026-03-01"
+}
