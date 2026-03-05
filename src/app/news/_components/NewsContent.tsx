@@ -112,8 +112,8 @@ export default function NewsContent({
       })
     : allItems
 
-  // Pick the most important recent article as featured hero
-  const featuredIndex = filteredItems.findIndex(item => item.importance === 'must_read' && item.summary)
+  // Pick featured hero: first article with a summary (list is already sorted newest-first)
+  const featuredIndex = filteredItems.findIndex(item => item.summary)
   const featured = featuredIndex >= 0 ? filteredItems[featuredIndex] : filteredItems[0] || null
   const remaining = filteredItems.filter((_, i) => i !== (featuredIndex >= 0 ? featuredIndex : 0))
 
