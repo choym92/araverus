@@ -271,6 +271,7 @@ class TTSResult:
     duration_sec: float
     size_kb: float
     elapsed_sec: float
+    sentences: list[dict] = field(default_factory=list)
 
 
 @dataclass
@@ -1032,17 +1033,11 @@ def _preprocess_ko_numbers(text: str) -> str:
 # ---------------------------------------------------------------------------
 
 
-def generate_tts_en(
-    chirp, text: str, out_path: Path, cost: CostTracker
-) -> Optional[TTSResult]:
-    """Generate EN audio using Google Cloud Chirp 3 HD (chunked)."""
-    from google.cloud import texttospeech
-
-    # Clean text: normalize smart quotes to ASCII, then remove remaining non-ASCII
-    clean = text.replace("\u2019", "'").replace("\u2018", "'")  # curly apostrophes → straight
-    clean = clean.replace("\u201C", '"').replace("\u201D", '"')  # curly double quotes → straight
-    clean = clean.replace("\u2014", " -- ").replace("\u2013", " - ")  # em/en dashes
-    # Expand contractions so TTS doesn't split on apostrophes (e.g. "here's" → "here is")
+def _clean_en_text(text: str) -> str:
+    """Clean EN text for TTS: normalize quotes, expand contractions, abbreviations."""
+    clean = text.replace("\u2019", "'").replace("\u2018", "'")
+    clean = clean.replace("\u201C", '"').replace("\u201D", '"')
+    clean = clean.replace("\u2014", " -- ").replace("\u2013", " - ")
     _contractions = [
         (r"\baren't\b", "are not"), (r"\bcan't\b", "cannot"), (r"\bcouldn't\b", "could not"),
         (r"\bdidn't\b", "did not"), (r"\bdoesn't\b", "does not"), (r"\bdon't\b", "do not"),
@@ -1072,7 +1067,6 @@ def generate_tts_en(
     ]
     for pattern, replacement in _contractions:
         clean = re.sub(pattern, replacement, clean, flags=re.IGNORECASE)
-    # Normalize financial/common abbreviations for natural TTS pronunciation
     clean = re.sub(r"S&P\s*500", "S and P 500", clean)
     clean = re.sub(r"S&P", "S and P", clean)
     clean = re.sub(r"AT&T", "A T and T", clean)
@@ -1084,46 +1078,39 @@ def generate_tts_en(
     clean = re.sub(r"\bFed\b", "the Fed", clean)
     clean = re.sub(r"[^\x00-\x7F]+", " ", clean)
     clean = re.sub(r"\s+", " ", clean).strip()
+    return clean
+
+
+def generate_tts_en(
+    chirp, text: str, out_path: Path, cost: CostTracker
+) -> Optional[TTSResult]:
+    """Generate EN audio using per-sentence Google Cloud Chirp 3 HD TTS.
+
+    Each sentence is synthesized individually, giving mathematically exact
+    timestamps via PCM byte offsets. No post-hoc alignment (Whisper) needed.
+    """
+    from google.cloud import texttospeech
+
+    clean = _clean_en_text(text)
     cost.en_tts_chars += len(clean)
 
-    # Split into sentences, then chunks
-    raw_sentences = re.split(r"(?<=[.!?])\s+", clean)
-    sentences: list[str] = []
-    for s in raw_sentences:
-        if len(s) <= EN_TTS_MAX_SENTENCE:
-            sentences.append(s)
-        else:
-            parts = re.split(r"(?<=[,;])\s+", s)
-            current = ""
-            for part in parts:
-                if len(current) + len(part) + 1 > EN_TTS_MAX_SENTENCE and current:
-                    sentences.append(current.strip())
-                    current = part
-                else:
-                    current = (current + " " + part).strip()
-            if current:
-                sentences.append(current)
+    # Split cleaned text into sentences for TTS
+    tts_sents = _split_original_into_sentences(clean)
 
-    chunks: list[str] = []
-    current = ""
-    for s in sentences:
-        if len(current) + len(s) + 1 > EN_TTS_MAX_CHARS and current:
-            chunks.append(current.strip())
-            current = s
-        else:
-            current = (current + " " + s).strip()
-    if current:
-        chunks.append(current.strip())
+    # Split original text for display (stored in DB)
+    orig_sents = _split_original_into_sentences(text)
 
-    log.info("EN TTS: %d chars, %d chunks, %d sentences", len(clean), len(chunks), len(sentences))
+    log.info("EN TTS: %d chars, %d sentences (per-sentence mode)", len(clean), len(tts_sents))
     start = time.time()
 
-    audio_parts: list[bytes] = []
-    for i, chunk_text in enumerate(chunks):
+    all_pcm = b""
+    sentences: list[dict] = []
+
+    for i, sent in enumerate(tts_sents):
         for attempt in range(3):
             try:
                 resp = chirp.synthesize_speech(
-                    input=texttospeech.SynthesisInput(text=chunk_text),
+                    input=texttospeech.SynthesisInput(text=sent),
                     voice=texttospeech.VoiceSelectionParams(
                         language_code="en-US",
                         name=EN_TTS_VOICE,
@@ -1134,36 +1121,38 @@ def generate_tts_en(
                         speaking_rate=EN_TTS_SPEAKING_RATE,
                     ),
                 )
-                audio_parts.append(resp.audio_content)
-                log.info("  Chunk %d/%d done", i + 1, len(chunks))
+                with wave.open(io.BytesIO(resp.audio_content), "rb") as wf:
+                    pcm = wf.readframes(wf.getnframes())
+
+                sent_start = len(all_pcm) / (EN_TTS_SAMPLE_RATE * 2)
+                all_pcm += pcm
+                sent_end = len(all_pcm) / (EN_TTS_SAMPLE_RATE * 2)
+
+                display_text = orig_sents[i] if i < len(orig_sents) else sent
+                sentences.append({"text": display_text, "start": round(sent_start, 2), "end": round(sent_end, 2)})
                 break
             except Exception as e:
                 if attempt < 2:
                     wait = 2 ** (attempt + 1)
-                    log.warning("  Chunk %d failed (%s), retrying in %ds...", i + 1, e.__class__.__name__, wait)
+                    log.warning("  Sentence %d failed (%s), retrying in %ds...", i + 1, e.__class__.__name__, wait)
                     time.sleep(wait)
                 else:
-                    log.error("  Chunk %d failed after 3 attempts: %s", i + 1, e)
-                    # Save partial audio if we have some
-                    break
+                    log.error("  Sentence %d failed after 3 attempts: %s", i + 1, e)
 
-    if not audio_parts:
+        if (i + 1) % 20 == 0:
+            elapsed = time.time() - start
+            log.info("  %d/%d sentences done (%.0fs)", i + 1, len(tts_sents), elapsed)
+
+    if not all_pcm:
         log.error("EN TTS: no audio generated")
         return None
 
-    # Merge WAV chunks into temp WAV, then convert to MP3
     import subprocess
     import tempfile
-
-    all_pcm = b""
-    for part in audio_parts:
-        with wave.open(io.BytesIO(part), "rb") as wf:
-            all_pcm += wf.readframes(wf.getnframes())
 
     duration = len(all_pcm) / (EN_TTS_SAMPLE_RATE * 2)
     out_path.parent.mkdir(parents=True, exist_ok=True)
 
-    # Write temp WAV, convert to MP3
     with tempfile.NamedTemporaryFile(suffix=".wav", delete=False) as tmp:
         tmp_wav = tmp.name
         with wave.open(tmp_wav, "wb") as wf:
@@ -1174,7 +1163,7 @@ def generate_tts_en(
 
     mp3_path = out_path.with_suffix(".mp3")
     subprocess.run(
-        ["ffmpeg", "-y", "-i", tmp_wav, "-codec:a", "libmp3lame", "-b:a", "128k", str(mp3_path)],
+        ["ffmpeg", "-y", "-i", tmp_wav, "-codec:a", "libmp3lame", "-b:a", "64k", str(mp3_path)],
         capture_output=True, check=True,
     )
     os.unlink(tmp_wav)
@@ -1182,46 +1171,40 @@ def generate_tts_en(
     elapsed = time.time() - start
     size_kb = mp3_path.stat().st_size / 1024
 
-    log.info("EN TTS done: %.1fs, %.0fKB (~%.1fmin), saved as MP3", elapsed, size_kb, duration / 60)
-    return TTSResult(path=mp3_path, duration_sec=duration, size_kb=size_kb, elapsed_sec=elapsed)
+    log.info("EN TTS done: %.1fs, %d sentences, %.0fKB (~%.1fmin), saved as MP3", elapsed, len(sentences), size_kb, duration / 60)
+    return TTSResult(path=mp3_path, duration_sec=duration, size_kb=size_kb, elapsed_sec=elapsed, sentences=sentences)
 
 
 def generate_tts_ko(
     chirp, text: str, out_path: Path, cost: CostTracker
 ) -> Optional[TTSResult]:
-    """Generate KO audio using Google Cloud Chirp 3 HD (chunked)."""
+    """Generate KO audio using per-sentence Google Cloud Chirp 3 HD TTS.
+
+    Each sentence is synthesized individually, giving mathematically exact
+    timestamps via PCM byte offsets. No post-hoc alignment (CTC/Whisper) needed.
+    """
     from google.cloud import texttospeech
 
     cost.ko_tts_chars += len(text)
-    text = _preprocess_ko_numbers(text)
+    preprocessed = _preprocess_ko_numbers(text)
 
-    # Split into sentences, then group into byte-safe chunks
-    # Chirp 3 HD limit is 5000 bytes; Korean UTF-8 ≈ 3 bytes/char
-    raw_sentences = re.split(r"(?<=[.!?])\s+", text)
-    chunks: list[str] = []
-    current = ""
-    for s in raw_sentences:
-        candidate = (current + " " + s).strip() if current else s
-        if len(candidate.encode("utf-8")) > KO_TTS_MAX_BYTES and current:
-            chunks.append(current.strip())
-            current = s
-        else:
-            current = candidate
-    if current:
-        chunks.append(current.strip())
+    # Split preprocessed text into sentences for TTS
+    tts_sents = _split_original_into_sentences(preprocessed)
 
-    log.info(
-        "KO TTS: %d chars, %d chunks (voice: %s)",
-        len(text), len(chunks), KO_TTS_VOICE,
-    )
+    # Split original text for display (stored in DB)
+    orig_sents = _split_original_into_sentences(text)
+
+    log.info("KO TTS: %d chars, %d sentences (per-sentence mode, voice: %s)", len(preprocessed), len(tts_sents), KO_TTS_VOICE)
     start = time.time()
 
-    audio_parts: list[bytes] = []
-    for i, chunk_text in enumerate(chunks):
+    all_pcm = b""
+    sentences: list[dict] = []
+
+    for i, sent in enumerate(tts_sents):
         for attempt in range(3):
             try:
                 resp = chirp.synthesize_speech(
-                    input=texttospeech.SynthesisInput(text=chunk_text),
+                    input=texttospeech.SynthesisInput(text=sent),
                     voice=texttospeech.VoiceSelectionParams(
                         language_code="ko-KR",
                         name=KO_TTS_VOICE,
@@ -1232,35 +1215,38 @@ def generate_tts_ko(
                         speaking_rate=KO_TTS_SPEAKING_RATE,
                     ),
                 )
-                audio_parts.append(resp.audio_content)
-                log.info("  Chunk %d/%d done (%d chars)", i + 1, len(chunks), len(chunk_text))
+                with wave.open(io.BytesIO(resp.audio_content), "rb") as wf:
+                    pcm = wf.readframes(wf.getnframes())
+
+                sent_start = len(all_pcm) / (EN_TTS_SAMPLE_RATE * 2)
+                all_pcm += pcm
+                sent_end = len(all_pcm) / (EN_TTS_SAMPLE_RATE * 2)
+
+                display_text = orig_sents[i] if i < len(orig_sents) else sent
+                sentences.append({"text": display_text, "start": round(sent_start, 2), "end": round(sent_end, 2)})
                 break
             except Exception as e:
                 if attempt < 2:
                     wait = 2 ** (attempt + 1)
-                    log.warning("  Chunk %d failed (%s), retrying in %ds...", i + 1, e.__class__.__name__, wait)
+                    log.warning("  Sentence %d failed (%s), retrying in %ds...", i + 1, e.__class__.__name__, wait)
                     time.sleep(wait)
                 else:
-                    log.error("  Chunk %d failed after 3 attempts: %s", i + 1, e)
-                    break
+                    log.error("  Sentence %d failed after 3 attempts: %s", i + 1, e)
 
-    if not audio_parts:
+        if (i + 1) % 20 == 0:
+            elapsed = time.time() - start
+            log.info("  %d/%d sentences done (%.0fs)", i + 1, len(tts_sents), elapsed)
+
+    if not all_pcm:
         log.error("KO TTS: no audio generated")
         return None
 
     import subprocess
     import tempfile
 
-    # Merge WAV chunks — extract PCM frames
-    all_pcm = b""
-    for part in audio_parts:
-        with wave.open(io.BytesIO(part), "rb") as wf:
-            all_pcm += wf.readframes(wf.getnframes())
-
     duration = len(all_pcm) / (EN_TTS_SAMPLE_RATE * 2)
     out_path.parent.mkdir(parents=True, exist_ok=True)
 
-    # Write temp WAV, convert to MP3
     with tempfile.NamedTemporaryFile(suffix=".wav", delete=False) as tmp:
         tmp_wav = tmp.name
         with wave.open(tmp_wav, "wb") as wf:
@@ -1271,7 +1257,7 @@ def generate_tts_ko(
 
     mp3_path = out_path.with_suffix(".mp3")
     subprocess.run(
-        ["ffmpeg", "-y", "-i", tmp_wav, "-codec:a", "libmp3lame", "-b:a", "128k", str(mp3_path)],
+        ["ffmpeg", "-y", "-i", tmp_wav, "-codec:a", "libmp3lame", "-b:a", "64k", str(mp3_path)],
         capture_output=True, check=True,
     )
     os.unlink(tmp_wav)
@@ -1279,8 +1265,8 @@ def generate_tts_ko(
     elapsed = time.time() - start
     size_kb = mp3_path.stat().st_size / 1024
 
-    log.info("KO TTS done: %.1fs, %d chunks, %.0fKB (~%.1fmin), saved as MP3", elapsed, len(chunks), size_kb, duration / 60)
-    return TTSResult(path=mp3_path, duration_sec=duration, size_kb=size_kb, elapsed_sec=elapsed)
+    log.info("KO TTS done: %.1fs, %d sentences, %.0fKB (~%.1fmin), saved as MP3", elapsed, len(sentences), size_kb, duration / 60)
+    return TTSResult(path=mp3_path, duration_sec=duration, size_kb=size_kb, elapsed_sec=elapsed, sentences=sentences)
 
 
 # ---------------------------------------------------------------------------
@@ -1289,9 +1275,39 @@ def generate_tts_ko(
 
 
 def _split_original_into_sentences(text: str) -> list[str]:
-    """Split original briefing text into sentences."""
-    parts = re.split(r"(?<=[.!?\u3002\uff1f\uff01])\s+", text.strip())
-    return [p.strip() for p in parts if p.strip()]
+    """Split briefing text into sentences, protecting abbreviations from false splits.
+
+    Handles U.S., U.K., A.I., G.D.P., Dr., Inc., etc. without breaking mid-abbreviation.
+    """
+    protected = text
+    placeholders: dict[str, str] = {}
+    counter = [0]
+
+    def _protect(match: re.Match) -> str:
+        ph = f"__ABBR{counter[0]}__"
+        placeholders[ph] = match.group(0)
+        counter[0] += 1
+        return ph
+
+    # Multi-letter abbreviations: U.S., A.I., G.D.P., etc.
+    protected = re.sub(r"\b(?:[A-Z]\.){2,}", _protect, protected)
+    # Common single-word abbreviations
+    protected = re.sub(
+        r"\b(?:Dr|Mr|Mrs|Ms|Jr|Sr|Prof|Gen|Gov|Sen|Rep|Rev|St|Mt|Sgt|Corp|Inc|Ltd|Co|vs|etc|approx|dept|est|govt|intl|natl)\.",
+        _protect, protected, flags=re.IGNORECASE,
+    )
+    # Numbered items: No. 1, Vol. 2, etc.
+    protected = re.sub(r"\b(?:No|Vol|Ch|Fig|Sec|Art)\.\s*\d", _protect, protected)
+
+    parts = re.split(r"(?<=[.!?\u3002\uff1f\uff01])\s+", protected.strip())
+    parts = [p.strip() for p in parts if p.strip()]
+
+    result = []
+    for p in parts:
+        for ph, orig in placeholders.items():
+            p = p.replace(ph, orig)
+        result.append(p)
+    return result
 
 
 def _get_audio_duration(mp3_path: Path) -> float:
@@ -2127,13 +2143,8 @@ def main() -> None:
             elif lang == "ko" and chirp:
                 tts_result = generate_tts_ko(chirp, result.text, audio_path, cost)
 
-        # Whisper sentence alignment
-        sentences = None
-        if tts_result:
-            try:
-                sentences = extract_sentences(tts_result.path, lang, original_text=result.text)
-            except Exception as e:
-                log.warning("Whisper alignment failed for %s: %s", lang.upper(), e)
+        # Sentence timestamps (computed during per-sentence TTS generation)
+        sentences = tts_result.sentences if tts_result else None
 
         # Upload audio to Supabase Storage
         audio_url = None
