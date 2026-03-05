@@ -14,7 +14,7 @@ export async function generateMetadata(): Promise<Metadata> {
   const title = { absolute: titleText }
   const canonical = 'https://araverus.com/news'
 
-  const description = 'Agentic AI pipeline that threads related news stories, surfaces trends, and delivers daily briefings across Tech, Markets, and Finance.'
+  const description = 'Agentic AI-powered briefings that turn hours of news into minutes — uncover hidden connections across Tech, Markets, and Finance that others miss.'
 
   const supabase = createServiceClient()
   const service = new NewsService(supabase)

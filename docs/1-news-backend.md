@@ -278,6 +278,8 @@ python 8_generate_briefing.py --date 2026-02-23 --regen-audio  # Redo TTS+timest
 - **TTS KO:** Google Cloud Chirp 3 HD (`ko-KR-Chirp3-HD-Kore`), per-sentence synthesis with number preprocessing.
 - **Timestamps:** Per-sentence TTS — each sentence is synthesized individually and timestamps are computed from PCM byte offsets (mathematically exact, no drift). Abbreviation-safe sentence splitter protects U.S., U.K., Dr., Inc., etc. from false splits. No post-hoc alignment (Whisper/CTC) needed.
 - **`--regen-audio`:** Fetches existing briefing text from DB, regenerates TTS + timestamps + uploads without re-running article fetch/curation/LLM
+- **Audio encoding:** MP3 64kbps mono (voice-optimized, ~2.4 MB per 10min briefing)
+- **Audio storage:** Supabase Storage uploads two copies per briefing: dated archive (`briefing-{lang}-{date}.mp3`) + latest (`briefing-{lang}-latest.mp3`). DB `audio_url` points to dated file. Archives auto-cleaned after 30 days.
 - **Output:** `scripts/output/briefings/{date}/`
 
 ### Phase 6: Health Report

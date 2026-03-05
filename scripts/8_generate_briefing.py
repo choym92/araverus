@@ -873,22 +873,71 @@ def clean_markers(text: str) -> str:
     return cleaned.strip()
 
 
-def upload_audio_to_storage(sb, mp3_path: Path, lang: str) -> str:
-    """Upload MP3 to Supabase Storage and return public URL."""
-    storage_path = f"briefing-{lang}-latest.mp3"
+AUDIO_RETENTION_DAYS = 30
+
+
+def upload_audio_to_storage(sb, mp3_path: Path, lang: str, date: str = "") -> str:
+    """Upload MP3 to Supabase Storage (dated + latest) and return public URL.
+
+    Uploads two copies:
+    - briefing-{lang}-{date}.mp3  (archive, kept for AUDIO_RETENTION_DAYS)
+    - briefing-{lang}-latest.mp3  (always points to newest)
+
+    Old archives beyond AUDIO_RETENTION_DAYS are cleaned up automatically.
+    """
+    if not date:
+        date = datetime.now().strftime("%Y-%m-%d")
+
+    dated_path = f"briefing-{lang}-{date}.mp3"
+    latest_path = f"briefing-{lang}-latest.mp3"
+    bucket = sb.storage.from_("briefings")
+
     with open(mp3_path, "rb") as f:
         data = f.read()
+
+    file_opts = {"content-type": "audio/mpeg", "upsert": "true"}
+
+    # Upload dated archive
     try:
-        sb.storage.from_("briefings").remove([storage_path])
+        bucket.remove([dated_path])
     except Exception:
         pass
-    sb.storage.from_("briefings").upload(
-        storage_path, data,
-        file_options={"content-type": "audio/mpeg", "upsert": "true"},
-    )
-    url = sb.storage.from_("briefings").get_public_url(storage_path)
-    log.info("Uploaded %s → %s", mp3_path.name, url)
+    bucket.upload(dated_path, data, file_options=file_opts)
+
+    # Upload latest (overwrite)
+    try:
+        bucket.remove([latest_path])
+    except Exception:
+        pass
+    bucket.upload(latest_path, data, file_options=file_opts)
+
+    url = bucket.get_public_url(dated_path)
+    log.info("Uploaded %s → %s + %s", mp3_path.name, dated_path, latest_path)
+
+    # Cleanup old archives
+    _cleanup_old_audio(bucket, lang)
+
     return url
+
+
+def _cleanup_old_audio(bucket, lang: str) -> None:
+    """Remove archived briefing audio older than AUDIO_RETENTION_DAYS."""
+    try:
+        files = bucket.list()
+        prefix = f"briefing-{lang}-"
+        cutoff = (datetime.now() - timedelta(days=AUDIO_RETENTION_DAYS)).strftime("%Y-%m-%d")
+
+        for f in files:
+            name = f.get("name", "")
+            if not name.startswith(prefix) or name.endswith("-latest.mp3"):
+                continue
+            # Extract date from briefing-{lang}-YYYY-MM-DD.mp3
+            date_part = name.replace(prefix, "").replace(".mp3", "")
+            if len(date_part) == 10 and date_part < cutoff:
+                bucket.remove([name])
+                log.info("Cleaned up old audio: %s", name)
+    except Exception as e:
+        log.warning("Audio cleanup failed (non-fatal): %s", e)
 
 
 # ---------------------------------------------------------------------------
@@ -1969,18 +2018,14 @@ def main() -> None:
                 log.error("%s TTS failed — skipping", lang.upper())
                 continue
 
-            # Sentence timestamps
-            sentences = None
-            try:
-                sentences = extract_sentences(tts_result.path, lang, original_text=briefing_text)
-            except Exception as e:
-                log.warning("Alignment failed for %s: %s", lang.upper(), e)
+            # Sentence timestamps (computed during per-sentence TTS generation)
+            sentences = tts_result.sentences if tts_result else None
 
             # Upload audio
             audio_url = None
             if not args.skip_db:
                 try:
-                    audio_url = upload_audio_to_storage(sb, tts_result.path, lang)
+                    audio_url = upload_audio_to_storage(sb, tts_result.path, lang, date=str(target))
                 except Exception as e:
                     log.warning("Audio upload failed for %s: %s", lang.upper(), e)
 
@@ -2150,7 +2195,7 @@ def main() -> None:
         audio_url = None
         if tts_result and not args.skip_db:
             try:
-                audio_url = upload_audio_to_storage(sb, tts_result.path, lang)
+                audio_url = upload_audio_to_storage(sb, tts_result.path, lang, date=str(target))
             except Exception as e:
                 log.warning("Audio upload failed for %s: %s", lang.upper(), e)
 

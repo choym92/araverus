@@ -285,6 +285,8 @@ UNTRUSTED_IMAGE_DOMAINS = {
     "bitget.com",
     "investing.com",
     "marketscreener.com",
+    "mexc.co",
+    "mexc.com",
     "tradingview.com",
 }
 

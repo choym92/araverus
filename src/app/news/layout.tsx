@@ -6,7 +6,7 @@ const podcastSeriesJsonLd = {
   '@context': 'https://schema.org',
   '@type': 'PodcastSeries',
   name: 'AI News Briefing — Araverus',
-  description: 'Daily AI-curated audio briefing covering tech, markets, and finance news.',
+  description: 'Agentic AI-powered briefings that turn hours of news into minutes — uncover hidden connections across Tech, Markets, and Finance that others miss.',
   url: 'https://araverus.com/news',
   webFeed: 'https://araverus.com/podcast.xml',
   author: { '@type': 'Organization', name: 'Araverus' },
@@ -15,7 +15,7 @@ const podcastSeriesJsonLd = {
 
 export const metadata: Metadata = {
   title: 'News | Araverus',
-  description: 'Daily curated finance news and audio briefings from trusted sources.',
+  description: 'Agentic AI-powered briefings that turn hours of news into minutes — uncover hidden connections across Tech, Markets, and Finance that others miss.',
   alternates: {
     types: {
       'application/rss+xml': '/podcast.xml',

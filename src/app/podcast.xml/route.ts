@@ -44,7 +44,7 @@ const getPodcastData = unstable_cache(
     <link>${SITE}/news</link>
     <language>en</language>
     <copyright>Copyright ${new Date().getFullYear()} Araverus</copyright>
-    <description>${escapeXml('Agentic AI pipeline that threads related news stories, surfaces trends, and delivers daily audio briefings across Tech, Markets, and Finance.')}</description>
+    <description>${escapeXml('Agentic AI-powered briefings that turn hours of news into minutes — uncover hidden connections across Tech, Markets, and Finance that others miss.')}</description>
     <itunes:author>Araverus</itunes:author>
     <itunes:summary>${escapeXml('Daily AI-curated audio briefing covering tech, markets, and finance news.')}</itunes:summary>
     <itunes:category text="News">

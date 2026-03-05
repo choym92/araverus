@@ -45,7 +45,7 @@ const getRssData = unstable_cache(
     <channel>
       <title>${escapeXml('Araverus — Financial Intelligence')}</title>
       <link>${SITE}</link>
-      <description>${escapeXml('Agentic AI pipeline that threads related news stories, surfaces trends, and delivers daily briefings across Tech, Markets, and Finance.')}</description>
+      <description>${escapeXml('Agentic AI-powered briefings that turn hours of news into minutes — uncover hidden connections across Tech, Markets, and Finance that others miss.')}</description>
       <language>en</language>
       <copyright>Copyright ${new Date().getFullYear()} Araverus</copyright>
       <ttl>60</ttl>
