@@ -36,11 +36,12 @@ const getRssData = unstable_cache(
         <pubDate>${pubDate}</pubDate>
         <description>${description}</description>
         <category>${category}</category>
+        <dc:creator>Araverus Team</dc:creator>
       </item>`;
       }).join('');
 
     return `<?xml version="1.0" encoding="UTF-8"?>
-  <rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
+  <rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom" xmlns:dc="http://purl.org/dc/elements/1.1/">
     <channel>
       <title>${escapeXml('Araverus — Financial Intelligence')}</title>
       <link>${SITE}</link>
@@ -50,6 +51,7 @@ const getRssData = unstable_cache(
       <ttl>60</ttl>
       <lastBuildDate>${latestDate}</lastBuildDate>
       <atom:link href="${SITE}/rss.xml" rel="self" type="application/rss+xml" />
+      <atom:link href="https://pubsubhubbub.appspot.com/" rel="hub" />
       <image>
         <url>${SITE}/logo-publisher.png</url>
         <title>${escapeXml('Araverus')}</title>

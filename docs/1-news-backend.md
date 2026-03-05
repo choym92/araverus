@@ -42,8 +42,12 @@ flowchart LR
         L --> M[pipeline_health.py]
     end
 
+    subgraph "Phase 6.5: Notify"
+        M --> N2[9_notify_search_engines.py]
+    end
+
     subgraph "Phase 7: Revalidate"
-        M --> N[curl /api/revalidate]
+        N2 --> N[curl /api/revalidate]
     end
 ```
 
@@ -296,6 +300,22 @@ python pipeline_health.py --no-email          # Skip email
 - **Output:** Terminal (colored), Markdown (`logs/health/health-YYYY-MM-DD.md`), Email (Gmail SMTP, optional)
 - **Email env:** `GMAIL_ADDRESS`, `GMAIL_APP_PASSWORD` in `.env.pipeline`
 - **Cron:** Added to `run_pipeline.sh` Phase 6 (non-fatal)
+
+### Phase 6.5: Notify Search Engines
+
+#### `9_notify_search_engines.py`
+
+Pings search engines about new articles so they crawl faster.
+
+```bash
+python 9_notify_search_engines.py              # default 24h lookback
+python 9_notify_search_engines.py --hours 6    # last 6 hours
+python 9_notify_search_engines.py --dry-run    # print URLs only
+```
+
+- **IndexNow** (Bing, Yandex, Naver): Batch-submits new article URLs. Requires `INDEXNOW_API_KEY` env var + key file hosted at `public/{key}.txt`
+- **WebSub** (Google): Pings `pubsubhubbub.appspot.com` with RSS feed URL for near-real-time re-crawl
+- **Non-fatal:** Pipeline continues if notification fails
 
 ### Phase 7: Cache Revalidation
 

@@ -127,10 +127,10 @@ Articles are sorted in `sortByDateThenImportance()` before slicing into columns:
 - **After 24 hours**: Only the highest-ranked article per thread is shown (dedup older threads, reduce visual clutter). Remaining thread members are accessible via in-card carousel navigation.
 
 #### Featured Hero Selection
-The featured center hero is **not** simply `items[0]`. `NewsContent.tsx` finds the first `must_read` article with a summary via `findIndex()`. This ensures the most important article gets the hero slot regardless of its position in the date-sorted list. Falls back to `items[0]` if no `must_read` article exists.
+The featured center hero is the first article with a `summary` (via `findIndex()`). Falls back to `items[0]` if no article has a summary. The list is already sorted newest-first, so this naturally picks a recent article with AI-generated content.
 
 #### Card Slicing
-- `featured` → center hero (first `must_read` with summary, or `items[0]`)
+- `featured` → center hero (first article with summary, or `items[0]`)
 - `remaining` → all items except the featured one
 - `leftStories = remaining[0..4]` → left column (5 cards, no images)
 - `rightStories = remaining[5..10]` → right column (6 standard cards)
@@ -224,7 +224,7 @@ sequenceDiagram
         DB-->>Svc: Map<string, StoryThread>
 
         Page->>Svc: getThreadTimeline(id) × N
-        Svc->>DB: SELECT wsj_items WHERE thread_id=? ORDER BY published_at ASC
+        Svc->>DB: SELECT wsj_items WHERE thread_id=? ORDER BY published_at DESC LIMIT 30
         DB-->>Svc: NewsItem[][] (one per thread)
 
         Page->>FS: readFile(chapters/sentences/transcript EN+KO)
@@ -554,7 +554,7 @@ Article detail page layout with semantic structure:
 2. **Hero Image**: Full-width, aspect ratio maintained via wrapper.
 3. **Keywords**: Below image, centered, using `hashtag` variant with `linkable` prop (KeywordPills component). `justify-center` layout.
 4. **Headline & Badge**: Serif AI headline, with optional `must_read` badge displayed inline with category.
-5. **Timestamp & Share Bar**: Share icons moved to right-aligned position above hero. Timestamp styled as `text-base` (increased from `text-sm`).
+5. **Byline, Timestamp & Share Bar**: Displays `Araverus Team | {date} at {time}` with share icons right-aligned. All text `text-neutral-400`, `text-base`.
 6. **Summary**: Split into paragraphs. All sentences use same style (`text-neutral-600`). Grouped 2 sentences per `<p>` tag. Body narrowed to `max-w-2xl`.
 7. **Key Takeaway** (new): Amber callout box with `key_takeaway` text, placed after keywords and before summary. Styled consistently with other callout sections. Shows only when `key_takeaway` is available.
 8. **SourceList**: Header style matches RelatedSection (`font-serif text-lg border-b-2 border-neutral-900`). Shows "Originally reported as:" when `headline` differs from WSJ `title`. Hidden when no sources and no WSJ URL (returns null).
@@ -661,7 +661,7 @@ classDiagram
 | `getNewsItems(opts)` | `wsj_items LEFT JOIN wsj_crawl_results LEFT JOIN wsj_llm_analysis` — **visibility gate:** articles without an AI `headline` are filtered out (headline only exists on `relevance_flag='ok'` crawls, so no headline = not quality-verified). No WSJ original title fallback. Picks `relevance_flag='ok'` crawl for display data, counts candidates where `embedding_score >= 0.75 OR relevance_flag = 'ok'` (+ resolved_url not null) for `source_count`. | `NewsItem[]` |
 | `getNewsItemBySlug(slug)` | `wsj_items WHERE slug=? JOIN crawl+llm` filtered by `relevance_flag='ok'` | `NewsItem \| null` |
 | `getRelatedArticles(itemId, limit)` | `match_articles` RPC (pgvector, ±7 days) | `RelatedArticle[]` |
-| `getThreadTimeline(threadId)` | `wsj_items WHERE thread_id=? LEFT JOIN wsj_crawl_results (embedding_score selected) LEFT JOIN wsj_llm_analysis` — same flattening logic as `getNewsItems`, picks ok crawl, counts candidates where `embedding_score >= 0.75 OR relevance_flag = 'ok'` (+ resolved_url not null) | `NewsItem[]` |
+| `getThreadTimeline(threadId)` | `wsj_items WHERE thread_id=? LEFT JOIN wsj_crawl_results (embedding_score selected) LEFT JOIN wsj_llm_analysis` — fetches newest 30 articles (DESC LIMIT 30), then re-sorts ascending for display. Same flattening logic as `getNewsItems`, picks ok crawl, counts candidates where `embedding_score >= 0.75 OR relevance_flag = 'ok'` (+ resolved_url not null) | `NewsItem[]` |
 | `getArticleSources(itemId)` | `wsj_crawl_results WHERE wsj_item_id=? AND resolved_url IS NOT NULL AND (embedding_score >= 0.75 OR relevance_flag = 'ok') ORDER BY embedding_score DESC` — filters out unsafe domains, sorts trusted domains (TRUSTED_SOURCE_DOMAINS ~70 domains) first within embedding score order | `CrawlSource[]` |
 | `getStoryThread(threadId)` | `wsj_story_threads WHERE id=?` | `StoryThread \| null` |
 | `getThreadsByIds(threadIds)` | `wsj_story_threads WHERE id IN (...)` | `Map<string, StoryThread>` |
@@ -801,7 +801,7 @@ The `/news/[slug]` page has the route and basic layout, but these sections need 
 │  │ Hero image (top)                                  │  │
 │  │ Keywords (centered, hashtag chips below image)   │  │
 │  │ Headline (serif) | Must Read badge                │  │
-│  │ Timestamp (text-base) + Share bar (right-aligned) │  │
+│  │ Byline + Timestamp + Share bar (right-aligned)     │  │
 │  │ Summary: bold first sentence lead, 2-per-<p>    │  │
 │  │ (max-w-2xl, narrower body)                        │  │
 │  └───────────────────────────────────────────────────┘  │

@@ -14,7 +14,6 @@ function XIcon({ size = 16 }: { size?: number }) {
 interface ShareBarProps {
   title: string;
   url: string;
-  /** Color palette: 'gray' for blog, 'neutral' for news */
   palette?: 'gray' | 'neutral';
 }
 

@@ -219,9 +219,11 @@ export default async function ArticlePage({ params }: ArticlePageProps) {
           {displayTitle}
         </h1>
 
-        {/* Timestamp + Share */}
+        {/* Byline + Timestamp + Share */}
         <div className="flex items-center justify-between mb-4">
           <p className="text-base text-neutral-400">
+            <span>Araverus Team</span>
+            <span className="mx-1.5">|</span>
             {date} at {time}
           </p>
           <ShareBar
