@@ -16,6 +16,11 @@ const cspHeader = `
 `.replace(/\n/g, '');
 
 const nextConfig: NextConfig = {
+  async rewrites() {
+    return [
+      { source: '/sitemap-news.xml', destination: '/api/sitemap-news' },
+    ]
+  },
   async redirects() {
     return [
       { source: '/news', has: [{ type: 'query', key: 'category', value: 'TECH' }], destination: '/news/c/tech', permanent: true },
