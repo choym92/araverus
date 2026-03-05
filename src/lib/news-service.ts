@@ -515,10 +515,12 @@ export class NewsService {
       const llmRow = Array.isArray(llmData) ? llmData[0] : llmData
       const aiHeadline = (llmRow?.headline as string) || null
       const slug = item?.slug as string | undefined
+      // Only link to /news/slug if article has AI headline (implies successful crawl + analysis)
+      const hasContent = !!aiHeadline
       return {
         title: aiHeadline || (item?.title as string) || '',
         feed_name: (item?.feed_name as string) || '',
-        link: slug ? `/news/${slug}` : (item?.link as string) || '',
+        link: hasContent && slug ? `/news/${slug}` : (item?.link as string) || '',
         source: (crawl?.source as string) || null,
       }
     })

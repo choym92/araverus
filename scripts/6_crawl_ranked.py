@@ -537,9 +537,12 @@ async def process_wsj_item(
                             else:
                                 print("✗ failed")
 
-                        skipped = mark_other_articles_skipped(supabase, wsj.get('id'), url)
-                        if skipped > 0:
-                            print(f"    → Marked {skipped} backup articles as skipped")
+                        if crawl_result_id:
+                            skipped = mark_other_articles_skipped(supabase, wsj.get('id'), url)
+                            if skipped > 0:
+                                print(f"    → Marked {skipped} backup articles as skipped")
+                        else:
+                            print("    ⚠ Save failed — skipping mark_other_articles_skipped")
 
                     success = True
                     break  # Stop trying more articles for this WSJ
