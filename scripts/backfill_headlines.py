@@ -54,14 +54,58 @@ def get_missing_headlines(supabase, limit: int | None = None):
     return all_rows
 
 
+def cleanup_non_ok_headlines(supabase, dry_run: bool = False):
+    """NULL out headlines on crawl results where relevance_flag != 'ok'.
+
+    Ensures "headline exists = ok crawl = quality guaranteed" invariant.
+    """
+    # Find llm_analysis rows with headline where the parent crawl is not 'ok'
+    PAGE_SIZE = 1000
+    rows = []
+    offset = 0
+    while True:
+        result = (
+            supabase.table("wsj_llm_analysis")
+            .select("id, headline, wsj_crawl_results!inner(relevance_flag)")
+            .not_.is_("headline", "null")
+            .neq("wsj_crawl_results.relevance_flag", "ok")
+            .range(offset, offset + PAGE_SIZE - 1)
+            .execute()
+        )
+        batch = result.data or []
+        rows.extend(batch)
+        if len(batch) < PAGE_SIZE:
+            break
+        offset += PAGE_SIZE
+    print(f"Found {len(rows)} headlines on non-ok crawls")
+
+    if dry_run or not rows:
+        return
+
+    ids = [r["id"] for r in rows]
+    BATCH = 500
+    for i in range(0, len(ids), BATCH):
+        batch = ids[i : i + BATCH]
+        supabase.table("wsj_llm_analysis").update({"headline": None}).in_("id", batch).execute()
+        print(f"  Cleared {min(i + BATCH, len(ids))}/{len(ids)}")
+
+    print(f"Done: {len(ids)} headlines cleared")
+
+
 def main():
     parser = argparse.ArgumentParser(description="Backfill missing headlines")
     parser.add_argument("--dry-run", action="store_true", help="Show count only")
     parser.add_argument("--limit", type=int, default=None, help="Process N articles")
     parser.add_argument("--delay", type=float, default=0.3, help="Seconds between LLM calls")
+    parser.add_argument("--cleanup", action="store_true", help="Remove headlines from non-ok crawls")
     args = parser.parse_args()
 
     supabase = require_supabase_client()
+
+    if args.cleanup:
+        cleanup_non_ok_headlines(supabase, args.dry_run)
+        return
+
     rows = get_missing_headlines(supabase, args.limit)
 
     print(f"Found {len(rows)} articles with missing headlines")

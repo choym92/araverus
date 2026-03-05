@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useCallback } from 'react'
-import { useSearchParams, useRouter } from 'next/navigation'
+import { useSearchParams } from 'next/navigation'
 import nextDynamic from 'next/dynamic'
 import Link from 'next/link'
 import type { NewsItem, StoryThread, ParentThreadGroup } from '@/lib/news-service'
@@ -72,7 +72,6 @@ export default function NewsContent({
   serverCategory,
   parentThreadGroups,
 }: NewsContentProps) {
-  const router = useRouter()
   const searchParams = useSearchParams()
   const category = serverCategory || undefined
   const tab = searchParams.get('tab') || 'today'
@@ -136,21 +135,6 @@ export default function NewsContent({
     return `${basePath}${qs ? `?${qs}` : ''}`
   }
 
-  /** Toggle a keyword chip on/off (used by mobile inline chips) */
-  const toggleChip = (kw: string) => {
-    const next = new Set(activeKeywords)
-    if (next.has(kw)) next.delete(kw)
-    else next.add(kw)
-    const params = new URLSearchParams(searchParams.toString())
-    if (next.size > 0) params.set('keywords', Array.from(next).join(','))
-    else params.delete('keywords')
-    params.delete('keyword')
-    router.push(`/news${params.size > 0 ? `?${params.toString()}` : ''}`)
-  }
-
-  /** Top chips for mobile inline bar — mix of top subcategories + top keywords */
-  const mobileChips = [...allSubcategories.slice(0, 3), ...allKeywords.slice(0, 5)]
-
   /** Helper to build thread props for an article */
   const threadPropsFor = (item: NewsItem) => ({
     threadTimeline: item.thread_id ? threadTimelines[item.thread_id] ?? null : null,
@@ -185,6 +169,7 @@ export default function NewsContent({
         isOpen={filterPanelOpen}
         onClose={() => setFilterPanelOpen(false)}
         onOpen={() => setFilterPanelOpen(true)}
+        basePath={basePath}
       />
 
       {/* Tab + Category nav bar */}
@@ -303,7 +288,7 @@ export default function NewsContent({
                 {leftStories.map((item) => (
                   <ArticleCard
                     key={item.id}
-                    headline={item.headline || item.title}
+                    headline={item.title}
                     summary={item.summary ?? item.description}
                     sourceCount={item.source_count}
                     category={item.feed_name}
@@ -337,7 +322,7 @@ export default function NewsContent({
                 </div>
                 {featured && (
                   <ArticleCard
-                    headline={featured.headline || featured.title}
+                    headline={featured.title}
                     summary={featured.summary ?? featured.description}
                     sourceCount={featured.source_count}
                     category={featured.feed_name}
@@ -360,7 +345,7 @@ export default function NewsContent({
                     {belowFold.slice(0, 4).map((item) => (
                       <ArticleCard
                         key={item.id}
-                        headline={item.headline || item.title}
+                        headline={item.title}
                         summary={item.summary ?? item.description}
                         sourceCount={item.source_count}
                         category={item.feed_name}
@@ -385,7 +370,7 @@ export default function NewsContent({
                 {rightStories.map((item) => (
                   <ArticleCard
                     key={item.id}
-                    headline={item.headline || item.title}
+                    headline={item.title}
                     summary={item.summary ?? item.description}
                     sourceCount={item.source_count}
                     category={item.feed_name}
@@ -411,7 +396,7 @@ export default function NewsContent({
                 {belowFold.slice(4).map((item) => (
                   <ArticleCard
                     key={item.id}
-                    headline={item.headline || item.title}
+                    headline={item.title}
                     summary={item.summary ?? item.description}
                     sourceCount={item.source_count}
                     category={item.feed_name}

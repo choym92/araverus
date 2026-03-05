@@ -59,7 +59,8 @@ function getDomainFromUrl(url: string): string {
 export interface NewsItem {
   id: string
   feed_name: string
-  title: string
+  title: string // AI headline only — articles without headline are hidden
+  wsjTitle: string // Original WSJ title — only for SourceList attribution
   description: string | null
   link: string
   creator: string | null
@@ -70,7 +71,6 @@ export interface NewsItem {
   source: string | null
   slug: string | null
   importance: string | null // 'must_read' | 'worth_reading' | 'optional' (prefers importance_reranked over importance)
-  headline: string | null
   key_takeaway: string | null
   keywords: string[] | null
   thread_id: string | null
@@ -217,25 +217,30 @@ export class NewsService {
 
     if (error || !data) return []
 
-    // Visibility gate: only show articles with at least one crawl result
+    // Visibility gate: only show articles with an AI headline (implies ok crawl)
     return data
-      .filter((item: Record<string, unknown>) => {
-        const crawls = item.wsj_crawl_results as unknown[]
-        return Array.isArray(crawls) ? crawls.length > 0 : crawls != null
-      })
       .map((item: Record<string, unknown>) => {
       const crawlResults = item.wsj_crawl_results as Record<string, unknown>[]
       const crawlArray = Array.isArray(crawlResults) ? crawlResults : crawlResults ? [crawlResults] : []
-      // Use 'ok' crawl for article data, count only relevant sources
-      const crawl = crawlArray.find((c) => c.relevance_flag === 'ok') ?? crawlArray[0] ?? null
-      const analysis = crawl?.wsj_llm_analysis as Record<string, unknown>[] | Record<string, unknown> | undefined
+      // Pick crawl with headline for LLM data; use 'ok' crawl for image/source
+      const crawlWithHeadline = crawlArray.find((c) => {
+        const a = c.wsj_llm_analysis as Record<string, unknown>[] | Record<string, unknown> | undefined
+        const l = Array.isArray(a) ? a[0] : a
+        return l?.headline
+      })
+      const crawl = crawlArray.find((c) => c.relevance_flag === 'ok') ?? crawlWithHeadline ?? crawlArray[0] ?? null
+      const llmSource = crawlWithHeadline ?? crawl
+      const analysis = llmSource?.wsj_llm_analysis as Record<string, unknown>[] | Record<string, unknown> | undefined
       const llm = Array.isArray(analysis) ? analysis[0] : analysis
 
       const resolvedUrl = (crawl?.resolved_url as string) || null
+      const aiHeadline = (llm?.headline as string) || null
+      if (!aiHeadline) return null
       return {
         id: item.id as string,
         feed_name: item.feed_name as string,
-        title: item.title as string,
+        title: aiHeadline,
+        wsjTitle: item.title as string,
         description: item.description as string | null,
         link: item.link as string,
         creator: item.creator as string | null,
@@ -243,7 +248,6 @@ export class NewsService {
         published_at: item.published_at as string,
         top_image: (crawl?.top_image as string) || null,
         summary: (llm?.summary as string) || null,
-        headline: (llm?.headline as string) || null,
         key_takeaway: (llm?.key_takeaway as string) || null,
         source: (crawl?.source as string) || null,
         slug: (item.slug as string) || null,
@@ -254,6 +258,7 @@ export class NewsService {
         source_count: 1 + crawlArray.filter((c) => c.resolved_url && ((c.embedding_score as number) >= SOURCE_SIMILARITY_THRESHOLD || c.relevance_flag === 'ok')).length,
       }
     })
+    .filter((item): item is NewsItem => item !== null)
   }
 
   async getNewsItemBySlug(slug: string): Promise<NewsItem | null> {
@@ -272,6 +277,7 @@ export class NewsService {
         thread_id,
         wsj_crawl_results (
           top_image,
+          relevance_flag,
           source,
           resolved_url,
           wsj_llm_analysis (
@@ -284,7 +290,6 @@ export class NewsService {
           )
         )
       `)
-      .eq('wsj_crawl_results.relevance_flag', 'ok')
       .eq('slug', slug)
       .limit(1)
       .single()
@@ -294,19 +299,29 @@ export class NewsService {
     const item = data as Record<string, unknown>
     const crawlResults = item.wsj_crawl_results as Record<string, unknown>[]
     const crawlArray = Array.isArray(crawlResults) ? crawlResults : crawlResults ? [crawlResults] : []
-    const crawl = crawlArray[0] ?? null
+    // Pick crawl with headline for LLM data; use 'ok' crawl for image/source
+    const crawlWithHeadline = crawlArray.find((c) => {
+      const a = c.wsj_llm_analysis as Record<string, unknown>[] | Record<string, unknown> | undefined
+      const l = Array.isArray(a) ? a[0] : a
+      return l?.headline
+    })
+    const crawl = crawlArray.find((c) => c.relevance_flag === 'ok') ?? crawlWithHeadline ?? crawlArray[0] ?? null
     // Visibility gate: no crawl result = not yet processed
     if (!crawl) return null
-    const analysis = crawl?.wsj_llm_analysis as Record<string, unknown>[] | Record<string, unknown> | undefined
+    const llmSource = crawlWithHeadline ?? crawl
+    const analysis = llmSource?.wsj_llm_analysis as Record<string, unknown>[] | Record<string, unknown> | undefined
     const llm = Array.isArray(analysis) ? analysis[0] : analysis
 
     const resolvedUrl = (crawl?.resolved_url as string) || null
     const isSafe = !isUnsafeSourceUrl(resolvedUrl)
 
+    const aiHeadline = (llm?.headline as string) || null
+    if (!aiHeadline) return null
     return {
       id: item.id as string,
       feed_name: item.feed_name as string,
-      title: item.title as string,
+      title: aiHeadline,
+      wsjTitle: item.title as string,
       description: item.description as string | null,
       link: item.link as string,
       creator: item.creator as string | null,
@@ -314,7 +329,6 @@ export class NewsService {
       published_at: item.published_at as string,
       top_image: (crawl?.top_image as string) || null,
       summary: (llm?.summary as string) || null,
-      headline: (llm?.headline as string) || null,
       key_takeaway: (llm?.key_takeaway as string) || null,
       source: isSafe ? (crawl?.source as string) || null : null,
       slug: (item.slug as string) || null,
@@ -340,7 +354,7 @@ export class NewsService {
     const ids = data.map((r: { id: string }) => r.id)
     const { data: items } = await this.supabase
       .from('wsj_items')
-      .select('id, description, wsj_crawl_results ( top_image, wsj_llm_analysis ( importance ) )')
+      .select('id, description, wsj_crawl_results ( top_image, relevance_flag, wsj_llm_analysis ( headline, importance ) )')
       .in('id', ids)
 
     type CrawlRow = { top_image: string | null; wsj_llm_analysis?: { importance?: string } | { importance?: string }[] | null }
@@ -404,15 +418,24 @@ export class NewsService {
     return data.map((item: Record<string, unknown>) => {
       const crawlResults = item.wsj_crawl_results as Record<string, unknown>[]
       const crawlArray = Array.isArray(crawlResults) ? crawlResults : crawlResults ? [crawlResults] : []
-      const crawl = crawlArray.find((c) => c.relevance_flag === 'ok') ?? crawlArray[0] ?? null
-      const analysis = crawl?.wsj_llm_analysis as Record<string, unknown>[] | Record<string, unknown> | undefined
+      const crawlWithHeadline = crawlArray.find((c) => {
+        const a = c.wsj_llm_analysis as Record<string, unknown>[] | Record<string, unknown> | undefined
+        const l = Array.isArray(a) ? a[0] : a
+        return l?.headline
+      })
+      const crawl = crawlArray.find((c) => c.relevance_flag === 'ok') ?? crawlWithHeadline ?? crawlArray[0] ?? null
+      const llmSource = crawlWithHeadline ?? crawl
+      const analysis = llmSource?.wsj_llm_analysis as Record<string, unknown>[] | Record<string, unknown> | undefined
       const llm = Array.isArray(analysis) ? analysis[0] : analysis
 
       const resolvedUrl = (crawl?.resolved_url as string) || null
+      const aiHeadline = (llm?.headline as string) || null
+      if (!aiHeadline) return null
       return {
         id: item.id as string,
         feed_name: item.feed_name as string,
-        title: item.title as string,
+        title: aiHeadline,
+        wsjTitle: item.title as string,
         description: item.description as string | null,
         link: item.link as string,
         creator: item.creator as string | null,
@@ -420,7 +443,6 @@ export class NewsService {
         published_at: item.published_at as string,
         top_image: (crawl?.top_image as string) || null,
         summary: (llm?.summary as string) || null,
-        headline: (llm?.headline as string) || null,
         key_takeaway: (llm?.key_takeaway as string) || null,
         source: (crawl?.source as string) || null,
         slug: (item.slug as string) || null,
@@ -431,6 +453,7 @@ export class NewsService {
         source_count: 1 + crawlArray.filter((c) => c.resolved_url && ((c.embedding_score as number) >= SOURCE_SIMILARITY_THRESHOLD || c.relevance_flag === 'ok')).length,
       }
     })
+    .filter((item): item is NewsItem => item !== null)
   }
 
 
@@ -470,7 +493,8 @@ export class NewsService {
           link,
           wsj_crawl_results (
             source,
-            relevance_flag
+            relevance_flag,
+            wsj_llm_analysis ( headline )
           )
         )
       `)
@@ -482,8 +506,11 @@ export class NewsService {
       const item = row.wsj_items as Record<string, unknown>
       const crawls = item?.wsj_crawl_results as Record<string, unknown>[] | undefined
       const crawl = crawls?.[0]
+      const llmData = crawl?.wsj_llm_analysis as Record<string, unknown>[] | Record<string, unknown> | undefined
+      const llmRow = Array.isArray(llmData) ? llmData[0] : llmData
+      const aiHeadline = (llmRow?.headline as string) || null
       return {
-        title: (item?.title as string) || '',
+        title: aiHeadline || '',
         feed_name: (item?.feed_name as string) || '',
         link: (item?.link as string) || '',
         source: (crawl?.source as string) || null,
@@ -548,7 +575,7 @@ export class NewsService {
         id, title, slug, published_at, feed_name, thread_id,
         wsj_crawl_results (
           relevance_flag,
-          wsj_llm_analysis ( importance, importance_reranked )
+          wsj_llm_analysis ( headline, importance, importance_reranked )
         )
       `)
       .in('thread_id', threadIds)
@@ -562,13 +589,21 @@ export class NewsService {
         if (!tid) continue
         const crawls = raw.wsj_crawl_results as Record<string, unknown>[]
         const crawlArr = Array.isArray(crawls) ? crawls : crawls ? [crawls] : []
-        const crawl = crawlArr.find((c) => c.relevance_flag === 'ok') ?? crawlArr[0]
-        const analysis = crawl?.wsj_llm_analysis as Record<string, unknown>[] | Record<string, unknown> | undefined
+        const crawlWithHeadline = crawlArr.find((c) => {
+          const a = c.wsj_llm_analysis as Record<string, unknown>[] | Record<string, unknown> | undefined
+          const l = Array.isArray(a) ? a[0] : a
+          return l?.headline
+        })
+        const crawl = crawlArr.find((c) => c.relevance_flag === 'ok') ?? crawlWithHeadline ?? crawlArr[0]
+        const llmSource = crawlWithHeadline ?? crawl
+        const analysis = llmSource?.wsj_llm_analysis as Record<string, unknown>[] | Record<string, unknown> | undefined
         const llm = Array.isArray(analysis) ? analysis[0] : analysis
 
+        const aiHeadline = (llm?.headline as string) || null
+        if (!aiHeadline) continue
         const article = {
           id: raw.id as string,
-          title: raw.title as string,
+          title: aiHeadline,
           slug: (raw.slug as string) || null,
           published_at: raw.published_at as string,
           importance: (llm?.importance_reranked as string) || (llm?.importance as string) || null,

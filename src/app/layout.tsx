@@ -3,6 +3,7 @@ import type { Metadata, Viewport } from "next";
 import { Inter, Geist_Mono, Playfair_Display } from "next/font/google";
 import { Analytics } from "@vercel/analytics/react";
 import { GoogleAnalytics } from "@next/third-parties/google";
+import Footer from "@/components/Footer";
 import "./globals.css";
 
 /* ---------- fonts ---------- */
@@ -67,6 +68,7 @@ export default function RootLayout({
       <body
         className={`${inter.variable} ${geistMono.variable} ${playfair.variable} font-sans antialiased`}
       >
+        <div className="flex min-h-screen flex-col">
         <script
           type="application/ld+json"
           dangerouslySetInnerHTML={{ __html: JSON.stringify([
@@ -85,7 +87,11 @@ export default function RootLayout({
             },
           ]) }}
         />
+        <div className="flex-1">
 {children}
+        </div>
+        <Footer />
+        </div>
         <Analytics />
       </body>
     </html>

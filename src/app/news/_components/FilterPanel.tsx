@@ -10,6 +10,7 @@ interface FilterPanelProps {
   isOpen: boolean
   onClose: () => void
   onOpen: () => void
+  basePath?: string
 }
 
 export default function FilterPanel({
@@ -19,6 +20,7 @@ export default function FilterPanel({
   isOpen,
   onClose,
   onOpen,
+  basePath = '/news',
 }: FilterPanelProps) {
   const router = useRouter()
   const searchParams = useSearchParams()
@@ -39,14 +41,14 @@ export default function FilterPanel({
       params.delete('keywords')
     }
     params.delete('keyword')
-    router.push(`/news${params.size > 0 ? `?${params.toString()}` : ''}`)
+    router.push(`${basePath}${params.size > 0 ? `?${params.toString()}` : ''}`)
   }
 
   const clearAll = () => {
     const params = new URLSearchParams(searchParams.toString())
     params.delete('keywords')
     params.delete('keyword')
-    router.push(`/news${params.size > 0 ? `?${params.toString()}` : ''}`)
+    router.push(`${basePath}${params.size > 0 ? `?${params.toString()}` : ''}`)
   }
 
   const renderPill = ({ keyword, count }: { keyword: string; count: number }) => {

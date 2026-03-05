@@ -48,7 +48,7 @@ function SourceRow({ href, domain, label }: {
   )
 }
 
-export default function SourceList({ sources, wsjUrl, wsjTitle, originalTitle }: { sources: CrawlSource[]; wsjUrl: string; wsjTitle: string; originalTitle?: string }) {
+export default function SourceList({ sources, wsjUrl, wsjTitle }: { sources: CrawlSource[]; wsjUrl: string; wsjTitle: string }) {
   const [expanded, setExpanded] = useState(false)
 
   const visible = expanded ? sources : sources.slice(0, COLLAPSED_COUNT)
@@ -76,11 +76,6 @@ export default function SourceList({ sources, wsjUrl, wsjTitle, originalTitle }:
           />
         ))}
       </div>
-      {originalTitle && (
-        <p className="text-xs text-neutral-400 mt-3 italic">
-          Originally reported as: &ldquo;{originalTitle}&rdquo;
-        </p>
-      )}
       {hasMore && (
         <button
           onClick={() => setExpanded(!expanded)}

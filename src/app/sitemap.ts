@@ -13,22 +13,27 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const supabase = createServiceClient()
   const service = new NewsService(supabase)
 
-  const newsItems = await service.getNewsItems({ limit: 100 }).catch(() => []);
+  const newsItems = await service.getNewsItems({ limit: 10000 }).catch(() => []);
 
   const latestNewsDate = (newsItems as { published_at?: string }[]).length > 0
     ? new Date((newsItems as { published_at?: string }[])[0].published_at ?? new Date())
     : new Date()
 
   const staticRoutes: MetadataRoute.Sitemap = [
-    { url: `${BASE_URL}/news`, lastModified: latestNewsDate, changeFrequency: 'daily', priority: 1 },
-    { url: `${BASE_URL}/podcast.xml`, lastModified: latestNewsDate, changeFrequency: 'daily', priority: 0.6 },
+    { url: `${BASE_URL}/news`, lastModified: latestNewsDate },
+    { url: `${BASE_URL}/podcast.xml`, lastModified: latestNewsDate },
   ];
+
+  const legalRoutes: MetadataRoute.Sitemap = ['/about', '/contact', '/privacy', '/terms'].map(
+    (path) => ({
+      url: `${BASE_URL}${path}`,
+      lastModified: new Date('2026-03-04'),
+    }),
+  );
 
   const categoryRoutes: MetadataRoute.Sitemap = CATEGORY_SLUGS.map((slug) => ({
     url: `${BASE_URL}/news/c/${slug}`,
     lastModified: latestNewsDate,
-    changeFrequency: 'daily' as const,
-    priority: 0.9,
   }));
 
   const newsRoutes: MetadataRoute.Sitemap = (newsItems as { slug?: string; published_at?: string }[])
@@ -36,9 +41,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     .map((item) => ({
       url: `${BASE_URL}/news/${item.slug}`,
       lastModified: item.published_at ? new Date(item.published_at) : new Date(),
-      changeFrequency: 'weekly' as const,
-      priority: 0.8,
     }));
 
-  return [...staticRoutes, ...categoryRoutes, ...newsRoutes];
+  return [...staticRoutes, ...legalRoutes, ...categoryRoutes, ...newsRoutes];
 }

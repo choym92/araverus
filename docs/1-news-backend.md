@@ -1,4 +1,4 @@
-<!-- Updated: 2026-03-03 -->
+<!-- Updated: 2026-03-05 -->
 # News Platform — Backend & Pipeline
 
 Single source of truth for the finance news pipeline: ingestion, crawling, analysis, briefing generation.
@@ -188,7 +188,7 @@ Crawls resolved URLs with quality + relevance verification.
 - Per-article: crawl → garbage check → embedding relevance (≥ 0.25) → **Step 1 LLM gate** (Flash-Lite) → accept/reject
   - **Step 1 (Flash-Lite):** Outputs `relevance_score`, `is_same_event`, `confidence`, `content_quality` → sets `relevance_flag` (ok/low)
   - **Step 2 (Flash full):** Runs only on `relevance_flag='ok'` articles (~60/day). Outputs `headline`, `summary`, `key_takeaway`, `keywords`, `importance`, etc. Slug is generated from `headline` after Step 2 completes.
-- **Visibility gate:** Articles hidden from frontend until they have crawl results (`crawl_status='success'` + `relevance_flag='ok'`)
+- **Visibility gate:** Articles hidden from frontend unless they have an AI `headline` (which only exists on `relevance_flag='ok'` crawls). No headline = not shown anywhere (list, detail, RSS, sitemap).
 - **Cost tracking:** Accumulates LLM analysis `input_tokens`/`output_tokens` across items, prints `COST SUMMARY` at end
 - Short-but-real fallback: articles ≥150ch AND >1.5× WSJ description length bypass TOO_SHORT, still pass embedding+LLM gates
 - `--concurrent 5` = 5 WSJ items processed in parallel (each item's candidates still sequential)
@@ -300,7 +300,7 @@ On-demand cache invalidation after pipeline completes.
 - **Trigger:** `curl -X POST $SITE_URL/api/revalidate` with `x-revalidation-secret` header
 - **Action:** `revalidateTag('news')` (invalidates `unstable_cache` data) + `revalidatePath('/news')` + `revalidatePath('/news/[slug]', 'page')`
 - **Cache warm:** After revalidation, `curl -s $SITE_URL/news` triggers page regeneration so the next real visitor gets fresh data immediately
-- **Non-fatal:** Failure logs WARN only; `unstable_cache` 30min TTL serves as fallback
+- **Non-fatal:** Failure logs WARN only; `unstable_cache` 24h TTL serves as fallback
 - **Env:** `REVALIDATION_SECRET` (shared secret), `SITE_URL` (default: `https://araverus.com`)
 - **Timeout:** `--max-time 10`
 

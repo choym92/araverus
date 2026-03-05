@@ -1,5 +1,4 @@
-<!-- Updated: 2026-03-04 -->
-<!-- NOTE: Updated to reflect SOURCE_SIMILARITY_THRESHOLD=0.75, embedding_score in queries, BriefingPlayer logo styling, and UNSAFE_SOURCE_DOMAINS filtering. -->
+<!-- Updated: 2026-03-05 -->
 # News Platform — Frontend
 
 Technical guide for the `/news` page and supporting components. WSJ-style 3-column layout with in-card thread carousels, bilingual audio briefing player, and keyword filtering. Powered by the news pipeline. Branded as Araverus.
@@ -463,7 +462,7 @@ stateDiagram-v2
 
 ```typescript
 interface ArticleCardProps {
-  headline: string  // from wsj_llm_analysis; fallback to title
+  headline: string  // from wsj_llm_analysis (required — no fallback)
   summary: string | null
   source: string | null
   category: string
@@ -482,8 +481,8 @@ interface ArticleCardProps {
 }
 ```
 
-- **featured**: Wide hero image (2.5:1 aspect ratio), centered headline (headline || title fallback), full summary. Meta row shows "via N sources" text. Image has `onError` fallback — hides broken images gracefully.
-- **standard**: Meta row (category/time + "via N sources") on top, then image (112px left-aligned thumbnail) + text side-by-side. headline || title (line-clamp-2) + summary + keywords. Cards with thread carousel use fixed height (`h-36` + `overflow-hidden`) to prevent layout shift on arrow navigation. `must_read` articles get glow shadow styling instead of border-left. Image has `onError` fallback — hides broken images gracefully.
+- **featured**: Wide hero image (2.5:1 aspect ratio), centered AI headline, full summary. Meta row shows "via N sources" text. Image has `onError` fallback — hides broken images gracefully.
+- **standard**: Meta row (category/time + "via N sources") on top, then image (112px left-aligned thumbnail) + text side-by-side. AI headline (line-clamp-2) + summary + keywords. Cards with thread carousel use fixed height (`h-36` + `overflow-hidden`) to prevent layout shift on arrow navigation. `must_read` articles get glow shadow styling instead of border-left. Image has `onError` fallback — hides broken images gracefully.
 - **Source display**: Replaced individual favicon pills with plain "via N sources" text in the meta row. Source count comes from `NewsItem.source_count` (1 WSJ + crawl results where `embedding_score >= 0.75` OR `relevance_flag = 'ok'`, with `resolved_url` not null).
 - **Thread carousel**: When `threadTimeline.length > 1`, shows ◀ N/M ▶ indicator at card bottom. Carousel starts at the article displayed by the card (using `itemId` to find position in timeline), allowing users to browse related articles within the thread. Framer Motion slide animation.
 - **ImportanceBadge**: Star icon for `must_read` articles
@@ -554,7 +553,7 @@ Article detail page layout with semantic structure:
 1. **Breadcrumb** (replacing back nav): `News / Tech / AI` style with smart subcategory formatting — 3 chars or less = ALL CAPS, rest = Title Case. `text-sm` with `mb-3`.
 2. **Hero Image**: Full-width, aspect ratio maintained via wrapper.
 3. **Keywords**: Below image, centered, using `hashtag` variant with `linkable` prop (KeywordPills component). `justify-center` layout.
-4. **Headline & Badge**: Serif headline using `headline || title` fallback, with optional `must_read` badge displayed inline with category.
+4. **Headline & Badge**: Serif AI headline, with optional `must_read` badge displayed inline with category.
 5. **Timestamp & Share Bar**: Share icons moved to right-aligned position above hero. Timestamp styled as `text-base` (increased from `text-sm`).
 6. **Summary**: Split into paragraphs. All sentences use same style (`text-neutral-600`). Grouped 2 sentences per `<p>` tag. Body narrowed to `max-w-2xl`.
 7. **Key Takeaway** (new): Amber callout box with `key_takeaway` text, placed after keywords and before summary. Styled consistently with other callout sections. Shows only when `key_takeaway` is available.
@@ -659,7 +658,7 @@ classDiagram
 | Method | Query | Returns |
 |--------|-------|---------|
 | `getLatestBriefings()` | `wsj_briefings WHERE category IN ('EN','KO') ORDER BY date DESC LIMIT 2` | `{ en: Briefing \| null, ko: Briefing \| null }` |
-| `getNewsItems(opts)` | `wsj_items LEFT JOIN wsj_crawl_results (embedding_score selected) LEFT JOIN wsj_llm_analysis` — **visibility gate:** filters out articles with no crawl results (must have `crawl_status='success'` + `relevance_flag='ok'`). Fetches all crawl candidates per article, picks the `relevance_flag='ok'` result for display data, counts candidates where `embedding_score >= 0.75 OR relevance_flag = 'ok'` (+ resolved_url not null) for `source_count`. Unsafe domains (UNSAFE_SOURCE_DOMAINS set) have source/resolved_url nulled out. | `NewsItem[]` (flattened; crawl/LLM fields are null for uncrawled articles) |
+| `getNewsItems(opts)` | `wsj_items LEFT JOIN wsj_crawl_results LEFT JOIN wsj_llm_analysis` — **visibility gate:** articles without an AI `headline` are filtered out (headline only exists on `relevance_flag='ok'` crawls, so no headline = not quality-verified). No WSJ original title fallback. Picks `relevance_flag='ok'` crawl for display data, counts candidates where `embedding_score >= 0.75 OR relevance_flag = 'ok'` (+ resolved_url not null) for `source_count`. | `NewsItem[]` |
 | `getNewsItemBySlug(slug)` | `wsj_items WHERE slug=? JOIN crawl+llm` filtered by `relevance_flag='ok'` | `NewsItem \| null` |
 | `getRelatedArticles(itemId, limit)` | `match_articles` RPC (pgvector, ±7 days) | `RelatedArticle[]` |
 | `getThreadTimeline(threadId)` | `wsj_items WHERE thread_id=? LEFT JOIN wsj_crawl_results (embedding_score selected) LEFT JOIN wsj_llm_analysis` — same flattening logic as `getNewsItems`, picks ok crawl, counts candidates where `embedding_score >= 0.75 OR relevance_flag = 'ok'` (+ resolved_url not null) | `NewsItem[]` |
@@ -691,7 +690,7 @@ classDiagram
 |----------|--------|-----------|
 | Category + Keyword coexistence | Categories filter server-side (via searchParams), keywords filter client-side within | Server-side category = full articles per category (no sparse results). Keywords remain client-side for instant toggle. |
 | Article ordering | Date (day) descending → importance within same day | "All" tab: today-first + backfill ensures latest news surfaces first. Category tabs: direct fetch, sorted by date and importance. Within any day, must_read articles surface first. |
-| DB query filter | No `relevance_flag` filter on the join — fetches all crawl candidates per article, picks the `ok` result client-side for display data, counts total candidates for `source_count` | Enables "via N sources" display in ArticleCard without extra queries. Unsafe source domains are filtered via `UNSAFE_SOURCE_DOMAINS` set in news-service.ts. |
+| DB query filter | No `relevance_flag` filter on the join — fetches all crawl candidates per article, picks the `ok` result for display data. **Headline-based visibility gate:** articles without AI headline are dropped (no WSJ title fallback). Counts candidates for `source_count`. | Ensures no original WSJ titles leak to frontend. Unsafe source domains are filtered via `UNSAFE_SOURCE_DOMAINS` set in news-service.ts. |
 | Keyword filter | Filter dropdown with subcategory + keyword pill sections, multi-select OR | Replaced horizontal pill bar — cleaner default, powerful on demand |
 | Thread titles | From `wsj_story_threads.title` (Gemini-generated) | More meaningful than "N Related Articles" |
 

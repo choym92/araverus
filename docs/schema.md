@@ -168,9 +168,10 @@ importance        TEXT          -- must_read | worth_reading | optional (1차 pe
 importance_reranked TEXT        -- must_read | worth_reading | optional (2차 relative re-rank during curation)
                                 --   set by 8_generate_briefing.py curate_articles()
                                 --   compares all articles in batch for relative importance
-headline          TEXT          -- Original LLM-generated headline (never copies WSJ title, 8-15 words)
+headline          TEXT          -- AI-generated headline (never copies WSJ title, 8-15 words)
                                 --   Written by Step 2 (Flash) via save_step2_to_db()
-                                --   Frontend uses headline || title fallback
+                                --   Only exists on relevance_flag='ok' crawls
+                                --   Frontend visibility gate: no headline = article hidden everywhere
 key_takeaway      TEXT          -- 1-2 sentence cross-domain impact analysis
                                 --   Written by Step 2 (Flash) via save_step2_to_db()
 keywords          TEXT[]        -- 2-4 free-form topic keywords (e.g., {"Fed","interest rates"})

@@ -1,4 +1,4 @@
-<!-- Updated: 2026-03-04 -->
+<!-- Updated: 2026-03-05 -->
 # Araverus — Project Architecture
 
 Financial intelligence platform powered by AI, machine learning, and neural networks.
@@ -32,10 +32,10 @@ Financial intelligence platform powered by AI, machine learning, and neural netw
 ├─────────────────┼──────────────────────────────────────────────────┤
 │ / → redirect    │ scripts/                                           │
 │ /news           │ ├── 1_wsj_ingest.py                               │
-│ /login          │ ├── 6_crawl_ranked.py                             │
-│ /api/revalidate │ ├── 8_generate_briefing.py                        │
-│                 │ └── ...9 scripts total                            │
-│                 │ Daily at 6 AM ET                                  │
+│ /about,contact  │ ├── 6_crawl_ranked.py                             │
+│ /privacy,terms  │ ├── 8_generate_briefing.py                        │
+│ /login          │ └── ...9 scripts total                            │
+│ /api/revalidate │ Daily at 6 AM ET                                  │
 ├─────────────────┴──────────────────────────────────────────────────┤
 │                         Supabase                                     │
 │  Auth · Postgres · Storage                                           │
@@ -62,6 +62,7 @@ araverus/
 │   │   │   ├── [slug]/         # Article detail page
 │   │   │   ├── c/[category]/   # Category-specific routes (ISR cached)
 │   │   │   └── _components/    # NewsShell, BriefingPlayer, ArticleCard
+│   │   ├── (legal)/            # Route group: /about, /contact, /privacy, /terms
 │   │   ├── auth/callback/      # OAuth callback (server-side PKCE code exchange)
 │   │   ├── login/              # Auth page (Google OAuth sign-in)
 │   │   ├── not-found.tsx       # Custom 404 page
@@ -74,7 +75,7 @@ araverus/
 │   │   │   └── news/          # Pagination API for load-more
 │   │   ├── rss.xml/            # RSS feed generation
 │   │   └── podcast.xml/        # Podcast feed generation
-│   ├── components/             # Reusable UI (client only when needed)
+│   ├── components/             # Reusable UI (Footer, Header, Sidebar, etc.)
 │   │   ├── Header.tsx          # Site header (logo-header.svg)
 │   │   ├── Sidebar.tsx         # Collapsible nav sidebar (News only)
 │   │   └── (archived)          # Hero, ParticleBackground, WaveGrid → archive/

@@ -25,15 +25,24 @@ interface ArticlePageProps {
   params: Promise<{ slug: string }>
 }
 
+const FEED_TO_LABEL: Record<string, string> = {
+  BUSINESS_MARKETS: 'Markets',
+  TECH: 'Tech',
+  ECONOMY: 'Economy',
+  WORLD: 'World',
+  POLITICS: 'Politics',
+}
+
+const FEED_TO_SLUG: Record<string, string> = {
+  BUSINESS_MARKETS: 'markets',
+  TECH: 'tech',
+  ECONOMY: 'economy',
+  WORLD: 'world',
+  POLITICS: 'politics',
+}
+
 function categoryLabel(feedName: string): string {
-  const map: Record<string, string> = {
-    BUSINESS_MARKETS: 'Markets',
-    TECH: 'Tech',
-    ECONOMY: 'Economy',
-    WORLD: 'World',
-    POLITICS: 'Politics',
-  }
-  return map[feedName] || feedName
+  return FEED_TO_LABEL[feedName] || feedName
 }
 
 /** Smart subcategory formatting — keep short acronyms uppercase, title-case the rest */
@@ -54,7 +63,7 @@ export async function generateMetadata({ params }: ArticlePageProps): Promise<Me
     return { title: 'Article Not Found | Araverus' }
   }
 
-  const displayTitle = item.headline || item.title
+  const displayTitle = item.title
   const description = item.summary || item.description || undefined
   const canonical = `https://araverus.com/news/${item.slug}`
   const image = item.top_image || 'https://araverus.com/og-news-default.png'
@@ -114,7 +123,7 @@ export default async function ArticlePage({ params }: ArticlePageProps) {
 
   const articleUrl = `https://araverus.com/news/${item.slug}`
   const DEFAULT_OG_IMAGE = 'https://araverus.com/og-news-default.png'
-  const displayTitle = item.headline || item.title
+  const displayTitle = item.title
 
   const jsonLd = [
     {
@@ -156,7 +165,7 @@ export default async function ArticlePage({ params }: ArticlePageProps) {
           '@type': 'ListItem',
           position: 2,
           name: categoryLabel(item.feed_name),
-          item: `https://araverus.com/news?category=${item.feed_name}`,
+          item: `https://araverus.com/news/c/${FEED_TO_SLUG[item.feed_name] || item.feed_name.toLowerCase()}`,
         },
         { '@type': 'ListItem', position: 3, name: displayTitle, item: articleUrl },
       ],
@@ -182,7 +191,7 @@ export default async function ArticlePage({ params }: ArticlePageProps) {
           </Link>
           <span aria-hidden="true">/</span>
           <Link
-            href={`/news?category=${item.feed_name}`}
+            href={`/news/c/${FEED_TO_SLUG[item.feed_name] || item.feed_name.toLowerCase()}`}
             className="hover:text-neutral-900 transition-colors"
           >
             {categoryLabel(item.feed_name)}
@@ -304,8 +313,7 @@ export default async function ArticlePage({ params }: ArticlePageProps) {
         <SourceList
           sources={sources}
           wsjUrl={item.link}
-          wsjTitle={item.title}
-          originalTitle={undefined}
+          wsjTitle={item.wsjTitle}
         />
 
         {/* Related Articles — exclude storyline articles */}

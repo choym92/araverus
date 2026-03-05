@@ -14,7 +14,7 @@ const getRssData = unstable_cache(
     const supabase = createServiceClient()
     const service = new NewsService(supabase)
 
-    const newsItems = await service.getNewsItems({ limit: 50 }).catch(() => [])
+    const newsItems = await service.getNewsItems({ limit: 500 }).catch(() => [])
 
     const latestDate = newsItems.length > 0 && newsItems[0].published_at
       ? new Date(newsItems[0].published_at).toUTCString()
@@ -25,7 +25,7 @@ const getRssData = unstable_cache(
       .map(i => {
         const link = escapeXml(`${SITE}/news/${i.slug}`);
         const pubDate = i.published_at ? new Date(i.published_at).toUTCString() : new Date().toUTCString();
-        const title = escapeXml(i.headline || i.title || '');
+        const title = escapeXml(i.title || '');
         const description = escapeXml(i.description || '');
         const category = escapeXml(i.feed_name || 'News');
         return `
