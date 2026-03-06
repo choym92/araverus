@@ -651,7 +651,7 @@ Return ONLY valid JSON object with a "groups" key. Each group should have 2-8 ar
 Articles that don't fit any group should be omitted.
 
 {{"groups": [
-  {{"title": "Short descriptive thread headline", "summary": "2-3 sentence story progression summary, chronological, emphasize recent developments", "indices": [1, 3, 7]}},
+  {{"title": "Max 8-word headline", "summary": "2-3 sentence story progression summary, chronological, emphasize recent developments", "indices": [1, 3, 7]}},
   ...
 ]}}
 
@@ -661,7 +661,7 @@ STRICT RULES:
 - Thread titles must name specific entities, events, or actions (who did what)
 - Only group articles that are clearly about the same developing story, not just the same broad topic
 - Use author as a HINT: same author writing about the same topic across days likely belongs together
-- 5-10 word titles, be specific: "Fed Holds Rates at 4.5%" not "Interest Rate Decisions"
+- TITLES: Maximum 8 words. Front-load key entities (company, person, number). No subordinate clauses (no "amid", "as", "posing", "signaling"). Active voice, present tense. Example: "Apple Launches $599 MacBook Neo" NOT "Apple Launches $599 MacBook Neo, Broadening Market Access and Ecosystem Entry"
 - Summary must describe how the story progressed chronologically, with emphasis on the most recent development
 - Maximum 8 articles per group. If more articles belong together, create separate sub-groups by specific angle
 - Prefer grouping articles published within 3 days of each other

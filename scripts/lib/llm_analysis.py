@@ -81,7 +81,7 @@ Article Content:
 
 Return ONLY valid JSON (no markdown, no explanation):
 {{
-  "headline": "<ORIGINAL headline: 8-15 words, active voice, specific, never copy WSJ title>",
+  "headline": "<ORIGINAL headline: max 8 words, active voice, front-load key entities, no subordinate clauses>",
   "summary": "<150-250 words: analytical, cover key facts/numbers/context/implications. Do NOT repeat the headline.>",
   "key_takeaway": "<1-2 sentences: cross-domain impact analysis for investors>",
   "keywords": ["<2-4 short topic keywords>"],
@@ -98,7 +98,9 @@ Return ONLY valid JSON (no markdown, no explanation):
 
 Headline rules:
 - MUST be original — never copy or closely paraphrase the WSJ title
-- 8-15 words, active voice, specific numbers/names when available
+- Maximum 8 words, active voice, present tense
+- Front-load key entities (company, person, number)
+- NO subordinate clauses (no "amid", "as", "posing", "signaling", "broadening")
 - Focus on the investor angle or market impact
 
 Importance criteria:
@@ -154,41 +156,6 @@ def _call_gemini(prompt: str, model: str) -> Optional[dict]:
     except Exception as e:
         print(f"LLM analysis error: {e}")
         return None
-
-
-# Headline-only prompt (for backfill — lightweight, no crawled content needed)
-HEADLINE_ONLY_PROMPT = """You are a senior financial analyst.
-Generate an original headline for this article.
-
-WSJ Title (reference only, do NOT copy): "{wsj_title}"
-Description: "{wsj_description}"
-{summary_section}
-
-Return ONLY valid JSON:
-{{
-  "headline": "<ORIGINAL headline: 8-15 words, active voice, specific, never copy WSJ title>"
-}}
-
-Headline rules:
-- MUST be original — never copy or closely paraphrase the WSJ title
-- 8-15 words, active voice, specific numbers/names when available
-- Focus on the investor angle or market impact"""
-
-
-def generate_headline_only(
-    wsj_title: str,
-    wsj_description: str,
-    summary: str | None = None,
-    model: str = "gemini-2.5-flash",
-) -> Optional[dict]:
-    """Lightweight headline generation using title + description + optional summary."""
-    summary_section = f'Summary: "{summary}"' if summary else ""
-    prompt = HEADLINE_ONLY_PROMPT.format(
-        wsj_title=wsj_title,
-        wsj_description=wsj_description or "",
-        summary_section=summary_section,
-    )
-    return _call_gemini(prompt, model)
 
 
 def analyze_content(
