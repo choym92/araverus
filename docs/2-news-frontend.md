@@ -1,4 +1,5 @@
 <!-- Updated: 2026-03-06 -->
+<!-- Last component update: 2026-03-06 — ArticleCard redesign (importance badge, thread bar, image optimization, sort fix) -->
 # News Platform — Frontend
 
 Technical guide for the `/news` page and supporting components. WSJ-style 3-column layout with in-card thread carousels, bilingual audio briefing player, and keyword filtering. Powered by the news pipeline. Branded as Araverus.
@@ -30,7 +31,7 @@ graph TB
     end
 
     subgraph "Client Components"
-        SHELL[NewsShell<br/>Header + Sidebar wrapper]
+        SHELL[AppShell<br/>Header + Sidebar wrapper]
         CONTENT[NewsContent 🖥️<br/>useSearchParams() filtering<br/>+ full UI rendering]
         PLAYER[BriefingPlayer<br/>HTML5 Audio + Framer Motion<br/>EN/KO toggle, chapters, transcript]
         CARDS[ArticleCard 🖥️<br/>featured / standard<br/>+ thread carousel]
@@ -68,12 +69,12 @@ graph LR
     end
 
     subgraph "news/page.tsx (Server, unstable_cache 30min)"
-        PAGE[NewsPage<br/>unstable_cache 1800s] --> SHELL[NewsShell 🖥️<br/>Client wrapper]
-        SHELL --> HEADER[Header<br/>shared component]
-        SHELL --> SIDEBAR[Sidebar<br/>shared component]
+        PAGE[NewsPage<br/>unstable_cache 1800s] --> SHELL[NewsShell → AppShell 🖥️<br/>Client wrapper]
+        SHELL --> HEADER[Header<br/>optional sidebar toggle]
+        SHELL --> SIDEBAR[Sidebar<br/>shared nav component]
 
         PAGE -->|Suspense| NC[NewsContent 🖥️<br/>useSearchParams filtering]
-        NC --> TABS[Tab Nav<br/>Today / Stories / Search]
+        NC --> TABS[Tab Nav<br/>News / Stories / Search]
         NC --> CATS[Category Pills<br/>All / Markets / Tech / ...]
         NC --> FP[FilterPanel 🖥️<br/>Slide-in right panel with subcategory + keyword filter]
         NC --> BP[BriefingPlayer 🔊<br/>Client Component (dynamic import)<br/>EN/KO + chapters + transcript]
@@ -96,9 +97,9 @@ graph LR
 
 ```
 ┌───────────────────────────────────────────────────────────────────┐
-│ Header (shared) — Logo | Toggle | Search | Login                  │
+│ Header (shared) — Logo | Toggle (optional) | Sign in (icon+text)  │
 ├───────────────────────────────────────────────────────────────────┤
-│ Today  Stories  Search                                            │  ← tabs (typography-only)
+│ News  Stories  Search                                             │  ← tabs (typography-only)
 │ [All] [Markets] [Tech] [Economy] [World] [Politics]  [⊞ Filter]  │  ← category pills + toggle
 ├───────────────────────────────────────────────────────────────────┤
 │                                                                    │
@@ -115,12 +116,12 @@ graph LR
 
 #### Article Sorting & Deduplication (date-first, importance within day, thread-aware)
 
-Articles are sorted client-side in `NewsContent` before slicing into columns:
-1. **Importance-first**: `must_read` articles always surface above non-must-read, regardless of timestamp. Stable sort preserves original time order within each tier.
-2. **Recency** (within same importance tier): Newest first (from API `published_at DESC`).
-3. **Crawled**: Articles with `summary` (crawled + LLM analyzed) rank higher — richer card content
-4. **Thread preference**: Articles with `thread_id` rank higher (threaded stories are more significant)
-5. **Recency**: Newer articles first within the same tier
+Articles are sorted **server-side only** via `sortByDateThenImportance()` in `data.ts` (no client-side re-sort in `NewsContent`):
+1. **Date-first**: Newest calendar day on top — prevents old must_read articles from jumping above today's news in category tabs.
+2. **Importance within same day**: `must_read` → `worth_reading` → `optional` within each day group.
+3. **Crawled**: Articles with `summary` (crawled + LLM analyzed) rank higher — richer card content.
+4. **Thread preference**: Articles with `thread_id` rank higher (threaded stories are more significant).
+5. **Recency**: Newer articles first within the same tier.
 
 **Thread-based Deduplication (24h boundary)**:
 - **Within 24 hours**: All thread members appear as independent cards (full coverage, readers see all angles)
@@ -253,7 +254,8 @@ sequenceDiagram
 | `src/app/news/[slug]/_components/ArticleHeroImage.tsx` | Client | Hero image wrapper with `onError` fallback — hides container when image fails to load |
 | `src/app/news/[slug]/_components/RelatedSection.tsx` | Server | Numbered list with similarity score bars (pgvector, 7-day, excludes timeline articles) |
 | `src/app/news/[slug]/_components/TimelineSection.tsx` | Client | Collapsible vertical timeline — shows last 5, "Show N older..." expand, sticky "Show less" bar |
-| `src/app/news/_components/NewsShell.tsx` | Client | Header + Sidebar wrapper (sidebar starts closed, shifts content on open). Mobile: `pt-14`, desktop: `pt-20` |
+| `src/components/AppShell.tsx` | Client | Shared layout shell (Header + Sidebar + margin shift). Used by both `/news` (via NewsShell) and `/login`. Accepts `currentPage` prop for sidebar active state |
+| `src/app/news/_components/NewsShell.tsx` | Client | Thin wrapper: `<AppShell currentPage="news">`. Kept for backward compatibility with existing news imports |
 | `src/app/news/_components/BriefingPlayer.tsx` | Client | Bilingual audio player with chapters, transcript, sticky mini-player, light/dark theme toggle |
 | `src/app/news/_components/ArticleCard.tsx` | Client | Article display (featured/standard) + framer-motion thread carousel |
 | `src/app/news/_components/SourceList.tsx` | Client | Collapsible source list for article detail page — shows WSJ + crawl candidates with favicons |
@@ -328,7 +330,7 @@ Example: `/news/c/tech?tab=stories&keywords=AI,Trade` — load Tech category Sto
 
 | Tab | Content | Status |
 |-----|---------|--------|
-| **Today** | Audio player + thread groups + keyword filter + category filter | Implemented |
+| **News** | Audio player + thread groups + keyword filter + category filter | Implemented |
 | **Stories** | Narrative timeline — story threads across days/weeks | Placeholder |
 | **Search** | Semantic search over all articles via pgvector | Placeholder |
 
@@ -481,11 +483,11 @@ interface ArticleCardProps {
 }
 ```
 
-- **featured**: Wide hero image (2.5:1 aspect ratio), centered AI headline, full summary. Meta row shows "via N sources" text. Image has `onError` fallback — hides broken images gracefully.
-- **standard**: Meta row (category/time + "via N sources") on top, then image (112px left-aligned thumbnail) + text side-by-side. AI headline (line-clamp-2) + summary + keywords. Cards with thread carousel use fixed height (`h-36` + `overflow-hidden`) to prevent layout shift on arrow navigation. `must_read` articles get a subtle left amber border (`border-l-2 border-l-amber-400 pl-4`). Image has `onError` fallback — hides broken images gracefully.
+- **featured**: Wide hero image (2.5:1 aspect ratio), centered AI headline, full summary. Meta row shows "via N sources" text. Category label uses `text-neutral-900` (matches standard cards). Image has `onError` fallback — hides broken images gracefully.
+- **standard**: Meta row (category/time + "via N sources") on top, then image (96px left-aligned thumbnail, Next.js optimized with responsive srcset) + text side-by-side. AI headline (line-clamp-2) + summary + keywords. Cards with thread carousel use fixed height (`h-36` + `overflow-hidden`) to prevent layout shift on arrow navigation. Image has `onError` fallback — hides broken images gracefully.
 - **Source display**: Replaced individual favicon pills with plain "via N sources" text in the meta row. Source count comes from `NewsItem.source_count` (1 WSJ + crawl results where `embedding_score >= 0.75` OR `relevance_flag = 'ok'`, with `resolved_url` not null).
-- **Thread carousel**: When `threadTimeline.length > 1`, shows ◀ N/M ▶ indicator at card bottom. Carousel starts at the article displayed by the card (using `itemId` to find position in timeline), allowing users to browse related articles within the thread. Framer Motion slide animation.
-- **ImportanceBadge**: Star icon for `must_read` articles
+- **Thread bar**: When `threadTimeline.length > 1`, shows a minimal inline bar at card bottom (separated by `border-t`): mini progress bar (w-4 h-1) + counter + chevrons + thread title. Carousel starts at the article displayed by the card (using `itemId` to find position in timeline). Framer Motion slide animation.
+- **ImportanceBadge**: Star icon + "Top Story" text label, displayed inline in the meta row (both featured and standard cards). No left-border styling.
 
 ### KeywordPills
 
@@ -519,7 +521,7 @@ Each keyword uses `py-2.5 text-sm` for tap targets. Click to toggle `?keywords=`
 
 ### NewsContent (Client Component)
 
-Renders tab navigation (Today / Stories / Search) and category pills with filtering. Handles keyword/subcategory client-side filtering, featured hero selection, and Load More pagination.
+Renders tab navigation (News / Stories / Search) and category pills with filtering. Handles keyword/subcategory client-side filtering, featured hero selection, and Load More pagination.
 
 **Tab Nav Styling**: Typography-only hierarchy (no underline, no background). Active: `text-base font-semibold`. Inactive: `text-base font-normal text-neutral-400`. Smooth transition on selection.
 
@@ -556,7 +558,7 @@ Article detail page layout with semantic structure:
 4. **Headline & Badge**: Serif AI headline, with optional `must_read` badge displayed inline with category.
 5. **Byline, Timestamp & Share Bar**: Displays `Araverus Team | {date} at {time}` with share icons right-aligned. All text `text-neutral-400`, `text-base`.
 6. **Summary**: Split into paragraphs. All sentences use same style (`text-neutral-600`). Grouped 2 sentences per `<p>` tag. Body narrowed to `max-w-2xl`.
-7. **Key Takeaway** (new): Amber callout box with `key_takeaway` text, placed after keywords and before summary. Styled consistently with other callout sections. Shows only when `key_takeaway` is available.
+7. **Key Takeaway**: Split layout — bold label left ("Key / Takeaway" with black underline), bold body text right with gray left border. Black-and-white editorial style. Shows only when `key_takeaway` is available.
 8. **SourceList**: Header style matches RelatedSection (`font-serif text-lg border-b-2 border-neutral-900`). Shows "Originally reported as:" when `headline` differs from WSJ `title`. Hidden when no sources and no WSJ URL (returns null).
 9. **TimelineSection**: Collapsible, shows last 5 articles with "Show N older..." expand.
 10. **RelatedSection**: Numbered list with pgvector similarity score bars (7-day window, excludes timeline articles).
@@ -676,20 +678,20 @@ classDiagram
 
 | Decision | Original Plan | Actual Implementation | Rationale |
 |----------|--------------|----------------------|-----------|
-| Layout | Standalone masthead | Shared Header + Sidebar via `NewsShell` | User wanted consistent site feel |
+| Layout | Standalone masthead | Shared Header + Sidebar via `AppShell` (NewsShell re-exports) | User wanted consistent site feel |
 | Primary layout | Thread-grouped single column | WSJ 3-column (3/6/3) with in-card thread carousels | Today's articles as priority; thread history is bonus UX via carousel |
 | Thread display | Collapsible ThreadSection groups | In-card ◀▶ carousel per article | Less visual noise; thread is secondary info, not primary grouping |
 | Sidebar behavior | N/A | Starts closed on `/news`, shifts content on open | News content takes full width by default |
 | Header/Sidebar borders | Default borders | Removed `border-r` and `border-b` | Cleaner OpenAI-style look |
 | Header mobile sizing | Desktop-only `h-20` | `h-14` mobile / `h-20` desktop, logo `h-9`/`h-10`, hamburger `w-5 h-5` | Proportional mobile header — logo, icon, text all scaled for ~375px screens |
-| Tab structure | Single view | Today / Stories / Search tabs | Progressive feature rollout |
+| Tab structure | Single view | News / Stories / Search tabs | Progressive feature rollout |
 
 ### Filtering & Grouping
 
 | Decision | Choice | Rationale |
 |----------|--------|-----------|
 | Category + Keyword coexistence | Categories filter server-side (via searchParams), keywords filter client-side within | Server-side category = full articles per category (no sparse results). Keywords remain client-side for instant toggle. |
-| Article ordering | Importance-first (must_read on top), then recency | Client-side stable sort: must_read always surfaces first regardless of timestamp, preserving time order within each tier. |
+| Article ordering | Date-first, importance within day | Server-side `sortByDateThenImportance` in `data.ts` — sorts by calendar date (newest day first), then importance within same day. No client-side re-sort. |
 | DB query filter | No `relevance_flag` filter on the join — fetches all crawl candidates per article, picks the `ok` result for display data. **Headline-based visibility gate:** articles without AI headline are dropped (no WSJ title fallback). Counts candidates for `source_count`. | Ensures no original WSJ titles leak to frontend. Unsafe source domains are filtered via `UNSAFE_SOURCE_DOMAINS` set in news-service.ts. |
 | Keyword filter | Filter dropdown with subcategory + keyword pill sections, multi-select OR | Replaced horizontal pill bar — cleaner default, powerful on demand |
 | Thread titles | From `wsj_story_threads.title` (Gemini-generated) | More meaningful than "N Related Articles" |
@@ -925,7 +927,7 @@ graph LR
 - [x] Thread expand/collapse works (first expanded, rest collapsed)
 - [x] Filter dropdown shows subcategories + keywords, multi-select OR filtering works
 - [x] Category pills filter articles by feed_name
-- [x] Tab navigation (Today active, Stories/Search placeholder)
+- [x] Tab navigation (News active, Stories/Search placeholder)
 - [x] Audio player plays WAV files from `public/audio/`
 - [x] EN/KO language toggle switches audio and transcript
 - [x] Chapter markers appear on seek bar and as pill buttons

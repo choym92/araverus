@@ -1,4 +1,4 @@
-<!-- Updated: 2026-03-05 -->
+<!-- Updated: 2026-03-06 -->
 # Docs Reference
 
 ### Project Documentation Map
@@ -26,7 +26,7 @@
 | Doc | Content |
 |-----|---------|
 | `docs/2-news-frontend.md` | `/news` page components, data flow, BriefingPlayer |
-| `docs/2.1-thread-stories.md` | Stories tab UI, parent/sub-thread hierarchy, heat scores |
+| `docs/2.1-thread-intelligence.md` | Thread tab UI, parent grouping, impact analysis, portfolio relevance |
 | `docs/2.2-news-seo.md` | SEO metadata, JSON-LD, sitemap, RSS, robots, OG images |
 | `docs/2.3-caching-strategy.md` | ISR/cache TTLs, on-demand revalidation flow, env vars |
 
@@ -53,7 +53,7 @@ Before working on a specific area, READ the relevant doc first:
 | Threading R&D history | `docs/1.3-news-threading-archive.md` | Experiments, grid search, PRD, future ideas |
 | Embedding models | `docs/archive/1.3-embedding-ab-test.md` | Model comparison, 3-zone gate (archived — not cost-effective under 2-step LLM) |
 | News frontend / components | `docs/2-news-frontend.md` | Component props, data flow, known hacks |
-| Stories tab / thread hierarchy | `docs/2.1-thread-stories.md` | StoriesTab component, heat scores, parent threads |
+| Thread tab / intelligence | `docs/2.1-thread-intelligence.md` | Thread UI, heat scores, impact analysis, portfolio relevance |
 | SEO / metadata / structured data | `docs/2.2-news-seo.md` | JSON-LD, sitemap, RSS, robots, OG images |
 | Caching / ISR / revalidation | `docs/2.3-caching-strategy.md` | TTLs, on-demand flow, env vars, troubleshooting |
 | DB schema changes | `docs/schema.md` | Column types, relationships, lifecycle |

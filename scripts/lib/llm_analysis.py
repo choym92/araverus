@@ -307,34 +307,6 @@ def save_step2_to_db(supabase, crawl_result_id: str, analysis: dict) -> bool:
         return False
 
 
-def update_domain_llm_failure(supabase, domain: str) -> bool:
-    """
-    Increment LLM failure count for a domain.
-
-    Called when LLM analysis returns is_same_event=false.
-    """
-    try:
-        supabase.rpc("increment_llm_fail_count", {"domain_name": domain}).execute()
-        return True
-    except Exception as e:
-        print(f"Domain failure update error: {e}")
-        return False
-
-
-def reset_domain_llm_success(supabase, domain: str) -> bool:
-    """
-    Reset LLM failure count for a domain on success.
-
-    Called when LLM analysis passes (is_same_event=true).
-    """
-    try:
-        supabase.rpc("reset_llm_fail_count", {"domain_name": domain}).execute()
-        return True
-    except Exception as e:
-        print(f"Domain success reset error: {e}")
-        return False
-
-
 # For testing
 if __name__ == "__main__":
     test_title = "China's CTG Duty Free to Buy LVMH's DFS Greater China Stores"

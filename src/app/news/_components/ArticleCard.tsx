@@ -81,9 +81,12 @@ function firstSentence(text: string, maxLen = 250): string {
 function ImportanceBadge({ importance }: { importance: string }) {
   if (importance !== 'must_read') return null
   return (
-    <svg className="w-3.5 h-3.5 text-amber-500 shrink-0" fill="currentColor" viewBox="0 0 20 20">
-      <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
-    </svg>
+    <span className="inline-flex items-center gap-0.5 shrink-0">
+      <svg className="w-3.5 h-3.5 text-amber-500" fill="currentColor" viewBox="0 0 20 20">
+        <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
+      </svg>
+      <span className="text-[10px] font-semibold uppercase tracking-wide text-amber-600">Top Story</span>
+    </span>
   )
 }
 
@@ -181,11 +184,7 @@ export default function ArticleCard({
 
   if (variant === 'featured') {
     return (
-      <article className={`pb-6 mb-6 ${
-        isMustRead
-          ? 'border-l-2 border-l-amber-400 pl-4'
-          : ''
-      }`}>
+      <article className="pb-6 mb-6">
         <CardWrapper slug={activeSlug} link={activeLink} className="group block">
           <AnimatePresence custom={direction} mode="wait">
             <motion.div
@@ -198,7 +197,8 @@ export default function ArticleCard({
               transition={{ duration: 0.25 }}
             >
               <p className="text-xs text-neutral-400 mb-2 flex items-center gap-1.5">
-                <span className="font-semibold text-neutral-500 uppercase tracking-wide">{categoryLabel(activeCategory)}</span>
+                {isMustRead && <ImportanceBadge importance="must_read" />}
+                <span className="font-semibold text-neutral-900 uppercase tracking-wide">{categoryLabel(activeCategory)}</span>
                 <span className="ml-auto">{timeAgo(activeTimestamp)}</span>
                 {activeSourceCount > 1 && (
                   <>
@@ -219,19 +219,16 @@ export default function ArticleCard({
                   />
                 </div>
               )}
-              <div className="flex items-center gap-2 mb-2">
-                {isMustRead && <ImportanceBadge importance="must_read" />}
-                <h2 className="font-serif text-2xl md:text-3xl leading-tight text-neutral-900 group-hover:text-neutral-600 transition-colors">
-                  {activeHeadline}
-                </h2>
-              </div>
+              <h2 className="font-serif text-2xl md:text-3xl font-semibold leading-tight text-neutral-900 group-hover:text-neutral-600 transition-colors mb-2">
+                {activeHeadline}
+              </h2>
               {activeSummary && (
                 <p className="text-sm text-neutral-500 leading-relaxed line-clamp-3 mb-2">
                   {activeSummary}
                 </p>
               )}
               {displayKeywords && displayKeywords.length > 0 && (
-                <div className="flex mt-2">
+                <div className="flex justify-center mt-2">
                   <KeywordPills keywords={displayKeywords} activeKeywords={activeKeywords} />
                 </div>
               )}
@@ -239,16 +236,22 @@ export default function ArticleCard({
           </AnimatePresence>
         </CardWrapper>
         {hasThread && (
-          <div className="bg-neutral-50 rounded-lg mt-1 px-2 py-2 flex items-center justify-center gap-1 text-xs text-neutral-500">
+          <div className="mt-2 px-1 py-1.5 flex items-center justify-center gap-1 text-xs text-neutral-500">
             <button
               onClick={handlePrev}
               disabled={carouselIndex === 0}
               className="p-0.5 rounded hover:bg-neutral-200 disabled:opacity-30 disabled:cursor-default transition-colors"
               aria-label="Previous article in thread"
             >
-              <ChevronLeft className="w-3.5 h-3.5" />
+              <ChevronLeft className="w-3 h-3" />
             </button>
-            <span className="font-medium tabular-nums">
+            <div className="w-12 h-1 bg-neutral-200 rounded-full overflow-hidden shrink-0">
+              <div
+                className="h-full bg-neutral-500 rounded-full transition-all duration-300"
+                style={{ width: `${((carouselIndex + 1) / threadTimeline.length) * 100}%` }}
+              />
+            </div>
+            <span className="font-medium tabular-nums text-[11px]">
               {carouselIndex + 1}/{threadTimeline.length}
             </span>
             <button
@@ -257,10 +260,10 @@ export default function ArticleCard({
               className="p-0.5 rounded hover:bg-neutral-200 disabled:opacity-30 disabled:cursor-default transition-colors"
               aria-label="Next article in thread"
             >
-              <ChevronRight className="w-3.5 h-3.5" />
+              <ChevronRight className="w-3 h-3" />
             </button>
             {threadTitle && (
-              <span className="text-neutral-600 font-medium truncate ml-1" title={threadTitle}>
+              <span className="min-w-0 text-neutral-500 font-medium truncate max-w-[60%]" title={threadTitle}>
                 {threadTitle}
               </span>
             )}
@@ -273,14 +276,10 @@ export default function ArticleCard({
   // standard variant
   return (
     <article
-      className={`pb-5 mb-5 ${
-        isMustRead
-          ? 'border-b border-neutral-200 border-l-2 border-l-amber-400 pl-4'
-          : 'border-b border-neutral-200'
-      }`}
+      className="pb-5 mb-5 border-b border-neutral-200"
     >
       <CardWrapper slug={activeSlug} link={activeLink} className="group block">
-        <div className={`${hasThread ? 'h-36 overflow-hidden' : ''}`}>
+        <div>
           <AnimatePresence custom={direction} mode="wait">
             <motion.div
               key={carouselIndex}
@@ -314,12 +313,11 @@ export default function ArticleCard({
                         fill
                         className="object-cover group-hover:scale-105 transition-transform duration-300"
                         sizes="96px"
-                        unoptimized
                         onError={() => setImageError(true)}
                       />
                     </div>
                   )}
-                  <h3 className="font-serif text-lg leading-snug text-neutral-900 group-hover:text-neutral-600 transition-colors mb-1.5" style={{ textWrap: 'balance' }}>
+                  <h3 className="font-serif text-lg font-semibold leading-snug text-neutral-900 group-hover:text-neutral-600 transition-colors mb-1.5" style={{ textWrap: 'balance' }}>
                     {activeHeadline}
                   </h3>
                   {activeSummary && (
@@ -339,16 +337,22 @@ export default function ArticleCard({
         </div>
       </CardWrapper>
       {hasThread && (
-        <div className="bg-neutral-50 rounded-lg mt-1 px-2 py-2 flex items-center gap-1 text-xs text-neutral-500">
+        <div className="mt-2 px-1 py-2 flex items-center gap-1 text-xs text-neutral-500">
           <button
             onClick={handlePrev}
             disabled={carouselIndex === 0}
             className="p-0.5 rounded hover:bg-neutral-200 disabled:opacity-30 disabled:cursor-default transition-colors"
             aria-label="Previous article in thread"
           >
-            <ChevronLeft className="w-3.5 h-3.5" />
+            <ChevronLeft className="w-3 h-3" />
           </button>
-          <span className="font-medium tabular-nums">
+          <div className="w-9 h-1 bg-neutral-200 rounded-full overflow-hidden shrink-0">
+            <div
+              className="h-full bg-neutral-500 rounded-full transition-all duration-300"
+              style={{ width: `${((carouselIndex + 1) / threadTimeline.length) * 100}%` }}
+            />
+          </div>
+          <span className="font-medium tabular-nums text-[11px]">
             {carouselIndex + 1}/{threadTimeline.length}
           </span>
           <button
@@ -357,10 +361,10 @@ export default function ArticleCard({
             className="p-0.5 rounded hover:bg-neutral-200 disabled:opacity-30 disabled:cursor-default transition-colors"
             aria-label="Next article in thread"
           >
-            <ChevronRight className="w-3.5 h-3.5" />
+            <ChevronRight className="w-3 h-3" />
           </button>
           {threadTitle && (
-            <span className="text-neutral-600 font-medium truncate ml-1" title={threadTitle}>
+            <span className="flex-1 min-w-0 text-neutral-500 font-medium truncate" title={threadTitle}>
               {threadTitle}
             </span>
           )}

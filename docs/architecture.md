@@ -1,4 +1,4 @@
-<!-- Updated: 2026-03-05 -->
+<!-- Updated: 2026-03-06 -->
 # Araverus — Project Architecture
 
 Financial intelligence platform powered by AI, machine learning, and neural networks.
@@ -61,10 +61,10 @@ araverus/
 │   │   │   ├── layout.tsx      # Metadata
 │   │   │   ├── [slug]/         # Article detail page
 │   │   │   ├── c/[category]/   # Category-specific routes (ISR cached)
-│   │   │   └── _components/    # NewsShell, BriefingPlayer, ArticleCard
+│   │   │   └── _components/    # NewsShell (→AppShell), BriefingPlayer, ArticleCard
 │   │   ├── (legal)/            # Route group: /about, /contact, /privacy, /terms
 │   │   ├── auth/callback/      # OAuth callback (server-side PKCE code exchange)
-│   │   ├── login/              # Auth page (Google OAuth sign-in)
+│   │   ├── login/              # Auth page (Google OAuth + email/password, uses AppShell)
 │   │   ├── not-found.tsx       # Custom 404 page
 │   │   ├── error.tsx           # Error boundary
 │   │   ├── global-error.tsx    # Root error boundary
@@ -76,8 +76,9 @@ araverus/
 │   │   ├── rss.xml/            # RSS feed generation
 │   │   └── podcast.xml/        # Podcast feed generation
 │   ├── components/             # Reusable UI (Footer, Header, Sidebar, etc.)
-│   │   ├── Header.tsx          # Site header (logo-header.svg)
-│   │   ├── Sidebar.tsx         # Collapsible nav sidebar (News only)
+│   │   ├── AppShell.tsx         # Shared layout shell (Header + Sidebar + margin shift)
+│   │   ├── Header.tsx          # Site header (logo-header.svg, optional sidebar toggle)
+│   │   ├── Sidebar.tsx         # Collapsible nav sidebar
 │   │   └── (archived)          # Hero, ParticleBackground, WaveGrid → archive/
 │   ├── hooks/                  # Custom React hooks
 │   └── lib/                    # Services, utils, clients
@@ -129,7 +130,7 @@ araverus/
 ## Auth Flow
 
 ```
-User → /login or Header "Log in" button
+User → /login (Header "Sign in" link navigates to /login)
   → signInWithOAuth({ provider: 'google', redirectTo: NEXT_PUBLIC_SITE_URL/auth/callback })
   → Supabase Auth → Google OAuth consent screen
   → Google redirects → Supabase callback (PKCE)

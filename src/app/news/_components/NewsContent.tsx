@@ -38,8 +38,8 @@ const CATEGORIES = [
 ] as const
 
 const TABS = [
-  { label: 'Today', value: 'today' },
-  { label: 'Stories', value: 'stories' },
+  { label: 'News', value: 'today' },
+  { label: 'Threads', value: 'threads' },
   { label: 'Search', value: 'search' },
 ] as const
 
@@ -112,12 +112,8 @@ export default function NewsContent({
       })
     : allItems
 
-  // Stable sort: must_read first, then by original order (newest-first from API)
-  const sortedItems = [...filteredItems].sort((a, b) => {
-    const aM = a.importance === 'must_read' ? 0 : 1
-    const bM = b.importance === 'must_read' ? 0 : 1
-    return aM - bM
-  })
+  // Server already sorts by date (newest day first) → importance within same day
+  const sortedItems = filteredItems
 
   // Pick featured hero: first article with a summary (list is already sorted newest-first)
   const featuredIndex = sortedItems.findIndex(item => item.summary)
@@ -458,8 +454,8 @@ export default function NewsContent({
           </>
         )}
 
-        {/* Stories tab */}
-        {tab === 'stories' && (
+        {/* Threads tab */}
+        {tab === 'threads' && (
           <StoriesTab groups={parentThreadGroups} />
         )}
 

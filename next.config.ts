@@ -60,9 +60,13 @@ const nextConfig: NextConfig = {
   },
   images: {
     remotePatterns: [
-      // TODO: Replace https wildcard with image proxy API to prevent open proxy abuse
+      // TODO: Replace wildcards with image proxy API to prevent open proxy abuse
       {
         protocol: 'https',
+        hostname: '**',
+      },
+      {
+        protocol: 'http',
         hostname: '**',
       },
       {

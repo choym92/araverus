@@ -56,9 +56,9 @@ export default function StoriesTab({ groups }: StoriesTabProps) {
   if (groups.length === 0) {
     return (
       <div className="text-center py-16">
-        <p className="text-neutral-500 text-lg">No active stories.</p>
+        <p className="text-neutral-500 text-lg">No active threads.</p>
         <p className="text-neutral-400 text-sm mt-2">
-          Stories will appear here as the pipeline groups related articles.
+          Threads will appear here as the pipeline groups related articles.
         </p>
       </div>
     )
