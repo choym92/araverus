@@ -1,5 +1,5 @@
-<!-- Updated: 2026-02-26 -->
-<!-- Phase: News UX enhancement (migrations 007-009) -->
+<!-- Updated: 2026-03-06 -->
+<!-- Phase: LLM Judge threading (migrations 001-014) -->
 # Database Schema (araverus)
 
 All Supabase/Postgres tables. Blog tables for the website, WSJ tables for the finance pipeline.
@@ -81,8 +81,7 @@ searched      BOOLEAN       -- set true after Google News search completed
 searched_at   TIMESTAMPTZ   -- when searched was set true
 processed     BOOLEAN       -- set true when quality crawl result exists (relevance ok/good)
 processed_at  TIMESTAMPTZ   -- when processed was set true
-briefed       BOOLEAN       -- set true for all articles used as input to a briefing
-                            --   prevents re-briefing on previously seen articles
+briefed       BOOLEAN NOT NULL DEFAULT false  -- set true for all articles used as input to a briefing
 briefed_at    TIMESTAMPTZ   -- when briefed was set true
 slug          TEXT UNIQUE   -- URL-friendly slug for /news/[slug] (generated from title)
 thread_id     UUID FK → wsj_story_threads(id)  -- story thread assignment (nullable)
@@ -97,6 +96,16 @@ created_at    TIMESTAMPTZ   -- auto: now()
 **Lifecycle**: `insert → searched=true (after Google News) → processed=true (after quality crawl) → briefed=true (all articles in briefing)`
 **Skip filter**: Opinion articles (`title.startswith('Opinion |')`) and low-value categories (`/lifestyle/`, `/real-estate/`, `/arts/`, `/health/`, `/style/`, `/livecoverage/`, `/arts-culture/`) are skipped at parse time.
 **Category override**: `feed_name` and `subcategory` are extracted from the article URL path when available (more accurate than RSS feed name). Ambiguous paths (`articles`, `buyside`, `us-news`) fall back to RSS feed_name.
+
+**Indexes**:
+- `idx_wsj_items_subcategory` ON (subcategory) WHERE subcategory IS NOT NULL
+- `idx_wsj_items_briefed` ON (briefed)
+- `idx_wsj_items_slug` ON (slug)
+- `idx_wsj_items_thread` ON (thread_id)
+
+**Missing indexes** (recommended):
+- `published_at DESC` — most common sort column, used by every frontend query
+- `feed_name` — category filter in `getNewsItems()`, `getActiveThreadsGrouped()`
 
 ### `wsj_crawl_results` — Crawled Backup Articles
 **Written by**: Two stages:
@@ -135,6 +144,12 @@ updated_at      TIMESTAMPTZ   -- auto: now()
 - LLM accept: `is_same_event=true` OR `(is_same_event=false AND llm_score >= 7)` → `relevance_flag='ok'`
 - LLM reject: `is_same_event=false AND llm_score < 7` → `relevance_flag='low'`, tries next backup article
 
+**Indexes**:
+- `idx_crawl_results_llm_same_event` ON (llm_same_event)
+
+**Missing indexes** (recommended):
+- `wsj_item_id` — heavily joined by frontend (getNewsItems, getArticleSources, etc.)
+
 ### `wsj_llm_analysis` — LLM Content Analysis
 **Written by**: 2-step LLM flow in `lib/llm_analysis.py`, called from `6_crawl_ranked.py`
 - **Step 1 (Gate)**: `analyze_content()` → `save_analysis_to_db()` — Gemini 2.5 Flash Lite, gate-only fields (relevance_score, is_same_event, confidence, content_quality)
@@ -144,6 +159,7 @@ updated_at      TIMESTAMPTZ   -- auto: now()
 ```sql
 id                UUID PRIMARY KEY    -- auto-generated
 crawl_result_id   UUID FK → wsj_crawl_results (UNIQUE, 1:1)
+-- Step 1: Gate (Flash Lite)
 relevance_score   INT           -- LLM score 0-10: how well crawled content matches WSJ headline
                                 --   9-10: exact same event, high quality
                                 --   7-8: same event, different angle
@@ -152,10 +168,11 @@ relevance_score   INT           -- LLM score 0-10: how well crawled content matc
                                 --   0-2: unrelated or garbage
 is_same_event     BOOLEAN       -- LLM judgment: same specific news event?
 confidence        TEXT          -- high | medium | low — LLM's confidence in its judgment
+content_quality   TEXT          -- article | list_page | profile | paywall | garbage | opinion
+-- Step 2: Full analysis (Flash)
 event_type        TEXT          -- earnings | acquisition | merger | lawsuit | regulation |
                                 --   product | partnership | funding | ipo | bankruptcy |
                                 --   executive | layoffs | guidance | other
-content_quality   TEXT          -- article | list_page | profile | paywall | garbage | opinion
 key_entities      JSONB         -- company/org names extracted by LLM (e.g., ["Anthropic","Claude"])
 key_numbers       JSONB         -- dollar amounts, percentages (e.g., ["$1.25 billion","218-214"])
 tickers_mentioned JSONB         -- stock symbols if any (e.g., ["NVDA","GOOG"])
@@ -164,23 +181,40 @@ sentiment         TEXT          -- positive | negative | neutral | mixed
 geographic_region TEXT          -- US | China | Europe | Asia | Global | Other
 time_horizon      TEXT          -- immediate | short_term | long_term
 summary           TEXT          -- LLM-generated summary of crawled article (typically 150-1000 chars)
-importance        TEXT          -- must_read | worth_reading | optional (1차 per-article, absolute classification)
-importance_reranked TEXT        -- must_read | worth_reading | optional (2차 relative re-rank during curation)
-                                --   set by 8_generate_briefing.py curate_articles()
-                                --   compares all articles in batch for relative importance
-headline          TEXT          -- AI-generated headline (never copies WSJ title, 8-15 words)
+headline          TEXT          -- AI-generated headline (never copies WSJ title, max 8 words)
                                 --   Written by Step 2 (Flash) via save_step2_to_db()
                                 --   Only exists on relevance_flag='ok' crawls
                                 --   Frontend visibility gate: no headline = article hidden everywhere
 key_takeaway      TEXT          -- 1-2 sentence cross-domain impact analysis
                                 --   Written by Step 2 (Flash) via save_step2_to_db()
+importance        TEXT          -- must_read | worth_reading | optional (1st pass, absolute classification)
+importance_reranked TEXT        -- must_read | worth_reading | optional (2nd pass, relative re-rank)
+                                --   set by 8_generate_briefing.py curate_articles()
+                                --   compares all articles in batch for relative importance
 keywords          TEXT[]        -- 2-4 free-form topic keywords (e.g., {"Fed","interest rates"})
+-- Metadata
 raw_response      JSONB         -- full LLM JSON response (for debugging)
-model_used        TEXT          -- "gemini-2.5-flash-lite"
+model_used        TEXT          -- DEFAULT 'gpt-4o-mini' (migration default, actual models vary: gemini-2.5-flash-lite, gemini-2.5-flash)
 input_tokens      INT           -- prompt token count
 output_tokens     INT           -- completion token count
 created_at        TIMESTAMPTZ   -- auto: now()
 ```
+
+**Note**: `headline`, `key_takeaway`, `importance_reranked` were added via manual ALTER TABLE (not in migration files). Migration 007 added `importance` and `keywords`.
+
+**Indexes**:
+- `idx_llm_analysis_crawl_result` ON (crawl_result_id)
+- `idx_llm_analysis_relevance` ON (relevance_score)
+- `idx_llm_analysis_event_type` ON (event_type)
+- `idx_llm_analysis_is_same_event` ON (is_same_event)
+- `idx_llm_analysis_created_at` ON (created_at DESC)
+- `idx_wsj_llm_analysis_importance` ON (importance)
+
+**RLS**:
+- Service role: full access
+- Authenticated users: read-only
+
+**CHECK constraints**: `relevance_score` 0-10, `confidence` (high/medium/low), `event_type` (14 values), `content_quality` (6 values), `sentiment` (4 values), `geographic_region` (6 values), `time_horizon` (3 values)
 
 ### `wsj_domain_status` — Domain Quality Tracking
 **Written by**: `domain_utils.py` → `cmd_update_domain_status()` (aggregation) and `reset_domain_status.py` (one-time reset)
@@ -215,27 +249,32 @@ updated_at          TIMESTAMPTZ
 **Failure taxonomy** (fail_counts keys): `content too short`, `paywall`, `css/js instead of content`, `copyright or unavailable`, `repeated content`, `empty content`, `http error`, `social media`, `too many links`, `navigation/menu content`, `boilerplate content`, `content too long`, `timeout or network error`, `low relevance`, `llm rejected`.
 **Search hit tracking**: `search_hit_count` incremented each time domain appears in Google News results, used to prioritize `-site:` exclusions.
 
-### `wsj_briefings` — Daily Briefing Output (Phase 2)
-**Written by**: TBD (8_generate_briefing.py)
+### `wsj_briefings` — Daily Briefing Output
+**Written by**: `8_generate_briefing.py`
 
 ```sql
 id              UUID PRIMARY KEY    -- auto-generated
 date            DATE          -- briefing date (e.g., 2026-02-10)
-category        TEXT          -- 'ALL', 'BUSINESS_MARKETS', 'TECH', etc. Default 'ALL'
+category        TEXT          -- 'EN', 'KO' (previously 'ALL'). Default 'ALL'
 briefing_text   TEXT          -- LLM-generated briefing narrative (~700-1400 words)
-audio_url       TEXT          -- Supabase Storage URL for TTS audio (Phase 3)
-audio_duration  INT           -- audio length in seconds (Phase 3)
+audio_url       TEXT          -- Supabase Storage URL for TTS audio
+audio_duration  INT           -- audio length in seconds
 chapters        JSONB         -- chapter markers [{title, position}] for audio navigation
-sentences       JSONB         -- Whisper sentence timestamps [{text, start, end}] for transcript sync
+sentences       JSONB         -- per-sentence timestamps [{text, start, end}] for transcript sync
 item_count      INT           -- number of articles included in this briefing
 model           TEXT          -- LLM model used for generation
-tts_provider    TEXT          -- TTS service used (Phase 3)
+tts_provider    TEXT          -- TTS service used
 created_at      TIMESTAMPTZ   -- auto: now()
 UNIQUE(date, category)        -- one briefing per day per category
 ```
 
+**Note**: `chapters` and `sentences` columns were added via manual ALTER TABLE (not in migration 002_briefings).
+
+**Indexes**:
+- `idx_briefings_date_category` UNIQUE ON (date, category)
+
 ### `wsj_briefing_items` — Briefing ↔ Article Junction
-**Written by**: TBD (8_generate_briefing.py)
+**Written by**: `8_generate_briefing.py`
 
 ```sql
 briefing_id   UUID FK → wsj_briefings(id) ON DELETE CASCADE
@@ -243,9 +282,12 @@ wsj_item_id   UUID FK → wsj_items(id) ON DELETE CASCADE
 PRIMARY KEY (briefing_id, wsj_item_id)
 ```
 
-**Purpose**: Tracks which articles were included in which briefing. N:N relationship — one article can appear in multiple briefings (e.g., ALL + TECH). Replaces the need for a `briefed` flag on `wsj_items`.
+**Purpose**: Tracks which articles were included in which briefing. N:N relationship — one article can appear in multiple briefings (e.g., EN + KO). Replaces the need for a `briefed` flag on `wsj_items`.
 
-### `wsj_embeddings` — Article Embeddings (Phase: News UX)
+**Indexes**:
+- `idx_briefing_items_wsj` ON (wsj_item_id)
+
+### `wsj_embeddings` — Article Embeddings
 **Written by**: `7_embed_and_thread.py`
 **Model**: BAAI/bge-base-en-v1.5 (768 dimensions)
 
@@ -259,29 +301,122 @@ created_at  TIMESTAMPTZ DEFAULT now()
 
 **Purpose**: Stores article embeddings for semantic similarity search (related articles, more-like-this, future search).
 
-### `wsj_story_threads` — Story Thread Clusters (Phase: News UX)
+### `wsj_story_threads` — Story Thread Clusters
 **Written by**: `7_embed_and_thread.py`
 
 ```sql
-id           UUID PRIMARY KEY    -- auto-generated
-title        TEXT NOT NULL        -- LLM-generated thread headline
-centroid     vector(768)          -- normalized centroid of member embeddings
-member_count INT NOT NULL DEFAULT 0
-first_seen   DATE NOT NULL        -- earliest article in thread
-last_seen    DATE NOT NULL        -- most recent article in thread
-status       TEXT NOT NULL DEFAULT 'active' -- 'active' (0-3d) / 'cooling' (3-14d) / 'archived' (14d+)
-created_at   TIMESTAMPTZ DEFAULT now()
-updated_at   TIMESTAMPTZ DEFAULT now()
+id                    UUID PRIMARY KEY    -- auto-generated
+title                 TEXT NOT NULL        -- LLM-generated thread headline (updated by thread analysis)
+centroid              vector(768)          -- normalized centroid of member embeddings
+member_count          INT NOT NULL DEFAULT 0
+first_seen            DATE NOT NULL        -- earliest article in thread
+last_seen             DATE NOT NULL        -- most recent article in thread
+status                TEXT NOT NULL DEFAULT 'active' -- 'active' (0-3d) / 'cooling' (3-14d) / 'archived' (14d+)
+summary               TEXT                 -- LLM-generated thread summary
+parent_id             UUID FK → wsj_parent_threads(id)  -- macro-event group (nullable)
+analysis_json         JSONB                -- latest thread analysis (impacts, narrative, drivers)
+analysis_updated_at   TIMESTAMPTZ          -- when analysis was last run
+analysis_article_count INT DEFAULT 0       -- member_count at time of last analysis
+title_updated_at      TIMESTAMPTZ          -- when title was last updated by analysis
+created_at            TIMESTAMPTZ DEFAULT now()
+updated_at            TIMESTAMPTZ DEFAULT now()
 ```
 
 **Purpose**: Groups related articles across days into story threads. Centroids updated incrementally. Status transitions: active (0-3d) → cooling (3-14d) → archived (14d+). Resurrection: archived thread matched by new article → back to active.
 
+**analysis_json structure**:
+```json
+{
+  "updated_title": "string",
+  "summary": "string",
+  "catalyst": "string",
+  "drivers": ["string"],
+  "impacts": [{"name", "type", "confidence", "direction", "reason", "rank"}],
+  "narrative_strength": 1-10,
+  "narrative_velocity": "accelerating|stable|decelerating",
+  "dominant_theme": "string",
+  "dominant_sector": "string",
+  "dominant_macro": "string"
+}
+```
+
+**Indexes**:
+- `idx_wsj_story_threads_status` ON (status)
+- `idx_wsj_story_threads_parent` ON (parent_id)
+
+**Missing indexes** (recommended):
+- `last_seen DESC` — used in `getActiveThreadsGrouped()` ORDER BY
+
+### `wsj_parent_threads` — Macro-Event Groups
+**Written by**: `7_embed_and_thread.py` → `group_threads_into_parents()`
+**Migration**: `014_llm_judge_threading.sql`
+
+```sql
+id          UUID PRIMARY KEY DEFAULT gen_random_uuid()
+title       TEXT NOT NULL        -- macro-event name (e.g., "Iran Crisis", "Fed Policy")
+status      TEXT NOT NULL DEFAULT 'active'
+created_at  TIMESTAMPTZ DEFAULT now()
+```
+
+**Purpose**: Groups related story threads under a parent macro-event. Re-computed daily by LLM. Threads link to parents via `wsj_story_threads.parent_id`.
+
+### `wsj_thread_judgments` — LLM Judge Audit Trail
+**Written by**: `7_embed_and_thread.py` → `match_article_with_llm_judge()`
+**Migration**: `014_llm_judge_threading.sql`
+
+```sql
+id                    UUID PRIMARY KEY DEFAULT gen_random_uuid()
+article_id            UUID NOT NULL FK → wsj_items(id)
+candidate_threads_json JSONB NOT NULL   -- [{id, title, cosine}] candidates considered
+decision              TEXT NOT NULL     -- 'assign' | 'new_thread' | 'no_match'
+chosen_thread_id      UUID FK → wsj_story_threads(id)  -- only when decision='assign'
+decision_reason       TEXT NOT NULL     -- LLM's explanation
+confidence            TEXT NOT NULL     -- 'high' | 'medium' | 'low'
+match_type            TEXT NOT NULL DEFAULT 'direct'  -- 'direct' | 'causal' | 'none'
+related_thread_id     UUID FK → wsj_story_threads(id)  -- causal link target (nullable)
+judge_model           TEXT NOT NULL     -- e.g., 'gemini-2.5-flash'
+prompt_version        TEXT NOT NULL DEFAULT 'v1'
+created_at            TIMESTAMPTZ DEFAULT now()
+```
+
+**Purpose**: Audit trail for every LLM Judge decision. Enables A/B testing, quality review, and debugging.
+
+**Indexes**:
+- `idx_thread_judgments_article` ON (article_id)
+
+### `wsj_thread_analysis_history` — Thread Analysis Snapshots
+**Written by**: `7_embed_and_thread.py` → `analyze_threads()`
+**Migration**: `014_llm_judge_threading.sql`
+
+```sql
+id             UUID PRIMARY KEY DEFAULT gen_random_uuid()
+thread_id      UUID NOT NULL FK → wsj_story_threads(id)
+article_count  INT NOT NULL        -- member_count at time of snapshot
+analysis_json  JSONB NOT NULL      -- full analysis (same structure as wsj_story_threads.analysis_json)
+created_at     TIMESTAMPTZ DEFAULT now()
+```
+
+**Purpose**: Historical snapshots of thread analysis. Tracks how impacts, narrative, and drivers evolve over time.
+
+**Indexes**:
+- `idx_thread_analysis_history_thread` ON (thread_id)
+
 ### RPC Functions (pgvector)
 
-| Function | Purpose |
-|----------|---------|
-| `match_articles(query_item_id, match_count, days_window)` | Cosine similarity search within ±N days |
-| `match_articles_wide(query_item_id, match_count, days_window)` | Same but wider window (90 days default) |
+| Function | Purpose | Status |
+|----------|---------|--------|
+| `match_articles(query_item_id, match_count, days_window)` | Cosine similarity search within ±N days | Active |
+| `match_articles_wide(query_item_id, match_count, days_window)` | Same but wider window (90 days default) | Active |
+| `increment_llm_fail_count(domain_name)` | Increment LLM failure count for domain | Dead — references dropped `llm_fail_count` column |
+| `reset_llm_fail_count(domain_name)` | Reset LLM failure count on success | Dead — references dropped `llm_fail_count` column |
+
+### Extensions
+
+| Extension | Purpose | Migration |
+|-----------|---------|-----------|
+| `pgcrypto` | UUID generation (`gen_random_uuid()`) | 001 |
+| `pg_trgm` | Trigram full-text search indexes | 001 |
+| `vector` | pgvector for embedding similarity | 008 |
 
 ---
 
@@ -295,6 +430,10 @@ wsj_items ──1:N──▶ wsj_crawl_results ──1:1──▶ wsj_llm_analys
 wsj_items ──N:N──▶ wsj_briefings (via wsj_briefing_items)
 wsj_items ──1:1──▶ wsj_embeddings
 wsj_items ──N:1──▶ wsj_story_threads (via thread_id)
+wsj_items ──1:N──▶ wsj_thread_judgments (via article_id)
+
+wsj_story_threads ──N:1──▶ wsj_parent_threads (via parent_id)
+wsj_story_threads ──1:N──▶ wsj_thread_analysis_history (via thread_id)
 
 wsj_domain_status (independent, updated by crawl pipeline)
 ```
@@ -315,14 +454,85 @@ Job 2: rank-resolve
 
 Job 3: crawl
   6_crawl_ranked.py        → wsj_crawl_results (upsert: content, crawl_status, relevance_flag)
-                         → wsj_llm_analysis (insert: LLM analysis per crawl)
+                           → wsj_llm_analysis (insert: LLM analysis per crawl)
 
 Job 4: save-results
   1_wsj_ingest.py --mark-processed-from-db → wsj_items.processed=true
-  1_wsj_ingest.py --update-domain-status   → wsj_domain_status (update)
+  domain_utils.py --update-domain-status   → wsj_domain_status (update)
 
-Job 5: briefing
+Job 5: embed-thread
+  7_embed_and_thread.py    → wsj_embeddings (upsert)
+                           → wsj_story_threads (insert/update, analysis_json)
+                           → wsj_items.thread_id (update)
+                           → wsj_thread_judgments (insert — LLM Judge audit)
+                           → wsj_thread_analysis_history (insert — analysis snapshots)
+                           → wsj_parent_threads (insert — macro-event groups)
+
+Job 6: briefing
   8_generate_briefing.py   → wsj_briefings (insert)
-                         → wsj_briefing_items (insert)
-                         → wsj_items.briefed=true (all articles in briefing)
+                           → wsj_briefing_items (insert)
+                           → wsj_items.briefed=true
+                           → wsj_llm_analysis.importance_reranked (update)
 ```
+
+---
+
+## Legacy Tables (Migration 001 — unused)
+
+These tables were created in the original ticker-based finance pipeline (2025-12-30) and are no longer used by any script. They remain in the database but could be dropped.
+
+| Table | Original purpose |
+|-------|-----------------|
+| `tickers` | Watchlist with CIK (NVDA, GOOG seed) |
+| `feed_sources` | Feed sources per ticker (SEC, IR, RSS, Google News, GDELT) |
+| `raw_feed_items` | Collected raw items from feeds |
+| `event_clusters` | Event clustering output |
+| `cluster_items` | Cluster ↔ item junction |
+| `event_scores` | Scoring and classification per cluster |
+| `briefs` | Briefing scripts (old format) |
+| `audio_assets` | TTS audio placeholder |
+| `pipeline_runs` | Operational logging |
+| `pipeline_results` | Processed articles (Migration 002, replaced by `wsj_crawl_results`) |
+
+---
+
+## Recommendations
+
+### Missing Indexes (add when needed)
+
+```sql
+-- wsj_items: most common sort + filter columns
+CREATE INDEX idx_wsj_items_published_at ON wsj_items(published_at DESC);
+CREATE INDEX idx_wsj_items_feed_name ON wsj_items(feed_name);
+
+-- wsj_crawl_results: heavily joined by frontend
+CREATE INDEX idx_wsj_crawl_results_wsj_item ON wsj_crawl_results(wsj_item_id);
+
+-- wsj_story_threads: sorted in getActiveThreadsGrouped()
+CREATE INDEX idx_wsj_story_threads_last_seen ON wsj_story_threads(last_seen DESC);
+```
+
+### Dead RPC Cleanup
+
+```sql
+DROP FUNCTION IF EXISTS increment_llm_fail_count(TEXT);
+DROP FUNCTION IF EXISTS reset_llm_fail_count(TEXT);
+```
+
+### Pending Schema Changes
+
+| Change | Phase | Table |
+|--------|-------|-------|
+| Create `user_watchlist` table | future | new |
+| Create `wsj_thread_links` table | future | new |
+
+### Manual Columns (not in migrations)
+
+These columns exist in the DB but were added via manual ALTER TABLE, not tracked in migration files:
+- `wsj_llm_analysis.headline`
+- `wsj_llm_analysis.key_takeaway`
+- `wsj_llm_analysis.importance_reranked`
+- `wsj_briefings.chapters`
+- `wsj_briefings.sentences`
+
+Consider creating a catch-up migration to formalize these.

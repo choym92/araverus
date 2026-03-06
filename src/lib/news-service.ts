@@ -100,9 +100,30 @@ export interface ParentThread {
   title: string
 }
 
+export interface ThreadAnalysis {
+  summary?: string
+  catalyst?: string
+  drivers?: string[]
+  impacts?: {
+    name: string
+    type: string
+    confidence: string
+    direction: string
+    reason: string
+    rank: number
+  }[]
+  narrative_strength?: number
+  narrative_velocity?: string
+  dominant_theme?: string
+  dominant_sector?: string
+  dominant_macro?: string
+}
+
 export interface StoryThreadWithDetails extends StoryThread {
   parent_id: string | null
   heat: number
+  summary: string | null
+  analysis: ThreadAnalysis | null
   recentArticles: Pick<NewsItem, 'id' | 'title' | 'slug' | 'published_at' | 'importance'>[]
 }
 
@@ -562,10 +583,10 @@ export class NewsService {
   }
 
   async getActiveThreadsGrouped(category?: string): Promise<ParentThreadGroup[]> {
-    // Fetch active threads (with parent_id if available)
+    // Fetch active threads with analysis and parent data
     const threadQuery = this.supabase
       .from('wsj_story_threads')
-      .select('id, title, member_count, first_seen, last_seen, status')
+      .select('id, title, member_count, first_seen, last_seen, status, parent_id, summary, analysis_json')
       .in('status', ['active', 'cooling'])
       .order('last_seen', { ascending: false })
       .limit(50)
@@ -573,7 +594,7 @@ export class NewsService {
     const { data: threads, error: threadError } = await threadQuery
     if (threadError || !threads || threads.length === 0) return []
 
-    const threadList = threads as (StoryThread & { parent_id?: string | null })[]
+    const threadList = threads as (StoryThread & { parent_id?: string | null; summary?: string | null; analysis_json?: ThreadAnalysis | null })[]
 
     // Fetch recent articles per thread (batch: get all articles for all threads at once)
     const threadIds = threadList.map(t => t.id)
@@ -650,6 +671,8 @@ export class NewsService {
           ...t,
           parent_id: t.parent_id ?? null,
           heat,
+          summary: t.summary ?? null,
+          analysis: t.analysis_json ?? null,
           recentArticles: relevantArticles.slice(0, 5).map(a => ({
             id: a.id,
             title: a.title,
@@ -671,14 +694,25 @@ export class NewsService {
       parentMap.set(key, list)
     }
 
+    // Fetch parent thread titles
+    const parentIds = [...parentMap.keys()].filter((id): id is string => id !== null)
+    const parentTitleMap = new Map<string, string>()
+    if (parentIds.length > 0) {
+      const { data: parentData } = await this.supabase
+        .from('wsj_parent_threads')
+        .select('id, title')
+        .in('id', parentIds)
+      for (const p of parentData || []) {
+        parentTitleMap.set(p.id, p.title)
+      }
+    }
+
     // Build ParentThreadGroup array
-    // For now, all threads have parent_id = null (backend not yet ready)
-    // When parent_id is populated, we'd fetch wsj_parent_threads here
     const groups: ParentThreadGroup[] = []
     for (const [parentId, subThreads] of parentMap) {
       const totalHeat = subThreads.reduce((sum, t) => sum + t.heat, 0)
       groups.push({
-        parent: parentId ? { id: parentId, title: '' } : null, // TODO: fetch parent titles when table exists
+        parent: parentId ? { id: parentId, title: parentTitleMap.get(parentId) ?? '' } : null,
         subThreads: subThreads.sort((a, b) => b.heat - a.heat),
         totalHeat,
       })
