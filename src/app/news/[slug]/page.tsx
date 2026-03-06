@@ -247,9 +247,12 @@ export default async function ArticlePage({ params }: ArticlePageProps) {
 
         {/* Key Takeaway */}
         {item.key_takeaway && (
-          <aside role="note" aria-label="Key Takeaway" className="bg-amber-50/60 border-l-4 border-amber-400 px-4 py-3 mb-6">
-            <p className="font-semibold text-sm text-amber-800 mb-1" aria-hidden="true">Key Takeaway</p>
-            <p className="text-base text-neutral-700">{item.key_takeaway}</p>
+          <aside role="note" aria-label="Key Takeaway" className="flex gap-5 items-start py-4 mb-6">
+            <div className="flex-shrink-0 w-24 pt-0.5">
+              <p className="text-xs font-bold text-neutral-900 uppercase tracking-widest leading-tight" aria-hidden="true">Key<br />Takeaway</p>
+              <div className="mt-2 h-0.5 w-10 bg-neutral-900" />
+            </div>
+            <p className="text-base text-neutral-700 font-bold leading-relaxed border-l border-neutral-300 pl-5">{item.key_takeaway}</p>
           </aside>
         )}
 

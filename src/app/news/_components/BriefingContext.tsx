@@ -75,7 +75,7 @@ interface BriefingContextValue {
   switchLang: (lang: 'en' | 'ko') => void
   togglePlay: () => void
   skip: (seconds: number) => void
-  handleSeek: (e: React.MouseEvent<HTMLDivElement>) => void
+  handleSeek: (e: React.MouseEvent<HTMLDivElement> | React.TouchEvent<HTMLDivElement>) => void
   setSpeed: (value: number) => void
   handleVolumeChange: (e: React.ChangeEvent<HTMLInputElement>) => void
   toggleMute: () => void
@@ -197,13 +197,16 @@ export function BriefingProvider({ children }: { children: ReactNode }) {
     audio.currentTime = Math.max(0, Math.min(audio.currentTime + seconds, dur))
   }, [audioDuration])
 
-  const handleSeek = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
+  const handleSeek = useCallback((e: React.MouseEvent<HTMLDivElement> | React.TouchEvent<HTMLDivElement>) => {
     const audio = audioRef.current
     if (!audio) return
     const dur = audio.duration && isFinite(audio.duration) ? audio.duration : audioDuration
     if (dur <= 0) return
     const rect = e.currentTarget.getBoundingClientRect()
-    const ratio = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width))
+    const clientX = 'touches' in e
+      ? (e as React.TouchEvent).changedTouches[0].clientX
+      : (e as React.MouseEvent).clientX
+    const ratio = Math.max(0, Math.min(1, (clientX - rect.left) / rect.width))
     audio.currentTime = ratio * dur
   }, [audioDuration])
 

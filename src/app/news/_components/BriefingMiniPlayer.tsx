@@ -125,6 +125,7 @@ export default function BriefingMiniPlayer() {
             <div
               className={`flex-1 h-1 ${T.progressBg} rounded-full cursor-pointer group min-w-[40px]`}
               onClick={handleSeek}
+              onTouchEnd={handleSeek}
             >
               <div
                 className={`h-full rounded-full ${T.progressFill} relative`}

@@ -570,6 +570,7 @@ export default function BriefingPlayer({
         <div
           className={`relative h-1.5 ${T.progressBg} rounded-full cursor-pointer group mb-2`}
           onClick={handleSeek}
+          onTouchEnd={(e) => { e.stopPropagation(); handleSeek(e) }}
           onMouseMove={(e) => {
             const rect = e.currentTarget.getBoundingClientRect()
             const ratio = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width))

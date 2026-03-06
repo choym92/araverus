@@ -25,8 +25,6 @@ from lib.llm_analysis import (
     analyze_content_detailed,
     save_analysis_to_db,
     save_step2_to_db,
-    update_domain_llm_failure,
-    reset_domain_llm_success,
 )
 from domain_utils import load_blocked_domains, get_supabase_client, normalize_crawl_error
 from lib.cost_utils import print_cost_line
@@ -466,8 +464,6 @@ async def process_wsj_item(
                                 if crawl_result_id:
                                     save_analysis_to_db(supabase, crawl_result_id, llm_analysis)
 
-                                update_domain_llm_failure(supabase, article.get("resolved_domain"))
-
                                 if j < len(crawlable) - 1:
                                     await asyncio.sleep(delay)
                                 continue
@@ -504,7 +500,6 @@ async def process_wsj_item(
 
                         if llm_analysis and crawl_result_id:
                             save_analysis_to_db(supabase, crawl_result_id, llm_analysis)
-                            reset_domain_llm_success(supabase, article.get("resolved_domain"))
 
                         # Step 2: Full content analysis (headline, summary, key_takeaway)
                         if crawl_result_id and LLM_ENABLED and llm_passed:

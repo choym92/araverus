@@ -7,28 +7,14 @@ import { useAuth } from '@/hooks/useAuth';
 import { motion, AnimatePresence } from 'framer-motion';
 
 interface HeaderProps {
-  sidebarOpen: boolean;
-  onToggleSidebar: () => void;
+  sidebarOpen?: boolean;
+  onToggleSidebar?: () => void;
 }
 
 export default function Header({ sidebarOpen, onToggleSidebar }: HeaderProps) {
-  const { user, loading, supabase, signOut } = useAuth();
+  const { user, loading, signOut } = useAuth();
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
-
-  const handleLogin = async () => {
-    try {
-      const { error } = await supabase.auth.signInWithOAuth({
-        provider: 'google',
-        options: {
-          redirectTo: `${process.env.NEXT_PUBLIC_SITE_URL || window.location.origin}/auth/callback`,
-        }
-      });
-      if (error) throw error;
-    } catch (error) {
-      console.error('Login error:', error);
-    }
-  };
 
   const handleLogout = async () => {
     setIsLoggingOut(true);
@@ -56,15 +42,17 @@ export default function Header({ sidebarOpen, onToggleSidebar }: HeaderProps) {
             />
           </Link>
 
-          <button
-            onClick={onToggleSidebar}
-            aria-label={sidebarOpen ? "Close sidebar" : "Open sidebar"}
-            aria-controls="app-sidebar"
-            aria-expanded={sidebarOpen}
-            className="p-1.5 md:p-2 hover:bg-gray-100 rounded-md transition-colors"
-          >
-            <Menu className="w-5 h-5 text-gray-600" />
-          </button>
+          {onToggleSidebar && (
+            <button
+              onClick={onToggleSidebar}
+              aria-label={sidebarOpen ? "Close sidebar" : "Open sidebar"}
+              aria-controls="app-sidebar"
+              aria-expanded={sidebarOpen}
+              className="p-1.5 md:p-2 hover:bg-gray-100 rounded-md transition-colors"
+            >
+              <Menu className="w-5 h-5 text-gray-600" />
+            </button>
+          )}
         </div>
 
         {/* Right side - Auth */}
@@ -122,12 +110,13 @@ export default function Header({ sidebarOpen, onToggleSidebar }: HeaderProps) {
             </div>
           ) : (
             /* Login Button */
-            <button
-              onClick={handleLogin}
-              className="px-3 py-1.5 text-sm md:px-4 md:py-2 md:text-base font-medium text-gray-700 hover:text-gray-900 hover:bg-gray-100 rounded-md transition-colors"
+            <Link
+              href="/login"
+              className="px-3 py-1.5 text-sm md:px-4 md:py-2 md:text-sm font-medium text-gray-900 hover:text-gray-600 transition-colors flex items-center gap-2"
             >
-              Log in
-            </button>
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15.75 6a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0zM4.501 20.118a7.5 7.5 0 0114.998 0A17.933 17.933 0 0112 21.75c-2.676 0-5.216-.584-7.499-1.632z" /></svg>
+              Sign in
+            </Link>
           )}
         </div>
       </div>
