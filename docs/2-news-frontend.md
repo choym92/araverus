@@ -5,7 +5,7 @@ Technical guide for the `/news` page and supporting components. WSJ-style 3-colu
 
 **Dynamic + Cache Architecture**: The page has evolved to **route-based category segments** for independent ISR caching. Each category has its own cached page: `/news` (all), `/news/c/tech`, `/news/c/markets`, etc. — each revalidates every 24h independently. The shared data module (`src/app/news/_lib/data.ts`) provides `getNewsData()` and `getStoriesData()` to all routes. Category tabs use `Link` navigation (layout persists, briefing player keeps playing). Server filters articles by `feed_name`; no client-side category filtering. A Load More API route (`/api/news`) enables pagination beyond the initial fetch.
 
-For backend pipeline & threading algorithm details, see `docs/1-news-backend.md` and `docs/1.2-news-threading.md`.
+For backend pipeline & threading algorithm details, see `docs/1-news-backend.md` and `docs/1.3-news-threading.md`.
 
 ---
 
@@ -780,7 +780,7 @@ These are workarounds that should be removed once the pipeline is fully deployed
 
 ### Backend TODOs (tracked separately)
 
-See `docs/1.2-news-threading.md` and `docs/workflow/1-ideas/4.2-idea-thread-grouping-rethink.md` for:
+See `docs/1.3-news-threading.md` and `docs/workflow/1-ideas/4.2-idea-thread-grouping-rethink.md` for:
 - Summary re-backfill with improved prompts
 - Embedding re-generation with `title + summary`
 - Threading re-run with improved embeddings

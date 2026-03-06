@@ -15,11 +15,11 @@
 |-----|---------|
 | `docs/1-news-backend.md` | Pipeline scripts, crawling, briefing generation |
 | `docs/1.1-news-google-search.md` | Google News search flow, domain blocking layers, -site: logic |
-| `docs/1.2-news-threading.md` | Thread grouping algorithm, scoring |
-| `docs/1.2-news-threading-visual.md` | Mermaid diagram companion to 1.2 |
-| `docs/1.2-news-threading-archive.md` | Historical R&D: reranker experiments, grid search, PRD, future ideas |
+| `docs/1.2-news-scoring-tuning.md` | Scoring pipeline thresholds, tuning infrastructure |
+| `docs/1.3-news-threading.md` | Thread grouping algorithm, scoring |
+| `docs/1.3-news-threading-visual.md` | Mermaid diagram companion to 1.3 |
+| `docs/1.3-news-threading-archive.md` | Historical R&D: reranker experiments, grid search, PRD, future ideas |
 | `docs/archive/1.3-embedding-ab-test.md` | Embedding model A/B test results (archived) |
-| `docs/1.4-news-scoring-tuning.md` | Scoring pipeline thresholds, tuning infrastructure |
 | `docs/pipeline-audit/` | Per-script audit docs (8 files) |
 
 **News Frontend (2.x)**
@@ -48,10 +48,10 @@ Before working on a specific area, READ the relevant doc first:
 |------|-----------|-----|
 | Pipeline scripts / crawling | `docs/1-news-backend.md` | Script flags, crawl logic, cost |
 | Google News search / domain blocking | `docs/1.1-news-google-search.md` | Search flow, -site: logic, filtering layers |
-| News threading | `docs/1.2-news-threading.md` | Algorithm, scoring constants |
-| Threading R&D history | `docs/1.2-news-threading-archive.md` | Experiments, grid search, PRD, future ideas |
+| Scoring thresholds / weight tuning | `docs/1.2-news-scoring-tuning.md` | All thresholds, scoring flow, tuning approach |
+| News threading | `docs/1.3-news-threading.md` | Algorithm, scoring constants |
+| Threading R&D history | `docs/1.3-news-threading-archive.md` | Experiments, grid search, PRD, future ideas |
 | Embedding models | `docs/archive/1.3-embedding-ab-test.md` | Model comparison, 3-zone gate (archived — not cost-effective under 2-step LLM) |
-| Scoring thresholds / weight tuning | `docs/1.4-news-scoring-tuning.md` | All thresholds, scoring flow, tuning approach |
 | News frontend / components | `docs/2-news-frontend.md` | Component props, data flow, known hacks |
 | Stories tab / thread hierarchy | `docs/2.1-thread-stories.md` | StoriesTab component, heat scores, parent threads |
 | SEO / metadata / structured data | `docs/2.2-news-seo.md` | JSON-LD, sitemap, RSS, robots, OG images |

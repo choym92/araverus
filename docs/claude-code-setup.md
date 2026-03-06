@@ -185,8 +185,8 @@ docs/
 ├── claude-code-setup.md    # This file
 ├── 1-news-backend.md       # Pipeline scripts, crawling, briefing
 ├── 1.1-news-google-search.md  # Search flow, domain blocking
-├── 1.2-news-threading.md   # Thread grouping algorithm
-├── 1.3-embedding-ab-test.md   # Embedding model comparison
+├── 1.2-news-scoring-tuning.md # Scoring pipeline, quality gates
+├── 1.3-news-threading.md   # Thread grouping algorithm
 ├── 2-news-frontend.md      # /news page components
 ├── 3-blog-writing-guide.md # MDX blog authoring
 └── pipeline-audit/         # Per-script audit docs

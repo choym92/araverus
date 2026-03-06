@@ -189,7 +189,7 @@ Crawls resolved URLs with quality + relevance verification.
 | `--concurrent N` | 1 | Parallel WSJ items via asyncio.Semaphore |
 
 - **IMPORTANT:** Production pipeline (`run_pipeline.sh`) uses `--from-db` to avoid a URL cross-contamination bug: when reading from file, shared candidate URLs across WSJ items can cause `mark_other_articles_skipped` to skip ALL candidates for an item whose success record belongs to a different `wsj_item_id` (due to upsert on UNIQUE `resolved_url`). `--from-db` reads directly from DB grouped by `wsj_item_id`, ensuring each item only processes its own candidates.
-- Sorted by `weighted_score = 0.50 × embedding + 0.25 × wilson + 0.25 × (avg_llm / 10)`. Defaults: wilson=0.4 when total attempts < 3, avg_llm=5.0 when NULL. Both `weighted_score` and `attempt_order` (1-indexed rank) are stored in `wsj_crawl_results` before the crawl loop for analysis (see `docs/1.4-news-scoring-tuning.md`)
+- Sorted by `weighted_score = 0.50 × embedding + 0.25 × wilson + 0.25 × (avg_llm / 10)`. Defaults: wilson=0.4 when total attempts < 3, avg_llm=5.0 when NULL. Both `weighted_score` and `attempt_order` (1-indexed rank) are stored in `wsj_crawl_results` before the crawl loop for analysis (see `docs/1.2-news-scoring-tuning.md`)
 - Per-article: crawl → garbage check → embedding relevance (≥ 0.25) → **Step 1 LLM gate** (Flash-Lite) → accept/reject
   - **Step 1 (Flash-Lite):** Outputs `relevance_score`, `is_same_event`, `confidence`, `content_quality` → sets `relevance_flag` (ok/low)
   - **Step 2 (Flash full):** Runs only on `relevance_flag='ok'` articles (~60/day). Outputs `headline`, `summary`, `key_takeaway`, `keywords`, `importance`, etc. Slug is generated from `headline` after Step 2 completes.
