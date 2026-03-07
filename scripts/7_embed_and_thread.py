@@ -18,6 +18,9 @@ Usage:
     python scripts/7_embed_and_thread.py --legacy        # Use old heuristic matching
     python scripts/7_embed_and_thread.py --skip-analysis # Skip thread analysis (step B)
     python scripts/7_embed_and_thread.py --skip-parents  # Skip parent grouping (step C)
+    python scripts/7_embed_and_thread.py --days 7          # Process last 7 days (catch-up)
+    python scripts/7_embed_and_thread.py --days 0          # Process all unthreaded (no date limit)
+    python scripts/7_embed_and_thread.py --rejudge         # Re-evaluate already-judged articles
     python scripts/7_embed_and_thread.py --seed-golden ../notebooks/golden_dataset_v2.1.json
 
 """
@@ -298,16 +301,26 @@ def get_active_threads(supabase: Client) -> list[dict]:
     return response.data or []
 
 
-def get_unthreaded_articles(supabase: Client) -> list[dict]:
+def get_unthreaded_articles(supabase: Client, days: int = 3, skip_judged: bool = True) -> list[dict]:
     """Get articles with embeddings but no thread assignment.
-    Includes keywords and summary from LLM analysis for Judge context.
+
+    Args:
+        days: Only consider articles published within this many days (default 3).
+              Use 0 or negative for no date filter.
+        skip_judged: Skip articles that already have a judgment record (default True).
     """
-    response = supabase.table('wsj_items') \
+    cutoff = (datetime.now(timezone.utc) - timedelta(days=days)).isoformat() if days > 0 else None
+
+    query = supabase.table('wsj_items') \
         .select('id, title, published_at, creator, description, wsj_embeddings(embedding), wsj_crawl_results(wsj_llm_analysis(keywords, summary, key_entities, sentiment))') \
         .is_('thread_id', 'null') \
         .order('published_at', desc=True) \
-        .limit(500) \
-        .execute()
+        .limit(500)
+
+    if cutoff:
+        query = query.gte('published_at', cutoff)
+
+    response = query.execute()
 
     results = []
     for item in (response.data or []):
@@ -364,6 +377,23 @@ def get_unthreaded_articles(supabase: Client) -> list[dict]:
             'sentiment': sentiment,
             'embedding': np.array(raw_emb, dtype=np.float32),
         })
+
+    # Filter out articles that already have a judgment record
+    if skip_judged and results:
+        article_ids = [r['id'] for r in results]
+        # Batch query in chunks of 100 to avoid URL length limits
+        judged_ids: set[str] = set()
+        for i in range(0, len(article_ids), 100):
+            chunk = article_ids[i:i + 100]
+            resp = supabase.table('wsj_thread_judgments') \
+                .select('article_id') \
+                .in_('article_id', chunk) \
+                .execute()
+            judged_ids.update(j['article_id'] for j in (resp.data or []))
+        if judged_ids:
+            before = len(results)
+            results = [r for r in results if r['id'] not in judged_ids]
+            print(f"  Skipped {before - len(results)} already-judged articles ({len(results)} remaining)")
 
     return results
 
@@ -568,9 +598,10 @@ def _update_thread_centroid(supabase: Client, thread: dict, new_embeddings: list
     }).eq('id', thread['id']).execute()
 
 
-def assign_threads(supabase: Client, dry_run: bool = False, legacy: bool = False) -> dict:
+def assign_threads(supabase: Client, dry_run: bool = False, legacy: bool = False,
+                    days: int = 3, skip_judged: bool = True) -> dict:
     """Match unthreaded articles to existing or new threads."""
-    articles = get_unthreaded_articles(supabase)
+    articles = get_unthreaded_articles(supabase, days=days, skip_judged=skip_judged)
     if not articles:
         print("No unthreaded articles.")
         return {'matched': 0, 'new_threads': 0, 'merged': 0}
@@ -647,11 +678,11 @@ def assign_threads(supabase: Client, dry_run: bool = False, legacy: bool = False
     new_thread_count = 0
     merged_count = 0
 
-    cutoff = (datetime.now(timezone.utc) - timedelta(days=2)).strftime('%Y-%m-%d')
-    recent_unmatched = [a for a in unmatched if a.get('published_at', '')[:10] >= cutoff]
+    group_cutoff = (datetime.now(timezone.utc) - timedelta(days=min(days, 3))).strftime('%Y-%m-%d')
+    recent_unmatched = [a for a in unmatched if a.get('published_at', '')[:10] >= group_cutoff]
 
     if len(recent_unmatched) >= 2:
-        print(f"  Grouping {len(recent_unmatched)} recent unmatched articles with LLM (cutoff: {cutoff})...")
+        print(f"  Grouping {len(recent_unmatched)} recent unmatched articles with LLM (cutoff: {group_cutoff})...")
         groups = group_unmatched_with_llm(recent_unmatched)
         print(f"  LLM created {len(groups)} new thread groups")
 
@@ -1382,6 +1413,10 @@ def main():
     parser.add_argument('--legacy', action='store_true', help='Use old heuristic matching (fallback)')
     parser.add_argument('--skip-analysis', action='store_true', help='Skip thread analysis (step B)')
     parser.add_argument('--skip-parents', action='store_true', help='Skip parent grouping (step C)')
+    parser.add_argument('--days', type=int, default=3,
+                        help='Only process articles from last N days (default 3, 0=all)')
+    parser.add_argument('--rejudge', action='store_true',
+                        help='Re-evaluate already-judged articles')
     parser.add_argument('--seed-golden', type=str, default=None,
                         help='Seed threads from golden dataset JSON, then exit')
     args = parser.parse_args()
@@ -1415,9 +1450,12 @@ def main():
 
     # Step 2: Assign threads
     mode_label = "legacy heuristic" if args.legacy else "LLM Judge"
-    print(f"\n[2/5] Assigning threads ({mode_label})...")
+    days_label = f"last {args.days}d" if args.days > 0 else "all"
+    judged_label = "rejudge" if args.rejudge else "skip-judged"
+    print(f"\n[2/5] Assigning threads ({mode_label}, {days_label}, {judged_label})...")
     t0 = time.time()
-    result = assign_threads(supabase, dry_run=args.dry_run, legacy=args.legacy)
+    result = assign_threads(supabase, dry_run=args.dry_run, legacy=args.legacy,
+                            days=args.days, skip_judged=not args.rejudge)
     print(f"  Matched: {result['matched']}, New threads: {result['new_threads']}, Merged: {result.get('merged', 0)}")
     print(f"  [TIMING] assign: {time.time() - t0:.1f}s")
 
